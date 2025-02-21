@@ -8,7 +8,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
 import { EditorView } from "@codemirror/view"
 import { Compartment, EditorState } from "@codemirror/state"
-import { Pencil, Eye } from "lucide-react"
+import { Pencil1Icon, EyeOpenIcon } from "@radix-ui/react-icons"
 import usePersistedSettings from "@/hooks/use-persisted-settings"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Vim, vim } from "@replit/codemirror-vim"
@@ -24,7 +24,6 @@ import { md, frontmatter, syntaxHighlighting, theme as editorTheme } from "@/com
 import { setFile } from "@/components/markdown-inline"
 import { DotIcon } from "@/components/ui/icons"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useToast } from "@/hooks/use-toast"
 import { SearchProvider } from "@/context/search-context"
 import { SearchCommand } from "@/components/search-command"
 import { jsPDF } from "jspdf"
@@ -76,7 +75,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const { settings } = usePersistedSettings()
   const codeMirrorViewRef = useRef<EditorView | null>(null)
   const readingModeRef = useRef<HTMLDivElement>(null)
-  const { toast } = useToast()
   const [showNotes, setShowNotes] = useState(false)
   const toggleNotes = useCallback(() => setShowNotes((prev) => !prev), [])
 
@@ -103,9 +101,13 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   useEffect(() => {
     if (currentFile && vault) {
-      db.notes.where('fileId').equals(currentFile).toArray().then(loadedNotes => {
-        setNotes(loadedNotes)
-      })
+      db.notes
+        .where("fileId")
+        .equals(currentFile)
+        .toArray()
+        .then((loadedNotes) => {
+          setNotes(loadedNotes)
+        })
     }
   }, [currentFile, vault])
 
@@ -152,14 +154,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           returnHast: true,
         })
         setPreviewNode(tree)
-      } catch (error) {
-        toast({
-          title: "Conversion failed",
-          description: error instanceof Error ? error.message : "Failed to convert markdown",
-        })
-      }
+      } catch (error) {}
     },
-    [currentFile, toast, settings, vaultId],
+    [currentFile, settings, vaultId],
   )
 
   const onContentChange = useCallback(
@@ -246,7 +243,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       if (showNotes) {
         try {
           const generatedNotes = await fetchNewNotes(markdownContent)
-          const newNotes: Note[] = generatedNotes.map(note => ({
+          const newNotes: Note[] = generatedNotes.map((note) => ({
             id: createId(),
             content: note.content,
             color: generatePastelColor(),
@@ -254,29 +251,14 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             vaultId: vault!.id,
             isInEditor: false,
             createdAt: new Date(),
-            lastModified: new Date()
+            lastModified: new Date(),
           }))
-          await Promise.all(newNotes.map(note => db.notes.add(note)))
-          setNotes(prev => [...prev, ...newNotes])
-        } catch (error) {
-          toast({
-            title: "Note generation failed",
-            description: error instanceof Error ? error.message : "Please try again later",
-            variant: "destructive",
-          })
-        }
+          await Promise.all(newNotes.map((note) => db.notes.add(note)))
+          setNotes((prev) => [...prev, ...newNotes])
+        } catch (error) {}
       }
     } catch {}
-  }, [
-    currentFileHandle,
-    markdownContent,
-    currentFile,
-    vault,
-    refreshVault,
-    vaultId,
-    showNotes,
-    toast,
-  ])
+  }, [currentFileHandle, markdownContent, currentFile, vault, refreshVault, vaultId, showNotes])
 
   const memoizedExtensions = useMemo(() => {
     const tabSize = new Compartment()
@@ -313,7 +295,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     const timerId = setTimeout(async () => {
       try {
         const generatedNotes = await fetchNewNotes(markdownContent)
-        const newNotes: Note[] = generatedNotes.map(note => ({
+        const newNotes: Note[] = generatedNotes.map((note) => ({
           id: createId(),
           content: note.content,
           color: generatePastelColor(),
@@ -321,15 +303,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           vaultId: vault!.id,
           isInEditor: false,
           createdAt: new Date(),
-          lastModified: new Date()
+          lastModified: new Date(),
         }))
-        await Promise.all(newNotes.map(note => db.notes.add(note)))
-        setNotes(prev => [...prev, ...newNotes])
-      } catch (error) {
-        toast({
-          title: "Note generation failed",
-          description: error instanceof Error ? error.message : "Please try again later",
-        })
+        await Promise.all(newNotes.map((note) => db.notes.add(note)))
+        setNotes((prev) => [...prev, ...newNotes])
+      } catch {
+        // TODO: do something with the error, silent for now
       } finally {
         setIsNotesLoading(false)
       }
@@ -338,7 +317,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     return () => {
       clearTimeout(timerId)
     }
-  }, [showNotes, markdownContent, toast, currentFile, vault])
+  }, [showNotes, markdownContent, currentFile, vault])
 
   const onFileSelect = useCallback((handle: FileSystemFileHandle) => {
     setCurrentFileHandle(handle)
@@ -362,7 +341,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         // TODO: update MermaidViewer
         // We capture the error for rendering mermaid diagram
         try {
-          await window.mermaid.run({ nodes })
+          if (mermaid !== undefined) await mermaid.run({ nodes })
         } catch {}
       } else if ((event.ctrlKey || event.metaKey) && event.key === "s") {
         event.preventDefault()
@@ -394,14 +373,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         setMarkdownContent(content)
         setHasUnsavedChanges(false)
         updatePreview(content)
-      } catch (error) {
-        toast({
-          title: "Error opening file",
-          description: error instanceof Error ? error.message : "Failed to open file",
-        })
+      } catch {
+        //TODO: do something with the error
       }
     },
-    [vault, codeMirrorViewRef, updatePreview, toast, setHasUnsavedChanges],
+    [vault, codeMirrorViewRef, updatePreview, setHasUnsavedChanges],
   )
 
   // Effect to update vim mode when settings change, with keybinds
@@ -414,19 +390,19 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [handleSave, toast, toggleNotes, settings, handleKeyDown])
+  }, [handleSave, toggleNotes, settings, handleKeyDown])
 
   const handleNoteGeneration = useCallback(async () => {
     if (!showNotes || isGenerating || !currentFile || !vault) return
-    
+
     setIsGenerating(true)
     try {
-      const count = await db.notes.where('fileId').equals(currentFile).count()
+      const count = await db.notes.where("fileId").equals(currentFile).count()
       const shouldGenerate = count === 0 && markdownContent.length > 1000
-      
+
       if (shouldGenerate) {
         const generatedNotes = await fetchNewNotes(markdownContent)
-        const newNotes: Note[] = generatedNotes.map(note => ({
+        const newNotes: Note[] = generatedNotes.map((note) => ({
           id: createId(),
           content: note.content,
           color: generatePastelColor(),
@@ -434,20 +410,17 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           vaultId: vault.id,
           isInEditor: false,
           createdAt: new Date(),
-          lastModified: new Date()
+          lastModified: new Date(),
         }))
-        await Promise.all(newNotes.map(note => db.notes.add(note)))
-        setNotes(prev => [...prev, ...newNotes])
+        await Promise.all(newNotes.map((note) => db.notes.add(note)))
+        setNotes((prev) => [...prev, ...newNotes])
       }
-    } catch (error) {
-      toast({
-        title: "Note generation failed",
-        description: error instanceof Error ? error.message : "Please try again later",
-      })
+    } catch {
+      // TODO: do something with error
     } finally {
       setIsGenerating(false)
     }
-  }, [showNotes, isGenerating, currentFile, vault, markdownContent, toast])
+  }, [showNotes, isGenerating, currentFile, vault, markdownContent])
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -456,8 +429,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           <SidebarProvider defaultOpen={true}>
             <Explorer
               vault={vault!}
-              currentFile={currentFile}
-              markdownContent={markdownContent}
               editorViewRef={codeMirrorViewRef}
               onFileSelect={onFileSelect}
               onNewFile={onNewFile}
@@ -573,9 +544,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   <span>{markdownContent.split(/\s+/).filter(Boolean).length} words</span>
                   <span>{markdownContent.length} chars</span>
                   {isEditMode ? (
-                    <Eye className="h-3 w-3 p-0" widths={16} height={16} />
+                    <EyeOpenIcon className="h-3 w-3 p-0" widths={16} height={16} />
                   ) : (
-                    <Pencil className="h-3 w-3 p-0" widths={16} height={16} />
+                    <Pencil1Icon className="h-3 w-3 p-0" widths={16} height={16} />
                   )}
                 </div>
               </footer>

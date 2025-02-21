@@ -1,7 +1,8 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react"
-import useVaults, { type FileSystemTreeNode, type Vault } from "@/hooks/use-vaults"
+import useVaults from "@/hooks/use-vaults"
+import type { Vault, FileSystemTreeNode } from "@/db"
 
 type VaultContextType = {
   activeVaultId: string | null

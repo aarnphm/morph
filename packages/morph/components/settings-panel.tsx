@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
-import { X, Cog } from "lucide-react"
+import { Cross1Icon, GearIcon } from "@radix-ui/react-icons"
 import usePersistedSettings, { Settings } from "@/hooks/use-persisted-settings"
 import { useTheme } from "next-themes"
 import { Textarea } from "@/components/ui/textarea"
@@ -372,7 +372,7 @@ const CorePluginsSettings = React.memo(function CorePluginsSettings({
 }) {
   const { settings, updateSettings } = usePersistedSettings()
 
-  const CogMemo = React.useMemo(() => <Cog className="h-3 w-3" />, [])
+  const CogMemo = React.useMemo(() => <GearIcon className="h-3 w-3" />, [])
 
   const pluginItems = React.useMemo(
     () =>
@@ -532,7 +532,7 @@ export const SettingsPanel = React.memo(function SettingsPanel({
             className="h-6 w-6 p-0 absolute top-3 right-3 bg-transparent hover:bg-slate-200 dark:hover:bg-slate-600/50 z-20"
             onClick={onClose}
           >
-            <X className="h-3 w-3 p-0" width={16} height={16} />
+            <Cross1Icon className="h-3 w-3 p-0" width={16} height={16} />
           </Button>
           <ScrollArea className="h-[calc(85vh-60px)] pt-8 pb-16 px-12">
             {renderActiveCategory()}

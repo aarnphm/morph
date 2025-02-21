@@ -1,9 +1,14 @@
 import type * as React from "react"
 import { useState, useCallback, memo, useMemo } from "react"
-import { ChevronRight, ChevronDown, Plus, Download, Home } from "lucide-react"
+import {
+  ChevronRightIcon,
+  ChevronDownIcon,
+  PlusIcon,
+  DownloadIcon,
+  HomeIcon,
+} from "@radix-ui/react-icons"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { md } from "@/components/parser"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -24,11 +29,9 @@ import {
   SidebarRail,
   SidebarHeader,
 } from "@/components/ui/sidebar"
-import jsPDF from "jspdf"
-import { Vault } from "@/hooks/use-vaults"
 import { EditorView } from "@uiw/react-codemirror"
-import { setFile } from "./markdown-inline"
-import { FileSystemTreeNode } from "@/hooks/use-vaults"
+import { setFile } from "@/components/markdown-inline"
+import { Vault, FileSystemTreeNode } from "@/db"
 
 interface FileTreeNodeProps {
   node: FileSystemTreeNode
@@ -36,6 +39,7 @@ interface FileTreeNodeProps {
 }
 
 // TODO: reducer and context for states
+// https://react.dev/learn/scaling-up-with-reducer-and-context
 const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect }: FileTreeNodeProps) {
   const [isOpen, setIsOpen] = useState(node.isOpen ?? false)
 
@@ -49,13 +53,13 @@ const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect }: FileTree
 
   const MemoizedSidebarFolderItem = useMemo(
     () => (
-      <SidebarMenuItem className="hover:bg-accent/50 transition-colors">
-        <CollapsibleTrigger asChild>
-          <SidebarMenuButton onClick={toggleOpen}>
+      <SidebarMenuItem>
+        <CollapsibleTrigger asChild className="cursor-pointer">
+          <SidebarMenuButton onClick={toggleOpen} className="w-full">
             {isOpen ? (
-              <ChevronDown className="transition-transform w-4 h-4 mr-1 shrink-0" />
+              <ChevronDownIcon className="transition-transform w-4 h-4 mr-1 shrink-0" />
             ) : (
-              <ChevronRight className="transition-transform w-4 h-4 mr-1 shrink-0" />
+              <ChevronRightIcon className="transition-transform w-4 h-4 mr-1 shrink-0" />
             )}
             <span className="truncate">{node.name}</span>
           </SidebarMenuButton>
@@ -80,7 +84,7 @@ const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect }: FileTree
   const MemoizedSidebarFileItem = useMemo(
     () => (
       <SidebarMenuButton
-        className="data-[active=true]:bg-transparent hover:bg-accent/50 transition-colors flex items-center cursor-pointer"
+        className="data-[active=true]:bg-transparent hover:bg-accent/50 transition-colors flex items-center cursor-pointer w-full"
         onClick={handleFileClick}
       >
         <span className="truncate">{node.name}</span>
@@ -111,8 +115,6 @@ interface MorphSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onContentUpdate?: (content: string) => void
   onExportMarkdown: () => void
   onExportPdf: () => void
-  currentFile: string
-  markdownContent: string
 }
 
 const ExplorerHeader = memo(function ExplorerHeader({
@@ -157,7 +159,7 @@ const ExplorerHeader = memo(function ExplorerHeader({
         title="Manage Vault"
         onClick={onManageVault}
       >
-        <Home className="h-3 w-3 p-0" />
+        <HomeIcon className="h-3 w-3 p-0" />
       </Button>
     ),
     [onManageVault],
@@ -173,7 +175,7 @@ const ExplorerHeader = memo(function ExplorerHeader({
         disabled={!vault}
         onClick={onNewFileClick}
       >
-        <Plus className="h-3 w-3" width={16} height={16} />
+        <PlusIcon className="h-3 w-3" width={16} height={16} />
       </Button>
     ),
     [onNewFileClick, vault],
@@ -182,7 +184,7 @@ const ExplorerHeader = memo(function ExplorerHeader({
   const exportButton = useMemo(
     () => (
       <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Export">
-        <Download className="h-3 w-3" width={16} height={16} />
+        <DownloadIcon className="h-3 w-3" width={16} height={16} />
       </Button>
     ),
     [],
@@ -225,8 +227,6 @@ export default memo(function Explorer({
   onContentUpdate,
   onExportMarkdown,
   onExportPdf,
-  currentFile,
-  markdownContent,
   ...props
 }: MorphSidebarProps) {
   const { toast } = useToast()

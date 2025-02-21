@@ -1,28 +1,17 @@
 import { useState, useCallback } from "react"
-import { useToast } from "@/hooks/use-toast"
 import usePersistedSettings from "@/hooks/use-persisted-settings"
 import { minimatch } from "minimatch"
 import { createId } from "@paralleldrive/cuid2"
-import { db, type Vault, type Reference, type FileSystemTreeNode, type VaultConfig } from "@/db"
+import { db, type Vault, type Reference, type FileSystemTreeNode } from "@/db"
 
 const VAULT_IDS_KEY = "morph:vault-ids"
 const CHUNK_SIZE = 5
 const PROCESS_DELAY = 1
 
-export const getReferenceByVaultId = async (vaultId: string): Promise<Reference[]> => {
-  try {
-    return await db.references.where("vaultId").equals(vaultId).toArray()
-  } catch (error) {
-    console.error("Error fetching references for vault:", error)
-    return []
-  }
-}
-
 // TODO: refactor with Reducer and better used with @/context/vault-context
 export default function useVaults() {
   const [vaults, setVaults] = useState<Vault[]>([])
   const [references, setReferences] = useState<Map<string, Reference[]>>(new Map())
-  const { toast } = useToast()
   const { defaultSettings } = usePersistedSettings()
 
   const processDirectory = useCallback(
@@ -120,15 +109,12 @@ export default function useVaults() {
           return updatedVault
         }
 
-        const config = await initializeVaultConfig(handle, defaultSettings)
         const tree = await processDirectory(handle, config.ignorePatterns)
 
         const id = await db.addVaultWithReference({
           name: handle.name,
           lastOpened: new Date(),
-          handle,
           tree,
-          config,
         })
 
         const newVault = await db.vaults.get(id)
@@ -142,11 +128,10 @@ export default function useVaults() {
         return newVault
       } catch (error) {
         console.error("Error adding vault:", error)
-        toast({ title: "Error Adding Vault", variant: "destructive" })
         return null
       }
     },
-    [vaults, toast, defaultSettings, processDirectory],
+    [vaults, defaultSettings, processDirectory],
   )
 
   const refreshVault = useCallback(
@@ -232,14 +217,8 @@ export default function useVaults() {
         }),
       )
       setVaults(loadedVaults.filter(Boolean) as Vault[])
-    } catch {
-      toast({
-        title: "Error Loading Vaults",
-        description: "Failed to load vaults",
-        variant: "destructive",
-      })
-    }
-  }, [toast, processDirectory, updateVaultReferences])
+    } catch {}
+  }, [processDirectory, updateVaultReferences])
 
   return {
     vaults,
@@ -254,30 +233,10 @@ export default function useVaults() {
         return await db.vaults.toArray()
       } catch (error) {
         console.error("Error fetching all vaults:", error)
-        toast({ title: "Error Loading Vaults", variant: "destructive" })
         return []
       }
-    }, [toast]),
+    }, []),
     updateReference,
-    getReferenceByVaultId,
-  }
-}
-
-// Helper functions
-async function initializeVaultConfig(handle: FileSystemDirectoryHandle, defaults: VaultConfig) {
-  try {
-    const morphDir = await handle.getDirectoryHandle(".morph", { create: true })
-    const configFile = await morphDir.getFileHandle("config.json", { create: true })
-    const file = await configFile.getFile()
-    return JSON.parse(await file.text()) as VaultConfig
-  } catch {
-    const config: VaultConfig = { ...defaults }
-    const morphDir = await handle.getDirectoryHandle(".morph", { create: true })
-    const configFile = await morphDir.getFileHandle("config.json", { create: true })
-    const writable = await configFile.createWritable()
-    await writable.write(JSON.stringify(config, null, 2))
-    await writable.close()
-    return config
   }
 }
 

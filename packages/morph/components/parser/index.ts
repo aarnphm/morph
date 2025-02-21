@@ -45,7 +45,7 @@ import { parseCitation } from "rehype-citation/node/src/parse-citation.js"
 import { genBiblioNode } from "rehype-citation/node/src/gen-biblio.js"
 import { genFootnoteSection } from "rehype-citation/node/src/gen-footnote.js"
 import { type Settings } from "@/hooks/use-persisted-settings"
-import { getReferenceByVaultId } from "@/hooks/use-vaults"
+import { db } from "@/db"
 
 export type MorphPluginData = Data
 export type MorphParser = {
@@ -811,7 +811,7 @@ const Citations = {
           csl: "apa",
           lang: "en-US",
         }
-        const files = await getReferenceByVaultId(vaultId)
+        const files = await db.references.where("vaultId").equals(vaultId).toArray()
         // TODO: add more format support
         const config = (Cite.plugins as { config: any }).config.get("@csl")
         const bibliography: string[] = await Promise.all(

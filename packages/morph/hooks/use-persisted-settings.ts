@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useVaultContext } from "@/context/vault-context"
-import { useToast } from "@/hooks/use-toast"
+import { defaultSettings } from "@/db"
 
 export interface Settings {
   vimMode: boolean
@@ -15,38 +15,16 @@ export interface Settings {
   }
 }
 
-const defaultSettings: Settings = {
-  vimMode: false,
-  tabSize: 2,
-  ignorePatterns: [
-    "**/.*",
-    "**/node_modules/**",
-    ".vercel/**",
-    "**/dist/**",
-    "__pycache__/**",
-    "*.log",
-    ".DS_Store",
-    ".obsidian", // TODO: support obsidian vault
-  ],
-  editModeShortcut: "e",
-  notePanelShortcut: "i",
-  citation: {
-    enabled: false,
-    format: "biblatex",
-  },
-}
-
 export default function usePersistedSettings() {
   const [settings, setSettings] = useState<Settings>(defaultSettings)
   const [isLoaded, setIsLoaded] = useState(false)
   const { getActiveVault } = useVaultContext()
-  const { toast } = useToast()
 
   useEffect(() => {
     const loadSettings = async () => {
       try {
         const vault = getActiveVault()
-        if (!vault?.handle) {
+        if (!vault?.tree.handle) {
           setIsLoaded(true)
           return
         }
@@ -63,18 +41,13 @@ export default function usePersistedSettings() {
         }
       } catch (error) {
         console.error("Failed to load settings:", error)
-        toast({
-          title: "Error Loading Settings",
-          description: "Failed to load settings from vault",
-          variant: "destructive",
-        })
       } finally {
         setIsLoaded(true)
       }
     }
 
     loadSettings()
-  }, [getActiveVault, toast])
+  }, [getActiveVault])
 
   const updateSettings = async (newSettings: Partial<Settings>) => {
     try {
@@ -92,11 +65,6 @@ export default function usePersistedSettings() {
       await writable.close()
     } catch (error) {
       console.error("Failed to save settings:", error)
-      toast({
-        title: "Error Saving Settings",
-        description: "Failed to save settings to vault",
-        variant: "destructive",
-      })
     }
   }
 

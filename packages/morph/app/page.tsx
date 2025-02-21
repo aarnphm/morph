@@ -1,7 +1,7 @@
 "use client"
 
 import { usePathname, useRouter } from "next/navigation"
-import { FolderSearch, Clock } from "lucide-react"
+import { MagnifyingGlassIcon, ClockIcon } from "@radix-ui/react-icons"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card"
 import { type Vault } from "@/db"
@@ -91,7 +91,7 @@ export default function Home() {
     return (
       <Card className="group rounded-md">
         <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-          <FolderSearch className="w-12 h-12 text-muted-foreground mb-4" />
+          <MagnifyingGlassIcon className="w-12 h-12 text-muted-foreground mb-4" />
           <CardTitle className="mb-2">No Vaults Found</CardTitle>
           <CardDescription>
             Get started by opening a new vault to use with{" "}
@@ -111,12 +111,12 @@ export default function Home() {
             <p className="text-muted-foreground mt-2 italic">Manage recently opened vaults</p>
           </hgroup>
           <Button onClick={handleOpenDirectory} className="gap-2 cursor-pointer">
-            <FolderSearch className="w-4 h-4" ref={searchRef} />
+            <MagnifyingGlassIcon className="w-4 h-4" ref={searchRef} />
             Open New Vault
           </Button>
         </section>
         <div className="flex items-center gap-2 text-sm text-muted-foreground my-4">
-          <Clock className="w-4 h-4" ref={clockRef} />
+          <ClockIcon className="w-4 h-4" ref={clockRef} />
           Recently Opened
         </div>
         <section className="grid gap-4">

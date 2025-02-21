@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react"
-import { Copy, Settings } from "lucide-react"
+import { CopyIcon, GearIcon } from "@radix-ui/react-icons"
 import { Button } from "@/components/ui/button"
 import { SettingsPanel } from "./settings-panel"
 
@@ -25,13 +25,13 @@ export function Toolbar({ toggleNotes }: ToolbarProps) {
   const MemoizedSettingsButton = useMemo(
     () => (
       <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleOpenSettings}>
-        <Settings className="h-3 w-3" width={16} height={16} />
+        <GearIcon className="h-3 w-3" width={16} height={16} />
       </Button>
     ),
     [handleOpenSettings],
   )
 
-  const MemoizedCopyIcon = useMemo(() => <Copy className="h-3 w-3" width={16} height={16} />, [])
+  const MemoizedCopyIcon = useMemo(() => <CopyIcon className="h-3 w-3" width={16} height={16} />, [])
 
   const MemoizedCopyButton = useMemo(
     () => (

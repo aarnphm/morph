@@ -7,12 +7,20 @@ export interface Vault {
   name: string
   lastOpened: Date
   tree: FileSystemTreeNode
-  config: VaultConfig
+  settings: Settings
 }
 
-export interface VaultConfig {
+export interface Settings {
+  vimMode: boolean
+  tabSize: number
   ignorePatterns: string[]
-  theme?: "light" | "dark" | "system"
+  editModeShortcut: string
+  notePanelShortcut: string
+  citation: {
+    enabled: boolean
+    format: "biblatex" | "csl-json"
+    databasePath?: string
+  }
 }
 
 export interface FileSystemTreeNode {
@@ -46,7 +54,7 @@ export interface Note {
   lastModified: Date
 }
 
-export class MorphDB extends Dexie {
+export class Morph extends Dexie {
   vaults!: Table<Vault, string>
   references!: Table<Reference, string>
   notes!: Table<Note, string>
@@ -81,4 +89,25 @@ export class MorphDB extends Dexie {
   }
 }
 
-export const db = new MorphDB()
+export const db = new Morph()
+
+export const defaultSettings: Settings = {
+  vimMode: false,
+  tabSize: 2,
+  ignorePatterns: [
+    "**/.*",
+    "**/node_modules/**",
+    ".vercel/**",
+    "**/dist/**",
+    "__pycache__/**",
+    "*.log",
+    ".DS_Store",
+    ".obsidian", // TODO: support obsidian vault
+  ],
+  editModeShortcut: "e",
+  notePanelShortcut: "i",
+  citation: {
+    enabled: false,
+    format: "biblatex",
+  },
+}
