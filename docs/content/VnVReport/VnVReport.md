@@ -12,7 +12,7 @@ title: Verification and Validation Report
 | Date          | Version | Notes              |
 | :------------ | :------ | :----------------- |
 | Sept. 16 2024 | 0.0     | Initial skafolding |
-| Mar. 03 2025  | 1.0     | Rev1               |
+| Mar. 03 2025  | 0.1     | Rev0               |
 
 ## Symbols, Abbreviations and Acronyms
 
