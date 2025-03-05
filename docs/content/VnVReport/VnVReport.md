@@ -12,14 +12,26 @@ title: Verification and Validation Report
 | Date          | Version | Notes              |
 | :------------ | :------ | :----------------- |
 | Sept. 16 2024 | 0.0     | Initial skafolding |
+| Mar. 03 2025  | 1.0     | Rev1               |
 
 ## Symbols, Abbreviations and Acronyms
 
-| symbol | description |
-| :----- | :---------- |
-| T      | Test        |
+| **symbol** | **description**                                        |
+| ---------- | ------------------------------------------------------ |
+| AC         | Anticipated Change                                     |
+| DOM        | Document Object Model                                  |
+| FR         | Functional Requirement                                 |
+| GPU        | Graphics Processing Unit                               |
+| M          | Module                                                 |
+| MG         | Module Guide                                           |
+| OS         | Operating System                                       |
+| PDF        | Portable Document Format                               |
+| R          | Requirement                                            |
+| SRS        | Software Requirements Specification                    |
+| tinymorph  | the text editor that helps you to become better writer |
+| UC         | Unlikely Change                                        |
 
-symbols, abbreviations or acronyms -- you can reference the SRS tables if needed
+![[SRS/SRS#7.2 Data Dictionary|Data Dictionary]]
 
 ## Table of Contents
 
@@ -27,7 +39,9 @@ symbols, abbreviations or acronyms -- you can reference the SRS tables if needed
 
 ## List of Figures
 
-This document ...
+## Introduction
+
+This document is intended to provide an overview of the testing that performed throughout the development of the project `tinymorph`, including the obtained results and the relevant discussions. The tests are under the guidance from [[VnVPlan/VnVPlan|VnVplan]].
 
 ## Functional Requirements Evaluation
 
