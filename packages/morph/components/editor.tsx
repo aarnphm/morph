@@ -29,7 +29,7 @@ import { SearchCommand } from "@/components/search-command"
 import { DndProvider } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
 import { NotesProvider } from "@/context/notes-context"
-import { EditorNotes } from "@/components/editor-notes"
+import { EditorDropZone } from "@/components/editor-notes"
 import { generatePastelColor } from "@/lib/notes"
 import { notesService } from "@/services/notes-service"
 import { db, type Note, type Vault, type FileSystemTreeNode } from "@/db"
@@ -154,6 +154,24 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   )
 
   const fetchNewNotes = async (content: string): Promise<GeneratedNote[]> => {
+    return Promise.resolve([
+      {
+        title: "Dummy Note 1",
+        content: "This is dummy note content number 1.",
+      },
+      {
+        title: "Dummy Note 2",
+        content: "This is dummy note content number 2.",
+      },
+      {
+        title: "Dummy Note 3",
+        content: "This is dummy note content number 3.",
+      },
+    ]);
+  };
+  
+  /*
+  const fetchNewNotes = async (content: string): Promise<GeneratedNote[]> => {
     try {
       const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT
       if (!apiEndpoint) {
@@ -189,7 +207,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       throw error
     }
   }
-
+  */
   const handleSave = useCallback(async () => {
     try {
       let targetHandle = currentFileHandle
@@ -297,7 +315,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     return () => {
       clearTimeout(timerId)
     }
-  }, [showNotes, markdownContent, currentFile, vault])
+  }, [showNotes, /*markdownContent,*/ currentFile, vault])
 
   const onFileSelect = useCallback((handle: FileSystemFileHandle) => {
     setCurrentFileHandle(handle)
@@ -424,6 +442,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               </header>
               <section className="flex h-[calc(100vh-104px)] gap-10 m-4">
                 <div className="flex-1 relative border">
+                  <EditorDropZone />
                   <div
                     className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
                   >
@@ -431,7 +450,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       <div className="absolute top-4 left-4 text-sm/7 z-10 flex items-center gap-2">
                         {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
                       </div>
-                      <EditorNotes />
                       <CodeMirror
                         value={markdownContent}
                         height="100%"
@@ -454,6 +472,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                           codeMirrorViewRef.current = view
                         }}
                       />
+                      
                     </div>
                   </div>
                   <div
@@ -494,18 +513,40 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       ) : (
                         <div className="grid gap-4">
                           {notes.map((note, index) => (
-                            <NoteCard
+                            <div
                               key={index}
+                              draggable={true}
+                              onDragEnd={(e) => {
+                                // Remove note from note panel when note note dropped onto editor
+                                if (e.dataTransfer.dropEffect === "move") {
+                                  const draggedNote = notes[index];
+                                  setNotes((prev) => prev.filter((_, i) => i !== index));
+                                  // Transfer note content to editor when dropped (Not neccessary if whole note needed to be added on top of editor)
+                                  if (codeMirrorViewRef.current) {
+                                    const editor = codeMirrorViewRef.current;
+                                    const cursorPosition = editor.state.selection.main.head;
+                                    editor.dispatch({
+                                      changes: {
+                                        from: cursorPosition,
+                                        insert: draggedNote.content,
+                                      },
+                                    });
+                                  }
+                                }
+                              }}
+                            >
+                              <NoteCard
                               className="w-full"
                               note={{
-                                id: `note-${index}`,
+                                id: note.id,
                                 content: note.content,
-                                color: generatePastelColor(),
+                                color: note.color ?? generatePastelColor(),
                                 fileId: currentFile,
                                 isInEditor: false,
-                                createdAt: new Date(),
+                                createdAt: note.createdAt ?? new Date(),
                               }}
-                            />
+                              />
+                            </div>
                           ))}
                         </div>
                       )}
