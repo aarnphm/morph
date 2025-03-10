@@ -845,7 +845,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Initial State**: Application is fully developed.
 - **Input/Condition**: Navigate the application using only the keyboard.
 - **Output/Result**: All UI components are accessible via keyboard.
-- **How test will be performed**: Navigate through the application using the "Tab" key. Verify focus indicators and functionality of interactive elements. Perform common tasks without using a mouse to ensure accessibility.
+- **How test will be performed**: Verify focus indicators and functionality of interactive elements on the main interface. Perform common tasks without using a mouse to ensure accessibility.
 
 ### Performance
 
