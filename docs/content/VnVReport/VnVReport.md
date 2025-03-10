@@ -33,6 +33,96 @@ This document ...
 
 ## 6 Functional Requirements Evaluation
 
+### 6.1 Planning and Suggestion Features
+
+#### **Evaluation of Test-FR-P1/P3: Large Text Block Input**
+
+**Test Description:**  
+This combined test case validates that when planning mode is active, the system appropriately handles both a valid prompt and a large text block input. For a valid prompt (e.g., "environmental sustainability"), the system should promptly generate at least 5 relevant suggestions within 10 seconds (observed average ~8 seconds). For a large text block (500+ words) on climate change, the system should effectively process the input and either provide condensed suggestions or display a length warning—all within 10 seconds—to ensure robust handling of varied input lengths.
+
+| **Criterion**                    | **Assessment Goal**                                                       | **Pass/Fail** |
+|----------------------------------|---------------------------------------------------------------------------|---------------|
+| Output Time < 10s                | Suggestions appear within an average of ~8 seconds                        | ✅ Pass       |
+| 1 or more suggestion generated   | 5 suggestions are generated given the valid input                         | ✅ Pass       |
+| Input Handling                   | The system effectively processes large inputs without performance degradation   | ✅ Pass       |
+| Suggestions related to input     | The output is clear and relevant to the large input                       | ✅ Pass       |
+
+#### **Evaluation of Test-FR-P2: Unintelligible Prompt**
+
+**Test Description:**  
+This test case validates that when an unintelligible prompt (e.g., "asdh123!@#") is entered in planning mode, the system correctly identifies the invalid input and displays an error message requesting input refinement.
+
+| **Criterion**         | **Assessment Goal**                                                           | **Pass/Fail** |
+|-----------------------|-------------------------------------------------------------------------------|---------------|
+| Input Recognition     | The system accurately identifies the unintelligible prompt                    | ✅ Pass       |
+| Error Message Display | An error message is displayed to prompt for input refinement                  | ✅ Pass       |
+| Response Timing       | The error message is shown within 10 seconds                                  | ✅ Pass       |
+
+### 6.2 Text Generation Features
+
+#### **Evaluation of Test-FR-S1: Steering Validation (Didion Tone)**
+
+**Test Description:**  
+This test case verifies that when the steering feature is enabled and the "Didion" tone is selected with the prompt "reflection on modern life," the system generates text suggestions that accurately match Didion's writing style under specified lexical constraints.
+
+| **Criterion**          | **Assessment Goal**                                                           | **Pass/Fail** |
+|------------------------|-------------------------------------------------------------------------------|---------------|
+| Steering Activation    | The steering feature is successfully enabled in the editor                  | ✅ Pass       |
+| Tone Selection         | The "Didion" tone is correctly selected                                       | ✅ Pass       |
+| Style Matching         | Generated suggestions align with Didion's writing style                       | ✅ Pass       |
+
+#### **Evaluation of Test-FR-S2: Personalized Style Adaptation**
+
+**Test Description:**  
+This test case validates that when a user’s writing sample is provided, the system adapts its text generation to reflect the user's personal writing style. Customized suggestions should be generated within 30 seconds.
+
+| **Criterion**             | **Assessment Goal**                                                           | **Pass/Fail** |
+|---------------------------|-------------------------------------------------------------------------------|---------------|
+| Input Sample Recognition  | The system accepts and processes the user's writing sample                    | ✅ Pass       |
+| Style Adaptation          | Generated output reflects the user's personal writing style                   | ✅ Pass       |
+| Response Timing           | Customized suggestions are produced within 30 seconds                         | ✅ Pass       |
+| Output Relevance          | The suggestions are contextually appropriate and tailored to the sample       | ✅ Pass       |
+
+### 6.3 Feedback Panel
+
+#### **Evaluation of Test-FR-F1: LTR Feedback Panel Validation**
+
+**Test Description:**  
+This test case confirms that when user feedback (e.g., tone adjustment, alternative phrasing) is provided via the LTR feedback panel, the system updates the suggestions in real time with a clear preview.
+
+| **Criterion**           | **Assessment Goal**                                                           | **Pass/Fail** |
+|-------------------------|-------------------------------------------------------------------------------|---------------|
+| Feedback Integration    | The system seamlessly accepts and integrates user feedback                    | ✅ Pass       |
+| Real-time Update        | Suggestions update immediately upon receiving feedback                        | ✅ Pass       |
+| Output Clarity          | Updated suggestions provide a clear and accurate preview of changes           | ✅ Pass       |
+| Test Execution          | Manual test performed with LTR feedback panel active and initial suggestions  | ✅ Pass       |
+
+### 6.4 Document Export Features
+
+#### **Evaluation of Test-FR-E1/E2: Document Export Functionality Validation**
+
+**Test Description:**  
+This test case validates the document export capabilities. It verifies that a completed document can be exported in both PDF (formatted with preserved content) and plain text (raw text without formatting) formats, ensuring that content is accurately maintained.
+
+| **Criterion**           | **Assessment Goal**                                                           | **Pass/Fail** |
+|-------------------------|-------------------------------------------------------------------------------|---------------|
+| PDF Export              | Selecting PDF export generates a PDF with preserved content                   | ✅ Pass       |
+| Markdown Export         | Selecting markdown export produces a raw .md file with preserved content      | ✅ Pass       |
+| Output Accuracy         | Exported documents accurately preserve the intended content's format          | ⚠️ Fail (formating issues with pdf format)       |
+
+### 6.5 Interface Customization Features
+
+#### **Evaluation of Test-FR-VT1: Theme Customization Validation**
+
+**Test Description:**  
+This test case verifies that the system allows users to switch from the default light theme to dark mode. The dark theme should be applied consistently across the interface, ensuring visual consistency and an improved user experience.
+
+| **Criterion**          | **Assessment Goal**                                                           | **Pass/Fail** |
+|------------------------|-------------------------------------------------------------------------------|---------------|
+| Theme Switching        | The system successfully enables switching from light to dark mode             | ✅ Pass       |
+| Visual Consistency     | The dark theme is applied consistently across all interface elements          | ✅ Pass       |
+
+
 ## 7 Nonfunctional Requirements Evaluation
 
 ### 7.1 Look and Feel
