@@ -18,6 +18,8 @@ title: Verification and Validation Report
 | symbol | description |
 | :----- | :---------- |
 | T      | Test        |
+| UT      | Unit Test        |
+| VnV      | Verification and Validation        |
 
 symbols, abbreviations or acronyms -- you can reference the SRS tables if needed
 
