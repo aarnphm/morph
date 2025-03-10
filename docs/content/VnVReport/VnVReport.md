@@ -53,7 +53,7 @@ This document ...
 | **Animation & Feedback** | Transitions and feedback animations are smooth and do not interfere with usability. | ✅ Pass |
 
 ##### **User Testing & Survey Results:**  
-After completing the usability tests, participants answer the ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]) and rated their experience  on the following topics based on a 1–5 scale (1 = Poor, 5 = Excellent):  
+Participants then answer the ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]) and rated their experience  on the following topics based on a 1–5 scale (1 = Poor, 5 = Excellent):  
 
 | **Evaluation Metric** | **Average Rating (1–5)** |
 |----------------------|--------------------------|
@@ -95,8 +95,105 @@ The team ran manual contrast checks using a WCAG compliance tool to ensure acces
 | **Disabled Elements** | **3.0:1** | ⚠️ Below AA (Requires Adjustment) |
 | **Dark Mode Text on Background** | **6.5:1** | ✅ AA |
 
+### 7.2 Usability and Humanity
 
-### Performance
+#### **Evaluation of Test-UH-EOU3**  
+
+Three users were assigned a creative writing task that required structuring ideas using tinymorph's planning interface. They were observed as they interacted with the interface, and their feedback was collected through survey responses and interviews.  
+
+##### **Predefined Usability Checklist:**  
+The following criteria were used to evaluate the effectiveness and intuitiveness of the planning interface:  
+
+| **Criterion** | **Assessment Goal** | **Pass/Fail** |
+|--------------|---------------------|--------------|
+| **Ease of Use** | Users can quickly understand and utilize the planning interface. | ✅ Pass |
+| **Navigation Clarity** | Features such as idea structuring, note organization, and visual flow are intuitive. | ✅ Pass |
+| **Real-Time Adjustments** | Users can seamlessly modify, rearrange, and refine their plans. | ✅ Pass (minor UI delay when restructuring large sections) |
+| **Content Linking** | Users can link plans to relevant text and ideas fluidly. | ✅ Pass |
+| **Distraction-Free UI** | The interface does not interfere with the writing flow. | ✅ Pass |
+
+##### **User Feedback from Surveys and Interviews:**  
+Participants then answer the ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]) and users rated their experience on a 1–5 scale (1 = Poor, 5 = Excellent):  
+
+| **Evaluation Metric** | **Average Rating (1–5)** |
+|----------------------|--------------------------|
+| Ease of organizing writing steps | **4.7** |
+| Clarity of navigation | **4.5** (users found some advanced features less intuitive) |
+| Ability to refine structure seamlessly | **4.6** |
+| Efficiency in modifying writing plans | **4.7** |
+| Overall satisfaction with planning workflow | **4.8** |
+
+##### **Key Takeaways from Interviews:**  
+- Users found the interface intuitive and effective for structuring writing, but some needed extra time to explore all available planning features.  
+- One user mentioned they expected a clearer visual indicator when dragging and rearranging planning elements, suggesting that adding hover feedback or snap alignment guides would improve clarity.  
+- Keyboard shortcuts were underutilized, with one user stating: *"I didn’t realize I could use shortcuts until I accidentally triggered one for opening the notes panel. Having a list or hint somewhere would be useful."*  
+- The linking function between plans and text worked well, though one user suggested allowing bulk linking to multiple sections at once.  
+- Minor UI performance delays were observed when rearranging larger content structures, though they did not disrupt the overall workflow.  
+
+#### **Evaluation of Test-UH-L1**  
+
+##### **Testing Setup:**  
+Three new users with no prior experience with `tinymorph` were given access to the application without instructions. Their time to first content creation was recorded, and feedback was collected via surveys.  
+
+##### **Onboarding Time Results:**  
+Each user’s time to begin writing or editing content was measured:  
+
+| **User** | **Onboarding Time** | **Met 10-Minute Goal?** |
+|---------|--------------------|--------------------|
+| **User 1** | 7 minutes 32 seconds | ✅ Yes |
+| **User 2** | 9 minutes 10 seconds** | ✅ Yes |
+| **User 3** | 8 minutes 45 seconds | ✅ Yes |
+
+##### **Predefined Usability Checklist:**  
+The following criteria were used to assess onboarding efficiency and initial usability:  
+
+| **Criterion** | **Assessment Goal** | **Pass/Fail** |
+|--------------|---------------------|--------------|
+| **Navigation Clarity** | Users can easily locate key writing and editing functions. | ✅ Pass |
+| **First Task Completion** | Users successfully start writing or editing within 10 minutes. | ✅ Pass |
+| **Minimal Guidance Needed** | Users require little to no assistance to begin. | ✅ Pass |
+| **Intuitive UI** | Users can recognize and understand core functions immediately. | ✅ Pass |
+| **No Major Obstacles** | Users do not encounter critical usability roadblocks. | ✅ Pass (some minor confusion with advanced features) |
+
+##### **User Feedback from Surveys:**  
+Participants then answer the ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]) and users rated their onboarding experience on a 1–5 scale (1 = Poor, 5 = Excellent):  
+
+| **Evaluation Metric** | **Average Rating (1–5)** |
+|----------------------|--------------------------|
+| Ease of finding key features | **4.5** |
+| Clarity of interface | **4.8** |
+| Time taken to start writing | **4.6** |
+| Overall onboarding experience | **4.7** |
+
+#### **Evaluation of Test-UH-A2**  
+
+##### **Testing Setup:**  
+The team conducted a manual keyboard accessibility test on the tinymorph editor to assess whether all interactive components could be accessed and used without a mouse. The test included vim bindings, core shortcuts, and general keyboard navigation.  
+
+##### **Keyboard Navigation Test Results:**  
+
+| **Task** | **Shortcut Used** | **Accessible via Keyboard?** |
+|----------|------------------|----------------------------|
+| **Toggle Notes Panel** | `Cmd + [shortcut]` (Mac) / `Ctrl + [shortcut]` (Windows/Linux) | ✅ Pass |
+| **Toggle Edit/Read Mode** | `Cmd + [shortcut]` (Mac) / `Alt + [shortcut]` (Windows/Linux) | ✅ Pass |
+| **Save Document** | `Cmd+S` (Mac) / `Ctrl+S` (Windows/Linux) | ✅ Pass |
+| **Vim Keybinding: Save** | `:w` or `:wa` | ✅ Pass |
+| **Vim Keybinding: Escape Mapping** | `jj` or `jk` in insert mode | ✅ Pass |
+| **Vim Keybinding: Command Mode Mapping** | `;` mapped to `:` | ✅ Pass |
+| **Focus Traversal (Tab & Shift+Tab)** | Navigate through UI components | ✅ Pass |
+| **Access File Menu & Settings** | Keyboard shortcuts & Tab navigation | ✅ Pass |
+| **Vault Directory Navigation** | No shortcut available | ❌ Fail |
+
+##### **Predefined Accessibility Checklist:**  
+| **Criterion** | **Assessment Goal** | **Pass/Fail** |
+|--------------|---------------------|--------------|
+| **All core writing functions are accessible via keyboard** | Users can perform major actions (edit, save, toggle modes) with shortcuts. | ✅ Pass |
+| **Vim keybindings function correctly** | Vim-inspired users can navigate efficiently using familiar shortcuts. | ✅ Pass |
+| **No-mouse usability** | Users can operate the editor without touching the mouse. | ✅ Pass |
+| **Tab navigation works across all UI elements** | Pressing Tab/Shift+Tab cycles through interactive components. | ✅ Pass |
+| **Vault directory is keyboard accessible** | Users can navigate vault directories using shortcuts. | ❌ Fail (No shortcut available) |
+
+### 7.3 Performance
 
 ### etc.
 
