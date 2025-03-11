@@ -313,6 +313,32 @@ To ensure `tinymorph` remains secure and updated, a security audit was conducted
 
 ### 7.6 Compliance
 
+#### **Evaluation of Test-CompR-LR1**  
+
+##### **Canadian Copyright Law Compliance Checklist**  
+
+| **Requirement** | **Description** | **Pass/Fail** |
+|---------------|----------------|--------------|
+| **No direct reproduction** | The generated content should not match copyrighted text verbatim. | ✅ Pass |
+| **No close paraphrasing** | The response should not closely mimic the structure or wording of copyrighted content. | ✅ Pass |
+| **No explicit suggestion for copyrighted completion** | The system should not prompt or suggest completing copyrighted sentences. | ✅ Pass |
+| **Transformation and originality** | The output should introduce original elements that differentiate it from copyrighted content. | ✅ Pass |
+
+##### **Test Case & Results**  
+
+The test was conducted using the following input phrase from *The Great Gatsby*:
+
+> **Test Input:** *"So we beat on, boats against the current, borne back ceaselessly into the past."*
+
+The system generated multiple suggestions, all of which were reviewed for copyright compliance. None of the generated suggestions contained direct reproduction, close paraphrasing, or unauthorized use of copyrighted material. Every output was sufficiently transformed and original, ensuring full compliance with Canadian copyright law.  
+
+##### **Analysis**  
+
+- The system did not generate any suggestions that matched or closely resembled the original text.  
+- All suggestions were distinct and legally compliant, avoiding potential copyright violations.  
+- Plagiarism detection software confirmed that none of the generated outputs contained copyrighted material.  
+- The system effectively differentiated its outputs while maintaining relevance to the original prompt.  
+
 ## 8 Comparison to Existing Implementation
 
 This section will not be appropriate for every project.
@@ -350,6 +376,16 @@ The information in this section will be used to evaluate the team members on the
 
 <div class="blob">
 
+1. One of the biggest successes was the structured approach we followed in evaluating both usability and functional requirements. The predefined test cases provided a clear roadmap, making it easier to conduct and document evaluations effectively. The usability tests such as onboarding time and planning interface validation, which offered strong insights into how users interact with `tinymorph`. This allowed us to identify areas for further refinement. Functional tests, including text generation and document export, confirmed that the system met key user expectations. The organized structure of the report also ensured that the verification and validation results were easy to follow.
+<br/>
+
+2. One of the main challenges was ensuring that all tests were practical and not overly time-consuming. Some tests, especially those related to accessibility and document export took longer than expected due to formatting inconsistencies and edge cases that required additional review. Additionally, ensuring consistency in reporting across different test cases required extra coordination. We resolved this by refining the scope of tests to focus on the most critical aspects and conducting regular team discussions to standardize how results were documented.
+<br/>
+
+3. The security and performance evaluations were mostly based on predefined system requirements rather than direct client feedback as they involved verifying expected behavior under controlled conditions. However, peer discussions played a role in refining the scope of security testing, particularly regarding access controls and encryption verification. On the other hand, some functional tests such as planning interface validation and feedback integration, were influenced by user feedback, helping us assess usability from a real-world perspective.
+<br/>
+
+4. The VNV Plan originally included a larger number of test cases, but in practice, we streamlined the scope to focus on the most relevant and impactful evaluations. Some tests such as validating a minimalist design with a monotonic color palette and responsiveness across devices were removed since they overlapped with other usability tests. Accessibility tests were also adapted to be conducted in-house rather than by an external audit team. These modifications allowed us to prioritize key areas without unnecessary duplication. In future projects, anticipating these changes earlier by continuously evaluating test relevance throughout the process would improve efficiency.
 
 </div>
 
