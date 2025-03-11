@@ -289,6 +289,28 @@ The team conducted a manual keyboard accessibility test on the tinymorph editor 
 
 ### 7.5 Maintainability and Support
 
+### **Evaluation of Test-OER-MR1**  
+
+#### **Security Audit & Maintenance Review**  
+
+To ensure `tinymorph` remains secure and updated, a security audit was conducted using `pnpm audit`. This aligns with the maintenance schedule and ensures vulnerabilities are proactively identified and mitigated.  
+
+**Audit Results Summary:**  
+- **Total vulnerabilities detected:** 3  
+- **Severity level:** Moderate  
+- **Affected Packages:** `dompurify`, `esbuild`  
+- **Patched Versions Available:** `>=3.2.4` for `dompurify`, `>=0.25.0` for `esbuild`  
+
+**Security Audit Report Output:**  
+![[VnVReport/audit_output.png]]
+
+#### **Observations & Findings**  
+
+- Security scans are properly integrated into the project's CI/CD pipeline.  
+- Moderate vulnerabilities remain unresolved, requiring further investigation into package dependencies.  
+- Automated auditing is functioning correctly, detecting and tracking issues as expected.  
+- Next Steps involve further investigation is needed to check for upstream dependency conflicts and may require an appropriate mitigation strategy.  
+
 ### 7.6 Compliance
 
 ## 8 Comparison to Existing Implementation

@@ -1033,16 +1033,6 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Output/Result**: Regular updates are performed. No outstanding vulnerabilities.
 - **How test will be performed**: Security updates will be verified by running npm audit at scheduled intervals to detect and address vulnerabilities in dependencies. Audit reports will be reviewed, and necessary updates will be applied to resolve critical issues. Continuous integration pipelines will integrate npm audit checks to prevent new vulnerabilities. All security updates and patches will be documented.
 
-#### Implement User Feedback Loop
-
-**Test-OER-SR1**
-
-- **Type**: Structural, Dynamic, Automatic
-- **Initial State**: Feedback mechanisms are implemented in the application.
-- **Input/Condition**: Submit feedback through the application interface.
-- **Output/Result**: Feedback is successfully recorded and retrievable by the development team.
-- **How test will be performed**: Automated tests will simulate feedback submission and verify that the data is stored securely and is accessible for review. Notifications or acknowledgments will be checked automatically. Compliance with privacy requirements will be validated to protect user information.
-
 ### Compliance
 
 #### Verify Compliance with Canadian Copyright Law
@@ -1055,15 +1045,6 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Output/Result**: No generated content violates Canadian copyright laws.
 - **How test will be performed**: Automated plagiarism detection tools like Copyscape will be used to analyze writing suggestions and compare them against existing works to detect potential copyright infringements. The system will be tested with various inputs to ensure that suggestions do not unintentionally reproduce copyrighted phrases or unique expressions from well-known literary works. For example, if a user writes a sentence similar to a passage from The Great Gatsby by F. Scott Fitzgerald, such as “So we beat on, boats against the current, borne back ceaselessly into the past,” the system should not suggest completing or modifying it in a way that reproduces protected content. All findings will be documented, and suggestion filtering mechanisms will be adjusted if necessary to ensure compliance with Canadian copyright laws.
 
-#### Obtain User Permission for Inference on Content
-
-**Test-CompR-LR3**
-
-- **Type**: Structural, Dynamic, Automatic
-- **Initial State**: Consent mechanisms are implemented.
-- **Input/Condition**: Use the application for the first time.
-- **Output/Result**: Users provide explicit permission before content is used for inference.
-- **How test will be performed**: Automated tests will verify that a consent prompt appears upon initial use of the application, requiring users to accept the terms before proceeding. The process will be tested to ensure users cannot bypass consent. Consent records will be checked automatically to confirm they are stored securely and in compliance with privacy regulations.
 
 ### Traceability Between Test Cases and Requirements
 
