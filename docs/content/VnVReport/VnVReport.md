@@ -12,16 +12,27 @@ title: Verification and Validation Report
 | Date          | Version | Notes              |
 | :------------ | :------ | :----------------- |
 | Sept. 16 2024 | 0.0     | Initial skafolding |
+| Mar. 10 2025  | 0.1     | Rev0               |
 
 ## 2 Symbols, Abbreviations and Acronyms
 
-| symbol | description |
-| :----- | :---------- |
-| T      | Test        |
-| UT      | Unit Test        |
+| **symbol** | **description**                                        |
+| ---------- | ------------------------------------------------------ |
+| AC         | Anticipated Change                                     |
+| DOM        | Document Object Model                                  |
+| FR         | Functional Requirement                                 |
+| GPU        | Graphics Processing Unit                               |
+| M          | Module                                                 |
+| MG         | Module Guide                                           |
+| OS         | Operating System                                       |
+| PDF        | Portable Document Format                               |
+| R          | Requirement                                            |
+| SRS        | Software Requirements Specification                    |
+| tinymorph  | the text editor that helps you to become better writer |
+| UC         | Unlikely Change                                        |
 | VnV      | Verification and Validation        |
 
-symbols, abbreviations or acronyms -- you can reference the SRS tables if needed
+![[SRS/SRS#7.2 Data Dictionary|Data Dictionary]]
 
 ## 3 Table of Contents
 
@@ -29,13 +40,13 @@ symbols, abbreviations or acronyms -- you can reference the SRS tables if needed
 
 ## 5 List of Figures
 
-This document ...
+This document is intended to provide an overview of the testing that performed throughout the development of the project `tinymorph`, including the obtained results and the relevant discussions. The tests are under the guidance from [[VnVPlan/VnVPlan|VnVplan]].
 
 ## 6 Functional Requirements Evaluation
 
 ### 6.1 Planning and Suggestion Features
 
-#### **Evaluation of Test-FR-P1/P3: Large Text Block Input**
+#### **Evaluation of Test-1: Large Text Block Input**
 
 **Test Description:**  
 This combined test case validates that when planning mode is active, the system appropriately handles both a valid prompt and a large text block input. For a valid prompt (e.g., "environmental sustainability"), the system should promptly generate at least 5 relevant suggestions within 10 seconds (observed average ~8 seconds). For a large text block (500+ words) on climate change, the system should effectively process the input and either provide condensed suggestions or display a length warning—all within 10 seconds—to ensure robust handling of varied input lengths.
@@ -47,7 +58,7 @@ This combined test case validates that when planning mode is active, the system 
 | Input Handling                   | The system effectively processes large inputs without performance degradation   | ✅ Pass       |
 | Suggestions related to input     | The output is clear and relevant to the large input                       | ✅ Pass       |
 
-#### **Evaluation of Test-FR-P2: Unintelligible Prompt**
+#### **Evaluation of Test-2: Unintelligible Prompt**
 
 **Test Description:**  
 This test case validates that when an unintelligible prompt (e.g., "asdh123!@#") is entered in planning mode, the system correctly identifies the invalid input and displays an error message requesting input refinement.
@@ -60,7 +71,7 @@ This test case validates that when an unintelligible prompt (e.g., "asdh123!@#")
 
 ### 6.2 Text Generation Features
 
-#### **Evaluation of Test-FR-S1: Steering Validation (Didion Tone)**
+#### **Evaluation of Test-3: Steering Validation (Didion Tone)**
 
 **Test Description:**  
 This test case verifies that when the steering feature is enabled and the "Didion" tone is selected with the prompt "reflection on modern life," the system generates text suggestions that accurately match Didion's writing style under specified lexical constraints.
@@ -71,7 +82,7 @@ This test case verifies that when the steering feature is enabled and the "Didio
 | Tone Selection         | The "Didion" tone is correctly selected                                       | ✅ Pass       |
 | Style Matching         | Generated suggestions align with Didion's writing style                       | ✅ Pass       |
 
-#### **Evaluation of Test-FR-S2: Personalized Style Adaptation**
+#### **Evaluation of Test-4: Personalized Style Adaptation**
 
 **Test Description:**  
 This test case validates that when a user’s writing sample is provided, the system adapts its text generation to reflect the user's personal writing style. Customized suggestions should be generated within 30 seconds.
@@ -85,7 +96,7 @@ This test case validates that when a user’s writing sample is provided, the sy
 
 ### 6.3 Feedback Panel
 
-#### **Evaluation of Test-FR-F1: LTR Feedback Panel Validation**
+#### **Evaluation of Test-5: LTR Feedback Panel Validation**
 
 **Test Description:**  
 This test case confirms that when user feedback (e.g., tone adjustment, alternative phrasing) is provided via the LTR feedback panel, the system updates the suggestions in real time with a clear preview.
@@ -99,7 +110,7 @@ This test case confirms that when user feedback (e.g., tone adjustment, alternat
 
 ### 6.4 Document Export Features
 
-#### **Evaluation of Test-FR-E1/E2: Document Export Functionality Validation**
+#### **Evaluation of Test-6: Document Export Functionality Validation**
 
 **Test Description:**  
 This test case validates the document export capabilities. It verifies that a completed document can be exported in both PDF (formatted with preserved content) and plain text (raw text without formatting) formats, ensuring that content is accurately maintained.
@@ -112,7 +123,7 @@ This test case validates the document export capabilities. It verifies that a co
 
 ### 6.5 Interface Customization Features
 
-#### **Evaluation of Test-FR-VT1: Theme Customization Validation**
+#### **Evaluation of Test-7: Theme Customization Validation**
 
 **Test Description:**  
 This test case verifies that the system allows users to switch from the default light theme to dark mode. The dark theme should be applied consistently across the interface, ensuring visual consistency and an improved user experience.
@@ -345,7 +356,16 @@ The system generated multiple suggestions, all of which were reviewed for copyri
 
 ## 8 Comparison to Existing Implementation
 
-This section will not be appropriate for every project.
+This section provides some comparisions between the two existing solutions and the current implementation of project `tinymorph`, focusing on funtionality and usability.
+
+First solution: OpenAI's Chatgpt
+- Functionality: have good performance on prompt-based conversation. Canvas feature make it easier for editing but project `tinymorph` provides suggestions as appliable notes to do selective modification on the content.
+- Usability: the UI from OpenAI's Chatgpt's UI is imformative and organised to support conversation interface, and `tinymorph` put an emphasis on text-editor tailored interface to better support writing purpose
+
+Second solution: prowritingaid
+- Functionality: prowritingaid provides suggestions based on the text input for user as reference to make improvement, but `tinymorph` provides direct modification to the text content.
+- Usability: prowritingaid currently supports more delicate unser interface on webserver compared to `tinymorph` to provide better user experience.
+
 
 ## 9 Unit Testing
 
@@ -388,16 +408,52 @@ test_rebuild_index_with_data: Passed - Rebuild index with data returns valid lab
 
 ## 10 Changes Due to Testing
 
-This section should highlight how feedback from the users and from the supervisor (when one exists) shaped the final product. In particular the feedback from the Rev 0 demo to the supervisor (or to potential users) should be highlighted.
+- Interface structure improved for mobile use
+- The disabled contents in the interface is adjusted with a more obvious contrast ratios to support contrast compliance
+- Hover states improved to support darkmode 
+- Front-end code is restructured lightly to deacrese the responding time
+- More graphical hint and color hint is used to better support navigation and remove obstacles
 
 ## 11 Automated Testing
 
 
 
 ## 12 Trace to Requirements
+### Functional Requirements
+**Table: Tracibility of Testing to Functional Requirements**
+|                | FR-P1    | FR-P2    | FR-P3    | FR-S1    | FR-S2    | FR-F1    | FR-E1    | FR-E2    | FR-VT1   | 
+|----------------|----------|----------|----------|----------|----------|----------|----------|----------|----------|
+| Test-1        |    X     |          |    X     |          |          |          |          |          |          |
+| Test-2         |          |    X     |          |          |          |          |          |          |          |
+| Test-3          |          |          |          |    X     |          |          |          |          |          |
+| Test-4         |          |          |          |          |     X    |          |          |          |          |
+| Test-5          |          |          |          |          |          |    X    |          |          |          |
+| Test-6          |          |          |          |          |          |          |   X     |     X    |          |
+| Test-7         |          |          |          |          |          |          |          |          |    X     |
 
-## 13 Trace to Modules
+### Non-Functional Requirements
+**Table: Tracibility of Testing to Functional Requirements**
+|                 | Column 1 | Column 2 | Column 3 | Column 4 | Column 5 | Column 6 | Column 7 |
+|-----------------|----------|----------|----------|----------|----------|----------|----------|
+| Test-1         |          |          |          |          |          |          |          |
+| Row 2          |          |          |          |          |          |          |          |
+| Row 3          |          |          |          |          |          |          |          |
+| Row 4          |          |          |          |          |          |          |          |
+| Row 5          |          |          |          |          |          |          |          |
+| Row 6          |          |          |          |          |          |          |          |
+| Row 7          |          |          |          |          |          |          |          |
 
+## Trace to Modules
+**Table: Tracibility of Testing to Modules**
+| Feature / Metric | Column 1 | Column 2 | Column 3 | Column 4 | Column 5 | Column 6 | Column 7 |
+|-----------------|----------|----------|----------|----------|----------|----------|----------|
+| Row 1          |          |          |          |          |          |          |          |
+| Row 2          |          |          |          |          |          |          |          |
+| Row 3          |          |          |          |          |          |          |          |
+| Row 4          |          |          |          |          |          |          |          |
+| Row 5          |          |          |          |          |          |          |          |
+| Row 6          |          |          |          |          |          |          |          |
+| Row 7          |          |          |          |          |          |          |          |
 ## 14 Code Coverage Metrics
 
 The coverage data generated by coverage.py and coverage.tsx can be shown in the following table: 
@@ -513,6 +569,10 @@ The information in this section will be used to evaluate the team members on the
 </div>
 
 <div class="blob">
+1. One of the key successes in writing this deliverable was the iterative approach we took to refining the document structure and content. Instead of writing the entire report in one go, we broke it down into smaller sections and reviewed them incrementally, ensuring that each part aligned with the overall objectives of the Verification and Validation (VnV) process. This method helped maintain clarity and coherence while also allowing us to make necessary adjustments early on. Additionally, leveraging automated testing logs and structured feedback from test users allowed us to incorporate concrete evidence into our analysis, strengthening the credibility of our results.
+2. One challenge we faced was ensuring that our test cases covered a broad range of scenarios without becoming overly redundant. Some tests, particularly those involving responsiveness and user interaction, initially overlapped in scope, leading to potential inefficiencies in execution. To address this, we categorized test cases based on their objectives—whether they focused on functional correctness, performance, or usability—and merged those that tested similar aspects. Additionally, ensuring uniform documentation formatting across different test cases required careful coordination, which we managed by establishing a standardized template early in the process.
+3. The non-founctional requirement relevant testing and following adjustment are largely based on the feedback from clients, for the goal that to make this project better fit into the user expectation with high usability. The unit testing is mainly constructed based the the group members' ideas due to the expertise and knowledge gap between the project developer and user.
+4. There are a lot of the testcase deletion and modification haapened comparing to the original VnV plan, together with some more detailed and specific testing improvements due to the better understanding to the project along with the development procedure. The testcases after modification better fit into the purpose of verification and support the testing responsibility. 
 
 <p>
 </p>
