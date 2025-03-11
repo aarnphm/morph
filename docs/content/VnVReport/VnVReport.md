@@ -38,6 +38,43 @@ title: Verification and Validation Report
 
 ## 4 List of Tables
 
+| **Table** | **Description**                                          |
+|-----------|----------------------------------------------------------|
+| 0         | List of Figures                                          |
+| 1         | Evaluation of Test-1: Large Text Block Input             |
+| 2         | Evaluation of Test-2: Unintelligible Prompt              |
+| 3         | Evaluation of Test-3: Steering Validation (Didion Tone)  |
+| 4         | Evaluation of Test-4: Personalized Style Adaptation      |
+| 5         | Evaluation of Test-5: LTR Feedback Panel Validation      |
+| 6         | Evaluation of Test-6: Document Export Functionality Validation |
+| 7         | Evaluation of Test-7: Theme Customization Validation     |
+| 8         | Evaluation of Test-8: Predefined UI/UX Checklist         |
+| 9         | Evaluation of Test-8: User Testing & Survey Results      |
+| 10         | Evaluation of Test-9: Predefined UI Audit Checklist     |
+| 11         | Evaluation of Test-9: Validation with WCAG Contrast Checker         |
+| 12         | Evaluation of Test-10: Predefined Usability Checklist   |
+| 13         | Evaluation of Test-10: User Feedback from Surveys and Interviews    |
+| 14        | Evaluation of Test-11: Onboarding Time Results           |
+| 15        | Evaluation of Test-11: Predefined Usability Checklist    |
+| 16        | Evaluation of Test-11: User Feedback from Surveys        |
+| 17        | Evaluation of Test-12: Keyboard Navigation Test Results  |
+| 18        | Evaluation of Test-12: Predefined Accessibility Checklis |
+| 19        | Evaluation of Test-14: Performance Checklist             |
+| 20        | Evaluation of Test-15: Safety Compliance Checklist       |
+| 21        | Evaluation of Test-16: Steering Alignment Checklist      |
+| 22        | Evaluation of Test-17: Performance Checklist             |
+| 23        | Evaluation of Test-18: Asynchronous Processing Checklist |
+| 24        | Evaluation of Test-19: Input Responsiveness Checklist    |
+| 25        | Evaluation of Test-20: Security Checklist                |
+| 26        | Evaluation of Test-21: Security Checklist                |
+| 27        | Evaluation of Test-22: Security Checklist                |
+| 28        | Evaluation of Test-23: Security Checklist                |
+| 29        | Evaluation of Test-25: Canadian Copyright Law Compliance Checklist |
+| 30        | Traceability of Testing to Functional Requirements       |
+| 31        | Traceability of Testing to Non-Functional Requirements   |
+| 32        | Traceability of Testing to Modules                       |
+| 33        | Code Coverage Data                                       |
+
 ## 5 List of Figures
 
 | **Number** | **Figure**                                        |
