@@ -300,7 +300,7 @@ The team conducted a manual keyboard accessibility test on the tinymorph editor 
 **Table:Test-12 Predefined Accessibility Checklist**
 ### 7.3 Performance
 
-#### **Evaluation of Test-PR-SLR1**
+#### **Evaluation of Test-13**
 
 We measured the TTFT, assessing how quickly the inference server begins generating output after receiving a request. Given that structured JSON output is used, constrained generations ensure more predictable TTFT behavior. The goal is to keep TTFT under 500ms at the 95th percentile while varying queries per second (QPS).  
 
@@ -321,7 +321,7 @@ We measured the TTFT, assessing how quickly the inference server begins generati
 
 ![[VnVReport/ttft_graph.png]]
 
-#### **Evaluation of Test-PR-SLR2**
+#### **Evaluation of Test-14**
 
 evaluates the inference server’s ability to maintain a throughput of approximately 300 tokens/sec while processing batched requests. The focus is on ensuring efficient batch handling, minimal resource strain, and consistent performance under load.  
 
@@ -343,7 +343,7 @@ evaluates the inference server’s ability to maintain a throughput of approxima
 
 The results ensure that the inference server effectively handles concurrent requests while maintaining optimal token generation speeds.  
 
-#### **Evaluation of Test-PR-SCR2**
+#### **Evaluation of Test-15**
 
 Confirm that all UI elements, images, and media assets used in the application are free from inappropriate, harmful, or NSFW content. A thorough automated and manual review ensure that all graphical elements comply with content safety guidelines.  
 
@@ -362,7 +362,7 @@ Confirm that all UI elements, images, and media assets used in the application a
 | **No Unauthorized Media** | No unlicensed or unverified external assets. | ✅ Pass |
 | **Safe Placeholder Texts** | No inappropriate text or placeholder content. | ✅ Pass |
 
-#### **Evaluation of Test-PR-PAR1**
+#### **Evaluation of Test-16**
 
 Assess how accurately the generated text aligns with user-specified steering inputs such as tone, style, and phrasing preferences. 
 
@@ -383,7 +383,7 @@ Assess how accurately the generated text aligns with user-specified steering inp
 | **Similarity to Reference** | High cosine similarity with expected textual patterns. | ✅ Pass |
 | **Adjustments for Improvement** | System dynamically refines output based on feedback. | ✅ Pass |
 
-#### **Evaluation of Test-PR-RFR2**
+#### **Evaluation of Test-17**
 
 Deployment strategy successfully maintains availability in the event of node or replica failures. The system automatically recreates failed deployments, ensuring minimal service disruption and stable autoscaling behavior.  
 
@@ -405,7 +405,7 @@ Deployment strategy successfully maintains availability in the event of node or 
 | **Replica Stability** | The number of replicas remains within configured limits. | ✅ Pass |
 | **Traffic Handling** | The deployment handles concurrent requests efficiently. | ✅ Pass |
 
-#### **Evaluation of Test-PR-CR1**
+#### **Evaluation of Test-18**
 
 System efficiently processes multiple concurrent suggestion requests without significant delays, request drops, or errors. The test validates the queue management and request handling under simultaneous user interactions.  
 
@@ -425,7 +425,7 @@ System efficiently processes multiple concurrent suggestion requests without sig
 | **Error Handling** | No request drops or processing errors detected. | ✅ Pass |
 | **System Stability** | Performance remains consistent under increased load. | ✅ Pass |
 
-#### **Evaluation of Test-PR-CR2**
+#### **Evaluation of Test-19**
 
 Confirm minimal input lag and smooth real-time feedback for users, even under high interaction rates.  
 
@@ -455,7 +455,7 @@ Confirm minimal input lag and smooth real-time feedback for users, even under hi
 
 ### 7.4 Security
 
-#### **Evaluation of Test-SR-INT1**
+#### **Evaluation of Test-20**
 
 Automated security testing tools were used to monitor network traffic to verify HTTPS encryption. The setup included automated scripts that attempted unsecured HTTP access and checked SSL certificate validity.
 
@@ -475,7 +475,7 @@ Automated security testing tools were used to monitor network traffic to verify 
 | **Mixed Content Prevention** | No browser warnings for mixed content. | ✅ Pass |
 ![[VnVReport/cloudflare.png]]
 
-#### **Evaluation of Test-SR-INT2**
+#### **Evaluation of Test-21**
 
 Automated DNSSEC testing tools verified DNS security configurations. Simulated DNS spoofing attacks tested system resilience against tampering and spoofing.
 
@@ -493,7 +493,7 @@ Automated DNSSEC testing tools verified DNS security configurations. Simulated D
 | **Integrity of DNS Queries**| DNS queries and responses secure from tampering and spoofing.      | ✅ Pass       |
 
 
-#### **Evaluation of Test-SR-INT3**
+#### **Evaluation of Test-22**
 
 Automated security testing tools were used to validate the effectiveness of Content Security Policies (CSP) by attempting script injections and analyzing CSP headers.
 
@@ -510,7 +510,7 @@ Automated security testing tools were used to validate the effectiveness of Cont
 | **XSS Protection**        | No successful execution of malicious injected scripts.                 | ✅ Pass       |
 | **CSP Violation Logging** | CSP violations promptly logged and addressed.                          | ✅ Pass       |
 
-#### **Evaluation of Test-SR-INT4**
+#### **Evaluation of Test-23**
 
 Automated scripts verified JWT-based session security, ensuring tokens were securely managed and resilient against misuse or interception.
 
@@ -531,7 +531,7 @@ Automated scripts verified JWT-based session security, ensuring tokens were secu
 
 ### 7.5 Maintainability and Support
 
-### **Evaluation of Test-OER-MR1**  
+### **Evaluation of Test-24**  
 
 #### **Security Audit & Maintenance Review**  
 
@@ -555,7 +555,7 @@ To ensure `tinymorph` remains secure and updated, a security audit was conducted
 
 ### 7.6 Compliance
 
-#### **Evaluation of Test-CompR-LR1**  
+#### **Evaluation of Test-25**  
 
 ##### **Canadian Copyright Law Compliance Checklist**  
 
@@ -665,15 +665,15 @@ The testing was does automatically run on Github Actions whenever a commit was p
 **Table: Traceability of Testing to Functional Requirements**
 ### Non-Functional Requirements
 
-|   Requirements | LF-A1    | LF-A2    | UH-EOU3  | UH-L1    | UH-A2    | Column 6 | Column 7 |
+|   Requirements | LF-A1    | LF-A2    | UH-EOU3  | UH-L1    | UH-A2    | PR-SLR1 | PR-SLR2 | PR-SCR2 | PR-PAR1 | PR-RFR2 | PR-CR1 | PR-CR2 | PR-SER1 | SR-INT1 | SR-INT2 | SR-INT3 | SR-INT4 | OER-MR1 | CompR-LR1 | 
 |-----------------|----------|----------|----------|----------|----------|----------|----------|
 | Test-8         |     X    |          |          |          |          |          |          |
 | Test-9          |          |    X    |          |          |          |          |          |
 | Test-10          |          |          |    X     |          |          |          |          |
 | Test-11          |          |          |          |    X     |          |          |          |
 | Test-12          |          |          |          |          |    X    |          |          |
-| Row 6          |          |          |          |          |          |          |          |
-| Row 7          |          |          |          |          |          |          |          |
+| Test-12          |          |          |          |          |          |          |          |
+| Test-12          |          |          |          |          |          |          |          |
 **Table: Traceability of Testing to Non-Functional Requirements**
 ## Trace to Modules
 
