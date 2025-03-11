@@ -379,6 +379,25 @@ Deployment strategy successfully maintains availability in the event of node or 
 
 #### **Evaluation of Test-SR-INT1**
 
+Automated security testing tools were used to monitor network traffic to verify HTTPS encryption. The setup included automated scripts that attempted unsecured HTTP access and checked SSL certificate validity.
+
+##### **Test Execution**  
+- Performance and security testing tools automatically monitored network traffic.
+- Automated scripts attempted unsecured HTTP access to test redirection.
+- Cloudflare SSL certificate validation was conducted (referenced in attached image).
+- Browser monitoring for mixed content warnings was performed.
+
+##### **Security Checklist**  
+
+| **Criterion** | **Assessment Goal** | **Pass/Fail** |
+|--------------|---------------------|--------------|
+| **HTTPS Encryption** | All communications encrypted via HTTPS. | ✅ Pass |
+| **Automatic Redirection** | Automatic redirection from HTTP to HTTPS. | ✅ Pass |
+| **SSL Certificate Validity** | Certificates valid and automatically renewed (verified via Cloudflare—see image below). | ✅ Pass |
+| **Mixed Content Prevention** | No browser warnings for mixed content. | ✅ Pass |
+
+![Cloudflare Security](cloudflare.png)
+
 #### **Evaluation of Test-SR-INT2**
 
 #### **Evaluation of Test-SR-INT3**
