@@ -508,9 +508,10 @@ The testing was does automatically run on Github Actions whenever a commit was p
 ## 12 Trace to Requirements
 ### Functional Requirements
 **Table: Traceability of Testing to Functional Requirements**
-|                | FR1      | FR2      | FR3      |  FR13      |   FR14      | 
+
+|   Requirements | FR1      | FR2      | FR3      |  FR13    |   FR14   | 
 |----------------|----------|----------|----------|----------|----------|
-| Test-1        |    X     |          |    X     |          |          | 
+| Test-1         |    X     |          |    X     |          |          | 
 | Test-2         |   X      |          |          |          |          |
 | Test-3          |          |    X     |          |          |          | 
 | Test-4         |          |     X    |          |          |          | 
@@ -520,7 +521,8 @@ The testing was does automatically run on Github Actions whenever a commit was p
 
 ### Non-Functional Requirements
 **Table: Traceability of Testing to Non-Functional Requirements**
-|                 | LF-A1    | LF-A2    | UH-EOU3  | UH-L1    | UH-A2    | Column 6 | Column 7 |
+
+|   Requirements | LF-A1    | LF-A2    | UH-EOU3  | UH-L1    | UH-A2    | Column 6 | Column 7 |
 |-----------------|----------|----------|----------|----------|----------|----------|----------|
 | Test-8         |     X    |          |          |          |          |          |          |
 | Test-9          |          |    X    |          |          |          |          |          |
@@ -532,7 +534,8 @@ The testing was does automatically run on Github Actions whenever a commit was p
 
 ## Trace to Modules
 **Table: Traceability of Testing to Modules**
-|                | M1        | M2       |  M3      | M4       | M5       | M6       | M7       | M8       | M9       | M10      | M11        |
+
+|   Modules       | M1        | M2       |  M3      | M4       | M5       | M6       | M7       | M8       | M9       | M10      | M11      |
 |-----------------|----------|----------|----------|----------|----------|----------|----------|----------|----------|---------|----------|
 | Test-1          |          |   X      |   X      |    X     |          |    X     |          |    X     |          |          |          |
 | Test-2          |          |    X     |    X     |     X    |          |          |          |     X    |          |          |          |
