@@ -26,7 +26,6 @@ import { DotIcon } from "@/components/ui/icons"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SearchProvider } from "@/context/search-context"
 import { SearchCommand } from "@/components/search-command"
-import { jsPDF } from "jspdf"
 import { DndProvider } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
 import { NotesProvider } from "@/context/notes-context"
@@ -124,25 +123,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     URL.revokeObjectURL(url)
   }, [])
 
-  const handleExportPdf = useCallback(() => {
-    const { content, filename } = contentRef.current
-    const pdf = new jsPDF({ unit: "pt", format: "a4" })
-
-    const preview = document.querySelector(".prose") as HTMLElement
-    const styles = preview ? getComputedStyle(preview) : null
-
-    const fontSize = styles?.fontSize || "16px"
-    const fontFamily = "Parclo Serif"
-
-    const lines = pdf.splitTextToSize(md(content).content, 180)
-    pdf.text(lines, 10, 10)
-
-    pdf.setFont(fontFamily)
-    pdf.setFontSize(parseFloat(fontSize))
-
-    pdf.save(filename.endsWith(".md") ? filename.slice(0, -3) + ".pdf" : `${filename}.pdf`)
-  }, [])
-
   const updatePreview = useCallback(
     async (value: string) => {
       try {
@@ -189,7 +169,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         {
           essay: md(content).content,
           num_suggestions: 8,
-          max_tokens: 8192,
+          max_tokens: 4096,
         },
         {
           headers: {
@@ -434,7 +414,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               onNewFile={onNewFile}
               onContentUpdate={updatePreview}
               onExportMarkdown={handleExportMarkdown}
-              onExportPdf={handleExportPdf}
             />
             <SidebarInset>
               <header className="inline-block h-10 border-b">

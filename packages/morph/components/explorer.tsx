@@ -114,7 +114,6 @@ interface MorphSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onNewFile?: () => void
   onContentUpdate?: (content: string) => void
   onExportMarkdown: () => void
-  onExportPdf: () => void
 }
 
 const ExplorerHeader = memo(function ExplorerHeader({
@@ -122,14 +121,12 @@ const ExplorerHeader = memo(function ExplorerHeader({
   editorViewRef,
   onNewFile,
   onExportMarkdown,
-  onExportPdf,
   router,
 }: {
   vault: Vault | undefined
   editorViewRef: React.RefObject<EditorView | null>
   onNewFile?: () => void
   onExportMarkdown: () => void
-  onExportPdf: () => void
   router: any
 }) {
   const onManageVault = useCallback(() => {
@@ -194,10 +191,9 @@ const ExplorerHeader = memo(function ExplorerHeader({
     () => (
       <DropdownMenuContent side="top" align="center" sideOffset={5} alignOffset={2}>
         <DropdownMenuItem onClick={onExportMarkdown}>Markdown</DropdownMenuItem>
-        <DropdownMenuItem onClick={onExportPdf}>PDF</DropdownMenuItem>
       </DropdownMenuContent>
     ),
-    [onExportMarkdown, onExportPdf],
+    [onExportMarkdown],
   )
 
   const sidebarHeader = useMemo(
@@ -226,7 +222,6 @@ export default memo(function Explorer({
   onNewFile,
   onContentUpdate,
   onExportMarkdown,
-  onExportPdf,
   ...props
 }: MorphSidebarProps) {
   const { toast } = useToast()
@@ -271,7 +266,6 @@ export default memo(function Explorer({
         editorViewRef={editorViewRef}
         onNewFile={onNewFile}
         onExportMarkdown={onExportMarkdown}
-        onExportPdf={onExportPdf}
         router={router}
       />
       <SidebarContent>
