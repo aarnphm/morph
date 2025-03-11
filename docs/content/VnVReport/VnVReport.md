@@ -55,8 +55,15 @@ This document is intended to provide an overview of the testing that performed t
 
 ## Comparison to Existing Implementation
 
-This section will not be appropriate for every project.
+This section provides some comparisions between the two existing solutions and the current implementation of project `tinymorph`, focusing on funtionality and usability.
 
+First solution: OpenAI's Chatgpt
+- Functionality: have good performance on prompt-based conversation. Canvas feature make it easier for editing but project `tinymorph` provides suggestions as appliable notes to do selective modification on the content.
+- Usability: the UI from OpenAI's Chatgpt's UI is imformative and organised to support conversation interface, and `tinymorph` put an emphasis on text-editor tailored interface to better support writing purpose
+
+Second solution: prowritingaid
+- Functionality: prowritingaid provides suggestions based on the text input for user as reference to make improvement, but `tinymorph` provides direct modification to the text content.
+- Usability: prowritingaid currently supports more delicate unser interface on webserver compared to `tinymorph` to provide better user experience.
 ## Unit Testing
 
 ## Changes Due to Testing
