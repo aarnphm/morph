@@ -51,24 +51,27 @@ This document is intended to provide an overview of the testing that performed t
 **Test Description:**  
 This combined test case validates that when planning mode is active, the system appropriately handles both a valid prompt and a large text block input. For a valid prompt (e.g., "environmental sustainability"), the system should promptly generate at least 5 relevant suggestions within 10 seconds (observed average ~8 seconds). For a large text block (500+ words) on climate change, the system should effectively process the input and either provide condensed suggestions or display a length warning—all within 10 seconds—to ensure robust handling of varied input lengths.
 
+
+
 | **Criterion**                    | **Assessment Goal**                                                       | **Pass/Fail** |
 |----------------------------------|---------------------------------------------------------------------------|---------------|
 | Output Time < 10s                | Suggestions appear within an average of ~8 seconds                        | ✅ Pass       |
 | 1 or more suggestion generated   | 5 suggestions are generated given the valid input                         | ✅ Pass       |
 | Input Handling                   | The system effectively processes large inputs without performance degradation   | ✅ Pass       |
 | Suggestions related to input     | The output is clear and relevant to the large input                       | ✅ Pass       |
-
+**Table:Test-1**
 #### **Evaluation of Test-2: Unintelligible Prompt**
 
 **Test Description:**  
 This test case validates that when an unintelligible prompt (e.g., "asdh123!@#") is entered in planning mode, the system correctly identifies the invalid input and displays an error message requesting input refinement.
+
 
 | **Criterion**         | **Assessment Goal**                                                           | **Pass/Fail** |
 |-----------------------|-------------------------------------------------------------------------------|---------------|
 | Input Recognition     | The system accurately identifies the unintelligible prompt                    | ✅ Pass       |
 | Error Message Display | An error message is displayed to prompt for input refinement                  | ✅ Pass       |
 | Response Timing       | The error message is shown within 10 seconds                                  | ❌ Fail (takes longer than 10 seconds)       |
-
+**Table:Test-2**
 ### 6.2 Text Generation Features
 
 #### **Evaluation of Test-3: Steering Validation (Didion Tone)**
@@ -76,12 +79,13 @@ This test case validates that when an unintelligible prompt (e.g., "asdh123!@#")
 **Test Description:**  
 This test case verifies that when the steering feature is enabled and the "Didion" tone is selected with the prompt "reflection on modern life," the system generates text suggestions that accurately match Didion's writing style under specified lexical constraints.
 
+
 | **Criterion**          | **Assessment Goal**                                                           | **Pass/Fail** |
 |------------------------|-------------------------------------------------------------------------------|---------------|
 | Steering Activation    | The steering feature is successfully enabled in the editor                  | ✅ Pass       |
 | Tone Selection         | The "Didion" tone is correctly selected                                       | ✅ Pass       |
 | Style Matching         | Generated suggestions align with Didion's writing style                       | ✅ Pass       |
-
+**Table:Test-3**
 #### **Evaluation of Test-4: Personalized Style Adaptation**
 
 **Test Description:**  
@@ -93,7 +97,7 @@ This test case validates that when a user’s writing sample is provided, the sy
 | Style Adaptation          | Generated output reflects the user's personal writing style                   | ✅ Pass       |
 | Response Timing           | Customized suggestions are produced within 30 seconds                         | ✅ Pass       |
 | Output Relevance          | The suggestions are contextually appropriate and tailored to the sample       | ✅ Pass       |
-
+**Table:Test-4**
 ### 6.3 Feedback Panel
 
 #### **Evaluation of Test-5: LTR Feedback Panel Validation**
@@ -107,7 +111,7 @@ This test case confirms that when user feedback (e.g., tone adjustment, alternat
 | Real-time Update        | Suggestions update immediately upon receiving feedback                        | ✅ Pass       |
 | Output Clarity          | Updated suggestions provide a clear and accurate preview of changes           | ✅ Pass       |
 | Test Execution          | Manual test performed with LTR feedback panel active and initial suggestions  | ✅ Pass       |
-
+**Table:Test-5**
 ### 6.4 Document Export Features
 
 #### **Evaluation of Test-6: Document Export Functionality Validation**
@@ -120,7 +124,7 @@ This test case validates the document export capabilities. It verifies that a co
 | PDF Export              | Selecting PDF export generates a PDF with preserved content                   | ✅ Pass       |
 | Markdown Export         | Selecting markdown export produces a raw .md file with preserved content      | ✅ Pass       |
 | Output Accuracy         | Exported documents accurately preserve the intended content's format          | ❌ Fail  (formating issues with pdf format)       |
-
+**Table:Test-6**
 ### 6.5 Interface Customization Features
 
 #### **Evaluation of Test-7: Theme Customization Validation**
@@ -132,13 +136,13 @@ This test case verifies that the system allows users to switch from the default 
 |------------------------|-------------------------------------------------------------------------------|---------------|
 | Theme Switching        | The system successfully enables switching from light to dark mode             | ✅ Pass       |
 | Visual Consistency     | The dark theme is applied consistently across all interface elements          | ✅ Pass       |
-
+**Table:Test-7**
 
 ## 7 Nonfunctional Requirements Evaluation
 
 ### 7.1 Look and Feel
 
-#### **Evaluation of Test-LF-A1**  
+#### **Evaluation of Test-8**  
 
 ##### **Predefined UI/UX Checklist:**  
 10 engineers and UI/UX experts reviewed and followed the criteria below, ensuring a thorough evaluation of `tinymorph` interface:  
@@ -152,7 +156,7 @@ This test case verifies that the system allows users to switch from the default 
 | **Contrast & Readability** | Text contrast meets WCAG guidelines for accessibility. | ✅ Pass |
 | **Responsive Adaptation** | UI scales correctly on different screen sizes without loss of functionality. | ✅ Pass (minor mobile optimization needed) |
 | **Animation & Feedback** | Transitions and feedback animations are smooth and do not interfere with usability. | ✅ Pass |
-
+**Table:Test-8**
 ##### **User Testing & Survey Results:**  
 Participants then answer the ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]) and rated their experience  on the following topics based on a 1–5 scale (1 = Poor, 5 = Excellent):  
 
@@ -163,14 +167,14 @@ Participants then answer the ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]
 | Non-intrusiveness | **4.9** |
 | Responsiveness across devices | **4.7** (minor UI scaling issues noted) |
 | Visual consistency | **4.9** |
-
+**Table:Test-8 User Testing & Survey Results**
 ##### **Key Observations & Findings:**  
 - **High UI clarity and readability:** Users appreciated the clean layout and distraction-free experience, aligning with the project’s goals.  
 - **Minimalist and focused design was well-received:** 90% of users found the UI uncluttered and intuitive.  
 - **Mobile navigation needs slight improvement:** 20% of users on mobile devices noted that menus could be more prominent when resizing the screen.  
 - **Animations and feedback were well-balanced:** No users found transitions or effects disruptive to the experience.  
 
-#### **Evaluation of Test-LF-A2**  
+#### **Evaluation of Test-9**  
 
 ##### **Predefined UI Audit Checklist:**  
 The team manually reviewed the UI components using the design system documentation and WCAG Contrast Checker, ensuring alignment with the project's visual consistency goals.  
@@ -184,7 +188,7 @@ The team manually reviewed the UI components using the design system documentati
 | **Whitespace & Alignment** | Spacing ensures a clean, uncluttered layout. | ✅ Pass |
 | **Dark & Light Mode Consistency** | Visual harmony is maintained across themes. | ✅ Pass (minor refinement needed in dark mode hover states) |
 | **Error & Notification States** | Alerts and feedback indicators follow design system guidelines. | ✅ Pass |
-
+**Table:Test-9**
 ##### **Validation with WCAG Contrast Checker:**  
 The team ran manual contrast checks using a WCAG compliance tool to ensure accessibility standards were met.  
 
@@ -195,10 +199,10 @@ The team ran manual contrast checks using a WCAG compliance tool to ensure acces
 | **Links & Interactive Elements** | **5.3:1** | ✅ AA |
 | **Disabled Elements** | **3.0:1** | ⚠️ Below AA (Requires Adjustment) |
 | **Dark Mode Text on Background** | **6.5:1** | ✅ AA |
-
+**Table:Test-9 Validation with WCAG Contrast Checker**
 ### 7.2 Usability
 
-#### **Evaluation of Test-UH-EOU3**  
+#### **Evaluation of Test-10**  
 
 Three users were assigned a creative writing task that required structuring ideas using tinymorph's planning interface. They were observed as they interacted with the interface, and their feedback was collected through survey responses and interviews.  
 
@@ -212,7 +216,7 @@ The following criteria were used to evaluate the effectiveness and intuitiveness
 | **Real-Time Adjustments** | Users can seamlessly modify, rearrange, and refine their plans. | ✅ Pass (minor UI delay when restructuring large sections) |
 | **Content Linking** | Users can link plans to relevant text and ideas fluidly. | ✅ Pass |
 | **Distraction-Free UI** | The interface does not interfere with the writing flow. | ✅ Pass |
-
+**Table:Test-10**
 ##### **User Feedback from Surveys and Interviews:**  
 Participants then answer the ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]) and users rated their experience on a 1–5 scale (1 = Poor, 5 = Excellent):  
 
@@ -223,7 +227,7 @@ Participants then answer the ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]
 | Ability to refine structure seamlessly | **4.6** |
 | Efficiency in modifying writing plans | **4.7** |
 | Overall satisfaction with planning workflow | **4.8** |
-
+**Table:Test-10 User Feedback from Surveys and Interviews**
 ##### **Key Takeaways from Interviews:**  
 - Users found the interface intuitive and effective for structuring writing, but some needed extra time to explore all available planning features.  
 - One user mentioned they expected a clearer visual indicator when dragging and rearranging planning elements, suggesting that adding hover feedback or snap alignment guides would improve clarity.  
@@ -231,7 +235,7 @@ Participants then answer the ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]
 - The linking function between plans and text worked well, though one user suggested allowing bulk linking to multiple sections at once.  
 - Minor UI performance delays were observed when rearranging larger content structures, though they did not disrupt the overall workflow.  
 
-#### **Evaluation of Test-UH-L1**  
+#### **Evaluation of Test-11**  
 
 ##### **Testing Setup:**  
 Three new users with no prior experience with `tinymorph` were given access to the application without instructions. Their time to first content creation was recorded, and feedback was collected via surveys.  
@@ -244,7 +248,7 @@ Each user’s time to begin writing or editing content was measured:
 | **User 1** | 7 minutes 32 seconds | ✅ Yes |
 | **User 2** | 9 minutes 10 seconds** | ✅ Yes |
 | **User 3** | 8 minutes 45 seconds | ✅ Yes |
-
+**Table:Test-11**
 ##### **Predefined Usability Checklist:**  
 The following criteria were used to assess onboarding efficiency and initial usability:  
 
@@ -255,7 +259,7 @@ The following criteria were used to assess onboarding efficiency and initial usa
 | **Minimal Guidance Needed** | Users require little to no assistance to begin. | ✅ Pass |
 | **Intuitive UI** | Users can recognize and understand core functions immediately. | ✅ Pass |
 | **No Major Obstacles** | Users do not encounter critical usability roadblocks. | ✅ Pass (some minor confusion with advanced features) |
-
+**Table:Test-11 Predefined Usability Checklist**
 ##### **User Feedback from Surveys:**  
 Participants then answer the ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]) and users rated their onboarding experience on a 1–5 scale (1 = Poor, 5 = Excellent):  
 
@@ -265,8 +269,8 @@ Participants then answer the ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]
 | Clarity of interface | **4.8** |
 | Time taken to start writing | **4.6** |
 | Overall onboarding experience | **4.7** |
-
-#### **Evaluation of Test-UH-A2**  
+**Table:Test-11 User Feedback from Surveys**
+#### **Evaluation of Test-12**  
 
 ##### **Testing Setup:**  
 The team conducted a manual keyboard accessibility test on the tinymorph editor to assess whether all interactive components could be accessed and used without a mouse. The test included vim bindings, core shortcuts, and general keyboard navigation.  
@@ -284,7 +288,7 @@ The team conducted a manual keyboard accessibility test on the tinymorph editor 
 | **Focus Traversal (Tab & Shift+Tab)** | Navigate through UI components | ✅ Pass |
 | **Access File Menu & Settings** | Keyboard shortcuts & Tab navigation | ✅ Pass |
 | **Vault Directory Navigation** | No shortcut available | ❌ Fail |
-
+**Table:Test-12 Keyboard Navigation Test Results**
 ##### **Predefined Accessibility Checklist:**  
 | **Criterion** | **Assessment Goal** | **Pass/Fail** |
 |--------------|---------------------|--------------|
@@ -293,7 +297,7 @@ The team conducted a manual keyboard accessibility test on the tinymorph editor 
 | **No-mouse usability** | Users can operate the editor without touching the mouse. | ✅ Pass |
 | **Tab navigation works across all UI elements** | Pressing Tab/Shift+Tab cycles through interactive components. | ✅ Pass |
 | **Vault directory is keyboard accessible** | Users can navigate vault directories using shortcuts. | ❌ Fail (No shortcut available) |
-
+**Table:Test-12 Predefined Accessibility Checklist**
 ### 7.3 Performance
 
 #### **Evaluation of Test-PR-SLR1**
@@ -429,11 +433,79 @@ System efficiently processes multiple concurrent suggestion requests without sig
 
 #### **Evaluation of Test-SR-INT1**
 
+Automated security testing tools were used to monitor network traffic to verify HTTPS encryption. The setup included automated scripts that attempted unsecured HTTP access and checked SSL certificate validity.
+
+##### **Test Execution**  
+- Performance and security testing tools automatically monitored network traffic.
+- Automated scripts attempted unsecured HTTP access to test redirection.
+- Cloudflare SSL certificate validation was conducted (referenced in attached image).
+- Browser monitoring for mixed content warnings was performed.
+
+##### **Security Checklist**  
+
+| **Criterion** | **Assessment Goal** | **Pass/Fail** |
+|--------------|---------------------|--------------|
+| **HTTPS Encryption** | All communications encrypted via HTTPS. | ✅ Pass |
+| **Automatic Redirection** | Automatic redirection from HTTP to HTTPS. | ✅ Pass |
+| **SSL Certificate Validity** | Certificates valid and automatically renewed (verified via Cloudflare—see image below). | ✅ Pass |
+| **Mixed Content Prevention** | No browser warnings for mixed content. | ✅ Pass |
+
+![Cloudflare Security](cloudflare.png)
+
+
 #### **Evaluation of Test-SR-INT2**
+
+Automated DNSSEC testing tools verified DNS security configurations. Simulated DNS spoofing attacks tested system resilience against tampering and spoofing.
+
+##### **Test Execution**  
+- Automated DNSSEC validation tools verified DNS security settings.
+- DNS spoofing attacks were automatically simulated.
+- DNS queries and responses were monitored to confirm integrity.
+
+##### **Security Checklist**  
+
+| **Criterion**               | **Assessment Goal**                                                | **Pass/Fail** |
+|-----------------------------|--------------------------------------------------------------------|---------------|
+| **DNSSEC Implementation**   | DNSSEC active and correctly configured.                            | ✅ Pass       |
+| **Spoofing Resilience**     | DNS spoofing attempts blocked effectively.                         | ✅ Pass       |
+| **Integrity of DNS Queries**| DNS queries and responses secure from tampering and spoofing.      | ✅ Pass       |
+
 
 #### **Evaluation of Test-SR-INT3**
 
-#### **Evaluation of Test-SR-P1**
+Automated security testing tools were used to validate the effectiveness of Content Security Policies (CSP) by attempting script injections and analyzing CSP headers.
+
+##### **Test Execution**  
+- Automated injection of malicious scripts (XSS) was conducted.
+- CSP headers were analyzed automatically for correct configurations.
+- Violations or weaknesses in CSP were logged and assessed.
+
+##### **Security Checklist**  
+
+| **Criterion**             | **Assessment Goal**                                                    | **Pass/Fail** |
+|---------------------------|------------------------------------------------------------------------|---------------|
+| **CSP Configuration**     | CSP headers correctly configured to block unauthorized scripts.        | ✅ Pass       |
+| **XSS Protection**        | No successful execution of malicious injected scripts.                 | ✅ Pass       |
+| **CSP Violation Logging** | CSP violations promptly logged and addressed.                          | ✅ Pass       |
+
+#### **Evaluation of Test-SR-INT4**
+
+Automated scripts verified JWT-based session security, ensuring tokens were securely managed and resilient against misuse or interception.
+
+##### **Test Execution**  
+- Tokens were automatically inspected for proper signing and encryption.
+- Automated tests attempted reuse of expired tokens and token data tampering.
+- Session expiration and re-authentication processes were validated.
+- Secure token storage on client-side was automatically verified.
+
+##### **Security Checklist**  
+
+| **Criterion**              | **Assessment Goal**                                                       | **Pass/Fail** |
+|----------------------------|---------------------------------------------------------------------------|---------------|
+| **JWT Security**           | Tokens properly signed, encrypted, and secured.                           | ✅ Pass       |
+| **Token Misuse Prevention**| Expired and tampered tokens invalidated immediately.                      | ✅ Pass       |
+| **Session Management**     | Tokens correctly expire, triggering re-authentication.                    | ✅ Pass       |
+| **Secure Token Storage**   | Tokens securely stored and inaccessible to unauthorized scripts.          | ✅ Pass       |
 
 ### 7.5 Maintainability and Support
 
@@ -557,20 +629,21 @@ The testing was does automatically run on Github Actions whenever a commit was p
 
 ## 12 Trace to Requirements
 ### Functional Requirements
-**Table: Traceability of Testing to Functional Requirements**
-|                | FR1      | FR2      | FR3      |  FR13      |   FR14      | 
+
+
+|   Requirements | FR1      | FR2      | FR3      |  FR13    |   FR14   | 
 |----------------|----------|----------|----------|----------|----------|
-| Test-1        |    X     |          |    X     |          |          | 
+| Test-1         |    X     |          |    X     |          |          | 
 | Test-2         |   X      |          |          |          |          |
 | Test-3          |          |    X     |          |          |          | 
 | Test-4         |          |     X    |          |          |          | 
 | Test-5          |          |          |          |    X     |          | 
 | Test-6          |          |          |          |    X     |          | 
 | Test-7         |          |          |          |          |    X     | 
-
+**Table: Traceability of Testing to Functional Requirements**
 ### Non-Functional Requirements
-**Table: Traceability of Testing to Non-Functional Requirements**
-|                 | LF-A1    | LF-A2    | UH-EOU3  | UH-L1    | UH-A2    | Column 6 | Column 7 |
+
+|   Requirements | LF-A1    | LF-A2    | UH-EOU3  | UH-L1    | UH-A2    | Column 6 | Column 7 |
 |-----------------|----------|----------|----------|----------|----------|----------|----------|
 | Test-8         |     X    |          |          |          |          |          |          |
 | Test-9          |          |    X    |          |          |          |          |          |
@@ -579,10 +652,11 @@ The testing was does automatically run on Github Actions whenever a commit was p
 | Test-12          |          |          |          |          |    X    |          |          |
 | Row 6          |          |          |          |          |          |          |          |
 | Row 7          |          |          |          |          |          |          |          |
-
+**Table: Traceability of Testing to Non-Functional Requirements**
 ## Trace to Modules
-**Table: Traceability of Testing to Modules**
-|                | M1        | M2       |  M3      | M4       | M5       | M6       | M7       | M8       | M9       | M10      | M11        |
+
+
+|   Modules       | M1        | M2       |  M3      | M4       | M5       | M6       | M7       | M8       | M9       | M10      | M11      |
 |-----------------|----------|----------|----------|----------|----------|----------|----------|----------|----------|---------|----------|
 | Test-1          |          |   X      |   X      |    X     |          |    X     |          |    X     |          |          |          |
 | Test-2          |          |    X     |    X     |     X    |          |          |          |     X    |          |          |          |
@@ -596,6 +670,7 @@ The testing was does automatically run on Github Actions whenever a commit was p
 | Test-10         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
 | Test-11         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
 | Test-12         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
+**Table: Traceability of Testing to Modules**
 ## 14 Code Coverage Metrics
 
 The coverage data generated by coverage.py and coverage.tsx can be shown in the following table: 
