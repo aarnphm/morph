@@ -29,7 +29,7 @@ import { SearchCommand } from "@/components/search-command"
 import { DndProvider } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
 import { NotesProvider } from "@/context/notes-context"
-import { EditorDropZone } from "@/components/editor-notes"
+import { EditorNotes } from "@/components/editor-notes"
 import { generatePastelColor } from "@/lib/notes"
 import { notesService } from "@/services/notes-service"
 import { db, type Note, type Vault, type FileSystemTreeNode } from "@/db"
@@ -167,9 +167,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         title: "Dummy Note 3",
         content: "This is dummy note content number 3.",
       },
-    ]);
-  };
-  
+    ])
+  }
+
   /*
   const fetchNewNotes = async (content: string): Promise<GeneratedNote[]> => {
     try {
@@ -442,7 +442,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               </header>
               <section className="flex h-[calc(100vh-104px)] gap-10 m-4">
                 <div className="flex-1 relative border">
-                  <EditorDropZone />
+                  <EditorNotes />
                   <div
                     className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
                   >
@@ -472,7 +472,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                           codeMirrorViewRef.current = view
                         }}
                       />
-                      
                     </div>
                   </div>
                   <div
@@ -519,32 +518,32 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                               onDragEnd={(e) => {
                                 // Remove note from note panel when note note dropped onto editor
                                 if (e.dataTransfer.dropEffect === "move") {
-                                  const draggedNote = notes[index];
-                                  setNotes((prev) => prev.filter((_, i) => i !== index));
+                                  const draggedNote = notes[index]
+                                  setNotes((prev) => prev.filter((_, i) => i !== index))
                                   // Transfer note content to editor when dropped (Not neccessary if whole note needed to be added on top of editor)
                                   if (codeMirrorViewRef.current) {
-                                    const editor = codeMirrorViewRef.current;
-                                    const cursorPosition = editor.state.selection.main.head;
+                                    const editor = codeMirrorViewRef.current
+                                    const cursorPosition = editor.state.selection.main.head
                                     editor.dispatch({
                                       changes: {
                                         from: cursorPosition,
                                         insert: draggedNote.content,
                                       },
-                                    });
+                                    })
                                   }
                                 }
                               }}
                             >
                               <NoteCard
-                              className="w-full"
-                              note={{
-                                id: note.id,
-                                content: note.content,
-                                color: note.color ?? generatePastelColor(),
-                                fileId: currentFile,
-                                isInEditor: false,
-                                createdAt: note.createdAt ?? new Date(),
-                              }}
+                                className="w-full"
+                                note={{
+                                  id: note.id,
+                                  content: note.content,
+                                  color: note.color ?? generatePastelColor(),
+                                  fileId: currentFile,
+                                  isInEditor: false,
+                                  createdAt: note.createdAt ?? new Date(),
+                                }}
                               />
                             </div>
                           ))}

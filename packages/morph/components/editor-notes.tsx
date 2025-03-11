@@ -4,7 +4,7 @@ import { NOTES_DND_TYPE, type Note } from "@/lib/notes"
 import { useNotes } from "@/context/notes-context"
 import { NoteCard } from "@/components/note-card"
 
-export function EditorDropZone() {
+export function EditorNotes() {
   const { editorNotes, moveNoteToEditor } = useNotes()
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -23,7 +23,7 @@ export function EditorDropZone() {
       console.log("Note dropped at position:", position)
 
       moveNoteToEditor(item.id, position)
-      
+
       return { noteId: item.id, targetId: "editor" }
     },
     collect: (monitor) => ({
