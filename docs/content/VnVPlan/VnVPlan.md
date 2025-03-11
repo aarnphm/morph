@@ -869,16 +869,6 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Output/Result**: Achieve approximately 300 tokens/sec throughput.
 - **How test will be performed**: Load testing tools will automatically send concurrent batched requests to the inference server. The number of tokens processed per second will be measured over multiple test runs. Server resource utilization including CPU, GPU, and memory will be analyzed to identify any bottlenecks. If the throughput is below the desired level, optimizations will be recommended to enhance performance.
 
-#### Validate Non-Harmful Suggestions
-
-**Test-PR-SCR1**
-
-- **Type**: Structural, Dynamic, Automatic
-- **Initial State**: Suggestion generation feature is active with SAEs in place.
-- **Input/Condition**: Input texts that could potentially trigger offensive or inappropriate content.
-- **Output/Result**: Suggestions are appropriate and free of harmful language.
-- **How test will be performed**: An automated test suite containing inputs that may trigger offensive or inappropriate content will be created. Suggestions generated from these inputs will be automatically scanned using content moderation tools to detect harmful language. Any instances of inappropriate content will be flagged, and adjustments to the SAEs and content filtering mechanisms will be made to prevent future occurrences.
-
 #### Ensure Interface Contains Only Safe Content
 
 **Test-PR-SCR2**
@@ -959,16 +949,6 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Output/Result**: Application functions correctly with different models.
 - **How test will be performed**: Automated integration scripts will replace the existing language model with alternative models like Llama 3 and Gemma 2. The full suite of regression tests will be run automatically to ensure that all features operate as expected. Compatibility issues will be identified and addressed, with documentation updated accordingly.
 
-#### Test Packaging for Different Operating Systems
-
-**Test-PR-LR2**
-
-- **Type**: Structural, Automatic
-- **Initial State**: Standalone binary versions are packaged.
-- **Input/Condition**: Install and run the application on various OS (Windows, macOS, Linux).
-- **Output/Result**: Application installs and runs without errors on all supported platforms.
-- **How test will be performed**: Automated build and deployment tools will prepare installation packages for each operating system. Installation and execution tests will be run automatically on virtual machines or containers representing Windows, macOS, and Linux environments. Any OS-specific issues will be logged and resolved to ensure cross-platform compatibility.
-
 ### Security
 
 #### Ensure HTTPS Encryption for All Communications
@@ -1000,16 +980,6 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Input/Condition**: Use the application while attempting to execute unauthorized scripts.
 - **Output/Result**: CSP effectively prevents XSS attacks.
 - **How test will be performed**: Automated security testing tools will attempt to inject malicious scripts into the application. The effectiveness of CSP in blocking these scripts will be verified automatically. CSP headers will be analyzed to ensure they are correctly configured. Any violations or weaknesses will be addressed to enhance security.
-
-#### Test Session Security with JWT and Short-Lived Tokens
-
-**Test-SR-INT4**
-
-- **Type**: Structural, Dynamic, Automatic
-- **Initial State**: Session management is implemented using JWT.
-- **Input/Condition**: Authenticate and use the application. Attempt token misuse.
-- **Output/Result**: Sessions are secure. Tokens will not be misused or intercepted.
-- **How test will be performed**: Automated scripts will inspect tokens to ensure proper signing and encryption. Attempts to reuse expired tokens or tamper with token data will be conducted automatically to test the system's defenses. Session expiration and re-authentication processes will be verified. Secure storage of tokens on the client side will be validated.
 
 #### Verify Privacy Compliance
 
