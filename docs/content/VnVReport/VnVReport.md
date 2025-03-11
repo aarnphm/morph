@@ -64,11 +64,16 @@ First solution: OpenAI's Chatgpt
 Second solution: prowritingaid
 - Functionality: prowritingaid provides suggestions based on the text input for user as reference to make improvement, but `tinymorph` provides direct modification to the text content.
 - Usability: prowritingaid currently supports more delicate unser interface on webserver compared to `tinymorph` to provide better user experience.
+
 ## Unit Testing
 
 ## Changes Due to Testing
 
-This section should highlight how feedback from the users and from the supervisor (when one exists) shaped the final product. In particular the feedback from the Rev 0 demo to the supervisor (or to potential users) should be highlighted.
+- Interface structure improved for mobile use
+- The disabled contents in the interface is adjusted with a more obvious contrast ratios to support contrast compliance
+- Hover states improved to support darkmode 
+- Front-end code is restructured lightly to deacrese the responding time
+- More graphical hint and color hint is used to better support navigation and remove obstacles
 
 ## Automated Testing
 
