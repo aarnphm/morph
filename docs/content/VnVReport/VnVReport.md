@@ -91,3 +91,91 @@ The information in this section will be used to evaluate the team members on the
 2. What pain points did you experience during this deliverable, and how did you resolve them?
 3. Which parts of this document stemmed from speaking to your client(s) or a proxy (e.g. your peers)? Which ones were not, and why?
 4. In what ways was the Verification and Validation (VnV) Plan different from the activities that were actually conducted for VnV? If there were differences, what changes required the modification in the plan? Why did these changes occur? Would you be able to anticipate these changes in future projects? If there weren't any differences, how was your team able to clearly predict a feasible amount of effort and the right tasks needed to build the evidence that demonstrates the required quality? (It is expected that most teams will have had to deviate from their original VnV Plan.)
+
+<div class="reflection-container">
+
+
+<div class="users">
+  <a class="name" href="https://github.com/aarnphm">Aaron</a>
+</div>
+
+
+<div class="blob">
+
+
+
+
+</div>
+
+
+</div>
+
+
+<br/>
+
+
+<div class="reflection-container">
+
+
+<div class="users">
+  <a class="name" href="https://github.com/nebrask">Nebras</a>
+</div>
+
+
+<div class="blob">
+
+
+
+
+</div>
+
+
+</div>
+
+
+<br/>
+
+
+<div class="reflection-container">
+
+
+<div class="users">
+  <a class="name" href="https://github.com/waleedmalik7">Waleed</a>
+</div>
+
+
+<div class="blob">
+
+
+</div>
+
+
+</div>
+
+
+<br/>
+
+
+<div class="reflection-container">
+
+
+<div class="users">
+  <a class="name" href="https://github.com/lucas-lizhiwei">Lucas</a>
+</div>
+
+
+<div class="blob">
+
+
+<p>
+1. The document is well organised under the plan of VnV, and the tracibility between the documents are clear to follow
+2. The testing is hard to structure and perform due to the specialty of our project scale, especially for the inference module.
+3. The non-founctional requirement relevant testing and following adjustment are largely based on the feedback from clients, for the goal that to make this project better fit into the user expectation with high usability. The unit testing is mainly constructed based the the group members' ideas due to the expertise and knowledge gap between the project developer and user.
+4. There are a lot of the testcase deletion and modification haapened comparing to the original VnV plan, together with some more detailed and specific testing improvements due to the better understanding to the project along with the development procedure. The testcases after modification better fit into the purpose of verification and support the testing responsibility. 
+</p>
+
+
+</div>
+
+
+</div>
