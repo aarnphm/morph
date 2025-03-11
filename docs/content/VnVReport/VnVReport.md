@@ -686,18 +686,7 @@ The testing was does automatically run on Github Actions whenever a commit was p
 | Test-11          |          |          |          |    X     |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |
 | Test-12          |          |          |          |          |    X    |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |
 | 
-| Test-13          |          |          |          |          |          |    X    |          |          |          |          |          |          |          |          |          |          |          |          |          |          |
-Test-14          |          |          |          |          |          |          |    X     |          |          |          |          |          |          |          |          |          |          |          |          |          |
-Test-15          |          |          |          |          |          |          |          |     X    |          |          |          |          |          |          |          |          |          |          |          |          |
-Test-16          |          |          |          |          |          |          |          |          |     X    |          |          |          |          |          |          |          |          |          |          |          |
-Test-17          |          |          |          |          |          |          |          |          |          |    X    |          |          |          |          |          |          |          |          |          |          |
-Test-18          |          |          |          |          |          |          |          |          |          |          |     X    |          |          |          |          |          |          |          |          |          |
-Test-19          |          |          |          |          |          |          |          |          |          |          |          |          |     X    |          |          |          |          |          |          |          |
-Test-20          |          |          |          |          |          |          |          |          |          |          |          |     X    |          |          |          |          |          |          |          |          |
-Test-21          |          |          |          |          |          |          |          |          |          |          |          |          |    X     |          |          |          |          |          |          |          |
-Test-22          |          |          |          |          |          |          |          |          |          |          |          |          |          |    X     |          |          |          |          |          |          |
-Test-23          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |  X      |          |          |          |          |
-Test-24          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |   X     |          |          |          |
+
 **Table: Traceability of Testing to Non-Functional Requirements**
 ## Trace to Modules
 
