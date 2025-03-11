@@ -398,11 +398,60 @@ Automated security testing tools were used to monitor network traffic to verify 
 
 ![Cloudflare Security](cloudflare.png)
 
+
 #### **Evaluation of Test-SR-INT2**
+
+Automated DNSSEC testing tools verified DNS security configurations. Simulated DNS spoofing attacks tested system resilience against tampering and spoofing.
+
+##### **Test Execution**  
+- Automated DNSSEC validation tools verified DNS security settings.
+- DNS spoofing attacks were automatically simulated.
+- DNS queries and responses were monitored to confirm integrity.
+
+##### **Security Checklist**  
+
+| **Criterion**               | **Assessment Goal**                                                | **Pass/Fail** |
+|-----------------------------|--------------------------------------------------------------------|---------------|
+| **DNSSEC Implementation**   | DNSSEC active and correctly configured.                            | ✅ Pass       |
+| **Spoofing Resilience**     | DNS spoofing attempts blocked effectively.                         | ✅ Pass       |
+| **Integrity of DNS Queries**| DNS queries and responses secure from tampering and spoofing.      | ✅ Pass       |
+
 
 #### **Evaluation of Test-SR-INT3**
 
-#### **Evaluation of Test-SR-P1**
+Automated security testing tools were used to validate the effectiveness of Content Security Policies (CSP) by attempting script injections and analyzing CSP headers.
+
+##### **Test Execution**  
+- Automated injection of malicious scripts (XSS) was conducted.
+- CSP headers were analyzed automatically for correct configurations.
+- Violations or weaknesses in CSP were logged and assessed.
+
+##### **Security Checklist**  
+
+| **Criterion**             | **Assessment Goal**                                                    | **Pass/Fail** |
+|---------------------------|------------------------------------------------------------------------|---------------|
+| **CSP Configuration**     | CSP headers correctly configured to block unauthorized scripts.        | ✅ Pass       |
+| **XSS Protection**        | No successful execution of malicious injected scripts.                 | ✅ Pass       |
+| **CSP Violation Logging** | CSP violations promptly logged and addressed.                          | ✅ Pass       |
+
+#### **Evaluation of Test-SR-INT4**
+
+Automated scripts verified JWT-based session security, ensuring tokens were securely managed and resilient against misuse or interception.
+
+##### **Test Execution**  
+- Tokens were automatically inspected for proper signing and encryption.
+- Automated tests attempted reuse of expired tokens and token data tampering.
+- Session expiration and re-authentication processes were validated.
+- Secure token storage on client-side was automatically verified.
+
+##### **Security Checklist**  
+
+| **Criterion**              | **Assessment Goal**                                                       | **Pass/Fail** |
+|----------------------------|---------------------------------------------------------------------------|---------------|
+| **JWT Security**           | Tokens properly signed, encrypted, and secured.                           | ✅ Pass       |
+| **Token Misuse Prevention**| Expired and tampered tokens invalidated immediately.                      | ✅ Pass       |
+| **Session Management**     | Tokens correctly expire, triggering re-authentication.                    | ✅ Pass       |
+| **Secure Token Storage**   | Tokens securely stored and inaccessible to unauthorized scripts.          | ✅ Pass       |
 
 ### 7.5 Maintainability and Support
 
