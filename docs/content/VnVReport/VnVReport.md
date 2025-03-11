@@ -340,6 +340,7 @@ evaluates the inference server’s ability to maintain a throughput of approxima
 | **Latency Impact** | Increased QPS does not significantly degrade throughput. | ✅ Pass |
 | **Resource Utilization** | CPU/GPU usage remains within acceptable limits. | ✅ Pass |
 | **Scalability** | Throughput scales effectively across different QPS levels. | ✅ Pass |  
+**Table:Test-14**
 
 The results ensure that the inference server effectively handles concurrent requests while maintaining optimal token generation speeds.  
 
@@ -361,6 +362,7 @@ Confirm that all UI elements, images, and media assets used in the application a
 | **Verified Asset Sources** | All third-party assets have proper licenses. | ✅ Pass |
 | **No Unauthorized Media** | No unlicensed or unverified external assets. | ✅ Pass |
 | **Safe Placeholder Texts** | No inappropriate text or placeholder content. | ✅ Pass |
+**Table:Test-15**
 
 #### **Evaluation of Test-16**
 
@@ -382,6 +384,7 @@ Assess how accurately the generated text aligns with user-specified steering inp
 | **Consistency with Input** | Text maintains coherent adherence to the steering parameters. | ✅ Pass |
 | **Similarity to Reference** | High cosine similarity with expected textual patterns. | ✅ Pass |
 | **Adjustments for Improvement** | System dynamically refines output based on feedback. | ✅ Pass |
+**Table:Test-16**
 
 #### **Evaluation of Test-17**
 
@@ -404,6 +407,8 @@ Deployment strategy successfully maintains availability in the event of node or 
 | **Autoscaling Efficiency** | The system scales up/down appropriately based on load. | ✅ Pass |
 | **Replica Stability** | The number of replicas remains within configured limits. | ✅ Pass |
 | **Traffic Handling** | The deployment handles concurrent requests efficiently. | ✅ Pass |
+**Table:Test-17**
+
 
 #### **Evaluation of Test-18**
 
@@ -424,6 +429,8 @@ System efficiently processes multiple concurrent suggestion requests without sig
 | **Processing Speed** | No significant delay observed under normal load. | ✅ Pass |
 | **Error Handling** | No request drops or processing errors detected. | ✅ Pass |
 | **System Stability** | Performance remains consistent under increased load. | ✅ Pass |
+**Table:Test-18**
+
 
 #### **Evaluation of Test-19**
 
@@ -451,7 +458,7 @@ Confirm minimal input lag and smooth real-time feedback for users, even under hi
 | **Performance Across Devices** | Remains smooth across both high-end and low-end systems. | ✅ Pass (minor lag at peak load on older devices) |
 | **Cross-Browser Performance** | Input responsiveness is consistent across tested browsers. | ✅ Pass |
 | **Frame Stability** | UI maintains at least 60 FPS during input operations. | ✅ Pass |
-
+**Table:Test-19**
 
 ### 7.4 Security
 
@@ -473,6 +480,8 @@ Automated security testing tools were used to monitor network traffic to verify 
 | **Automatic Redirection** | Automatic redirection from HTTP to HTTPS. | ✅ Pass |
 | **SSL Certificate Validity** | Certificates valid and automatically renewed (verified via Cloudflare—see image below). | ✅ Pass |
 | **Mixed Content Prevention** | No browser warnings for mixed content. | ✅ Pass |
+**Table:Test-20**
+
 ![[VnVReport/cloudflare.png]]
 
 #### **Evaluation of Test-21**
@@ -491,7 +500,7 @@ Automated DNSSEC testing tools verified DNS security configurations. Simulated D
 | **DNSSEC Implementation**   | DNSSEC active and correctly configured.                            | ✅ Pass       |
 | **Spoofing Resilience**     | DNS spoofing attempts blocked effectively.                         | ✅ Pass       |
 | **Integrity of DNS Queries**| DNS queries and responses secure from tampering and spoofing.      | ✅ Pass       |
-
+**Table:Test-21**
 
 #### **Evaluation of Test-22**
 
@@ -509,6 +518,8 @@ Automated security testing tools were used to validate the effectiveness of Cont
 | **CSP Configuration**     | CSP headers correctly configured to block unauthorized scripts.        | ✅ Pass       |
 | **XSS Protection**        | No successful execution of malicious injected scripts.                 | ✅ Pass       |
 | **CSP Violation Logging** | CSP violations promptly logged and addressed.                          | ✅ Pass       |
+**Table:Test-22**
+
 
 #### **Evaluation of Test-23**
 
@@ -528,6 +539,7 @@ Automated scripts verified JWT-based session security, ensuring tokens were secu
 | **Token Misuse Prevention**| Expired and tampered tokens invalidated immediately.                      | ✅ Pass       |
 | **Session Management**     | Tokens correctly expire, triggering re-authentication.                    | ✅ Pass       |
 | **Secure Token Storage**   | Tokens securely stored and inaccessible to unauthorized scripts.          | ✅ Pass       |
+**Table:Test-23**
 
 ### 7.5 Maintainability and Support
 
@@ -565,6 +577,7 @@ To ensure `tinymorph` remains secure and updated, a security audit was conducted
 | **No close paraphrasing** | The response should not closely mimic the structure or wording of copyrighted content. | ✅ Pass |
 | **No explicit suggestion for copyrighted completion** | The system should not prompt or suggest completing copyrighted sentences. | ✅ Pass |
 | **Transformation and originality** | The output should introduce original elements that differentiate it from copyrighted content. | ✅ Pass |
+**Table:Test-25**
 
 ##### **Test Case & Results**  
 
