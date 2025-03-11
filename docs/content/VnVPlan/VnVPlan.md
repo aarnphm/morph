@@ -889,6 +889,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Output/Result**: Generated text aligns with user inputs and feedback.
 - **How test will be performed**: Specific steering parameters will be defined, and automated scripts will generate text outputs based on these inputs. Analytical metrics like cosine similarity and stylistic analysis tools will be used to quantitatively assess the alignment between the generated text and the steering inputs. Results will be compiled to evaluate the system's responsiveness and adjustments will be made to improve accuracy where necessary.
 
+<!--
 #### Verify Notification on Inflight Request Failures
 
 **Test-PR-RFR1**
@@ -898,6 +899,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Input/Condition**: Simulate inflight request failures (e.g., network disruptions).
 - **Output/Result**: Users receive a notification toast informing them of the failure.
 - **How test will be performed**: Automated testing tools will simulate network disruptions and monitor the application's response. The appearance of the notification toast will be verified automatically, and the content of the message will be checked for clarity and actionability. The ability of users to resubmit requests or revert steps will be tested to ensure proper error handling.
+-->
 
 #### Test Deployment Strategy for Fault Tolerance
 
@@ -939,6 +941,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Output/Result**: Server scales up during high traffic and scales down to zero during low traffic.
 - **How test will be performed**: Automated load testing tools will apply varying levels of requests to the inference server. Monitoring systems will automatically track server instances and resource utilization to observe scaling actions. Verification will be made to ensure that scaling occurs according to the configured thresholds without impacting performance.
 
+<!--
 #### Evaluate Integration with Different Model Architectures
 
 **Test-PR-LR1**
@@ -948,7 +951,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Input/Condition**: Swap the LLM with alternative architectures and SAEs.
 - **Output/Result**: Application functions correctly with different models.
 - **How test will be performed**: Automated integration scripts will replace the existing language model with alternative models like Llama 3 and Gemma 2. The full suite of regression tests will be run automatically to ensure that all features operate as expected. Compatibility issues will be identified and addressed, with documentation updated accordingly.
-
+-->
 ### Security
 
 #### Ensure HTTPS Encryption for All Communications
