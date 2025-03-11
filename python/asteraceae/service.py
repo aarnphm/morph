@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging, traceback, asyncio
 import bentoml, fastapi, pydantic
 
@@ -7,7 +8,6 @@ from annotated_types import Ge, Le
 from typing_extensions import Annotated
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 openai_api_app = fastapi.FastAPI()
 
@@ -41,10 +41,6 @@ After your analysis, provide your final suggestion in <suggestion> tags.
 
 Example output structure:
 
-<thinking>
-[Your detailed analysis of the excerpt, considering style, tone, and concept]
-</thinking>
-
 <suggestion>
 [Your concise, meaningful suggestion to improve the writing]
 </suggestion>
@@ -56,34 +52,12 @@ class Suggestion(pydantic.BaseModel):
   suggestion: str
 
 
-class ServerArgs(pydantic.BaseModel):
-  model: str
-  disable_log_requests: bool = True
-  disable_log_stats: bool = True
-  max_log_len: int = 1000
-  response_role: str = 'assistant'
-  served_model_name: Optional[List[str]] = None
-  chat_template: Optional[str] = None
-  chat_template_content_format: Literal['auto'] = 'auto'
-  lora_modules: Optional[List[str]] = None
-  prompt_adapters: Optional[List[str]] = None
-  request_logger: Optional[str] = None
-  return_tokens_as_token_ids: bool = False
-  enable_tool_call_parser: bool = True
-  enable_auto_tool_choice: bool = True
-  enable_prompt_tokens_details: bool = False
-  enable_reasoning: bool = False
-  tool_call_parser: str = 'llama3_json'
-  guided_decoding_backend: Literal['xgrammar', 'outlines'] = 'xgrammar'
-  reasoning_parser: str = 'deepseek_r1'
-  task: str = 'generate'
-
-
 @bentoml.asgi_app(openai_api_app, path='/v1')
 @bentoml.service(
   name='asteraceae-inference-service',
   traffic={'timeout': 300, 'concurrency': 128},
-  resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
+  resources={'gpu': 2, 'gpu_type': 'nvidia-a100-80gb'},
+  labels={'owner': 'hinterland', 'type': 'inference-service'},
   http={
     'cors': {
       'enabled': True,
@@ -95,33 +69,65 @@ class ServerArgs(pydantic.BaseModel):
       'access_control_expose_headers': ['Content-Length'],
     }
   },
-  envs=[{'name': 'HF_TOKEN'}, {'name': 'UV_COMPILE_BYTECODE', 'value': 1}],
-  image=bentoml.images.PythonImage(python_version='3.11').requirements_file('requirements.txt'),
+  envs=[
+    {'name': 'HF_TOKEN'},
+    {'name': 'UV_COMPILE_BYTECODE', 'value': 1},
+    {'name': 'UV_NO_PROGRESS', 'value': 1},
+    {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': 1},
+    {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
+  ],
+  image=bentoml.images.PythonImage(python_version='3.11', lock_python_packages=False)
+  .requirements_file('requirements.txt')
+  .run('uv pip install flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.5'),
 )
 class Engine:
   ref = bentoml.models.HuggingFaceModel(MODEL_ID, exclude=['*.pth'])
 
   def __init__(self):
-    from vllm import AsyncEngineArgs, AsyncLLMEngine
+    from openai import AsyncOpenAI
+
+    self.openai = AsyncOpenAI(base_url='http://127.0.0.1:3000/v1', api_key='dummy')
+
+  @bentoml.on_startup
+  async def init_engine(self) -> None:
     import vllm.entrypoints.openai.api_server as vllm_api_server
 
-    ENGINE_ARGS = AsyncEngineArgs(model=self.ref, enable_prefix_caching=True, enable_chunked_prefill=True)
-    self.engine = AsyncLLMEngine.from_engine_args(ENGINE_ARGS)
+    from vllm.utils import FlexibleArgumentParser
+    from vllm.entrypoints.openai.cli_args import make_arg_parser
 
+    args = make_arg_parser(FlexibleArgumentParser()).parse_args([])
+    args.model = self.ref
+    args.disable_log_requests = True
+    args.max_log_len = 1000
+    args.served_model_name = [MODEL_ID]
+    args.request_logger = None
+    args.disable_log_stats = True
+    args.enable_prefix_caching = True
+    args.max_model_len = 16384
+
+    router = fastapi.APIRouter(lifespan=vllm_api_server.lifespan)
     OPENAI_ENDPOINTS = [
-      ['/chat/completions', vllm_api_server.create_chat_completion, ['POST']],
-      ['/completions', vllm_api_server.create_completion, ['POST']],
-      ['/embeddings', vllm_api_server.create_embedding, ['POST']],
-      ['/models', vllm_api_server.show_available_models, ['GET']],
+        ['/chat/completions', vllm_api_server.create_chat_completion, ['POST']],
+        ['/models', vllm_api_server.show_available_models, ['GET']],
     ]
-    for route, endpoint, methods in OPENAI_ENDPOINTS:
-      openai_api_app.add_api_route(path=route, endpoint=endpoint, methods=methods, include_in_schema=True)
 
-    model_config = self.engine.engine.get_model_config()
-    # NOTE: This is ok, given that all bentoml service is running within a event loop.
-    asyncio.create_task(  # noqa: RUF006
-      vllm_api_server.init_app_state(self.engine, model_config, openai_api_app.state, ServerArgs(model=MODEL_ID))
-    )
+    for route, endpoint, methods in OPENAI_ENDPOINTS: router.add_api_route(path=route, endpoint=endpoint, methods=methods, include_in_schema=True)
+    openai_api_app.include_router(router)
+
+    self.engine_context = vllm_api_server.build_async_engine_client(args)
+    self.engine = await self.engine_context.__aenter__()
+    self.model_config = await self.engine.get_model_config()
+    self.tokenizer = await self.engine.get_tokenizer()
+    args.enable_reasoning = True
+    args.enable_auto_tool_choice = True
+    args.reasoning_parser = 'deepseek_r1'
+    args.tool_call_parser = 'hermes'
+
+    await vllm_api_server.init_app_state(self.engine, self.model_config, openai_api_app.state, args)
+
+  @bentoml.on_shutdown
+  async def teardown_engine(self):
+    await self.engine_context.__aexit__(GeneratorExit, None, None)
 
   @bentoml.api
   async def suggests(
@@ -132,13 +138,9 @@ class Engine:
     num_suggestions: Annotated[int, Ge(1), Le(10)] = 5,
     min_suggestions: Annotated[int, Ge(1), Le(10)] = 3,
   ) -> AsyncGenerator[str, None]:
-    if min_suggestions >= num_suggestions:
-      raise ValueError(f'min_suggestions ({min_suggestions}) must be less than num_suggestions ({num_suggestions})')
+    if min_suggestions >= num_suggestions: raise ValueError(f'min_suggestions ({min_suggestions}) must be less than num_suggestions ({num_suggestions})')
 
-    from openai import AsyncOpenAI
     from openai.types.chat import ChatCompletionSystemMessageParam, ChatCompletionUserMessageParam
-
-    client = AsyncOpenAI(base_url='http://127.0.0.1:3000/v1', api_key='dummy')
 
     Output = pydantic.create_model(
       'Output',
@@ -149,7 +151,7 @@ class Engine:
     params = dict(guided_json=Output.model_json_schema())
 
     try:
-      completions = await client.chat.completions.create(
+      completions = await self.openai.chat.completions.create(
         model=MODEL_ID,
         temperature=temperature,
         max_tokens=max_tokens,
@@ -160,7 +162,8 @@ class Engine:
         stream=True,
         extra_body=params,
       )
-      async for chunk in completions:
-        yield chunk.choices[0].delta.content or ''
+      async for chunk in completions: yield chunk.choices[0].delta.content or ''
     except Exception:
-      yield traceback.format_exc()
+      logger.error(traceback.format_exc())
+      yield 'Internal error found. Check server logs for more information'
+      return
