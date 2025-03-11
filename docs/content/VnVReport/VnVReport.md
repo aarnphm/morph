@@ -196,7 +196,7 @@ The team ran manual contrast checks using a WCAG compliance tool to ensure acces
 | **Disabled Elements** | **3.0:1** | ⚠️ Below AA (Requires Adjustment) |
 | **Dark Mode Text on Background** | **6.5:1** | ✅ AA |
 
-### 7.2 Usability and Humanity
+### 7.2 Usability
 
 #### **Evaluation of Test-UH-EOU3**  
 
@@ -296,7 +296,35 @@ The team conducted a manual keyboard accessibility test on the tinymorph editor 
 
 ### 7.3 Performance
 
+#### **Evaluation of Test-PR-SLR1**
+
+#### **Evaluation of Test-PR-SLR2**
+
+#### **Evaluation of Test-PR-SCR2**
+
+#### **Evaluation of Test-PR-PAR1**
+
+#### **Evaluation of Test-PR-RFR1**
+
+#### **Evaluation of Test-PR-RFR2**
+
+#### **Evaluation of Test-PR-CR1**
+
+#### **Evaluation of Test-PR-CR2**
+
+#### **Evaluation of Test-PR-SER1**
+
+#### **Evaluation of Test-PR-LR1**
+
 ### 7.4 Security
+
+#### **Evaluation of Test-SR-INT1**
+
+#### **Evaluation of Test-SR-INT2**
+
+#### **Evaluation of Test-SR-INT3**
+
+#### **Evaluation of Test-SR-P1**
 
 ### 7.5 Maintainability and Support
 
