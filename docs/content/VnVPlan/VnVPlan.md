@@ -812,79 +812,9 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Initial State**: The application's UI components are fully implemented.
 - **Input/Condition**: All UI screens and components are available for review.
 - **Output/Result**: Verification that standardized typography and color palettes are consistently applied.
-- **How test will be performed**: Conduct a UI audit using design system documentation and automated tools like style linting software. Manually verify font sizes, styles, and color codes across screens to ensure adherence to design standards.
-
-#### Validate Minimalist Design with Monotonic Color Palette
-
-**Test-LF-S1**
-
-- **Type**: Structural, Static, Manual
-- **Initial State**: The application is ready with the intended design implemented.
-- **Input/Condition**: Application is accessed on standard devices.
-- **Output/Result**: Confirmation that the design is minimalist and utilizes a monotonic color palette.
-- **How test will be performed**: Evaluate the design using minimalist design principles. Verify color palette consistency. Gather user feedback through surveys ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]).
-
-#### Test Responsiveness Across Devices and Orientations
-
-**Test-LF-S2**
-
-- **Type**: Structural, Dynamic, Manual
-- **Initial State**: The application is deployed and accessible.
-- **Input/Condition**: Access the application on devices with various screen sizes and orientations.
-- **Output/Result**: The application adapts seamlessly, maintaining functionality and visual integrity.
-- **How test will be performed**: Test across devices using physical and emulated environments. Verify UI elements adjust appropriately without issues. Document layout or usability problems.
-
-#### Verify Contrast of Interactive Elements
-
-**Test-LF-S3**
-
-- **Type**: Structural, Static, Manual
-- **Initial State**: The UI is fully developed.
-- **Input/Condition**: Inspect interactive elements (buttons, links) against background colors.
-- **Output/Result**: All interactive elements have sufficient contrast to ensure visibility.
-- **How test will be performed**: Use color contrast analyzer tools such as WCAG Contrast Checker. Inspect manually under various lighting conditions to ensure visibility.
-
-#### Assess Smooth Transitions and Animations
-
-**Test-LF-S4**
-
-- **Type**: Structural, Dynamic, Manual
-- **Initial State**: Application features transitions and animations.
-- **Input/Condition**: Navigate through various sections and features.
-- **Output/Result**: Transitions are smooth, and animations are intuitive without confusion.
-- **How test will be performed**: Observe transitions and evaluate their performance on different devices. Collect user feedback during usability sessions.
-
-#### Verify Visual Feedback for User Interactions
-
-**Test-LF-S5**
-
-- **Type**: Structural, Dynamic, Manual
-- **Initial State**: Interactive elements are implemented.
-- **Input/Condition**: Interact with buttons, links, text fields, and other UI elements.
-- **Output/Result**: Immediate visual feedback is provided for all user interactions.
-- **How test will be performed**: Verify each interactive element provides feedback like hover effects or click animations. Gather user feedback during usability testing.
+- **How test will be performed**: Conduct a UI audit using design system documentation and WCAG Contrast Checker. Manually verify font sizes, styles, and color codes across screens to ensure adherence to design standards.
 
 ### Usability and Humanity
-
-#### Evaluate Session History Feature
-
-**Test-UH-EOU1**
-
-- **Type**: Structural, Dynamic, Manual
-- **Initial State**: Session history functionality is implemented.
-- **Input/Condition**: Perform a series of editing activities, including opening documents and making text modifications.
-- **Output/Result**: The session history accurately records and displays recent activities.
-- **How test will be performed**: Execute predefined editing tasks and access the session history to verify recorded entries. Collect user feedback on the ease of use and usefulness of the feature through observations and surveys ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]).
-
-#### Test Interactive Review and Manual Acceptance of Suggestions
-
-**Test-UH-EOU2**
-
-- **Type**: Structural, Dynamic, Manual
-- **Initial State**: Suggestion system is operational.
-- **Input/Condition**: Submit text inputs to receive suggestions from the system.
-- **Output/Result**: Users can interactively review and accept or reject suggestions.
-- **How test will be performed**: Generate suggestions by editing a document and verify their appearance. Test the functionality to accept or reject suggestions. Collect user feedback on managing and interacting with suggestions ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]).
 
 #### Assess the Planning Interface
 
@@ -896,25 +826,6 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Output/Result**: Users can effectively organize and debug their writing using the interface.
 - **How test will be performed**: Provide users with a writing task that requires planning. Observe their navigation and utilization of features. Collect feedback on effectiveness and usability through surveys and interviews ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]).
 
-#### Verify Multilingual Support
-
-**Test-UH-PI1**
-
-- **Type**: Structural, Dynamic, Manual
-- **Initial State**: Multilingual features are implemented.
-- **Input/Condition**: Change the application language settings to supported languages.
-- **Output/Result**: The interface displays correctly in all supported languages.
-- **How test will be performed**: Switch application language to each supported language. Verify UI elements, messages, and prompts for accurate translation. Involve native speakers for linguistic accuracy and cultural appropriateness.
-
-#### Test Theme Customization Options
-
-**Test-UH-PI2**
-
-- **Type**: Structural, Dynamic, Manual
-- **Initial State**: Theme options (light and dark mode) are available.
-- **Input/Condition**: Toggle between light and dark modes manually and via system settings.
-- **Output/Result**: The application correctly applies the selected theme without visual issues.
-- **How test will be performed**: Manually change themes within the application and system settings. Verify visibility and legibility of UI elements in both modes. Collect user preferences and satisfaction through surveys.
 
 #### Measure Onboarding Time for New Users
 
@@ -924,27 +835,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Initial State**: The application is ready for first-time use.
 - **Input/Condition**: Provide new users with access to the application without prior instruction.
 - **Output/Result**: Users begin creating or editing content within 10 minutes.
-- **How test will be performed**: Recruit participants unfamiliar with `tinymorph`. Time their process from start to content creation. Note obstacles and gather onboarding feedback.
-
-#### Evaluate Clarity of Language in UI
-
-**Test-UH-UP1**
-
-- **Type**: Structural, Static, Manual
-- **Initial State**: All UI text and instructions are finalized.
-- **Input/Condition**: Review and use the application focusing on language used in instructions and feedback.
-- **Output/Result**: Confirmation that language is clear, concise, and easily understood.
-- **How test will be performed**: Use readability assessment tools like Flesch-Kincaid Grade Level. Collect user feedback on unclear instructions or messages through usability tests.
-
-#### Test Text Resizing Functionality
-
-**Test-UH-A1**
-
-- **Type**: Structural, Dynamic, Manual
-- **Initial State**: The application supports text resizing.
-- **Input/Condition**: Adjust text size settings in the application and browser.
-- **Output/Result**: Text resizes appropriately without loss of content or functionality.
-- **How test will be performed**: Adjust text sizes using browser zoom and application settings. Verify content visibility at different magnification levels. Test compatibility with assistive tools for visual impairments.
+- **How test will be performed**: Recruit participants unfamiliar with `tinymorph`. Time their process from start to content creation. Note obstacles and gather onboarding feedback. This will then be followed by survey feedback analysis ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]).
 
 #### Verify Keyboard Navigation Accessibility
 
@@ -954,17 +845,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Initial State**: Application is fully developed.
 - **Input/Condition**: Navigate the application using only the keyboard.
 - **Output/Result**: All UI components are accessible via keyboard.
-- **How test will be performed**: Navigate through the application using the "Tab" key. Verify focus indicators and functionality of interactive elements. Perform common tasks without using a mouse to ensure accessibility.
-
-#### Implement and Test ARIA Attributes
-
-**Test-UH-A3**
-
-- **Type**: Structural, Static, Manual
-- **Initial State**: ARIA attributes are implemented in the code.
-- **Input/Condition**: Use assistive technologies (e.g., screen readers) to interact with the application.
-- **Output/Result**: All functionalities are conveyed and usable through assistive technologies.
-- **How test will be performed**: A code review will be conducted to ensure correct implementation of ARIA roles, states, and properties. Screen readers like NVDA and JAWS will be used to navigate the application, verifying that all interactive elements are announced properly and that users can access all functionalities. Feedback from users who rely on assistive technologies will be collected to identify any accessibility issues and make necessary improvements.
+- **How test will be performed**: Verify focus indicators and functionality of interactive elements on the main interface. Perform common tasks without using a mouse to ensure accessibility.
 
 ### Performance
 
@@ -1150,27 +1031,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Initial State**: Maintenance schedules are established.
 - **Input/Condition**: Review update logs and schedules while performing security scans.
 - **Output/Result**: Regular updates are performed. No outstanding vulnerabilities.
-- **How test will be performed**: Automated tools will check adherence to the update schedule by reviewing logs and schedules. Dependency checking tools like npm audit will be run automatically to identify any vulnerabilities. Continuous integration pipelines will ensure that updates do not introduce new issues. Documentation of updates and patches will be maintained automatically.
-
-#### Ensure Feature Integrations Pass Existing Tests
-
-**Test-OER-MR2**
-
-- **Type**: Structural, Dynamic, Automatic
-- **Initial State**: New features are developed and ready for integration.
-- **Input/Condition**: Integrate new features into the application.
-- **Output/Result**: All existing tests pass. No regression issues are introduced.
-- **How test will be performed**: After integrating new features, the full suite of automated tests will be run to detect any regression issues. Test coverage reports will be generated automatically to ensure new features are adequately tested. Any test failures will be addressed before deployment to maintain application stability.
-
-#### Implement User Feedback Loop
-
-**Test-OER-SR1**
-
-- **Type**: Structural, Dynamic, Automatic
-- **Initial State**: Feedback mechanisms are implemented in the application.
-- **Input/Condition**: Submit feedback through the application interface.
-- **Output/Result**: Feedback is successfully recorded and retrievable by the development team.
-- **How test will be performed**: Automated tests will simulate feedback submission and verify that the data is stored securely and is accessible for review. Notifications or acknowledgments will be checked automatically. Compliance with privacy requirements will be validated to protect user information.
+- **How test will be performed**: Security updates will be verified by running npm audit at scheduled intervals to detect and address vulnerabilities in dependencies. Audit reports will be reviewed, and necessary updates will be applied to resolve critical issues. Continuous integration pipelines will integrate npm audit checks to prevent new vulnerabilities. All security updates and patches will be documented.
 
 ### Compliance
 
@@ -1182,37 +1043,13 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Initial State**: Suggestion generation is operational.
 - **Input/Condition**: Generate content and analyze for potential copyright infringements.
 - **Output/Result**: No generated content violates Canadian copyright laws.
-- **How test will be performed**: Automated plagiarism detection tools like Copyscape will be used to compare the generated content against existing works to detect potential infringements under Canadian copyright law. For example, we'll generate content and check if it unintentionally reproduces passages from popular novels like "The Great Gatsby" by F. Scott Fitzgerald. Content generation filters will be implemented to prevent the reproduction of such copyrighted material. All findings will be documented, and the system will be adjusted to ensure that all generated content is original and fully compliant with Canadian copyright laws.
+- **How test will be performed**: Automated plagiarism detection tools like Quetext will be used to analyze writing suggestions and compare them against existing works to detect potential copyright infringements. The system will be tested with various inputs to ensure that suggestions do not unintentionally reproduce copyrighted phrases or unique expressions from well-known literary works. For example, if a user writes a sentence similar to a passage from a published work such as: 
 
-#### Ensure SOC 2 Compliance
+   > *"Someone left this for you," she says, then turns to the next customer.*
 
-**Test-CompR-LR2**
+   The system should not suggest completing or modifying it in a way 
+   that reproduces protected content. All findings will be documented, and suggestion filtering mechanisms will be adjusted if necessary to ensure compliance with Canadian copyright laws.
 
-- **Type**: Structural, Static, Manual
-- **Initial State**: Security controls and policies are in place.
-- **Input/Condition**: Prepare for SOC 2 audit by an external auditor.
-- **Output/Result**: Successful SOC 2 attestation for the inference server.
-- **How test will be performed**: All security controls will be reviewed against SOC 2 criteria. Evidence of compliance, such as access logs and security policies will be collected. Any gaps identified during internal reviews will be addressed promptly. The formal audit process will be conducted by an external auditor to obtain SOC 2 certification, ensuring that the inference server meets industry security standards.
-
-#### Obtain User Permission for Inference on Content
-
-**Test-CompR-LR3**
-
-- **Type**: Structural, Dynamic, Automatic
-- **Initial State**: Consent mechanisms are implemented.
-- **Input/Condition**: Use the application for the first time.
-- **Output/Result**: Users provide explicit permission before content is used for inference.
-- **How test will be performed**: Automated tests will verify that a consent prompt appears upon initial use of the application, requiring users to accept the terms before proceeding. The process will be tested to ensure users cannot bypass consent. Consent records will be checked automatically to confirm they are stored securely and in compliance with privacy regulations.
-
-#### Verify Adherence to HTTP/1.1 Protocol Standards
-
-**Test-CompR-SCR1**
-
-- **Type**: Structural, Static, Manual
-- **Initial State**: The application and server are fully implemented and operational.
-- **Input/Condition**: Analyze the client-server communication protocols used by the application during typical operation.
-- **Output/Result**: Confirmation that all client-server communications strictly adhere to HTTP/1.1 standards as defined in RFC 2616, including correct usage of HTTP methods, status codes, headers, message formats, and persistent connections.
-- **How test will be performed**: Using network protocol analyzers like Wireshark, HTTP requests and responses between the client and server will be captured and inspected during typical application usage. The application will be verified to correctly implement HTTP methods (GET, POST, etc.). It will also be checked to ensure that appropriate status codes are returned (e.g., 200 OK, 404 Not Found) and that headers such as Host, Content-Type, and Connection are properly formatted. The HTTP/1.1 protocol version must be used in all communications, and persistent connections should be supported with the connection "keep-alive" header. Any deviations from the HTTP/1.1 standards will be documented, followed by necessary corrections. After remediation, re-testing will be conducted to confirm full compliance with the protocol standards to ensure reliable and standard compliant client-server interactions.
 
 ### Traceability Between Test Cases and Requirements
 
