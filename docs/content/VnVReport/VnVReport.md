@@ -326,17 +326,21 @@ To ensure `tinymorph` remains secure and updated, a security audit was conducted
 
 ##### **Test Case & Results**  
 
-The test was conducted using the following input phrase from *The Great Gatsby*:
+The test was conducted by typing the following input phrase from the evaluated text:
 
-> **Test Input:** *"So we beat on, boats against the current, borne back ceaselessly into the past."*
+> **Test Input:** *"Someone left this for you," she says, then turns to the next customer.*
 
 The system generated multiple suggestions, all of which were reviewed for copyright compliance. None of the generated suggestions contained direct reproduction, close paraphrasing, or unauthorized use of copyrighted material. Every output was sufficiently transformed and original, ensuring full compliance with Canadian copyright law.  
+
+![[VnVReport/generated_text_suggestions.png]]
+
+![[VnVReport/plagarism_check.png]]
 
 ##### **Analysis**  
 
 - The system did not generate any suggestions that matched or closely resembled the original text.  
 - All suggestions were distinct and legally compliant, avoiding potential copyright violations.  
-- Plagiarism detection software confirmed that none of the generated outputs contained copyrighted material.  
+- Plagiarism detection software Quetext confirmed that none of the generated outputs contained copyrighted material.  
 - The system effectively differentiated its outputs while maintaining relevance to the original prompt.  
 
 ## 8 Comparison to Existing Implementation

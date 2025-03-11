@@ -1043,7 +1043,12 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Initial State**: Suggestion generation is operational.
 - **Input/Condition**: Generate content and analyze for potential copyright infringements.
 - **Output/Result**: No generated content violates Canadian copyright laws.
-- **How test will be performed**: Automated plagiarism detection tools like Copyscape will be used to analyze writing suggestions and compare them against existing works to detect potential copyright infringements. The system will be tested with various inputs to ensure that suggestions do not unintentionally reproduce copyrighted phrases or unique expressions from well-known literary works. For example, if a user writes a sentence similar to a passage from The Great Gatsby by F. Scott Fitzgerald, such as “So we beat on, boats against the current, borne back ceaselessly into the past,” the system should not suggest completing or modifying it in a way that reproduces protected content. All findings will be documented, and suggestion filtering mechanisms will be adjusted if necessary to ensure compliance with Canadian copyright laws.
+- **How test will be performed**: Automated plagiarism detection tools like Quetext will be used to analyze writing suggestions and compare them against existing works to detect potential copyright infringements. The system will be tested with various inputs to ensure that suggestions do not unintentionally reproduce copyrighted phrases or unique expressions from well-known literary works. For example, if a user writes a sentence similar to a passage from a published work such as: 
+
+   > *"Someone left this for you," she says, then turns to the next customer.*
+
+   The system should not suggest completing or modifying it in a way 
+   that reproduces protected content. All findings will be documented, and suggestion filtering mechanisms will be adjusted if necessary to ensure compliance with Canadian copyright laws.
 
 
 ### Traceability Between Test Cases and Requirements
