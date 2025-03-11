@@ -503,43 +503,81 @@ test_rebuild_index_with_data: Passed - Rebuild index with data returns valid lab
 
 ## 11 Automated Testing
 
+
+
 ## 12 Trace to Requirements
 ### Functional Requirements
-**Table: Tracibility of Testing to Functional Requirements**
-|                | FR-P1    | FR-P2    | FR-P3    | FR-S1    | FR-S2    | FR-F1    | FR-E1    | FR-E2    | FR-VT1   | 
-|----------------|----------|----------|----------|----------|----------|----------|----------|----------|----------|
-| Test-1        |    X     |          |    X     |          |          |          |          |          |          |
-| Test-2         |          |    X     |          |          |          |          |          |          |          |
-| Test-3          |          |          |          |    X     |          |          |          |          |          |
-| Test-4         |          |          |          |          |     X    |          |          |          |          |
-| Test-5          |          |          |          |          |          |    X    |          |          |          |
-| Test-6          |          |          |          |          |          |          |   X     |     X    |          |
-| Test-7         |          |          |          |          |          |          |          |          |    X     |
+**Table: Traceability of Testing to Functional Requirements**
+|                | FR1      | FR2      | FR3      |  FR13      |   FR14      | 
+|----------------|----------|----------|----------|----------|----------|
+| Test-1        |    X     |          |    X     |          |          | 
+| Test-2         |   X      |          |          |          |          |
+| Test-3          |          |    X     |          |          |          | 
+| Test-4         |          |     X    |          |          |          | 
+| Test-5          |          |          |          |    X     |          | 
+| Test-6          |          |          |          |    X     |          | 
+| Test-7         |          |          |          |          |    X     | 
 
 ### Non-Functional Requirements
-**Table: Tracibility of Testing to Functional Requirements**
-|                 | Column 1 | Column 2 | Column 3 | Column 4 | Column 5 | Column 6 | Column 7 |
+**Table: Traceability of Testing to Non-Functional Requirements**
+|                 | LF-A1    | LF-A2    | UH-EOU3  | UH-L1    | UH-A2    | Column 6 | Column 7 |
 |-----------------|----------|----------|----------|----------|----------|----------|----------|
-| Test-1         |          |          |          |          |          |          |          |
-| Row 2          |          |          |          |          |          |          |          |
-| Row 3          |          |          |          |          |          |          |          |
-| Row 4          |          |          |          |          |          |          |          |
-| Row 5          |          |          |          |          |          |          |          |
+| Test-8         |     X    |          |          |          |          |          |          |
+| Test-9          |          |    X    |          |          |          |          |          |
+| Test-10          |          |          |    X     |          |          |          |          |
+| Test-11          |          |          |          |    X     |          |          |          |
+| Test-12          |          |          |          |          |    X    |          |          |
 | Row 6          |          |          |          |          |          |          |          |
 | Row 7          |          |          |          |          |          |          |          |
 
 ## Trace to Modules
-**Table: Tracibility of Testing to Modules**
-| Feature / Metric | Column 1 | Column 2 | Column 3 | Column 4 | Column 5 | Column 6 | Column 7 |
-|-----------------|----------|----------|----------|----------|----------|----------|----------|
-| Row 1          |          |          |          |          |          |          |          |
-| Row 2          |          |          |          |          |          |          |          |
-| Row 3          |          |          |          |          |          |          |          |
-| Row 4          |          |          |          |          |          |          |          |
-| Row 5          |          |          |          |          |          |          |          |
-| Row 6          |          |          |          |          |          |          |          |
-| Row 7          |          |          |          |          |          |          |          |
+**Table: Traceability of Testing to Modules**
+|                | M1        | M2       |  M3      | M4       | M5       | M6       | M7       | M8       | M9       | M10      | M11        |
+|-----------------|----------|----------|----------|----------|----------|----------|----------|----------|----------|---------|----------|
+| Test-1          |          |   X      |   X      |    X     |          |    X     |          |    X     |          |          |          |
+| Test-2          |          |    X     |    X     |     X    |          |          |          |     X    |          |          |          |
+| Test-3          |          |          |   X      |          |    X     |          |          |    X     |    X     |          |          |
+| Test-4          |          |          |   X      |          |    X     |          |          |    X     |    X     |          |          |
+| Test-5          |          |          |          |          |          |    X     |          |          |    X     |          |    X     |
+| Test-6          |          |          |          |          |          |    X     |          |          |    X     |          |    X     |
+| Test-7         |          |    X     |          |          |     X    |     X    |          |          |          |          |          |
+| Test-8         |          |    X    |      X   |     X    |          |     X    |          |          |          |          |          |
+| Test-9         |          |    X     |     X    |    X     |          |    X     |          |          |          |          |          |
+| Test-10         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
+| Test-11         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
+| Test-12         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
 ## 14 Code Coverage Metrics
+
+The coverage data generated by coverage.py and coverage.tsx can be shown in the following table: 
+
+### Code Coverage by Module Type
+
+| Name                          | Stmts | Miss | Cover |
+|-------------------------------|-------|------|-------|
+| search/app.py                 | 91    | 2    | 98%   |
+| search/bento_service.py       | 39    | 1    | 97%   |
+| search/index_manager.py       | 62    | 1    | 98%   |
+| search/storage.py             | 60    | 1    | 98%   |
+| context/notes-context.tsx     | 91    | 15   | 84%   |
+| context/search-context.tsx    | 98    | 16   | 84%   |
+| context/vault-context.tsx     | 103   | 20   | 81%   |
+| components/editor.tsx         | 564   | 56   | 90%   |
+| components/settings-panel.tsx | 544   | 60   | 89%   |
+| components/explorer.tsx       | 292   | 29   | 90%   |
+| **TOTAL**                     | 1944  | 200  | 90%   |
+
+The coverage for `.tsx` files is comparatively lower (average coverage ~86%) due to the inherent complexity and challenges in testing frontend GUI modules. GUI components often require interactive testing frameworks, making comprehensive automated unit testing more challenging and less frequently utilized compared to backend logic (average coverage ~98%), such as Python modules.
+
+
+## 15 Conclusions
+
+`tinymorph` effectively met most functional, usability, and accessibility requirements, exhibiting strong performance in features such as planning suggestions, personalized style adaptation, tone steering, real-time feedback integration, and theme customization. Nevertheless, issues arose with the document export functionality, specifically formatting inconsistencies in PDF exports, necessitating focused improvements in this area.
+
+Code coverage metrics indicate solid overall test coverage, averaging 90%. Backend modules performed exceptionally well with a 98% coverage rate, whereas frontend components demonstrated slightly lower coverage, between 84% and 89%, suggesting a need for more comprehensive testing of UI modules to ensure consistent reliability. Furthermore, moderate security vulnerabilities identified in dependencies (dompurify and esbuild) require immediate attention and updates to uphold system integrity.
+
+Recommended usability enhancements include improved visibility for mobile navigation, the introduction of keyboard shortcuts to facilitate vault navigation accessibility, and better visual indicators or guidance for advanced feature discovery. Addressing these usability considerations will notably elevate user experience, satisfaction, and ensure the application's long-term functionality.
+
+Overall, the underlying technology of `tinymorph` is robust and scalable, effectively leveraging available hardware resources such as GPUs to support concurrent users. Future development should focus on collaborative editing capabilities, improved synchronization mechanisms for multi-user interactions, and enhanced cloud-based scalability to ensure sustained performance and usability growth.
 
 
 
@@ -635,8 +673,11 @@ The information in this section will be used to evaluate the team members on the
 
 <div class="blob">
 1. One of the key successes in writing this deliverable was the iterative approach we took to refining the document structure and content. Instead of writing the entire report in one go, we broke it down into smaller sections and reviewed them incrementally, ensuring that each part aligned with the overall objectives of the Verification and Validation (VnV) process. This method helped maintain clarity and coherence while also allowing us to make necessary adjustments early on. Additionally, leveraging automated testing logs and structured feedback from test users allowed us to incorporate concrete evidence into our analysis, strengthening the credibility of our results.
+
 2. One challenge we faced was ensuring that our test cases covered a broad range of scenarios without becoming overly redundant. Some tests, particularly those involving responsiveness and user interaction, initially overlapped in scope, leading to potential inefficiencies in execution. To address this, we categorized test cases based on their objectives—whether they focused on functional correctness, performance, or usability—and merged those that tested similar aspects. Additionally, ensuring uniform documentation formatting across different test cases required careful coordination, which we managed by establishing a standardized template early in the process.
+
 3. The non-founctional requirement relevant testing and following adjustment are largely based on the feedback from clients, for the goal that to make this project better fit into the user expectation with high usability. The unit testing is mainly constructed based the the group members' ideas due to the expertise and knowledge gap between the project developer and user.
+
 4. There are a lot of the testcase deletion and modification haapened comparing to the original VnV plan, together with some more detailed and specific testing improvements due to the better understanding to the project along with the development procedure. The testcases after modification better fit into the purpose of verification and support the testing responsibility. 
 
 <p>
