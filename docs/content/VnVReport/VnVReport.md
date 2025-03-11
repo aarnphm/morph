@@ -449,9 +449,7 @@ Automated security testing tools were used to monitor network traffic to verify 
 | **Automatic Redirection** | Automatic redirection from HTTP to HTTPS. | ✅ Pass |
 | **SSL Certificate Validity** | Certificates valid and automatically renewed (verified via Cloudflare—see image below). | ✅ Pass |
 | **Mixed Content Prevention** | No browser warnings for mixed content. | ✅ Pass |
-
-![Cloudflare Security](cloudflare.png)
-
+![[VnVReport/cloudflare.png]]
 
 #### **Evaluation of Test-SR-INT2**
 
