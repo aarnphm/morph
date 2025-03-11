@@ -56,7 +56,7 @@ This test case validates that when an unintelligible prompt (e.g., "asdh123!@#")
 |-----------------------|-------------------------------------------------------------------------------|---------------|
 | Input Recognition     | The system accurately identifies the unintelligible prompt                    | ✅ Pass       |
 | Error Message Display | An error message is displayed to prompt for input refinement                  | ✅ Pass       |
-| Response Timing       | The error message is shown within 10 seconds                                  | ✅ Pass       |
+| Response Timing       | The error message is shown within 10 seconds                                  | ❌ Fail (takes longer than 10 seconds)       |
 
 ### 6.2 Text Generation Features
 
@@ -108,7 +108,7 @@ This test case validates the document export capabilities. It verifies that a co
 |-------------------------|-------------------------------------------------------------------------------|---------------|
 | PDF Export              | Selecting PDF export generates a PDF with preserved content                   | ✅ Pass       |
 | Markdown Export         | Selecting markdown export produces a raw .md file with preserved content      | ✅ Pass       |
-| Output Accuracy         | Exported documents accurately preserve the intended content's format          | ⚠️ Fail (formating issues with pdf format)       |
+| Output Accuracy         | Exported documents accurately preserve the intended content's format          | ❌ Fail  (formating issues with pdf format)       |
 
 ### 6.5 Interface Customization Features
 
@@ -397,6 +397,8 @@ This section should highlight how feedback from the users and from the superviso
 ## 13 Trace to Modules
 
 ## 14 Code Coverage Metrics
+
+
 
 ## Appendix --- Reflection
 
