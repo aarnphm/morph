@@ -50,6 +50,7 @@ export interface Note {
   fileId: string
   vaultId: string
   isInEditor: boolean
+  position?: { x: number; y: number }
   createdAt: Date
   lastModified: Date
 }
