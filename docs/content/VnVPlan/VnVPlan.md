@@ -931,6 +931,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Output/Result**: No noticeable delays or lag in input response.
 - **How test will be performed**: Automated scripts will perform rapid text entry and editing operations while performance profiling tools measure input latency. Tests will be run on various hardware configurations and browsers automatically. If latency exceeds acceptable thresholds, code optimizations will be implemented to enhance responsiveness.
 
+<!--
 #### Test Inference Server Autoscaling
 
 **Test-PR-SER1**
@@ -940,6 +941,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Input/Condition**: Vary the load on the inference server to simulate high and low traffic.
 - **Output/Result**: Server scales up during high traffic and scales down to zero during low traffic.
 - **How test will be performed**: Automated load testing tools will apply varying levels of requests to the inference server. Monitoring systems will automatically track server instances and resource utilization to observe scaling actions. Verification will be made to ensure that scaling occurs according to the configured thresholds without impacting performance.
+-->
 
 <!--
 #### Evaluate Integration with Different Model Architectures
