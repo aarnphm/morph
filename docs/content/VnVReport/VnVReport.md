@@ -345,9 +345,43 @@ The results ensure that the inference server effectively handles concurrent requ
 
 #### **Evaluation of Test-PR-SCR2**
 
+Confirm that all UI elements, images, and media assets used in the application are free from inappropriate, harmful, or NSFW content. A thorough automated and manual review ensure that all graphical elements comply with content safety guidelines.  
+
+##### **Review Process**  
+- Automated scanning of all images, icons, and media for inappropriate content.  
+- Verification of third-party assets to confirm proper licensing and compliance.  
+- Manual confirmation of flagged assets to prevent false positives.  
+
+##### **Safety Compliance Checklist**  
+
+| **Criterion** | **Assessment Goal** | **Pass/Fail** |
+|--------------|---------------------|--------------|
+| **No NSFW Content** | All UI assets pass automated and manual reviews. | ✅ Pass |
+| **No Harmful Imagery** | No content promoting violence, discrimination, or harm. | ✅ Pass |
+| **Verified Asset Sources** | All third-party assets have proper licenses. | ✅ Pass |
+| **No Unauthorized Media** | No unlicensed or unverified external assets. | ✅ Pass |
+| **Safe Placeholder Texts** | No inappropriate text or placeholder content. | ✅ Pass |
+
 #### **Evaluation of Test-PR-PAR1**
 
-#### **Evaluation of Test-PR-RFR1**
+Assess how accurately the generated text aligns with user-specified steering inputs such as tone, style, and phrasing preferences. 
+
+##### **Evaluation Process**  
+- **Steering parameters** (e.g., formal vs. casual tone, concise vs. elaborate phrasing) were provided.  
+- **Automated scripts** generated multiple text samples for each steering input.  
+- **Analytical metrics** were used to measure alignment:  
+  - **Cosine Similarity** to compare generated text with reference samples.  
+  - **Stylometric Analysis** to assess linguistic consistency with the desired style.  
+
+##### **Steering Alignment Checklist**  
+
+| **Criterion** | **Assessment Goal** | **Pass/Fail** |
+|--------------|---------------------|--------------|
+| **Tone Accuracy** | Generated text reflects the specified tone (e.g., formal, casual). | ✅ Pass |
+| **Phrasing Adaptation** | Output follows requested sentence structure preferences. | ✅ Pass |
+| **Consistency with Input** | Text maintains coherent adherence to the steering parameters. | ✅ Pass |
+| **Similarity to Reference** | High cosine similarity with expected textual patterns. | ✅ Pass |
+| **Adjustments for Improvement** | System dynamically refines output based on feedback. | ✅ Pass |
 
 #### **Evaluation of Test-PR-RFR2**
 
@@ -373,11 +407,27 @@ Deployment strategy successfully maintains availability in the event of node or 
 
 #### **Evaluation of Test-PR-CR1**
 
+System efficiently processes multiple concurrent suggestion requests without significant delays, request drops, or errors. The test validates the queue management and request handling under simultaneous user interactions.  
+
+##### **Evaluation Process**  
+- Simulated concurrent user requests were submitted asynchronously.  
+- Queue management behavior was monitored to ensure smooth task execution.  
+- Processing times were logged to identify potential delays.  
+- Error rates and dropped requests were analyzed for stability.  
+
+##### **Asynchronous Processing Checklist**  
+
+| **Criterion** | **Assessment Goal** | **Pass/Fail** |
+|--------------|---------------------|--------------|
+| **Request Handling** | System processes multiple requests concurrently. | ✅ Pass |
+| **Queue Management** | Requests are correctly queued and executed in order. | ✅ Pass |
+| **Processing Speed** | No significant delay observed under normal load. | ✅ Pass |
+| **Error Handling** | No request drops or processing errors detected. | ✅ Pass |
+| **System Stability** | Performance remains consistent under increased load. | ✅ Pass |
+
 #### **Evaluation of Test-PR-CR2**
 
 #### **Evaluation of Test-PR-SER1**
-
-#### **Evaluation of Test-PR-LR1**
 
 ### 7.4 Security
 
@@ -579,7 +629,7 @@ The testing was does automatically run on Github Actions whenever a commit was p
 
 ## 12 Trace to Requirements
 ### Functional Requirements
-**Table: Traceability of Testing to Functional Requirements**
+
 
 |   Requirements | FR1      | FR2      | FR3      |  FR13    |   FR14   | 
 |----------------|----------|----------|----------|----------|----------|
@@ -590,9 +640,8 @@ The testing was does automatically run on Github Actions whenever a commit was p
 | Test-5          |          |          |          |    X     |          | 
 | Test-6          |          |          |          |    X     |          | 
 | Test-7         |          |          |          |          |    X     | 
-
+**Table: Traceability of Testing to Functional Requirements**
 ### Non-Functional Requirements
-**Table: Traceability of Testing to Non-Functional Requirements**
 
 |   Requirements | LF-A1    | LF-A2    | UH-EOU3  | UH-L1    | UH-A2    | Column 6 | Column 7 |
 |-----------------|----------|----------|----------|----------|----------|----------|----------|
@@ -603,9 +652,9 @@ The testing was does automatically run on Github Actions whenever a commit was p
 | Test-12          |          |          |          |          |    X    |          |          |
 | Row 6          |          |          |          |          |          |          |          |
 | Row 7          |          |          |          |          |          |          |          |
-
+**Table: Traceability of Testing to Non-Functional Requirements**
 ## Trace to Modules
-**Table: Traceability of Testing to Modules**
+
 
 |   Modules       | M1        | M2       |  M3      | M4       | M5       | M6       | M7       | M8       | M9       | M10      | M11      |
 |-----------------|----------|----------|----------|----------|----------|----------|----------|----------|----------|---------|----------|
@@ -621,6 +670,7 @@ The testing was does automatically run on Github Actions whenever a commit was p
 | Test-10         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
 | Test-11         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
 | Test-12         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
+**Table: Traceability of Testing to Modules**
 ## 14 Code Coverage Metrics
 
 The coverage data generated by coverage.py and coverage.tsx can be shown in the following table: 
