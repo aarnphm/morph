@@ -2,8 +2,8 @@
 id: VnVReport
 tags:
   - meta
-author: aarnphm
-date: "2024-09-16"
+author: aarnphm,waleedmalik7,nebrask,lucas-lizhiwei
+date: "2025-03-10"
 title: Verification and Validation Report
 ---
 
@@ -473,9 +473,7 @@ Automated security testing tools were used to monitor network traffic to verify 
 | **Automatic Redirection** | Automatic redirection from HTTP to HTTPS. | ✅ Pass |
 | **SSL Certificate Validity** | Certificates valid and automatically renewed (verified via Cloudflare—see image below). | ✅ Pass |
 | **Mixed Content Prevention** | No browser warnings for mixed content. | ✅ Pass |
-
-![Cloudflare Security](cloudflare.png)
-
+![[VnVReport/cloudflare.png]]
 
 #### **Evaluation of Test-SR-INT2**
 
