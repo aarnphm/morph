@@ -38,7 +38,53 @@ title: Verification and Validation Report
 
 ## 4 List of Tables
 
+| **Table** | **Description**                                          |
+|-----------|----------------------------------------------------------|
+| 0         | List of Figures                                          |
+| 1         | Evaluation of Test-1: Large Text Block Input             |
+| 2         | Evaluation of Test-2: Unintelligible Prompt              |
+| 3         | Evaluation of Test-3: Steering Validation (Didion Tone)  |
+| 4         | Evaluation of Test-4: Personalized Style Adaptation      |
+| 5         | Evaluation of Test-5: LTR Feedback Panel Validation      |
+| 6         | Evaluation of Test-6: Document Export Functionality Validation |
+| 7         | Evaluation of Test-7: Theme Customization Validation     |
+| 8         | Evaluation of Test-8: Predefined UI/UX Checklist         |
+| 9         | Evaluation of Test-8: User Testing & Survey Results      |
+| 10         | Evaluation of Test-9: Predefined UI Audit Checklist     |
+| 11         | Evaluation of Test-9: Validation with WCAG Contrast Checker         |
+| 12         | Evaluation of Test-10: Predefined Usability Checklist   |
+| 13         | Evaluation of Test-10: User Feedback from Surveys and Interviews    |
+| 14        | Evaluation of Test-11: Onboarding Time Results           |
+| 15        | Evaluation of Test-11: Predefined Usability Checklist    |
+| 16        | Evaluation of Test-11: User Feedback from Surveys        |
+| 17        | Evaluation of Test-12: Keyboard Navigation Test Results  |
+| 18        | Evaluation of Test-12: Predefined Accessibility Checklis |
+| 19        | Evaluation of Test-14: Performance Checklist             |
+| 20        | Evaluation of Test-15: Safety Compliance Checklist       |
+| 21        | Evaluation of Test-16: Steering Alignment Checklist      |
+| 22        | Evaluation of Test-17: Performance Checklist             |
+| 23        | Evaluation of Test-18: Asynchronous Processing Checklist |
+| 24        | Evaluation of Test-19: Input Responsiveness Checklist    |
+| 25        | Evaluation of Test-20: Security Checklist                |
+| 26        | Evaluation of Test-21: Security Checklist                |
+| 27        | Evaluation of Test-22: Security Checklist                |
+| 28        | Evaluation of Test-23: Security Checklist                |
+| 29        | Evaluation of Test-25: Canadian Copyright Law Compliance Checklist |
+| 30        | Traceability of Testing to Functional Requirements       |
+| 31        | Traceability of Testing to Non-Functional Requirements   |
+| 32        | Traceability of Testing to Modules                       |
+| 33        | Code Coverage Data                                       |
+
 ## 5 List of Figures
+
+| **Number** | **Figure**                                        |
+| ---------- | ------------------------------------------------------ |
+| Figure 1         | Performance Graph                                     |
+| Figure 2         | deployment_strategy                                     |
+| Figure 3         | cloudflare                                    |
+| Figure 4         | audit_output                                     |
+| Figure 5         | generated_text_suggestions                                     |
+| Figure 6         | plagarism_check                                     |
 
 This document is intended to provide an overview of the testing that performed throughout the development of the project `tinymorph`, including the obtained results and the relevant discussions. The tests are under the guidance from [[VnVPlan/VnVPlan|VnVplan]].
 
@@ -318,7 +364,7 @@ We measured the TTFT, assessing how quickly the inference server begins generati
 - Performance gains remain consistent, indicating scalability improvements.  
 
 ##### **Performance Graph**  
-
+**Figure 1:Performance Graph**
 ![[VnVReport/ttft_graph.png]]
 
 #### **Evaluation of Test-14**
@@ -396,6 +442,7 @@ Deployment strategy successfully maintains availability in the event of node or 
 - Concurrency settings optimize service performance under load, keeping the system responsive.  
 
 ##### **Deployment Configuration Screenshot**  
+**Figure 2: deployment_strategy**
 ![[VnVReport/deployment_strategy.png]]
 
 ##### **Performance Checklist**  
@@ -481,7 +528,7 @@ Automated security testing tools were used to monitor network traffic to verify 
 | **SSL Certificate Validity** | Certificates valid and automatically renewed (verified via Cloudflare—see image below). | ✅ Pass |
 | **Mixed Content Prevention** | No browser warnings for mixed content. | ✅ Pass |
 **Table:Test-20**
-
+**Figure 3: cloudflare**
 ![[VnVReport/cloudflare.png]]
 
 #### **Evaluation of Test-21**
@@ -556,6 +603,7 @@ To ensure `tinymorph` remains secure and updated, a security audit was conducted
 - **Patched Versions Available:** `>=3.2.4` for `dompurify`, `>=0.25.0` for `esbuild`  
 
 **Security Audit Report Output:**  
+**Figure 4: audit_output**
 ![[VnVReport/audit_output.png]]
 
 #### **Observations & Findings**  
@@ -586,9 +634,9 @@ The test was conducted by typing the following input phrase from the evaluated t
 > **Test Input:** *"Someone left this for you," she says, then turns to the next customer.*
 
 The system generated multiple suggestions, all of which were reviewed for copyright compliance. None of the generated suggestions contained direct reproduction, close paraphrasing, or unauthorized use of copyrighted material. Every output was sufficiently transformed and original, ensuring full compliance with Canadian copyright law.  
-
+**Figure 5: generated_text_suggestions**
 ![[VnVReport/generated_text_suggestions.png]]
-
+**Figure 6: plagarism_check**
 ![[VnVReport/plagarism_check.png]]
 
 ##### **Analysis**  
@@ -678,15 +726,26 @@ The testing was does automatically run on Github Actions whenever a commit was p
 **Table: Traceability of Testing to Functional Requirements**
 ### Non-Functional Requirements
 
-|   Requirements | LF-A1    | LF-A2    | UH-EOU3  | UH-L1    | UH-A2    | PR-SLR1 | PR-SLR2 | PR-SCR2 | PR-PAR1 | PR-RFR2 | PR-CR1 | PR-CR2 | PR-SER1 | SR-INT1 | SR-INT2 | SR-INT3 | SR-INT4 | OER-MR1 | CompR-LR1 | 
-|-----------------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|
-| Test-8         |     X    |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |
-| Test-9          |          |    X    |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |
-| Test-10          |          |          |    X     |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |
-| Test-11          |          |          |          |    X     |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |
-| Test-12          |          |          |          |          |    X    |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |
-| 
-
+| Requirements | LF-A1| LF-A2| UH-EOU3| UH-L1| UH-A2| PR-SLR1 | PR-SLR2 | PR-SCR2 | PR-PAR1 | PR-RFR2 | PR-CR1 | PR-CR2  | SR-INT1 | SR-INT2 | SR-INT3 | SR-INT4 | OER-MR1 | CompR-LR1 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Test-8 | X |   |   |   |   |   |   |   |   |   |   |  |   |   |   |   |   |   |
+| Test-9 |   | X |   |   |   |   |   |   |   |   |   |  |   |   |   |   |   |   |
+| Test-10 |   |   | X |   |   |   |   |   |   |   |   |  |   |   |   |   |   |   |
+| Test-11 |   |   |   | X |   |   |   |   |   |   |   |  |   |   |   |   |   |   |
+| Test-12 |   |   |   |   | X |   |   |   |   |   |   |  |   |   |   |   |   |   |
+| Test-13 |   |   |   |   |   | X |   |   |   |   |   |  |   |   |   |   |   |   |
+| Test-14 |   |   |   |   |   |   | X |   |   |   |   |  |   |   |   |   |   |   |
+| Test-15 |   |   |   |   |   |   |   | X |   |   |   |  |   |   |   |   |   |   |
+| Test-16 |   |   |   |   |   |   |   |   | X |   |   |  |   |   |   |   |   |   |
+| Test-17 |   |   |   |   |   |   |   |   |   | X |   |  |   |   |   |   |   |   |
+| Test-18 |   |   |   |   |   |   |   |   |   |   | X |  |   |   |   |   |   |   |
+| Test-19 |   |   |   |   |   |   |   |   |   |   |   |X |   |   |   |   |   |   |
+| Test-20 |   |   |   |   |   |   |   |   |   |   |   |  | X |   |   |   |   |   |
+| Test-21 |   |   |   |   |   |   |   |   |   |   |   |  |   | X |   |   |   |   |
+| Test-22 |   |   |   |   |   |   |   |   |   |   |   |  |   |   | X |   |   |   |
+| Test-23 |   |   |   |   |   |   |   |   |   |   |   |  |   |   |   | X |   |   |
+| Test-24 |   |   |   |   |   |   |   |   |   |   |   |  |   |   |   |   | X |   |
+| Test-25 |   |   |   |   |   |   |   |   |   |   |   |  |   |   |   |   |   | X |
 **Table: Traceability of Testing to Non-Functional Requirements**
 ## Trace to Modules
 
@@ -705,6 +764,19 @@ The testing was does automatically run on Github Actions whenever a commit was p
 | Test-10         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
 | Test-11         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
 | Test-12         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
+| Test-13         |          |        |    X     |   X      |          |   X      |          |     X   |          |          |          |
+| Test-14        |          |          |    X     |   X      |          |   X      |          |          |          |     X   |          |
+| Test-15         |          |   X      |    X     |   X      |          |   X      |       X  |          |          |          |          |
+| Test-16         |          |   X      |    X     |   X      |          |   X      |    X    |          |          |          |          |
+| Test-17         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
+| Test-18         |          |   X      |         |   X      |          |   X      |          |          |          |          |          |
+| Test-19         |          |   X      |    X     |   X      |          |   X      |          |    X     |          |          |          |
+| Test-20         |          |   X      |    X     |   X      |          |   X      |          |    X    |      X   |          |          |
+| Test-21         |          |        |        |   X      |          |   X      |    X    |          |      X   |          |          |
+| Test-22         |          |   X      |    X     |   X      |          |   X      |     X    |          |          |     X    |          |
+| Test-23         |          |        |    X     |   X      |          |   X      |          |    X     |      X   |          |          |
+| Test-24         |          |   X      |    X     |         |          |   X      |          |          |    X    |          |          |
+| Test-25         |          |   X      |         |   X      |          |   X      |          |    X    |          |          |          |
 **Table: Traceability of Testing to Modules**
 ## 14 Code Coverage Metrics
 
