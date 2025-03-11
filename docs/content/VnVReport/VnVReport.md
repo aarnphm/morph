@@ -678,15 +678,26 @@ The testing was does automatically run on Github Actions whenever a commit was p
 **Table: Traceability of Testing to Functional Requirements**
 ### Non-Functional Requirements
 
-|   Requirements | LF-A1    | LF-A2    | UH-EOU3  | UH-L1    | UH-A2    | PR-SLR1 | PR-SLR2 | PR-SCR2 | PR-PAR1 | PR-RFR2 | PR-CR1 | PR-CR2 | PR-SER1 | SR-INT1 | SR-INT2 | SR-INT3 | SR-INT4 | OER-MR1 | CompR-LR1 | 
-|-----------------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|
-| Test-8         |     X    |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |
-| Test-9          |          |    X    |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |
-| Test-10          |          |          |    X     |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |
-| Test-11          |          |          |          |    X     |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |
-| Test-12          |          |          |          |          |    X    |          |          |          |          |          |          |          |          |          |          |          |          |          |          |          |
-| 
-
+| Requirements | LF-A1| LF-A2| UH-EOU3| UH-L1| UH-A2| PR-SLR1 | PR-SLR2 | PR-SCR2 | PR-PAR1 | PR-RFR2 | PR-CR1 | PR-CR2  | SR-INT1 | SR-INT2 | SR-INT3 | SR-INT4 | OER-MR1 | CompR-LR1 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Test-8 | X |   |   |   |   |   |   |   |   |   |   |  |   |   |   |   |   |   |
+| Test-9 |   | X |   |   |   |   |   |   |   |   |   |  |   |   |   |   |   |   |
+| Test-10 |   |   | X |   |   |   |   |   |   |   |   |  |   |   |   |   |   |   |
+| Test-11 |   |   |   | X |   |   |   |   |   |   |   |  |   |   |   |   |   |   |
+| Test-12 |   |   |   |   | X |   |   |   |   |   |   |  |   |   |   |   |   |   |
+| Test-13 |   |   |   |   |   | X |   |   |   |   |   |  |   |   |   |   |   |   |
+| Test-14 |   |   |   |   |   |   | X |   |   |   |   |  |   |   |   |   |   |   |
+| Test-15 |   |   |   |   |   |   |   | X |   |   |   |  |   |   |   |   |   |   |
+| Test-16 |   |   |   |   |   |   |   |   | X |   |   |  |   |   |   |   |   |   |
+| Test-17 |   |   |   |   |   |   |   |   |   | X |   |  |   |   |   |   |   |   |
+| Test-18 |   |   |   |   |   |   |   |   |   |   | X |  |   |   |   |   |   |   |
+| Test-19 |   |   |   |   |   |   |   |   |   |   |   |X |   |   |   |   |   |   |
+| Test-20 |   |   |   |   |   |   |   |   |   |   |   |  | X |   |   |   |   |   |
+| Test-21 |   |   |   |   |   |   |   |   |   |   |   |  |   | X |   |   |   |   |
+| Test-22 |   |   |   |   |   |   |   |   |   |   |   |  |   |   | X |   |   |   |
+| Test-23 |   |   |   |   |   |   |   |   |   |   |   |  |   |   |   | X |   |   |
+| Test-24 |   |   |   |   |   |   |   |   |   |   |   |  |   |   |   |   | X |   |
+| Test-25 |   |   |   |   |   |   |   |   |   |   |   |  |   |   |   |   |   | X |
 **Table: Traceability of Testing to Non-Functional Requirements**
 ## Trace to Modules
 
@@ -705,6 +716,19 @@ The testing was does automatically run on Github Actions whenever a commit was p
 | Test-10         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
 | Test-11         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
 | Test-12         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
+| Test-13         |          |        |    X     |   X      |          |   X      |          |     X   |          |          |          |
+| Test-14        |          |          |    X     |   X      |          |   X      |          |          |          |     X   |          |
+| Test-15         |          |   X      |    X     |   X      |          |   X      |       X  |          |          |          |          |
+| Test-16         |          |   X      |    X     |   X      |          |   X      |    X    |          |          |          |          |
+| Test-17         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
+| Test-18         |          |   X      |         |   X      |          |   X      |          |          |          |          |          |
+| Test-19         |          |   X      |    X     |   X      |          |   X      |          |    X     |          |          |          |
+| Test-20         |          |   X      |    X     |   X      |          |   X      |          |    X    |      X   |          |          |
+| Test-21         |          |        |        |   X      |          |   X      |    X    |          |      X   |          |          |
+| Test-22         |          |   X      |    X     |   X      |          |   X      |     X    |          |          |     X    |          |
+| Test-23         |          |        |    X     |   X      |          |   X      |          |    X     |      X   |          |          |
+| Test-24         |          |   X      |    X     |         |          |   X      |          |          |    X    |          |          |
+| Test-25         |          |   X      |         |   X      |          |   X      |          |    X    |          |          |          |
 **Table: Traceability of Testing to Modules**
 ## 14 Code Coverage Metrics
 
