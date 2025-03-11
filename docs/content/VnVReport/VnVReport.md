@@ -298,7 +298,46 @@ The team conducted a manual keyboard accessibility test on the tinymorph editor 
 
 #### **Evaluation of Test-PR-SLR1**
 
+We measured the TTFT, assessing how quickly the inference server begins generating output after receiving a request. Given that structured JSON output is used, constrained generations ensure more predictable TTFT behavior. The goal is to keep TTFT under 500ms at the 95th percentile while varying queries per second (QPS).  
+
+##### **Test Execution**  
+- Performance testing tools automatically simulated user requests.  
+- The system was tested under varying QPS values (1, 5, 10, 15, 20, and 25).  
+- TTFT measurements were recorded for V0 (baseline) and V1 (PR #12388).  
+- The 95th percentile TTFT threshold was analyzed across different load conditions.  
+
+##### **Results**  
+- V1 significantly reduces TTFT across all QPS levels compared to V0.  
+- At QPS 1, TTFT improved from ~65ms (V0) to ~15ms (V1).  
+- At QPS 25, TTFT for V1 remains under 30ms, whereas V0 exceeds 100ms.  
+- Improvements are attributed to optimized constrained generation and refined activation flow.  
+- Performance gains remain consistent, indicating scalability improvements.  
+
+##### **Performance Graph**  
+
+![[VnVReport/ttft_graph.png]]
+
 #### **Evaluation of Test-PR-SLR2**
+
+evaluates the inference server’s ability to maintain a throughput of approximately 300 tokens/sec while processing batched requests. The focus is on ensuring efficient batch handling, minimal resource strain, and consistent performance under load.  
+
+##### **Test Execution**  
+- Load testing tools simulated concurrent batched requests (batch size = 4).  
+- The tokens processed per seconds were recorded over multiple runs.  
+- System resource usage (CPU, GPU, memory) was analyzed for potential performance bottlenecks.  
+- Scalability was tested by increasing the query-per-second (QPS) rate.  
+
+##### **Performance Checklist**  
+
+| **Criterion** | **Assessment Goal** | **Pass/Fail** |
+|--------------|---------------------|--------------|
+| **Minimum Throughput** | Server maintains ≥300 tokens/sec across test runs. | ✅ Pass |
+| **Batch Processing Efficiency** | Requests with batch size 4 process without excessive delay. | ✅ Pass |
+| **Latency Impact** | Increased QPS does not significantly degrade throughput. | ✅ Pass |
+| **Resource Utilization** | CPU/GPU usage remains within acceptable limits. | ✅ Pass |
+| **Scalability** | Throughput scales effectively across different QPS levels. | ✅ Pass |  
+
+The results ensure that the inference server effectively handles concurrent requests while maintaining optimal token generation speeds.  
 
 #### **Evaluation of Test-PR-SCR2**
 
@@ -307,6 +346,26 @@ The team conducted a manual keyboard accessibility test on the tinymorph editor 
 #### **Evaluation of Test-PR-RFR1**
 
 #### **Evaluation of Test-PR-RFR2**
+
+Deployment strategy successfully maintains availability in the event of node or replica failures. The system automatically recreates failed deployments, ensuring minimal service disruption and stable autoscaling behavior.  
+
+##### **Deployment Strategy Settings**  
+- Recreate deployment strategy ensures that failed instances are promptly replaced.  
+- Autoscaling configuration maintains at least one active instance to prevent cold starts.  
+- Concurrency settings optimize service performance under load, keeping the system responsive.  
+
+##### **Deployment Configuration Screenshot**  
+![[VnVReport/deployment_strategy.png]]
+
+##### **Performance Checklist**  
+
+| **Criterion** | **Assessment Goal** | **Pass/Fail** |
+|--------------|---------------------|--------------|
+| **Failure Recovery** | System automatically recreates failed nodes/pods. | ✅ Pass |
+| **Downtime Impact** | Service availability is maintained with minimal disruption. | ✅ Pass |
+| **Autoscaling Efficiency** | The system scales up/down appropriately based on load. | ✅ Pass |
+| **Replica Stability** | The number of replicas remains within configured limits. | ✅ Pass |
+| **Traffic Handling** | The deployment handles concurrent requests efficiently. | ✅ Pass |
 
 #### **Evaluation of Test-PR-CR1**
 
@@ -448,40 +507,45 @@ The testing was does automatically run on Github Actions whenever a commit was p
 
 ## 12 Trace to Requirements
 ### Functional Requirements
-**Table: Tracibility of Testing to Functional Requirements**
-|                | FR-P1    | FR-P2    | FR-P3    | FR-S1    | FR-S2    | FR-F1    | FR-E1    | FR-E2    | FR-VT1   | 
-|----------------|----------|----------|----------|----------|----------|----------|----------|----------|----------|
-| Test-1        |    X     |          |    X     |          |          |          |          |          |          |
-| Test-2         |          |    X     |          |          |          |          |          |          |          |
-| Test-3          |          |          |          |    X     |          |          |          |          |          |
-| Test-4         |          |          |          |          |     X    |          |          |          |          |
-| Test-5          |          |          |          |          |          |    X    |          |          |          |
-| Test-6          |          |          |          |          |          |          |   X     |     X    |          |
-| Test-7         |          |          |          |          |          |          |          |          |    X     |
+**Table: Traceability of Testing to Functional Requirements**
+|                | FR1      | FR2      | FR3      |  FR13      |   FR14      | 
+|----------------|----------|----------|----------|----------|----------|
+| Test-1        |    X     |          |    X     |          |          | 
+| Test-2         |   X      |          |          |          |          |
+| Test-3          |          |    X     |          |          |          | 
+| Test-4         |          |     X    |          |          |          | 
+| Test-5          |          |          |          |    X     |          | 
+| Test-6          |          |          |          |    X     |          | 
+| Test-7         |          |          |          |          |    X     | 
 
 ### Non-Functional Requirements
-**Table: Tracibility of Testing to Functional Requirements**
-|                 | Column 1 | Column 2 | Column 3 | Column 4 | Column 5 | Column 6 | Column 7 |
+**Table: Traceability of Testing to Non-Functional Requirements**
+|                 | LF-A1    | LF-A2    | UH-EOU3  | UH-L1    | UH-A2    | Column 6 | Column 7 |
 |-----------------|----------|----------|----------|----------|----------|----------|----------|
-| Test-1         |          |          |          |          |          |          |          |
-| Row 2          |          |          |          |          |          |          |          |
-| Row 3          |          |          |          |          |          |          |          |
-| Row 4          |          |          |          |          |          |          |          |
-| Row 5          |          |          |          |          |          |          |          |
+| Test-8         |     X    |          |          |          |          |          |          |
+| Test-9          |          |    X    |          |          |          |          |          |
+| Test-10          |          |          |    X     |          |          |          |          |
+| Test-11          |          |          |          |    X     |          |          |          |
+| Test-12          |          |          |          |          |    X    |          |          |
 | Row 6          |          |          |          |          |          |          |          |
 | Row 7          |          |          |          |          |          |          |          |
 
 ## Trace to Modules
-**Table: Tracibility of Testing to Modules**
-| Feature / Metric | Column 1 | Column 2 | Column 3 | Column 4 | Column 5 | Column 6 | Column 7 |
-|-----------------|----------|----------|----------|----------|----------|----------|----------|
-| Row 1          |          |          |          |          |          |          |          |
-| Row 2          |          |          |          |          |          |          |          |
-| Row 3          |          |          |          |          |          |          |          |
-| Row 4          |          |          |          |          |          |          |          |
-| Row 5          |          |          |          |          |          |          |          |
-| Row 6          |          |          |          |          |          |          |          |
-| Row 7          |          |          |          |          |          |          |          |
+**Table: Traceability of Testing to Modules**
+|                | M1        | M2       |  M3      | M4       | M5       | M6       | M7       | M8       | M9       | M10      | M11        |
+|-----------------|----------|----------|----------|----------|----------|----------|----------|----------|----------|---------|----------|
+| Test-1          |          |   X      |   X      |    X     |          |    X     |          |    X     |          |          |          |
+| Test-2          |          |    X     |    X     |     X    |          |          |          |     X    |          |          |          |
+| Test-3          |          |          |   X      |          |    X     |          |          |    X     |    X     |          |          |
+| Test-4          |          |          |   X      |          |    X     |          |          |    X     |    X     |          |          |
+| Test-5          |          |          |          |          |          |    X     |          |          |    X     |          |    X     |
+| Test-6          |          |          |          |          |          |    X     |          |          |    X     |          |    X     |
+| Test-7         |          |    X     |          |          |     X    |     X    |          |          |          |          |          |
+| Test-8         |          |    X    |      X   |     X    |          |     X    |          |          |          |          |          |
+| Test-9         |          |    X     |     X    |    X     |          |    X     |          |          |          |          |          |
+| Test-10         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
+| Test-11         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
+| Test-12         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
 ## 14 Code Coverage Metrics
 
 The coverage data generated by coverage.py and coverage.tsx can be shown in the following table: 
