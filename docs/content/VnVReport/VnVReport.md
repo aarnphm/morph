@@ -400,7 +400,7 @@ Second solution: prowritingaid
 Excluding the front end, the unit tests in notes_test.py verify that note processing correctly matches text chunks from a long story; service_test.py confirms that the embedding service returns properly shaped NumPy arrays; storage_test.py validates that text chunks are correctly converted, stored, and removed; and indexes_test.py ensures that the HNSW index is built and queried as expected:
 
 
-PS C:\Users\walee\OneDrive\Desktop\morph\python\search> python -m pytest -s notes_test.py service_test.py storage_test.py indexes_test.py --disable-warnings 
+C:\Users\walee\OneDrive\Desktop\morph\python\search> python -m pytest -s notes_test.py service_test.py storage_test.py indexes_test.py --disable-warnings 
 ============================================================================== test session starts ==============================================================================
 platform win32 -- Python 3.12.6, pytest-8.3.5, pluggy-1.5.0
 rootdir: C:\Users\walee\OneDrive\Desktop\morph
@@ -444,7 +444,7 @@ test_rebuild_index_with_data: Passed - Rebuild index with data returns valid lab
 
 ## 11 Automated Testing
 
-
+The testing was does automatically run on Github Actions whenever a commit was pushed to the main branch. The configuration of the CI/CD environment can be foind at https://github.com/aarnphm/morph/actions/workflows/ci.yml.
 
 ## 12 Trace to Requirements
 ### Functional Requirements
