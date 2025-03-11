@@ -9,7 +9,7 @@ interface NotesContextType {
   notes: Note[]
   editorNotes: Note[]
   addNote: (content: string, fileId: string, vaultId: string) => Promise<void>
-  moveNoteToEditor: (noteId: string) => Promise<void>
+  moveNoteToEditor: (noteId: string, position: { x: number; y: number }) => Promise<void>
   removeNoteFromEditor: (noteId: string) => Promise<void>
 }
 
@@ -18,9 +18,7 @@ const NotesContext = React.createContext<NotesContextType | null>(null)
 export function NotesProvider({ children }: { children: React.ReactNode }) {
   const [notes, setNotes] = React.useState<Note[]>([])
 
-  const editorNotes = React.useMemo(() => {
-    return notes.filter(note => note.isInEditor)
-  }, [notes])
+  const editorNotes = notes.filter(note => note.isInEditor);
 
   const addNote = React.useCallback(async (content: string, fileId: string, vaultId: string) => {
     const note: Note = {
@@ -38,18 +36,18 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     setNotes(prev => [...prev, note])
   }, [])
 
-  const moveNoteToEditor = React.useCallback(async (noteId: string) => {
-    await db.notes.where('id').equals(noteId).modify(note => {
-      note.isInEditor = true
-      note.lastModified = new Date()
-    })
-    setNotes(prev => 
-      prev.map(note => 
-        note.id === noteId ? { ...note, isInEditor: true } : note
-      )
-    )
-  }, [])
-
+  const moveNoteToEditor = React.useCallback(
+    async (noteId: string, position: { x: number; y: number }) => {
+      await db.notes.update(noteId, { 
+        isInEditor: true,
+        position,
+        lastModified: new Date()
+      });
+      setNotes(prev => prev.map(n => n.id === noteId ? {...n, isInEditor: true, position} : n));
+    },
+    []
+  )  
+  
   const removeNoteFromEditor = React.useCallback(async (noteId: string) => {
     await db.notes.where('id').equals(noteId).modify(note => {
       note.isInEditor = false

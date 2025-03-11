@@ -26,7 +26,6 @@ import { DotIcon } from "@/components/ui/icons"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SearchProvider } from "@/context/search-context"
 import { SearchCommand } from "@/components/search-command"
-import { jsPDF } from "jspdf"
 import { DndProvider } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
 import { NotesProvider } from "@/context/notes-context"
@@ -124,25 +123,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     URL.revokeObjectURL(url)
   }, [])
 
-  const handleExportPdf = useCallback(() => {
-    const { content, filename } = contentRef.current
-    const pdf = new jsPDF({ unit: "pt", format: "a4" })
-
-    const preview = document.querySelector(".prose") as HTMLElement
-    const styles = preview ? getComputedStyle(preview) : null
-
-    const fontSize = styles?.fontSize || "16px"
-    const fontFamily = "Parclo Serif"
-
-    const lines = pdf.splitTextToSize(md(content).content, 180)
-    pdf.text(lines, 10, 10)
-
-    pdf.setFont(fontFamily)
-    pdf.setFontSize(parseFloat(fontSize))
-
-    pdf.save(filename.endsWith(".md") ? filename.slice(0, -3) + ".pdf" : `${filename}.pdf`)
-  }, [])
-
   const updatePreview = useCallback(
     async (value: string) => {
       try {
@@ -189,7 +169,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         {
           essay: md(content).content,
           num_suggestions: 8,
-          max_tokens: 8192,
+          max_tokens: 4096,
         },
         {
           headers: {
@@ -317,7 +297,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     return () => {
       clearTimeout(timerId)
     }
-  }, [showNotes, markdownContent, currentFile, vault])
+  }, [showNotes, /*markdownContent,*/ currentFile, vault])
 
   const onFileSelect = useCallback((handle: FileSystemFileHandle) => {
     setCurrentFileHandle(handle)
@@ -434,7 +414,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               onNewFile={onNewFile}
               onContentUpdate={updatePreview}
               onExportMarkdown={handleExportMarkdown}
-              onExportPdf={handleExportPdf}
             />
             <SidebarInset>
               <header className="inline-block h-10 border-b">
@@ -445,6 +424,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               </header>
               <section className="flex h-[calc(100vh-104px)] gap-10 m-4">
                 <div className="flex-1 relative border">
+                  <EditorNotes />
                   <div
                     className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
                   >
@@ -452,7 +432,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       <div className="absolute top-4 left-4 text-sm/7 z-10 flex items-center gap-2">
                         {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
                       </div>
-                      <EditorNotes />
                       <CodeMirror
                         value={markdownContent}
                         height="100%"
@@ -515,18 +494,40 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       ) : (
                         <div className="grid gap-4">
                           {notes.map((note, index) => (
-                            <NoteCard
+                            <div
                               key={index}
-                              className="w-full"
-                              note={{
-                                id: `note-${index}`,
-                                content: note.content,
-                                color: generatePastelColor(),
-                                fileId: currentFile,
-                                isInEditor: false,
-                                createdAt: new Date(),
+                              draggable={true}
+                              onDragEnd={(e) => {
+                                // Remove note from note panel when note note dropped onto editor
+                                if (e.dataTransfer.dropEffect === "move") {
+                                  const draggedNote = notes[index]
+                                  setNotes((prev) => prev.filter((_, i) => i !== index))
+                                  // Transfer note content to editor when dropped (Not neccessary if whole note needed to be added on top of editor)
+                                  if (codeMirrorViewRef.current) {
+                                    const editor = codeMirrorViewRef.current
+                                    const cursorPosition = editor.state.selection.main.head
+                                    editor.dispatch({
+                                      changes: {
+                                        from: cursorPosition,
+                                        insert: draggedNote.content,
+                                      },
+                                    })
+                                  }
+                                }
                               }}
-                            />
+                            >
+                              <NoteCard
+                                className="w-full"
+                                note={{
+                                  id: note.id,
+                                  content: note.content,
+                                  color: note.color ?? generatePastelColor(),
+                                  fileId: currentFile,
+                                  isInEditor: false,
+                                  createdAt: note.createdAt ?? new Date(),
+                                }}
+                              />
+                            </div>
                           ))}
                         </div>
                       )}

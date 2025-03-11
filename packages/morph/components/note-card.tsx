@@ -16,9 +16,11 @@ export const NoteCard = React.memo(function NoteCard({ note, className }: NoteCa
       isDragging: monitor.isDragging(),
     }),
     end: (item, monitor) => {
-      const dropResult = monitor.getDropResult<{ noteId: string; targetId: string }>()
-      if (dropResult) {
-        // Handle any cleanup if needed
+      const dropResult = monitor.getDropResult<{ noteId: string; targetId: string }>();
+      if (dropResult?.targetId === "editor") {
+        // Note was successfully dropped in editor
+      } else {
+        // Return note to original position if dropped elsewhere
       }
     },
   }))
