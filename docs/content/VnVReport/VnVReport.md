@@ -418,40 +418,45 @@ test_rebuild_index_with_data: Passed - Rebuild index with data returns valid lab
 
 ## 12 Trace to Requirements
 ### Functional Requirements
-**Table: Tracibility of Testing to Functional Requirements**
-|                | FR-P1    | FR-P2    | FR-P3    | FR-S1    | FR-S2    | FR-F1    | FR-E1    | FR-E2    | FR-VT1   | 
-|----------------|----------|----------|----------|----------|----------|----------|----------|----------|----------|
-| Test-1        |    X     |          |    X     |          |          |          |          |          |          |
-| Test-2         |          |    X     |          |          |          |          |          |          |          |
-| Test-3          |          |          |          |    X     |          |          |          |          |          |
-| Test-4         |          |          |          |          |     X    |          |          |          |          |
-| Test-5          |          |          |          |          |          |    X    |          |          |          |
-| Test-6          |          |          |          |          |          |          |   X     |     X    |          |
-| Test-7         |          |          |          |          |          |          |          |          |    X     |
+**Table: Traceability of Testing to Functional Requirements**
+|                | FR1      | FR2      | FR3      |  FR13      |   FR14      | 
+|----------------|----------|----------|----------|----------|----------|
+| Test-1        |    X     |          |    X     |          |          | 
+| Test-2         |   X      |          |          |          |          |
+| Test-3          |          |    X     |          |          |          | 
+| Test-4         |          |     X    |          |          |          | 
+| Test-5          |          |          |          |    X     |          | 
+| Test-6          |          |          |          |    X     |          | 
+| Test-7         |          |          |          |          |    X     | 
 
 ### Non-Functional Requirements
-**Table: Tracibility of Testing to Functional Requirements**
-|                 | Column 1 | Column 2 | Column 3 | Column 4 | Column 5 | Column 6 | Column 7 |
+**Table: Traceability of Testing to Non-Functional Requirements**
+|                 | LF-A1    | LF-A2    | UH-EOU3  | UH-L1    | UH-A2    | Column 6 | Column 7 |
 |-----------------|----------|----------|----------|----------|----------|----------|----------|
-| Test-1         |          |          |          |          |          |          |          |
-| Row 2          |          |          |          |          |          |          |          |
-| Row 3          |          |          |          |          |          |          |          |
-| Row 4          |          |          |          |          |          |          |          |
-| Row 5          |          |          |          |          |          |          |          |
+| Test-8         |     X    |          |          |          |          |          |          |
+| Test-9          |          |    X    |          |          |          |          |          |
+| Test-10          |          |          |    X     |          |          |          |          |
+| Test-11          |          |          |          |    X     |          |          |          |
+| Test-12          |          |          |          |          |    X    |          |          |
 | Row 6          |          |          |          |          |          |          |          |
 | Row 7          |          |          |          |          |          |          |          |
 
 ## Trace to Modules
-**Table: Tracibility of Testing to Modules**
-| Feature / Metric | Column 1 | Column 2 | Column 3 | Column 4 | Column 5 | Column 6 | Column 7 |
-|-----------------|----------|----------|----------|----------|----------|----------|----------|
-| Row 1          |          |          |          |          |          |          |          |
-| Row 2          |          |          |          |          |          |          |          |
-| Row 3          |          |          |          |          |          |          |          |
-| Row 4          |          |          |          |          |          |          |          |
-| Row 5          |          |          |          |          |          |          |          |
-| Row 6          |          |          |          |          |          |          |          |
-| Row 7          |          |          |          |          |          |          |          |
+**Table: Traceability of Testing to Modules**
+|                | M1        | M2       |  M3      | M4       | M5       | M6       | M7       | M8       | M9       | M10      | M11        |
+|-----------------|----------|----------|----------|----------|----------|----------|----------|----------|----------|---------|----------|
+| Test-1          |          |   X      |   X      |    X     |          |    X     |          |    X     |          |          |          |
+| Test-2          |          |    X     |    X     |     X    |          |          |          |     X    |          |          |          |
+| Test-3          |          |          |   X      |          |    X     |          |          |    X     |    X     |          |          |
+| Test-4          |          |          |   X      |          |    X     |          |          |    X     |    X     |          |          |
+| Test-5          |          |          |          |          |          |    X     |          |          |    X     |          |    X     |
+| Test-6          |          |          |          |          |          |    X     |          |          |    X     |          |    X     |
+| Test-7         |          |    X     |          |          |     X    |     X    |          |          |          |          |          |
+| Test-8         |          |    X    |      X   |     X    |          |     X    |          |          |          |          |          |
+| Test-9         |          |    X     |     X    |    X     |          |    X     |          |          |          |          |          |
+| Test-10         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
+| Test-11         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
+| Test-12         |          |   X      |    X     |   X      |          |   X      |          |          |          |          |          |
 ## 14 Code Coverage Metrics
 
 
