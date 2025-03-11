@@ -40,6 +40,15 @@ title: Verification and Validation Report
 
 ## 5 List of Figures
 
+| **Number** | **Figure**                                        |
+| ---------- | ------------------------------------------------------ |
+| Figure 1         | Performance Graph                                     |
+| Figure 2         | deployment_strategy                                     |
+| Figure 3         | cloudflare                                    |
+| Figure 4         | audit_output                                     |
+| Figure 5         | generated_text_suggestions                                     |
+| Figure 6         | plagarism_check                                     |
+
 This document is intended to provide an overview of the testing that performed throughout the development of the project `tinymorph`, including the obtained results and the relevant discussions. The tests are under the guidance from [[VnVPlan/VnVPlan|VnVplan]].
 
 ## 6 Functional Requirements Evaluation
@@ -318,7 +327,7 @@ We measured the TTFT, assessing how quickly the inference server begins generati
 - Performance gains remain consistent, indicating scalability improvements.  
 
 ##### **Performance Graph**  
-
+**Figure 1:Performance Graph**
 ![[VnVReport/ttft_graph.png]]
 
 #### **Evaluation of Test-14**
@@ -396,6 +405,7 @@ Deployment strategy successfully maintains availability in the event of node or 
 - Concurrency settings optimize service performance under load, keeping the system responsive.  
 
 ##### **Deployment Configuration Screenshot**  
+**Figure 2: deployment_strategy**
 ![[VnVReport/deployment_strategy.png]]
 
 ##### **Performance Checklist**  
@@ -481,7 +491,7 @@ Automated security testing tools were used to monitor network traffic to verify 
 | **SSL Certificate Validity** | Certificates valid and automatically renewed (verified via Cloudflare—see image below). | ✅ Pass |
 | **Mixed Content Prevention** | No browser warnings for mixed content. | ✅ Pass |
 **Table:Test-20**
-
+**Figure 3: cloudflare**
 ![[VnVReport/cloudflare.png]]
 
 #### **Evaluation of Test-21**
@@ -556,6 +566,7 @@ To ensure `tinymorph` remains secure and updated, a security audit was conducted
 - **Patched Versions Available:** `>=3.2.4` for `dompurify`, `>=0.25.0` for `esbuild`  
 
 **Security Audit Report Output:**  
+**Figure 4: audit_output**
 ![[VnVReport/audit_output.png]]
 
 #### **Observations & Findings**  
@@ -586,9 +597,9 @@ The test was conducted by typing the following input phrase from the evaluated t
 > **Test Input:** *"Someone left this for you," she says, then turns to the next customer.*
 
 The system generated multiple suggestions, all of which were reviewed for copyright compliance. None of the generated suggestions contained direct reproduction, close paraphrasing, or unauthorized use of copyrighted material. Every output was sufficiently transformed and original, ensuring full compliance with Canadian copyright law.  
-
+**Figure 5: generated_text_suggestions**
 ![[VnVReport/generated_text_suggestions.png]]
-
+**Figure 6: plagarism_check**
 ![[VnVReport/plagarism_check.png]]
 
 ##### **Analysis**  
