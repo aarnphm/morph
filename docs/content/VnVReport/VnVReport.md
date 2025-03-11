@@ -349,6 +349,43 @@ This section will not be appropriate for every project.
 
 ## 9 Unit Testing
 
+Excluding the front end, the unit tests in notes_test.py verify that note processing correctly matches text chunks from a long story; service_test.py confirms that the embedding service returns properly shaped NumPy arrays; storage_test.py validates that text chunks are correctly converted, stored, and removed; and indexes_test.py ensures that the HNSW index is built and queried as expected:
+
+
+PS C:\Users\walee\OneDrive\Desktop\morph\python\search> python -m pytest -s notes_test.py service_test.py storage_test.py indexes_test.py --disable-warnings 
+============================================================================== test session starts ==============================================================================
+platform win32 -- Python 3.12.6, pytest-8.3.5, pluggy-1.5.0
+rootdir: C:\Users\walee\OneDrive\Desktop\morph
+configfile: pyproject.toml
+plugins: anyio-4.8.0
+collecting ... Model 'sentence-transformers/all-MiniLM-L6-v2' loaded on device: 'cpu'.
+collected 15 items
+
+notes_test.py 
+test_note_suggestion_childhood_magic: Passed: Note: "The writer should elaborate more on the magic of childhood adventures." matched chunk starting at index 0.
+test_note_suggestion_village_beauty: Passed: Note: "The description of the village should be more vivid and detailed." matched chunk starting at index 193.
+test_note_suggestion_environment_detail: Passed: Note: "Please expand on the environmental details, describing the meadows and forests." matched chunk starting at index 536.     
+test_note_suggestion_narrative_depth: Passed: Note: "The narrative feels shallow; more depth should be added to the story." matched chunk starting at index 775.
+test_note_suggestion_emotional_intensity: Passed: Note: "The emotional expressions are weak; please intensify the depiction of personal struggles." matched chunk starting at index 775.
+test_note_suggestion_modern_critique: Passed: Note: "The critique of modern society seems vague; expand on how traditions are fading." matched chunk starting at index 1205.      
+test_note_suggestion_final_twist: Passed: Note: "The ending is too predictable; consider adding an unexpected twist." matched chunk starting at index 1404.
+test_note_suggestion_overall_improvement: Passed: Note: "Overall, the story could use more cohesion and clearer transitions." matched chunk starting at index 775.
+
+service_test.py
+test_encode_returns_numpy_array: Passed: Encoding returns a numpy array with shape (2, 384)
+test_encode_default_sentences: Passed: Default sentences encoded with shape (4, 384)
+
+storage_test.py
+test_numpy_blob_conversion: Passed: Numpy-to-blob conversion and back is correct.
+test_add_and_get_chunk: Passed: Chunk added and retrieved correctly.
+test_remove_chunk: Passed: Chunk removed successfully.
+
+indexes_test.py
+test_rebuild_index_empty: Passed - Rebuild index empty returns no labels as expected.
+test_rebuild_index_with_data: Passed - Rebuild index with data returns valid label 915 matching one of the stored chunk IDs.
+
+======================================================================== 15 passed in 8.24s ========================================================================= 
+
 ## 10 Changes Due to Testing
 
 This section should highlight how feedback from the users and from the supervisor (when one exists) shaped the final product. In particular the feedback from the Rev 0 demo to the supervisor (or to potential users) should be highlighted.
@@ -430,6 +467,14 @@ The information in this section will be used to evaluate the team members on the
 </div>
 
 <div class="blob">
+
+  1. The deliverable allowed us to clearly defining our testing scenarios and understanding what needed to be covered went smoothly. Setting up structured unit tests helped clarify component behaviors early on, making it easy to validate that specific parts of the application (like markdown editing, note generation, and file operations) worked as expected.
+
+  2. A challenge involved measuring the accuracy of AI-generated notes. Since these notes are not deterministic, we integrated a semantic search module to compute similarity between generated notes and user-provided content. This allowed us to quantify similarity objectively and make informed adjustments to improve note relevance.
+
+  3. Much of the verification of the functionality outlined in this deliverable stemmed from discussions with stakeholders (such as peers acting as proxy clients) regarding user needs and preferences. For instance, the issue with exporting documents in different formats directly came from client interactions and peer feedback when someone pointed out that the PDF Format was off. User interviews and informal testing sessions significantly affected our decisions on future UI elements and AI based features.
+
+  4. Our team experienced deviations from the original VnV Plan due to an overly ambitious initial scope. The Software Requirements Specification (SRS) and the Verification and Validation (VnV) Plan initially included extensive features such as profile panels, version history management, detailed goal tracking, and robust multi-language support. As development progressed, we recognized that many of these features exceeded the project's realistic scope, causing numerous test cases outlined in the original VnV plan to become infeasible. To address this, we prioritized essential functionalities aligned directly with core client needs, scaling down features like profile management and version history. Consequently, we adjusted our VnV plan, narrowing our testing focus to critical features such as text editing, AI-generated notes, and basic file operations. Moving forward, we plan to apply these lessons learned by better estimating realistic scopes, incorporating incremental milestone checkpoints to reassess feasibility regularly, and leaving room for adapting testing strategies accordingly.
 
 </div>
 
