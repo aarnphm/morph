@@ -46,7 +46,7 @@ This document is intended to provide an overview of the testing that performed t
 
 ### 6.1 Planning and Suggestion Features
 
-#### **Evaluation of Test-FR-P1/P3: Large Text Block Input**
+#### **Evaluation of Test-1: Large Text Block Input**
 
 **Test Description:**  
 This combined test case validates that when planning mode is active, the system appropriately handles both a valid prompt and a large text block input. For a valid prompt (e.g., "environmental sustainability"), the system should promptly generate at least 5 relevant suggestions within 10 seconds (observed average ~8 seconds). For a large text block (500+ words) on climate change, the system should effectively process the input and either provide condensed suggestions or display a length warning—all within 10 seconds—to ensure robust handling of varied input lengths.
@@ -58,7 +58,7 @@ This combined test case validates that when planning mode is active, the system 
 | Input Handling                   | The system effectively processes large inputs without performance degradation   | ✅ Pass       |
 | Suggestions related to input     | The output is clear and relevant to the large input                       | ✅ Pass       |
 
-#### **Evaluation of Test-FR-P2: Unintelligible Prompt**
+#### **Evaluation of Test-2: Unintelligible Prompt**
 
 **Test Description:**  
 This test case validates that when an unintelligible prompt (e.g., "asdh123!@#") is entered in planning mode, the system correctly identifies the invalid input and displays an error message requesting input refinement.
@@ -71,7 +71,7 @@ This test case validates that when an unintelligible prompt (e.g., "asdh123!@#")
 
 ### 6.2 Text Generation Features
 
-#### **Evaluation of Test-FR-S1: Steering Validation (Didion Tone)**
+#### **Evaluation of Test-3: Steering Validation (Didion Tone)**
 
 **Test Description:**  
 This test case verifies that when the steering feature is enabled and the "Didion" tone is selected with the prompt "reflection on modern life," the system generates text suggestions that accurately match Didion's writing style under specified lexical constraints.
@@ -82,7 +82,7 @@ This test case verifies that when the steering feature is enabled and the "Didio
 | Tone Selection         | The "Didion" tone is correctly selected                                       | ✅ Pass       |
 | Style Matching         | Generated suggestions align with Didion's writing style                       | ✅ Pass       |
 
-#### **Evaluation of Test-FR-S2: Personalized Style Adaptation**
+#### **Evaluation of Test-4: Personalized Style Adaptation**
 
 **Test Description:**  
 This test case validates that when a user’s writing sample is provided, the system adapts its text generation to reflect the user's personal writing style. Customized suggestions should be generated within 30 seconds.
@@ -96,7 +96,7 @@ This test case validates that when a user’s writing sample is provided, the sy
 
 ### 6.3 Feedback Panel
 
-#### **Evaluation of Test-FR-F1: LTR Feedback Panel Validation**
+#### **Evaluation of Test-5: LTR Feedback Panel Validation**
 
 **Test Description:**  
 This test case confirms that when user feedback (e.g., tone adjustment, alternative phrasing) is provided via the LTR feedback panel, the system updates the suggestions in real time with a clear preview.
@@ -110,7 +110,7 @@ This test case confirms that when user feedback (e.g., tone adjustment, alternat
 
 ### 6.4 Document Export Features
 
-#### **Evaluation of Test-FR-E1/E2: Document Export Functionality Validation**
+#### **Evaluation of Test-6: Document Export Functionality Validation**
 
 **Test Description:**  
 This test case validates the document export capabilities. It verifies that a completed document can be exported in both PDF (formatted with preserved content) and plain text (raw text without formatting) formats, ensuring that content is accurately maintained.
@@ -123,7 +123,7 @@ This test case validates the document export capabilities. It verifies that a co
 
 ### 6.5 Interface Customization Features
 
-#### **Evaluation of Test-FR-VT1: Theme Customization Validation**
+#### **Evaluation of Test-7: Theme Customization Validation**
 
 **Test Description:**  
 This test case verifies that the system allows users to switch from the default light theme to dark mode. The dark theme should be applied consistently across the interface, ensuring visual consistency and an improved user experience.
@@ -419,21 +419,21 @@ test_rebuild_index_with_data: Passed - Rebuild index with data returns valid lab
 ## 12 Trace to Requirements
 ### Functional Requirements
 **Table: Tracibility of Testing to Functional Requirements**
-|                | Column 1 | Column 2 | Column 3 | Column 4 | Column 5 | Column 6 | Column 7 |
-|----------------|----------|----------|----------|----------|----------|----------|----------|
-| Test-FR-P1/P3         |          |          |          |          |          |          |          |
-| Test-FR-P2         |          |          |          |          |          |          |          |
-| Test-FR-S1          |          |          |          |          |          |          |          |
-| Test-FR-S2         |          |          |          |          |          |          |          |
-| Test-FR-F1          |          |          |          |          |          |          |          |
-| Test-FR-E1/E2          |          |          |          |          |          |          |          |
-| Test-FR-VT1         |          |          |          |          |          |          |          |
+|                | FR-P1    | FR-P2    | FR-P3    | FR-S1    | FR-S2    | FR-F1    | FR-E1    | FR-E2    | FR-VT1   | 
+|----------------|----------|----------|----------|----------|----------|----------|----------|----------|----------|
+| Test-1        |    X     |          |    X     |          |          |          |          |          |          |
+| Test-2         |          |    X     |          |          |          |          |          |          |          |
+| Test-3          |          |          |          |    X     |          |          |          |          |          |
+| Test-4         |          |          |          |          |     X    |          |          |          |          |
+| Test-5          |          |          |          |          |          |    X    |          |          |          |
+| Test-6          |          |          |          |          |          |          |   X     |     X    |          |
+| Test-7         |          |          |          |          |          |          |          |          |    X     |
 
 ### Non-Functional Requirements
 **Table: Tracibility of Testing to Functional Requirements**
-| Feature / Metric | Column 1 | Column 2 | Column 3 | Column 4 | Column 5 | Column 6 | Column 7 |
+|                 | Column 1 | Column 2 | Column 3 | Column 4 | Column 5 | Column 6 | Column 7 |
 |-----------------|----------|----------|----------|----------|----------|----------|----------|
-| Row 1          |          |          |          |          |          |          |          |
+| Test-1         |          |          |          |          |          |          |          |
 | Row 2          |          |          |          |          |          |          |          |
 | Row 3          |          |          |          |          |          |          |          |
 | Row 4          |          |          |          |          |          |          |          |
