@@ -154,24 +154,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   )
 
   const fetchNewNotes = async (content: string): Promise<GeneratedNote[]> => {
-    return Promise.resolve([
-      {
-        title: "Dummy Note 1",
-        content: "This is dummy note content number 1.",
-      },
-      {
-        title: "Dummy Note 2",
-        content: "This is dummy note content number 2.",
-      },
-      {
-        title: "Dummy Note 3",
-        content: "This is dummy note content number 3.",
-      },
-    ])
-  }
-
-  /*
-  const fetchNewNotes = async (content: string): Promise<GeneratedNote[]> => {
     try {
       const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT
       if (!apiEndpoint) {
@@ -207,7 +189,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       throw error
     }
   }
-  */
+
   const handleSave = useCallback(async () => {
     try {
       let targetHandle = currentFileHandle
