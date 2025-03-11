@@ -5,6 +5,7 @@ tags:
 author: aarnphm,waleedmalik7,nebrask,lucas-lizhiwei
 date: "2025-03-10"
 title: Verification and Validation Report
+counter: true
 ---
 
 ## Symbols, Abbreviations and Acronyms
