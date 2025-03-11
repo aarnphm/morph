@@ -109,7 +109,7 @@ export default function useVaults() {
           return updatedVault
         }
 
-        const tree = await processDirectory(handle, vault.config.ignorePatterns)
+        const tree = await processDirectory(handle, defaultSettings.ignorePatterns)
 
         const id = await db.addVaultWithReference({
           name: handle.name,
