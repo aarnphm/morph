@@ -81,14 +81,20 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   const [markdownContent, setMarkdownContent] = useState<string>("")
   const [notesError, setNotesError] = useState<string | null>(null)
-
+  const [droppedNotes, setDroppedNotes] = useState<Note[]>([])
   const vault = vaults.find((v) => v.id === vaultId)
 
   const contentRef = useRef({
     content: "",
     filename: "",
   })
-
+  
+  const handleNoteDropped = (note: Note) => {
+    setDroppedNotes(prev => {
+      if (prev.find(n => n.id === note.id)) return prev
+      return [...prev, note]
+    })
+  }
   const [isGenerating, setIsGenerating] = useState(false)
 
   useEffect(() => {
@@ -153,6 +159,25 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [updatePreview, markdownContent],
   )
 
+  /*
+  const fetchNewNotes = async (content: string): Promise<GeneratedNote[]> => {
+    return Promise.resolve([
+      {
+        title: "Dummy Note 1",
+        content: "This is dummy note content number 1.",
+      },
+      {
+        title: "Dummy Note 2",
+        content: "This is dummy note content number 2.",
+      },
+      {
+        title: "Dummy Note 3",
+        content: "This is dummy note content number 3.",
+      },
+    ]);
+  };
+  */
+ 
   const fetchNewNotes = async (content: string): Promise<GeneratedNote[]> => {
     try {
       const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT
@@ -467,6 +492,23 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     </div>
                   </div>
                 </div>
+                {showNotes && droppedNotes.length > 0 && (
+                  <div className="w-2 flex flex-col items-center gap-2">
+                    {droppedNotes.map((note, index) => (
+                    <div
+                      key={note.id}
+                      className="w-10 h-10 rounded flex items-center justify-center shadow cursor-pointer"
+                      title={`Note ID: ${note.id}`}
+                      style={{ backgroundColor: note.color }}
+                      onClick={() => {
+                        console.log(`Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`)
+                      }}
+                    >
+                      {index + 1}
+                    </div>
+                    ))}
+                  </div>
+                )}
                 {showNotes && (
                   <div
                     className="w-88 overflow-auto border scrollbar-hidden transition-[right,left,width] duration-200  ease-in-out translate-x-[-100%] data-[show=true]:translate-x-0"
@@ -513,6 +555,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                                       },
                                     })
                                   }
+                                  handleNoteDropped(draggedNote)
                                 }
                               }}
                             >

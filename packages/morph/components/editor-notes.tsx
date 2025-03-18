@@ -20,10 +20,10 @@ export function EditorNotes() {
         y: clientOffset.y - boundingRect.top,
       }
 
-      console.log("Note dropped at position:", position)
-
       moveNoteToEditor(item.id, position)
 
+      console.log("Note dropped at position:", position, "with id:", item.id)
+      
       return { noteId: item.id, targetId: "editor" }
     },
     collect: (monitor) => ({
