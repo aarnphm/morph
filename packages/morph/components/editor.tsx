@@ -34,6 +34,7 @@ import { generatePastelColor } from "@/lib/notes"
 import { notesService } from "@/services/notes-service"
 import { db, type Note, type Vault, type FileSystemTreeNode } from "@/db"
 import { createId } from "@paralleldrive/cuid2"
+import { HoverCard, HoverCardContent, HoverCardTrigger} from "@/components/ui/hover-card"
 
 interface Suggestion {
   suggestion: string
@@ -159,7 +160,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [updatePreview, markdownContent],
   )
 
-  /*
   const fetchNewNotes = async (content: string): Promise<GeneratedNote[]> => {
     return Promise.resolve([
       {
@@ -176,8 +176,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       },
     ]);
   };
-  */
  
+  /*
   const fetchNewNotes = async (content: string): Promise<GeneratedNote[]> => {
     try {
       const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT
@@ -214,7 +214,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       throw error
     }
   }
-
+  */
   const handleSave = useCallback(async () => {
     try {
       let targetHandle = currentFileHandle
@@ -479,6 +479,30 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                           codeMirrorViewRef.current = view
                         }}
                       />
+                        {showNotes && droppedNotes.length > 0 && (
+                          <div className="flex flex-col items-center gap-2 mr-4 mt-4 absolute top-0 right-0">
+                            {droppedNotes.map((note, index) => (
+                                <HoverCard key={note.id}>
+                                  <HoverCardTrigger asChild>
+                                    <div
+                                    className="w-10 h-10 rounded flex items-center justify-center shadow cursor-pointer"
+                                    style={{ backgroundColor: note.color }}
+                                    onClick={() => {
+                                    console.log(`Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`)
+                                    }}
+                                    >
+                                    {index + 1}
+                                    </div>
+                                  </HoverCardTrigger>
+                                  <HoverCardContent className="w-80">
+                                    <p className="text-sm text-muted-foreground">
+                                    {note.content}
+                                    </p>
+                                  </HoverCardContent>
+                                </HoverCard>
+                            ))}
+                          </div>
+                        )}
                     </div>
                   </div>
                   <div
@@ -492,23 +516,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     </div>
                   </div>
                 </div>
-                {showNotes && droppedNotes.length > 0 && (
-                  <div className="w-2 flex flex-col items-center gap-2">
-                    {droppedNotes.map((note, index) => (
-                    <div
-                      key={note.id}
-                      className="w-10 h-10 rounded flex items-center justify-center shadow cursor-pointer"
-                      title={`Note ID: ${note.id}`}
-                      style={{ backgroundColor: note.color }}
-                      onClick={() => {
-                        console.log(`Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`)
-                      }}
-                    >
-                      {index + 1}
-                    </div>
-                    ))}
-                  </div>
-                )}
+            
                 {showNotes && (
                   <div
                     className="w-88 overflow-auto border scrollbar-hidden transition-[right,left,width] duration-200  ease-in-out translate-x-[-100%] data-[show=true]:translate-x-0"
