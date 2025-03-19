@@ -479,30 +479,30 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                           codeMirrorViewRef.current = view
                         }}
                       />
-                        {showNotes && droppedNotes.length > 0 && (
-                          <div className="flex flex-col items-center gap-2 mr-4 mt-4 absolute top-0 right-0">
-                            {droppedNotes.map((note, index) => (
-                                <HoverCard key={note.id}>
-                                  <HoverCardTrigger asChild>
-                                    <div
-                                    className="w-10 h-10 rounded flex items-center justify-center shadow cursor-pointer"
-                                    style={{ backgroundColor: note.color }}
-                                    onClick={() => {
-                                    console.log(`Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`)
-                                    }}
-                                    >
+                      {showNotes && droppedNotes.length > 0 && (
+                        <div className="absolute top-0 right-0 flex flex-col items-center gap-2 mr-4 mt-4">
+                          {droppedNotes.map((note, index) => (
+                            <HoverCard key={note.id}>
+                              <HoverCardTrigger asChild>
+                                <div
+                                  className={`relative w-10 h-10 rounded shadow cursor-pointer flex items-center justify-center ${note.color}`}
+                                  onClick={() => {
+                                    console.log(`Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`);
+                                  }}
+                                >
+                                  <div className="relative z-10">
                                     {index + 1}
-                                    </div>
-                                  </HoverCardTrigger>
-                                  <HoverCardContent className="w-80">
-                                    <p className="text-sm text-muted-foreground">
-                                    {note.content}
-                                    </p>
-                                  </HoverCardContent>
-                                </HoverCard>
-                            ))}
-                          </div>
-                        )}
+                                  </div>
+                                </div>
+                              </HoverCardTrigger>
+                              <HoverCardContent className="w-80">
+                                <p className="text-sm text-muted-foreground">{note.content}</p>
+                              </HoverCardContent>
+                            </HoverCard>
+                          ))}
+                        </div>
+                      )}
+
                     </div>
                   </div>
                   <div
@@ -552,17 +552,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                                 if (e.dataTransfer.dropEffect === "move") {
                                   const draggedNote = notes[index]
                                   setNotes((prev) => prev.filter((_, i) => i !== index))
-                                  // Transfer note content to editor when dropped (Not neccessary if whole note needed to be added on top of editor)
-                                  if (codeMirrorViewRef.current) {
-                                    const editor = codeMirrorViewRef.current
-                                    const cursorPosition = editor.state.selection.main.head
-                                    editor.dispatch({
-                                      changes: {
-                                        from: cursorPosition,
-                                        insert: draggedNote.content,
-                                      },
-                                    })
-                                  }
                                   handleNoteDropped(draggedNote)
                                 }
                               }}
