@@ -487,6 +487,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                                 <div
                                   className={`relative w-10 h-10 rounded shadow cursor-pointer flex items-center justify-center ${note.color}`}
                                   onClick={() => {
+                                    // TODO: Clicking -> embeddings search
                                     console.log(`Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`);
                                   }}
                                 >
