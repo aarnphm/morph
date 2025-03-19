@@ -34,6 +34,7 @@ import { generatePastelColor } from "@/lib/notes"
 import { notesService } from "@/services/notes-service"
 import { db, type Note, type Vault, type FileSystemTreeNode } from "@/db"
 import { createId } from "@paralleldrive/cuid2"
+import { HoverCard, HoverCardContent, HoverCardTrigger} from "@/components/ui/hover-card"
 
 interface Suggestion {
   suggestion: string
@@ -81,14 +82,20 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   const [markdownContent, setMarkdownContent] = useState<string>("")
   const [notesError, setNotesError] = useState<string | null>(null)
-
+  const [droppedNotes, setDroppedNotes] = useState<Note[]>([])
   const vault = vaults.find((v) => v.id === vaultId)
 
   const contentRef = useRef({
     content: "",
     filename: "",
   })
-
+  
+  const handleNoteDropped = (note: Note) => {
+    setDroppedNotes(prev => {
+      if (prev.find(n => n.id === note.id)) return prev
+      return [...prev, note]
+    })
+  }
   const [isGenerating, setIsGenerating] = useState(false)
 
   useEffect(() => {
@@ -154,6 +161,24 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   )
 
   const fetchNewNotes = async (content: string): Promise<GeneratedNote[]> => {
+    return Promise.resolve([
+      {
+        title: "Dummy Note 1",
+        content: "This is dummy note content number 1.",
+      },
+      {
+        title: "Dummy Note 2",
+        content: "This is dummy note content number 2.",
+      },
+      {
+        title: "Dummy Note 3",
+        content: "This is dummy note content number 3.",
+      },
+    ]);
+  };
+ 
+  /*
+  const fetchNewNotes = async (content: string): Promise<GeneratedNote[]> => {
     try {
       const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT
       if (!apiEndpoint) {
@@ -189,7 +214,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       throw error
     }
   }
-
+  */
   const handleSave = useCallback(async () => {
     try {
       let targetHandle = currentFileHandle
@@ -454,6 +479,31 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                           codeMirrorViewRef.current = view
                         }}
                       />
+                      {showNotes && droppedNotes.length > 0 && (
+                        <div className="absolute top-0 right-0 flex flex-col items-center gap-2 mr-4 mt-4">
+                          {droppedNotes.map((note, index) => (
+                            <HoverCard key={note.id}>
+                              <HoverCardTrigger asChild>
+                                <div
+                                  className={`relative w-10 h-10 rounded shadow cursor-pointer flex items-center justify-center ${note.color}`}
+                                  onClick={() => {
+                                    // TODO: Clicking -> embeddings search
+                                    console.log(`Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`);
+                                  }}
+                                >
+                                  <div className="relative z-10">
+                                    {index + 1}
+                                  </div>
+                                </div>
+                              </HoverCardTrigger>
+                              <HoverCardContent className="w-80">
+                                <p className="text-sm text-muted-foreground">{note.content}</p>
+                              </HoverCardContent>
+                            </HoverCard>
+                          ))}
+                        </div>
+                      )}
+
                     </div>
                   </div>
                   <div
@@ -467,6 +517,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     </div>
                   </div>
                 </div>
+            
                 {showNotes && (
                   <div
                     className="w-88 overflow-auto border scrollbar-hidden transition-[right,left,width] duration-200  ease-in-out translate-x-[-100%] data-[show=true]:translate-x-0"
@@ -502,17 +553,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                                 if (e.dataTransfer.dropEffect === "move") {
                                   const draggedNote = notes[index]
                                   setNotes((prev) => prev.filter((_, i) => i !== index))
-                                  // Transfer note content to editor when dropped (Not neccessary if whole note needed to be added on top of editor)
-                                  if (codeMirrorViewRef.current) {
-                                    const editor = codeMirrorViewRef.current
-                                    const cursorPosition = editor.state.selection.main.head
-                                    editor.dispatch({
-                                      changes: {
-                                        from: cursorPosition,
-                                        insert: draggedNote.content,
-                                      },
-                                    })
-                                  }
+                                  handleNoteDropped(draggedNote)
                                 }
                               }}
                             >
