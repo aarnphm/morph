@@ -123,7 +123,7 @@ class Engine:
   image=IMAGE,
 )
 class API:
-  engine = bentoml.depends(url='http://127.0.0.1:3001')
+  engine = bentoml.depends(Engine)
 
   def __init__(self):
     from openai import AsyncOpenAI
