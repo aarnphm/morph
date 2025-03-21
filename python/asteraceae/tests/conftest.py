@@ -1,6 +1,8 @@
 import pytest
 
-@pytest.fixture(scope="package")
+
+@pytest.fixture(scope='package')
 def service():
   from ..service import Engine
+
   return Engine
