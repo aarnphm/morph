@@ -14,7 +14,6 @@ dev-dependencies = [
 
 [tool.uv.sources]
 exo.workspace = true
-astaracea.workspace = true
 
 [tool.uv.workspace]
 members = ["python/*"]

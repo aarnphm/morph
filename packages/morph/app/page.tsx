@@ -61,7 +61,7 @@ export default function Home() {
     }
 
     if (Array.isArray(vaults) && vaults.length > 0) {
-      const uniqueVaults = [...new Map(vaults.map(v => [v.id, v])).values()]
+      const uniqueVaults = [...new Map(vaults.map((v) => [v.id, v])).values()]
       return uniqueVaults.map((vault) => (
         <Card key={vault.id} className="group rounded-md">
           <Button

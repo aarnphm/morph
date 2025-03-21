@@ -1,22 +1,14 @@
-# morph
+# [morph-editor.app](https://morph-editor.app)
 
-The web-based interface for `tinymorph`, designed to assist users in editing and receiving effective suggestions for improving their writing.
+The web version. See more: [docs](https://tinymorph.aarnphm.xyz)
 
-### prereq.
+## Development
 
-Ensure you have the following installed:
-
-- [Node.js](https://nodejs.org/) (version 16 or higher recommended)
-- [npm](https://www.npmjs.com/) (comes bundled with Node.js)
-
-### installation
+Make sure you have `pnpm` and `node>=20` setup accordingly.
 
 ```bash
 pnpm i
-pnpm run morph:dev
-
-# to run build
-pnpm run morph:build
+pnpm run -w morph:dev
 ```
 
-Open in Browser by visiting the application at [http://localhost:5173](http://localhost:5173)
+Then follow instruction in terminal :smiley:

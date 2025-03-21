@@ -8,9 +8,9 @@ logger = logging.getLogger(__name__)
 openai_api_app = fastapi.FastAPI()
 
 MODEL_ID = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B'
-STRUCTURED_OUTPUT_BACKEND = "xgrammar:disable-any-whitespace"  # remove any whitespace if it is not qwen.
-MAX_MODEL_LEN = int(os.environ.get("MAX_MODEL_LEN", 16 * 1024))
-MAX_TOKENS = int(os.environ.get("MAX_TOKENS", 8 * 1024))
+STRUCTURED_OUTPUT_BACKEND = 'xgrammar:disable-any-whitespace'  # remove any whitespace if it is not qwen.
+MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 16 * 1024))
+MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 8 * 1024))
 SYSTEM_PROMPT = """You are a professional writer heavily influenced by the styles of Raymond Carver, Franz Kafka, Albert Camus, Iain McGilchrist, and Ian McEwan. Your task is to provide suggestions by offering concise, meaningful additions that match the stylistic choices and tonality of the given essay excerpt.
 
 Please follow these steps to generate a suggestion:
@@ -28,11 +28,17 @@ Guidelines for your suggestion:
 5. Make sure to provide minimum {num_suggestions} suggestions.
 """
 
-IMAGE = bentoml.images.PythonImage(python_version='3.11', lock_python_packages=False).requirements_file('requirements.txt').run('uv pip install --compile-bytecode flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.6')
+IMAGE = (
+  bentoml.images.PythonImage(python_version='3.11', lock_python_packages=False)
+  .requirements_file('requirements.txt')
+  .run('uv pip install --compile-bytecode flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.6')
+)
+
 
 class Suggestion(pydantic.BaseModel):
   suggestion: str
   reasoning: str = pydantic.Field(default='')
+
 
 class Suggestions(pydantic.BaseModel):
   suggestions: list[Suggestion]
@@ -43,14 +49,14 @@ class Suggestions(pydantic.BaseModel):
   name='asteraceae-inference-engine',
   traffic={'timeout': 300, 'concurrency': 128},
   resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
-  tracing={"sample_rate": 0.5},
+  tracing={'sample_rate': 0.5},
   envs=[
-      {'name': 'HF_TOKEN'},
-      {'name': 'UV_NO_PROGRESS', 'value': '1'},
-      {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
-      {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
-      {'name': 'VLLM_USE_V1', 'value': '0'},
-      {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': os.path.join(os.path.dirname(__file__), 'logging-config.json')},
+    {'name': 'HF_TOKEN'},
+    {'name': 'UV_NO_PROGRESS', 'value': '1'},
+    {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
+    {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
+    {'name': 'VLLM_USE_V1', 'value': '0'},
+    {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': os.path.join(os.path.dirname(__file__), 'logging-config.json')},
   ],
   labels={'owner': 'aarnphm', 'type': 'engine'},
   image=IMAGE,
@@ -87,12 +93,13 @@ class Engine:
 
     router = fastapi.APIRouter(lifespan=vllm_api_server.lifespan)
     OPENAI_ENDPOINTS = [
-        ['/chat/completions', vllm_api_server.create_chat_completion, ['POST']],
-        ['/models', vllm_api_server.show_available_models, ['GET']],
-        ["/embeddings", vllm_api_server.create_embedding, ["POST"]],
+      ['/chat/completions', vllm_api_server.create_chat_completion, ['POST']],
+      ['/models', vllm_api_server.show_available_models, ['GET']],
+      ['/embeddings', vllm_api_server.create_embedding, ['POST']],
     ]
 
-    for route, endpoint, methods in OPENAI_ENDPOINTS: router.add_api_route(path=route, endpoint=endpoint, methods=methods, include_in_schema=True)
+    for route, endpoint, methods in OPENAI_ENDPOINTS:
+      router.add_api_route(path=route, endpoint=endpoint, methods=methods, include_in_schema=True)
     openai_api_app.include_router(router)
 
     self.engine = await self.exit_stack.enter_async_context(vllm_api_server.build_async_engine_client(args))
@@ -102,7 +109,9 @@ class Engine:
     await vllm_api_server.init_app_state(self.engine, self.model_config, openai_api_app.state, args)
 
   @bentoml.on_shutdown
-  async def teardown_engine(self): await self.exit_stack.aclose()
+  async def teardown_engine(self):
+    await self.exit_stack.aclose()
+
 
 @bentoml.service(
   name='asteraceae-inference-api',
@@ -118,7 +127,7 @@ class Engine:
       'access_control_expose_headers': ['Content-Length'],
     }
   },
-  tracing={"sample_rate": 0.4},
+  tracing={'sample_rate': 0.4},
   labels={'owner': 'aarnphm', 'type': 'api'},
   image=IMAGE,
 )
@@ -138,7 +147,6 @@ class API:
     temperature: te.Annotated[float, ae.Ge(0.5), ae.Le(0.7)] = 0.6,
     max_tokens: te.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
   ) -> t.AsyncGenerator[str, None]:
-
     messages = [
       {'role': 'system', 'content': SYSTEM_PROMPT.format(num_suggestions=num_suggestions)},
       {'role': 'user', 'content': essay},
@@ -156,13 +164,16 @@ class API:
       )
       async for chunk in completions:
         delta_choice = chunk.choices[0].delta
-        if hasattr(delta_choice, "reasoning_content"): s = Suggestion(suggestion=delta_choice.content or '', reasoning=delta_choice.reasoning_content)
-        else: s = Suggestion(suggestion=delta_choice.content)
-        if not prefill:
-            prefill = True
-            yield ''
+        if hasattr(delta_choice, 'reasoning_content'):
+          s = Suggestion(suggestion=delta_choice.content or '', reasoning=delta_choice.reasoning_content)
         else:
-          if not s.reasoning and not s.suggestion: break
+          s = Suggestion(suggestion=delta_choice.content)
+        if not prefill:
+          prefill = True
+          yield ''
+        else:
+          if not s.reasoning and not s.suggestion:
+            break
           yield f'{s.model_dump_json()}\n'
     except Exception:
       logger.error(traceback.format_exc())

@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { useEffect, useCallback, useState, useRef, useMemo, memo } from "react"
-import axios, { AxiosResponse } from "axios"
 import CodeMirror from "@uiw/react-codemirror"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
@@ -31,24 +30,18 @@ import { HTML5Backend } from "react-dnd-html5-backend"
 import { NotesProvider } from "@/context/notes-context"
 import { EditorNotes } from "@/components/editor-notes"
 import { generatePastelColor } from "@/lib/notes"
-import { notesService } from "@/services/notes-service"
 import { db, type Note, type Vault, type FileSystemTreeNode } from "@/db"
 import { createId } from "@paralleldrive/cuid2"
-import { HoverCard, HoverCardContent, HoverCardTrigger} from "@/components/ui/hover-card"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+import { ReasoningPanel } from "@/components/reasoning-panel"
 
-interface Suggestion {
+interface StreamingDelta {
   suggestion: string
-  relevance: number
+  reasoning: string
 }
 
-interface AsteraceaRequest {
-  essay: string
-  num_suggestions: number
-  max_tokens: number
-}
-
-interface AsteraceaResponse {
-  suggestions: Suggestion[]
+interface Suggestions {
+  suggestions: { suggestion: string }[]
 }
 
 interface EditorProps {
@@ -83,16 +76,31 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [markdownContent, setMarkdownContent] = useState<string>("")
   const [notesError, setNotesError] = useState<string | null>(null)
   const [droppedNotes, setDroppedNotes] = useState<Note[]>([])
+  const [streamingReasoning, setStreamingReasoning] = useState<string>("")
+  const [reasoningComplete, setReasoningComplete] = useState(false)
+  const [pendingSuggestions, setPendingSuggestions] = useState<GeneratedNote[]>([])
+  const [numSuggestions, setNumSuggestions] = useState(4) // Default number of suggestions
+  const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false)
   const vault = vaults.find((v) => v.id === vaultId)
 
   const contentRef = useRef({
     content: "",
     filename: "",
   })
-  
+
+  // Mermaid reference for rendering diagrams
+  const mermaidRef = useRef<any>(null)
+
+  useEffect(() => {
+    // Try to load mermaid dynamically if it's available in the window
+    if (typeof window !== "undefined" && window.mermaid) {
+      mermaidRef.current = window.mermaid
+    }
+  }, [])
+
   const handleNoteDropped = (note: Note) => {
-    setDroppedNotes(prev => {
-      if (prev.find(n => n.id === note.id)) return prev
+    setDroppedNotes((prev) => {
+      if (prev.find((n) => n.id === note.id)) return prev
       return [...prev, note]
     })
   }
@@ -141,7 +149,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           returnHast: true,
         })
         setPreviewNode(tree)
-      } catch (error) {}
+      } catch (error) {
+        console.log(error)
+      }
     },
     [currentFile, settings, vaultId],
   )
@@ -160,61 +170,134 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [updatePreview, markdownContent],
   )
 
-  const fetchNewNotes = async (content: string): Promise<GeneratedNote[]> => {
-    return Promise.resolve([
-      {
-        title: "Dummy Note 1",
-        content: "This is dummy note content number 1.",
-      },
-      {
-        title: "Dummy Note 2",
-        content: "This is dummy note content number 2.",
-      },
-      {
-        title: "Dummy Note 3",
-        content: "This is dummy note content number 3.",
-      },
-    ]);
-  };
- 
-  /*
-  const fetchNewNotes = async (content: string): Promise<GeneratedNote[]> => {
+  const fetchNewNotes = async (
+    content: string,
+    num_suggestions: number = 4,
+  ): Promise<GeneratedNote[]> => {
     try {
       const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT
       if (!apiEndpoint) {
         throw new Error("Notes functionality is currently unavailable")
       }
 
-      const resp = await axios.post<
-        AsteraceaResponse,
-        AxiosResponse<AsteraceaResponse>,
-        AsteraceaRequest
-      >(
-        `${apiEndpoint}/suggests`,
-        {
-          essay: md(content).content,
-          num_suggestions: 8,
-          max_tokens: 4096,
+      // Reset states
+      setStreamingReasoning("")
+      setReasoningComplete(false)
+      setPendingSuggestions([])
+      setNumSuggestions(num_suggestions)
+      setIsGeneratingSuggestions(false)
+
+      const essay = md(content).content
+      const max_tokens = 8192
+
+      // Create streaming request
+      const response = await fetch(`${apiEndpoint}/suggests`, {
+        method: "POST",
+        headers: {
+          Accept: "text/event-stream",
+          "Content-Type": "application/json",
         },
-        {
-          headers: {
-            Accept: "text/event-stream",
-            "Content-Type": "application/json",
+        body: JSON.stringify({ essay, num_suggestions, max_tokens }),
+      })
+
+      if (!response.ok) throw new Error("Failed to fetch suggestions")
+      if (!response.body) throw new Error("Response body is empty")
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+
+      // We'll collect all suggestion JSON data here
+      let suggestionString = ""
+      let inReasoningPhase = true
+
+      // Process the stream
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+
+        // Process each line
+        for (const line of chunk.split("\n")) {
+          if (!line.trim()) continue
+
+          try {
+            const delta: StreamingDelta = JSON.parse(line)
+
+            // Handle reasoning phase
+            if (delta.reasoning) {
+              setStreamingReasoning((prev) => prev + delta.reasoning)
+            }
+
+            // Check for phase transition
+            if (delta.reasoning === "" && delta.suggestion !== "") {
+              // First time we see suggestion means reasoning is complete
+              if (inReasoningPhase) {
+                setReasoningComplete(true)
+                setIsGeneratingSuggestions(true)
+                inReasoningPhase = false
+              }
+
+              // Collect suggestion data
+              suggestionString += delta.suggestion
+            }
+          } catch (e) {
+            // Ignore parsing errors for incomplete chunks
+          }
+        }
+      }
+
+      // Ensure we mark reasoning as complete
+      if (inReasoningPhase) {
+        setReasoningComplete(true)
+      }
+
+      // Clean up
+      reader.releaseLock()
+
+      // Parse collected suggestions
+      let generatedNotes: GeneratedNote[] = []
+
+      if (suggestionString.trim()) {
+        try {
+          const suggestionData: Suggestions = JSON.parse(suggestionString.trim())
+
+          if (suggestionData.suggestions && Array.isArray(suggestionData.suggestions)) {
+            generatedNotes = suggestionData.suggestions.map((suggestion, index) => ({
+              title: `suggestion ${index + 1}`,
+              content: suggestion.suggestion,
+            }))
+
+            setPendingSuggestions(generatedNotes)
+          }
+        } catch (e) {
+          console.error("Error parsing suggestions:", e)
+        }
+      }
+
+      // Reset generation state
+      setIsGeneratingSuggestions(false)
+
+      // Default note if needed
+      if (generatedNotes.length === 0) {
+        generatedNotes = [
+          {
+            title: "Suggestion",
+            content: "Could not generate suggestions",
           },
-        },
-      )
+        ]
+      }
 
       setNotesError(null)
-      return resp.data.suggestions.map((item, index) => ({
-        title: `Note ${index + 1}`,
-        content: item.suggestion,
-      }))
+      return generatedNotes
     } catch (error) {
       setNotesError("Notes not available, try again later")
+      setReasoningComplete(true)
+      setIsGeneratingSuggestions(false)
       throw error
     }
   }
-  */
+
   const handleSave = useCallback(async () => {
     try {
       let targetHandle = currentFileHandle
@@ -260,7 +343,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           }))
           await Promise.all(newNotes.map((note) => db.notes.add(note)))
           setNotes((prev) => [...prev, ...newNotes])
-        } catch (error) {}
+        } catch (error) {
+          console.log(error)
+        }
       }
     } catch {}
   }, [currentFileHandle, markdownContent, currentFile, vault, refreshVault, vaultId, showNotes])
@@ -322,7 +407,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     return () => {
       clearTimeout(timerId)
     }
-  }, [showNotes, /*markdownContent,*/ currentFile, vault])
+  }, [showNotes, currentFile, vault])
 
   const onFileSelect = useCallback((handle: FileSystemFileHandle) => {
     setCurrentFileHandle(handle)
@@ -343,10 +428,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         event.preventDefault()
         setIsEditMode((prev) => !prev)
         const nodes = document.querySelectorAll<HTMLDivElement>("pre > code.mermaid")
-        // TODO: update MermaidViewer
-        // We capture the error for rendering mermaid diagram
+        // Safely try to render mermaid diagrams if available
         try {
-          if (mermaid !== undefined) await mermaid.run({ nodes })
+          if (mermaidRef.current) await mermaidRef.current.run({ nodes })
         } catch {}
       } else if ((event.ctrlKey || event.metaKey) && event.key === "s") {
         event.preventDefault()
@@ -425,13 +509,44 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     } finally {
       setIsGenerating(false)
     }
-  }, [showNotes, isGenerating, currentFile, vault, markdownContent])
+  }, [showNotes, isGenerating, currentFile, vault, markdownContent, fetchNewNotes])
+
+  // Generate skeletons based on num_suggestions
+  const renderNotesSkeletons = () => {
+    return Array.from({ length: numSuggestions }).map((_, i) => (
+      <div key={i} className="w-full p-4 bg-card border border-border rounded animate-pulse">
+        <Skeleton className="h-4 w-1/2 mb-2" />
+        <Skeleton className="h-3 w-full mb-1" />
+        <Skeleton className="h-3 w-full mb-1" />
+        <Skeleton className="h-3 w-2/3" />
+      </div>
+    ))
+  }
+
+  // Render suggestions while they're being generated
+  const renderPendingSuggestions = () => {
+    return pendingSuggestions.map((note, index) => (
+      <NoteCard
+        key={`pending-${index}`}
+        className="w-full"
+        isGenerating={isGeneratingSuggestions}
+        note={{
+          id: `pending-${index}`,
+          content: note.content,
+          color: generatePastelColor(),
+          fileId: currentFile,
+          isInEditor: false,
+          createdAt: new Date(),
+        }}
+      />
+    ))
+  }
 
   return (
     <DndProvider backend={HTML5Backend}>
       <NotesProvider>
         <SearchProvider vault={vault!}>
-          <SidebarProvider defaultOpen={true}>
+          <SidebarProvider defaultOpen={false}>
             <Explorer
               vault={vault!}
               editorViewRef={codeMirrorViewRef}
@@ -440,14 +555,14 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               onContentUpdate={updatePreview}
               onExportMarkdown={handleExportMarkdown}
             />
-            <SidebarInset>
-              <header className="inline-block h-10 border-b">
+            <SidebarInset className="flex flex-col h-screen overflow-hidden">
+              <header className="sticky top-0 h-10 border-b bg-background z-10">
                 <div className="h-full flex shrink-0 items-center justify-between mx-4">
                   <SidebarTrigger className="-ml-1" title="Open Explorer" />
                   <Toolbar toggleNotes={toggleNotes} />
                 </div>
               </header>
-              <section className="flex h-[calc(100vh-104px)] gap-10 m-4">
+              <section className="flex flex-1 overflow-hidden m-4 gap-10">
                 <div className="flex-1 relative border">
                   <EditorNotes />
                   <div
@@ -488,12 +603,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                                   className={`relative w-10 h-10 rounded shadow cursor-pointer flex items-center justify-center ${note.color}`}
                                   onClick={() => {
                                     // TODO: Clicking -> embeddings search
-                                    console.log(`Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`);
+                                    console.log(
+                                      `Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`,
+                                    )
                                   }}
                                 >
-                                  <div className="relative z-10">
-                                    {index + 1}
-                                  </div>
+                                  <div className="relative z-10">{index + 1}</div>
                                 </div>
                               </HoverCardTrigger>
                               <HoverCardContent className="w-80">
@@ -503,7 +618,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                           ))}
                         </div>
                       )}
-
                     </div>
                   </div>
                   <div
@@ -517,66 +631,83 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     </div>
                   </div>
                 </div>
-            
                 {showNotes && (
                   <div
-                    className="w-88 overflow-auto border scrollbar-hidden transition-[right,left,width] duration-200  ease-in-out translate-x-[-100%] data-[show=true]:translate-x-0"
+                    className="w-88 overflow-auto border scrollbar-hidden transition-[right,left,width] duration-200 ease-in-out translate-x-[-100%] data-[show=true]:translate-x-0"
                     data-show={showNotes}
                   >
-                    <div className="p-4">
+                    <div className="p-4 flex flex-col h-full">
                       {notesError ? (
                         <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
                           {notesError}
                         </div>
-                      ) : isNotesLoading ? (
-                        <div className="grid gap-4">
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <div
-                              key={i}
-                              className="w-full p-4 bg-card border border-border rounded"
-                            >
-                              <Skeleton className="h-4 w-1/2 mb-2" />
-                              <Skeleton className="h-3 w-full mb-1" />
-                              <Skeleton className="h-3 w-full mb-1" />
-                              <Skeleton className="h-3 w-2/3" />
-                            </div>
-                          ))}
-                        </div>
                       ) : (
-                        <div className="grid gap-4">
-                          {notes.map((note, index) => (
-                            <div
-                              key={index}
-                              draggable={true}
-                              onDragEnd={(e) => {
-                                // Remove note from note panel when note note dropped onto editor
-                                if (e.dataTransfer.dropEffect === "move") {
-                                  const draggedNote = notes[index]
-                                  setNotes((prev) => prev.filter((_, i) => i !== index))
-                                  handleNoteDropped(draggedNote)
-                                }
-                              }}
-                            >
-                              <NoteCard
-                                className="w-full"
-                                note={{
-                                  id: note.id,
-                                  content: note.content,
-                                  color: note.color ?? generatePastelColor(),
-                                  fileId: currentFile,
-                                  isInEditor: false,
-                                  createdAt: note.createdAt ?? new Date(),
-                                }}
+                        <>
+                          {/* Sticky reasoning panel at the top */}
+                          <div className="sticky top-0 z-10 pb-2 bg-background">
+                            {(isNotesLoading || streamingReasoning) && (
+                              <ReasoningPanel
+                                reasoning={streamingReasoning}
+                                isStreaming={isNotesLoading && !reasoningComplete}
+                                isComplete={reasoningComplete}
                               />
-                            </div>
-                          ))}
-                        </div>
+                            )}
+                          </div>
+
+                          {/* Separator between reasoning and notes */}
+                          {(isNotesLoading || streamingReasoning) && (
+                            <div className="w-full border-b border-border my-2"></div>
+                          )}
+
+                          {/* Notes content */}
+                          <div className="grid gap-4 mt-2">
+                            {/* Show suggestion skeletons or pending suggestions */}
+                            {isNotesLoading &&
+                              reasoningComplete &&
+                              !pendingSuggestions.length &&
+                              renderNotesSkeletons()}
+
+                            {/* Show pending suggestions as they come in */}
+                            {isNotesLoading &&
+                              pendingSuggestions.length > 0 &&
+                              renderPendingSuggestions()}
+
+                            {/* Show final notes once loading is complete */}
+                            {!isNotesLoading &&
+                              notes.map((note, index) => (
+                                <div
+                                  key={index}
+                                  draggable={true}
+                                  onDragEnd={(e) => {
+                                    // Remove note from note panel when note dropped onto editor
+                                    if (e.dataTransfer.dropEffect === "move") {
+                                      const draggedNote = notes[index]
+                                      setNotes((prev) => prev.filter((_, i) => i !== index))
+                                      handleNoteDropped(draggedNote)
+                                    }
+                                  }}
+                                >
+                                  <NoteCard
+                                    className="w-full"
+                                    note={{
+                                      id: note.id,
+                                      content: note.content,
+                                      color: note.color ?? generatePastelColor(),
+                                      fileId: currentFile,
+                                      isInEditor: false,
+                                      createdAt: note.createdAt ?? new Date(),
+                                    }}
+                                  />
+                                </div>
+                              ))}
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>
                 )}
               </section>
-              <footer className="inline-block h-8 border-t text-xs/8">
+              <footer className="sticky bottom-0 h-8 border-t text-xs/8 bg-background z-10">
                 <div
                   className="h-full flex shrink-0 items-center align-middle font-serif justify-end mx-4 gap-4 text-muted-foreground hover:text-accent-foreground cursor-pointer"
                   aria-hidden
