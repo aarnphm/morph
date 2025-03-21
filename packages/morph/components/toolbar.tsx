@@ -31,7 +31,10 @@ export function Toolbar({ toggleNotes }: ToolbarProps) {
     [handleOpenSettings],
   )
 
-  const MemoizedCopyIcon = useMemo(() => <CopyIcon className="h-3 w-3" width={16} height={16} />, [])
+  const MemoizedCopyIcon = useMemo(
+    () => <CopyIcon className="h-3 w-3" width={16} height={16} />,
+    [],
+  )
 
   const MemoizedCopyButton = useMemo(
     () => (

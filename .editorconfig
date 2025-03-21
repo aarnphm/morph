@@ -10,8 +10,8 @@ indent_style = space
 insert_final_newline = true
 indent_size = 2
 
-[*.{rs,py,pyi}]
+[*.{rs,py,pyi,js,jsx,ts,tsx}]
 indent_size = 2
 
-[*.md]
+[*.{md,py}]
 max_line_length = 119

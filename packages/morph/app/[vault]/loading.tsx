@@ -60,7 +60,7 @@ export default function Loading() {
               </div>
             </div>
           </header>
-          <section className="flex h-[calc(100vh-104px)] gap-10 m-4">
+          <section className="flex h-[calc(100vh-104px)] gap-10 rounded-md m-4">
             <div className="flex-1 border relative">
               <div className="h-full mx-12 pt-4 scrollbar-hidden">
                 <div className="cm-editor">

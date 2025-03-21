@@ -1,5 +1,5 @@
 {
-  "name": "@aarnphm/tinymorph-monorepo",
+  "name": "@aarnphm/morph-monorepo",
   "private": true,
   "homepage": "https://tinymorph.aarnphm.xyz",
   "scripts": {
@@ -8,22 +8,23 @@
     "morph:inference": "cd ./python/asteraceae/ && uvx --with-requirements requirements.txt bentoml serve service.py:Engine --debug",
     "morph:inference:build": "cd ./python/asteraceae/ && uvx --with-requirements requirements.txt bentoml build service.py:Engine --debug",
     "morph:dev": "pnpm --filter morph run dev",
-    "morph:build": "pnpm --filter morph run build"
+    "morph:build": "pnpm --filter morph run build",
+    "morph:format": "pnpm --filter morph run format && uvx ruff format"
   },
   "keywords": [
     "sae",
     "bentoml",
     "mech interp"
   ],
-  "author": "aarnphm <contact@aarnphm.xyz>",
+  "author": "Aaron Pham <contact@aarnphm.xyz>",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/aarnphm/tinymorph.git"
+    "url": "git+https://github.com/aarnphm/morph.git"
   },
   "engines": {
     "npm": ">=9.3.1",
-    "node": "20 || >=22"
+    "node": ">=20"
   },
   "packageManager": "pnpm@8.7.1"
 }

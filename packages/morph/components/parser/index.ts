@@ -1021,7 +1021,7 @@ const Order = [
   Markup,
   Pseudocode,
   SyntaxHighlighting,
-  Citations,
+  // Citations,
   Mermaid,
   Gfm,
   Description,

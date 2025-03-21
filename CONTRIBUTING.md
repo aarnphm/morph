@@ -1,15 +1,14 @@
 ## tooling.
 
-- `node.js>=20` and `pnpm`
+- `node.js>=22` and `pnpm`
 - `uv` [installation](https://docs.astral.sh/uv/)
-- `cargo` [installation](https://www.rust-lang.org/tools/install)
 
 > [!tip]
-> Recommended to use `uv` to install python and manage virtualenvs for `tinymorph`.
+> Recommended to use `uv` to install python and manage virtual environment for `morph`.
 
 ## structure.
 
-`docs`: include both references and exploration notes for `tinymorph`
+`docs`: include both references and exploration notes for `morph`
 
 `crates`: contains all UI related for the editors
 
@@ -26,9 +25,6 @@
 uv for python management (both python venv)
 ruff for python linting
 mypy for type checking
-
-cargo (format, linting via clippy)
-
 quartz for knowledge management
 
 ## python.
@@ -45,13 +41,6 @@ ln -s .python-version-default .python-version
 ## ui.
 
 Using pnpm and preact with vite as bundler
-
-## rust.
-
-```bash
-cargo build
-./target/debug/morph
-```
 
 ## docs.
 
@@ -95,7 +84,7 @@ git config --local blame.ignoreRevsFile .git-blame-ignore-revs
 If you work on CI, make sure to run this command after (requires `docker` and `fd`, or you can use `find` equivalent):
 
 ```bash
-fd -Hg "*.yml" .github --exec-batch docker run --rm -v "${PWD}":"${PWD}" -w "${PWD}" -e RATCHET_EXP_KEEP_NEWLINES=true ghcr.io/sethvargo/ratchet:0.9.2 update
+fd -Hg "*.yml" .github --exec-batch docker run --rm -v "${PWD}":"${PWD}" -w "${PWD}" -e RATCHET_EXP_KEEP_NEWLINES=true ghcr.io/sethvargo/ratchet:0 update
 ```
 
 ## pull requests.
