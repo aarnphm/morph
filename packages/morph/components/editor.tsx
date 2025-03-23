@@ -69,7 +69,16 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const codeMirrorViewRef = useRef<EditorView | null>(null)
   const readingModeRef = useRef<HTMLDivElement>(null)
   const [showNotes, setShowNotes] = useState(false)
-  const toggleNotes = useCallback(() => setShowNotes((prev) => !prev), [])
+  const toggleNotes = useCallback(() => {
+    setShowNotes((prev) => {
+      // Reset reasoning state when hiding notes panel
+      if (prev) {
+        setStreamingReasoning("")
+        setReasoningComplete(false)
+      }
+      return !prev
+    })
+  }, [])
 
   const [notes, setNotes] = useState<Note[]>([])
 
@@ -104,7 +113,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       return [...prev, note]
     })
   }
-  const [isGenerating, setIsGenerating] = useState(false)
 
   useEffect(() => {
     contentRef.current = {
@@ -120,7 +128,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         .equals(currentFile)
         .toArray()
         .then((loadedNotes) => {
-          setNotes(loadedNotes)
+          // Sort notes from latest to oldest
+          const sortedNotes = loadedNotes.sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          )
+          setNotes(sortedNotes)
         })
     }
   }, [currentFile, vault])
@@ -242,7 +254,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               suggestionString += delta.suggestion
             }
           } catch (e) {
-            // Ignore parsing errors for incomplete chunks
+            console.log(e)
           }
         }
       }
@@ -298,6 +310,55 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
   }
 
+  // Group notes by date for display
+  const groupNotesByDate = useCallback((notesList: Note[]) => {
+    const groups: { [key: string]: Note[] } = {}
+
+    notesList.forEach((note) => {
+      const date = new Date(note.createdAt)
+      const dateKey = date.toDateString()
+
+      if (!groups[dateKey]) {
+        groups[dateKey] = []
+      }
+
+      groups[dateKey].push(note)
+    })
+
+    return Object.entries(groups)
+  }, [])
+
+  // Format date for display
+  const formatDate = useCallback((dateStr: string) => {
+    const date = new Date(dateStr)
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+
+    let formattedDate
+
+    if (date.toDateString() === today.toDateString()) {
+      formattedDate = "Today"
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      formattedDate = "Yesterday"
+    } else {
+      // Format: Month Day, Year (if not current year)
+      const options: Intl.DateTimeFormatOptions = {
+        month: "long",
+        day: "numeric",
+      }
+
+      // Add year if not current year
+      if (date.getFullYear() !== today.getFullYear()) {
+        options.year = "numeric"
+      }
+
+      formattedDate = date.toLocaleDateString(undefined, options)
+    }
+
+    return formattedDate
+  }, [])
+
   const handleSave = useCallback(async () => {
     try {
       let targetHandle = currentFileHandle
@@ -342,7 +403,13 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             lastModified: new Date(),
           }))
           await Promise.all(newNotes.map((note) => db.notes.add(note)))
-          setNotes((prev) => [...prev, ...newNotes])
+          // Add new notes and re-sort the combined array
+          setNotes((prev) => {
+            const combined = [...prev, ...newNotes]
+            return combined.sort(
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+            )
+          })
         } catch (error) {
           console.log(error)
         }
@@ -376,38 +443,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       window.dispatchEvent(new CustomEvent("mermaid-content", { detail: true }))
     }
   }, [markdownContent, updatePreview])
-
-  useEffect(() => {
-    if (!showNotes) return
-
-    setIsNotesLoading(true)
-
-    const timerId = setTimeout(async () => {
-      try {
-        const generatedNotes = await fetchNewNotes(markdownContent)
-        const newNotes: Note[] = generatedNotes.map((note) => ({
-          id: createId(),
-          content: note.content,
-          color: generatePastelColor(),
-          fileId: currentFile,
-          vaultId: vault!.id,
-          isInEditor: false,
-          createdAt: new Date(),
-          lastModified: new Date(),
-        }))
-        await Promise.all(newNotes.map((note) => db.notes.add(note)))
-        setNotes((prev) => [...prev, ...newNotes])
-      } catch {
-        // TODO: do something with the error, silent for now
-      } finally {
-        setIsNotesLoading(false)
-      }
-    }, 1000)
-
-    return () => {
-      clearTimeout(timerId)
-    }
-  }, [showNotes, currentFile, vault])
 
   const onFileSelect = useCallback((handle: FileSystemFileHandle) => {
     setCurrentFileHandle(handle)
@@ -481,40 +516,47 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [handleSave, toggleNotes, settings, handleKeyDown])
 
-  const handleNoteGeneration = useCallback(async () => {
-    if (!showNotes || isGenerating || !currentFile || !vault) return
+  useEffect(() => {
+    if (!showNotes) return
 
-    setIsGenerating(true)
-    try {
-      const count = await db.notes.where("fileId").equals(currentFile).count()
-      const shouldGenerate = count === 0 && markdownContent.length > 1000
+    setIsNotesLoading(true)
 
-      if (shouldGenerate) {
+    const timerId = setTimeout(async () => {
+      try {
         const generatedNotes = await fetchNewNotes(markdownContent)
         const newNotes: Note[] = generatedNotes.map((note) => ({
           id: createId(),
           content: note.content,
           color: generatePastelColor(),
           fileId: currentFile,
-          vaultId: vault.id,
+          vaultId: vault!.id,
           isInEditor: false,
           createdAt: new Date(),
           lastModified: new Date(),
         }))
         await Promise.all(newNotes.map((note) => db.notes.add(note)))
-        setNotes((prev) => [...prev, ...newNotes])
+        setNotes((prev) => {
+          const combined = [...prev, ...newNotes]
+          return combined.sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          )
+        })
+      } catch {
+        // TODO: do something with the error, silent for now
+      } finally {
+        setIsNotesLoading(false)
       }
-    } catch {
-      // TODO: do something with error
-    } finally {
-      setIsGenerating(false)
+    }, 1000)
+
+    return () => {
+      clearTimeout(timerId)
     }
-  }, [showNotes, isGenerating, currentFile, vault, markdownContent, fetchNewNotes])
+  }, [showNotes, currentFile, vault, markdownContent])
 
   // Generate skeletons based on num_suggestions
   const renderNotesSkeletons = () => {
     return Array.from({ length: numSuggestions }).map((_, i) => (
-      <div key={i} className="w-full p-4 bg-card border border-border rounded animate-pulse">
+      <div key={i} className="w-full p-4 mb-4 bg-card border border-border rounded animate-pulse">
         <Skeleton className="h-4 w-1/2 mb-2" />
         <Skeleton className="h-3 w-full mb-1" />
         <Skeleton className="h-3 w-full mb-1" />
@@ -546,7 +588,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     <DndProvider backend={HTML5Backend}>
       <NotesProvider>
         <SearchProvider vault={vault!}>
-          <SidebarProvider defaultOpen={false}>
+          <SidebarProvider defaultOpen={true}>
             <Explorer
               vault={vault!}
               editorViewRef={codeMirrorViewRef}
@@ -562,8 +604,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   <Toolbar toggleNotes={toggleNotes} />
                 </div>
               </header>
-              <section className="flex flex-1 overflow-hidden m-4 gap-10">
-                <div className="flex-1 relative border">
+              <section className="flex flex-1 overflow-hidden m-4 rounded-md border">
+                <div className="flex-1 relative">
                   <EditorNotes />
                   <div
                     className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
@@ -588,7 +630,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                         indentWithTab={false}
                         extensions={memoizedExtensions}
                         onChange={onContentChange}
-                        className="overflow-auto h-full mx-12 pt-4 scrollbar-hidden"
+                        className="overflow-auto h-full mx-8 pt-4 scrollbar-hidden"
                         theme={theme === "dark" ? "dark" : editorTheme}
                         onCreateEditor={(view) => {
                           codeMirrorViewRef.current = view
@@ -624,7 +666,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     className={`reading-mode absolute inset-0 ${isEditMode ? "hidden" : "block overflow-hidden"}`}
                     ref={readingModeRef}
                   >
-                    <div className="prose dark:prose-invert h-full mx-4 pt-4 overflow-auto scrollbar-hidden">
+                    <div className="prose dark:prose-invert h-full mx-8 pt-4 overflow-auto scrollbar-hidden">
                       <article className="@container h-full max-w-5xl mx-auto scrollbar-hidden">
                         {previewNode && toJsx(previewNode)}
                       </article>
@@ -633,77 +675,78 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 </div>
                 {showNotes && (
                   <div
-                    className="w-88 overflow-auto border scrollbar-hidden transition-[right,left,width] duration-200 ease-in-out translate-x-[-100%] data-[show=true]:translate-x-0"
+                    className="w-88 flex flex-col border-l transition-[right,left,width] duration-200 ease-in-out translate-x-[-100%] data-[show=true]:translate-x-0"
                     data-show={showNotes}
                   >
-                    <div className="p-4 flex flex-col h-full">
-                      {notesError ? (
-                        <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-                          {notesError}
+                    {notesError ? (
+                      <div className="flex items-center justify-center h-32 text-sm text-muted-foreground p-4">
+                        {notesError}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="p-2 pb-0 bg-background border-b">
+                          <ReasoningPanel
+                            reasoning={streamingReasoning}
+                            isStreaming={isNotesLoading && !reasoningComplete}
+                            isComplete={reasoningComplete}
+                          />
                         </div>
-                      ) : (
-                        <>
-                          {/* Sticky reasoning panel at the top */}
-                          <div className="sticky top-0 z-10 pb-2 bg-background">
-                            {(isNotesLoading || streamingReasoning) && (
-                              <ReasoningPanel
-                                reasoning={streamingReasoning}
-                                isStreaming={isNotesLoading && !reasoningComplete}
-                                isComplete={reasoningComplete}
-                              />
-                            )}
-                          </div>
 
-                          {/* Separator between reasoning and notes */}
-                          {(isNotesLoading || streamingReasoning) && (
-                            <div className="w-full border-b border-border my-2"></div>
-                          )}
+                        <div className="flex-1 overflow-auto scrollbar-hidden p-4 gap-4 mt-2">
+                          {isNotesLoading &&
+                            reasoningComplete &&
+                            !pendingSuggestions.length &&
+                            renderNotesSkeletons()}
 
-                          {/* Notes content */}
-                          <div className="grid gap-4 mt-2">
-                            {/* Show suggestion skeletons or pending suggestions */}
-                            {isNotesLoading &&
-                              reasoningComplete &&
-                              !pendingSuggestions.length &&
-                              renderNotesSkeletons()}
+                          {/* Show final notes once loading is complete */}
+                          {!isNotesLoading && notes.length > 0 ? (
+                            <div className="space-y-6">
+                              {groupNotesByDate(notes).map(([dateStr, dateNotes]) => (
+                                <div key={dateStr} className="space-y-4">
+                                  <div className="bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground font-medium border-y border-border">
+                                    {formatDate(dateStr)}
+                                  </div>
 
-                            {/* Show pending suggestions as they come in */}
-                            {isNotesLoading &&
-                              pendingSuggestions.length > 0 &&
-                              renderPendingSuggestions()}
-
-                            {/* Show final notes once loading is complete */}
-                            {!isNotesLoading &&
-                              notes.map((note, index) => (
-                                <div
-                                  key={index}
-                                  draggable={true}
-                                  onDragEnd={(e) => {
-                                    // Remove note from note panel when note dropped onto editor
-                                    if (e.dataTransfer.dropEffect === "move") {
-                                      const draggedNote = notes[index]
-                                      setNotes((prev) => prev.filter((_, i) => i !== index))
-                                      handleNoteDropped(draggedNote)
-                                    }
-                                  }}
-                                >
-                                  <NoteCard
-                                    className="w-full"
-                                    note={{
-                                      id: note.id,
-                                      content: note.content,
-                                      color: note.color ?? generatePastelColor(),
-                                      fileId: currentFile,
-                                      isInEditor: false,
-                                      createdAt: note.createdAt ?? new Date(),
-                                    }}
-                                  />
+                                  <div className="grid gap-4">
+                                    {dateNotes.map((note, index) => (
+                                      <div
+                                        key={note.id}
+                                        draggable={true}
+                                        onDragEnd={(e) => {
+                                          // Remove note from note panel when note dropped onto editor
+                                          if (e.dataTransfer.dropEffect === "move") {
+                                            setNotes((prev) => prev.filter((n) => n.id !== note.id))
+                                            handleNoteDropped(note)
+                                          }
+                                        }}
+                                      >
+                                        <NoteCard
+                                          className="w-full"
+                                          note={{
+                                            id: note.id,
+                                            content: note.content,
+                                            color: note.color ?? generatePastelColor(),
+                                            fileId: currentFile,
+                                            isInEditor: false,
+                                            createdAt: note.createdAt ?? new Date(),
+                                          }}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
                               ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
+                            </div>
+                          ) : (
+                            !isNotesLoading && (
+                              <div className="text-center text-muted-foreground text-sm mt-4">
+                                No notes generated yet
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </section>

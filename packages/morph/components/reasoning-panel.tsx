@@ -16,8 +16,26 @@ export function ReasoningPanel({
   isStreaming,
   isComplete,
 }: ReasoningPanelProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(true)
   const reasoningRef = useRef<HTMLDivElement>(null)
+  const [elapsedTime, setElapsedTime] = useState(0)
+  const startTimeRef = useRef<number | null>(null)
+
+  // Start timer when streaming begins
+  useEffect(() => {
+    if (isStreaming && !startTimeRef.current) {
+      startTimeRef.current = Date.now();
+    }
+  }, [isStreaming]);
+
+  // Calculate elapsed time when complete
+  useEffect(() => {
+    if (isComplete && startTimeRef.current) {
+      const endTime = Date.now();
+      const duration = Math.round((endTime - startTimeRef.current) / 1000);
+      setElapsedTime(duration);
+    }
+  }, [isComplete]);
 
   // Auto-scroll to bottom when content changes and panel is expanded
   useEffect(() => {
@@ -29,45 +47,47 @@ export function ReasoningPanel({
   const toggleExpand = () => setIsExpanded((prev) => !prev)
 
   return (
-    <div className={cn("w-full p-4 bg-card border border-border rounded shadow-sm", className)}>
-      <div className="flex items-center justify-between">
+    <div className={cn("w-full", className)}>
+      <div className={cn("flex items-center justify-between text-xs py-1", isExpanded && "border-b")}>
         <button
           onClick={toggleExpand}
-          className="flex items-center gap-1 text-sm font-medium hover:text-foreground transition-colors text-left"
+          className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors text-left"
         >
           <ChevronRightIcon
             className={cn(
-              "h-4 w-4 transition-transform duration-200",
+              "h-3 w-3 transition-transform duration-200",
               isExpanded && "transform rotate-90",
             )}
           />
-          <span className="font-medium">Thinking</span>
+          {isComplete ? (
+            <span>Thought for {elapsedTime} seconds</span>
+          ) : (
+            <span>Thinking...</span>
+          )}
         </button>
 
         <div className="flex items-center">
           {isComplete ? (
-            <CheckIcon className="h-4 w-4 text-green-500" />
+            <CheckIcon className="h-3 w-3 text-green-500" />
           ) : (
             isStreaming && (
-              <span className="block w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse mr-1" />
+              <span className="flex items-center">
+                <span className="block w-1 h-1 rounded-full bg-blue-500 animate-pulse mr-1"></span>
+                <span className="block w-1 h-1 rounded-full bg-blue-500 animate-pulse delay-150 mr-1"></span>
+                <span className="block w-1 h-1 rounded-full bg-blue-500 animate-pulse delay-300"></span>
+              </span>
             )
           )}
         </div>
       </div>
 
-      {isExpanded && (
-        <>
-          <div className="my-2 border-t border-border"></div>
-          <div
-            ref={reasoningRef}
-            className={cn(
-              "text-xs text-muted-foreground whitespace-pre-wrap line-clamp-10",
-              isExpanded && "overflow-y-auto max-h-[10em]",
-            )}
-          >
-            {reasoning}
-          </div>
-        </>
+      {isExpanded && reasoning && (
+        <div
+          ref={reasoningRef}
+          className="text-xs text-muted-foreground whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-40 transition-all duration-200"
+        >
+          {reasoning}
+        </div>
       )}
     </div>
   )
