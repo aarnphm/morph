@@ -9,5 +9,4 @@ python/ linguist-detectable
 *.markdown linguist-detectable=true
 *.markdown linguist-documentation=false
 *.markdown linguist-language=Markdown
-packages/morph/components/ui/** linguist-vendored
 *.ipynb linguist-detectable=false
