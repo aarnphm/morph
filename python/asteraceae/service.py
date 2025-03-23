@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-import logging, traceback, os, asyncio, contextlib, pathlib, typing as t
+import logging, traceback, os, contextlib, pathlib, typing as t
 import bentoml, fastapi, pydantic, annotated_types as ae, typing_extensions as te
+
+if t.TYPE_CHECKING:
+  from vllm.entrypoints.openai.protocol import DeltaMessage
 
 logger = logging.getLogger(__name__)
 
@@ -14,11 +17,19 @@ MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 16 * 1024))
 MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 8 * 1024))
 WORKING_DIR = pathlib.Path(__file__).parent
 
-IMAGE = (
-  bentoml.images.PythonImage(python_version='3.11', lock_python_packages=False)
-  .requirements_file('requirements.txt')
-  .run('uv pip install --compile-bytecode flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.6')
-)
+SERVICE_CONFIG = {
+  'image': bentoml.images.PythonImage(python_version='3.11', lock_python_packages=False).requirements_file('requirements.txt').run('uv pip install --compile-bytecode flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.6'),
+  'traffic': {'timeout': 1000, 'concurrency': 128},
+  'tracing': {'sample_rate': 1.0},
+  'envs': [
+    {'name': 'HF_TOKEN'},
+    {'name': 'UV_NO_PROGRESS', 'value': '1'},
+    {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
+    {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
+    {'name': 'VLLM_USE_V1', 'value': '0'},
+    {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': (WORKING_DIR / 'logging-config.json').__fspath__()},
+  ],
+}
 
 
 class Suggestion(pydantic.BaseModel):
@@ -33,19 +44,9 @@ class Suggestions(pydantic.BaseModel):
 @bentoml.asgi_app(openai_api_app, path='/v1')
 @bentoml.service(
   name='asteraceae-inference-engine',
-  traffic={'timeout': 1000, 'concurrency': 128},
   resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
-  tracing={'sample_rate': 1.0},
-  envs=[
-    {'name': 'HF_TOKEN'},
-    {'name': 'UV_NO_PROGRESS', 'value': '1'},
-    {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
-    {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
-    {'name': 'VLLM_USE_V1', 'value': '0'},
-    {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': (WORKING_DIR/'logging-config.json').__fspath__()},
-  ],
   labels={'owner': 'aarnphm', 'type': 'engine'},
-  image=IMAGE,
+  **SERVICE_CONFIG,
 )
 class Engine:
   model_id = MODEL_ID
@@ -100,7 +101,6 @@ class Engine:
 
 @bentoml.service(
   name='asteraceae-inference-api',
-  traffic={'timeout': 1000, 'concurrency': 128},
   http={
     'cors': {
       'enabled': True,
@@ -112,16 +112,11 @@ class Engine:
       'access_control_expose_headers': ['Content-Length'],
     }
   },
-  envs=[
-    {'name': 'UV_NO_PROGRESS', 'value': '1'},
-    {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
-  ],
-  tracing={'sample_rate': 0.5},
   labels={'owner': 'aarnphm', 'type': 'api'},
-  image=IMAGE,
+  **SERVICE_CONFIG,
 )
 class API:
-  if int(os.getenv("DEVELOPMENT", "0")) == 1:
+  if int(os.getenv('DEVELOPMENT', '0')) == 1:
     engine = bentoml.depends(url=f'http://127.0.0.1:{os.getenv("ENGINE_PORT", 3001)}')
   else:
     engine = bentoml.depends(Engine)
@@ -139,10 +134,11 @@ class API:
     temperature: te.Annotated[float, ae.Ge(0.5), ae.Le(0.7)] = 0.6,
     max_tokens: te.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
   ) -> t.AsyncGenerator[str, None]:
-    with (WORKING_DIR/"SYSTEM_PROMPT.md").open('r') as f: system_prompt = f.read()
+    from openai.types.chat import ChatCompletionSystemMessageParam, ChatCompletionUserMessageParam
+    with (WORKING_DIR / 'SYSTEM_PROMPT.md').open('r') as f: system_prompt = f.read()
     messages = [
-      {'role': 'system', 'content': system_prompt.format(num_suggestions=num_suggestions)},
-      {'role': 'user', 'content': essay},
+      ChatCompletionSystemMessageParam(role='system', content=system_prompt.format(num_suggestions=num_suggestions)),
+      ChatCompletionUserMessageParam(role='user', content=essay),
     ]
 
     prefill = False
@@ -153,15 +149,15 @@ class API:
         max_tokens=max_tokens,
         messages=messages,
         stream=True,
-        extra_body={"guided_json": Suggestions.model_json_schema()},
-        extra_headers={'Runner-Name': Engine.name}
+        extra_body={'guided_json': Suggestions.model_json_schema()},
+        extra_headers={'Runner-Name': Engine.name},
       )
       async for chunk in completions:
-        delta_choice = chunk.choices[0].delta
+        delta_choice = t.cast('DeltaMessage', chunk.choices[0].delta)
         if hasattr(delta_choice, 'reasoning_content'):
-          s = Suggestion(suggestion=delta_choice.content or '', reasoning=delta_choice.reasoning_content)
+          s = Suggestion(suggestion=delta_choice.content or '', reasoning=delta_choice.reasoning_content or '')
         else:
-          s = Suggestion(suggestion=delta_choice.content)
+          s = Suggestion(suggestion=delta_choice.content or '')
         if not prefill:
           prefill = True
           yield ''
