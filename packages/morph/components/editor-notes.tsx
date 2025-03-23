@@ -47,10 +47,9 @@ export function EditorNotes() {
         right: 0,
         bottom: 0,
         zIndex: 100,
-        height: 0,
         pointerEvents: isDragging ? "auto" : "none",
       }}
-      className={isOver ? "border-2 border-blue-500" : ""}
+      className={isOver ? "border-2 border-blue-500/20" : ""}
     >
       {editorNotes.map((note) => (
         <div
