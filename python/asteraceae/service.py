@@ -83,8 +83,7 @@ class Engine:
       ['/embeddings', vllm_api_server.create_embedding, ['POST']],
     ]
 
-    for route, endpoint, methods in OPENAI_ENDPOINTS:
-      router.add_api_route(path=route, endpoint=endpoint, methods=methods, include_in_schema=True)
+    for route, endpoint, methods in OPENAI_ENDPOINTS: router.add_api_route(path=route, endpoint=endpoint, methods=methods, include_in_schema=True)
     openai_api_app.include_router(router)
 
     self.engine = await self.exit_stack.enter_async_context(vllm_api_server.build_async_engine_client(args))
@@ -94,8 +93,7 @@ class Engine:
     await vllm_api_server.init_app_state(self.engine, self.model_config, openai_api_app.state, args)
 
   @bentoml.on_shutdown
-  async def teardown_engine(self):
-    await self.exit_stack.aclose()
+  async def teardown_engine(self): await self.exit_stack.aclose()
 
 
 @bentoml.service(
@@ -163,8 +161,7 @@ class API:
           prefill = True
           yield ''
         else:
-          if not s.reasoning and not s.suggestion:
-            break
+          if not s.reasoning and not s.suggestion: break
           yield f'{s.model_dump_json()}\n'
     except Exception:
       logger.error(traceback.format_exc())
