@@ -388,34 +388,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       }
 
       setHasUnsavedChanges(false)
-
-      if (showNotes) {
-        try {
-          const generatedNotes = await fetchNewNotes(markdownContent)
-          const newNotes: Note[] = generatedNotes.map((note) => ({
-            id: createId(),
-            content: note.content,
-            color: generatePastelColor(),
-            fileId: currentFile,
-            vaultId: vault!.id,
-            isInEditor: false,
-            createdAt: new Date(),
-            lastModified: new Date(),
-          }))
-          await Promise.all(newNotes.map((note) => db.notes.add(note)))
-          // Add new notes and re-sort the combined array
-          setNotes((prev) => {
-            const combined = [...prev, ...newNotes]
-            return combined.sort(
-              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-            )
-          })
-        } catch (error) {
-          console.log(error)
-        }
-      }
     } catch {}
-  }, [currentFileHandle, markdownContent, currentFile, vault, refreshVault, vaultId, showNotes])
+  }, [currentFileHandle, markdownContent, currentFile, vault, refreshVault, vaultId])
 
   const memoizedExtensions = useMemo(() => {
     const tabSize = new Compartment()
