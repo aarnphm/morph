@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import logging, traceback, os, asyncio, contextlib, typing as t
+import logging, traceback, os, asyncio, contextlib, pathlib, typing as t
 import bentoml, fastapi, pydantic, annotated_types as ae, typing_extensions as te
 
 logger = logging.getLogger(__name__)
@@ -11,22 +11,7 @@ MODEL_ID = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B'
 STRUCTURED_OUTPUT_BACKEND = 'xgrammar:disable-any-whitespace'  # remove any whitespace if it is not qwen.
 MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 16 * 1024))
 MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 8 * 1024))
-SYSTEM_PROMPT = """You are a professional writer heavily influenced by the styles of Raymond Carver, Franz Kafka, Albert Camus, Iain McGilchrist, and Ian McEwan. Your task is to provide suggestions by offering concise, meaningful additions that match the stylistic choices and tonality of the given essay excerpt.
-
-Please follow these steps to generate a suggestion:
-
-1. Analyze the excerpt, paying close attention to its style, tone, and central concept.
-2. Consider how you might might approach expanding or enhancing the excerpt.
-3. Formulate a suggestion that builds upon the existing concept while maintaining a terse and authentic voice.
-4. Ensure your suggestion adds depth to the writing without drastically changing its original intent.
-
-Guidelines for your suggestion:
-1. Keep it concise and authentic, typically one to two sentences.
-2. Focus on enhancing emotional depth, vivid imagery, or character insight.
-3. Maintain the overall tone and style of the original excerpt.
-4. Build upon the central concept or theme present in the excerpt.
-5. Make sure to provide minimum {num_suggestions} suggestions.
-"""
+WORKING_DIR = pathlib.Path(__file__).parent
 
 IMAGE = (
   bentoml.images.PythonImage(python_version='3.11', lock_python_packages=False)
@@ -47,16 +32,16 @@ class Suggestions(pydantic.BaseModel):
 @bentoml.asgi_app(openai_api_app, path='/v1')
 @bentoml.service(
   name='asteraceae-inference-engine',
-  traffic={'timeout': 300, 'concurrency': 128},
+  traffic={'timeout': 1000, 'concurrency': 128},
   resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
-  tracing={'sample_rate': 0.5},
+  tracing={'sample_rate': 1.0},
   envs=[
     {'name': 'HF_TOKEN'},
     {'name': 'UV_NO_PROGRESS', 'value': '1'},
     {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
     {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
     {'name': 'VLLM_USE_V1', 'value': '0'},
-    {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': os.path.join(os.path.dirname(__file__), 'logging-config.json')},
+    {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': (WORKING_DIR/'logging-config.json').__fspath__()},
   ],
   labels={'owner': 'aarnphm', 'type': 'engine'},
   image=IMAGE,
@@ -115,7 +100,7 @@ class Engine:
 
 @bentoml.service(
   name='asteraceae-inference-api',
-  traffic={'timeout': 300, 'concurrency': 128},
+  traffic={'timeout': 1000, 'concurrency': 128},
   http={
     'cors': {
       'enabled': True,
@@ -127,17 +112,18 @@ class Engine:
       'access_control_expose_headers': ['Content-Length'],
     }
   },
-  tracing={'sample_rate': 0.4},
+  tracing={'sample_rate': 0.5},
   labels={'owner': 'aarnphm', 'type': 'api'},
   image=IMAGE,
 )
 class API:
-  engine = bentoml.depends(Engine)
+  if os.getenv("YATAI_T_VESRION"):
+    engine = bentoml.depends(Engine)
+  else:
+    engine = bentoml.depends(url=f'http://127.0.0.1:{os.getenv("ENGINE_PORT", 3001)}')
 
   def __init__(self):
-    from openai import AsyncOpenAI
-
-    self.client = AsyncOpenAI(base_url=f'{self.engine.client_url}/v1', api_key='dummy')
+    self.client = None
 
   @bentoml.api
   async def suggests(
@@ -147,8 +133,13 @@ class API:
     temperature: te.Annotated[float, ae.Ge(0.5), ae.Le(0.7)] = 0.6,
     max_tokens: te.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
   ) -> t.AsyncGenerator[str, None]:
+    from openai import AsyncOpenAI
+
+    if self.client is None: self.client = AsyncOpenAI(base_url=f'{self.engine.client_url}/v1', api_key='dummy')
+
+    with (WORKING_DIR/"SYSTEM_PROMPT.md").open('r') as f: system_prompt = f.read()
     messages = [
-      {'role': 'system', 'content': SYSTEM_PROMPT.format(num_suggestions=num_suggestions)},
+      {'role': 'system', 'content': system_prompt.format(num_suggestions=num_suggestions)},
       {'role': 'user', 'content': essay},
     ]
 

@@ -5,8 +5,8 @@
   "scripts": {
     "morph:docs": "pnpm --filter ./docs run quartz build --serve -v",
     "morph:docs:build": "pnpm --filter ./docs run quartz build -v",
-    "morph:inference": "cd ./python/asteraceae/ && uvx --with-requirements requirements.txt bentoml serve service.py:Engine --debug",
-    "morph:inference:build": "cd ./python/asteraceae/ && uvx --with-requirements requirements.txt bentoml build service.py:Engine --debug",
+    "morph:inference": "cd ./python/asteraceae/ && make stack",
+    "morph:inference:build": "cd ./python/asteraceae/ && make build",
     "morph:dev": "pnpm --filter morph run dev",
     "morph:build": "pnpm --filter morph run build",
     "morph:format": "pnpm --filter morph run format && uvx ruff format"
