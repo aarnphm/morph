@@ -84,7 +84,7 @@ export function ReasoningPanel({
       {isExpanded && reasoning && (
         <div
           ref={reasoningRef}
-          className="text-xs text-muted-foreground whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-40 transition-all duration-200"
+          className="text-xs text-muted-foreground whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-40 transition-all duration-200 animate-in slide-in-from-top-2 duration-300 ease-in-out"
         >
           {reasoning}
         </div>

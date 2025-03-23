@@ -616,7 +616,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                             <HoverCard key={note.id}>
                               <HoverCardTrigger asChild>
                                 <div
-                                  className={`relative w-10 h-10 rounded shadow cursor-pointer flex items-center justify-center ${note.color}`}
+                                  className={`relative w-8 h-8 shadow cursor-pointer flex items-center justify-center ${note.color}`}
                                   onClick={() => {
                                     // TODO: Clicking -> embeddings search
                                     console.log(
@@ -627,8 +627,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                                   <div className="relative z-10">{index + 1}</div>
                                 </div>
                               </HoverCardTrigger>
-                              <HoverCardContent className="w-80">
-                                <p className="text-sm text-muted-foreground">{note.content}</p>
+                              <HoverCardContent side="left" className="w-80">
+                                <p className="text-sm">{note.content}</p>
                               </HoverCardContent>
                             </HoverCard>
                           ))}
@@ -682,7 +682,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                                   </div>
 
                                   <div className="grid gap-4">
-                                    {dateNotes.map((note, index) => (
+                                    {dateNotes.map((note) => (
                                       <div
                                         key={note.id}
                                         draggable={true}

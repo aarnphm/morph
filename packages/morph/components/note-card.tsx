@@ -46,7 +46,7 @@ export const NoteCard = React.memo(function NoteCard({
     <div
       ref={setRefs}
       className={cn(
-        "p-4 border border-border rounded transition-all duration-200 hover:shadow-lg hover:bg-gradient-to-br shadow-sm",
+        "p-4 border border-border transition-all duration-200 hover:shadow-lg hover:bg-gradient-to-br shadow-sm",
         isDragging && "opacity-50",
         isGenerating && "animate-pulse",
         note.color,
