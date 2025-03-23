@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 
 openai_api_app = fastapi.FastAPI()
 
+IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
 MODEL_ID = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B'
 STRUCTURED_OUTPUT_BACKEND = 'xgrammar:disable-any-whitespace'  # remove any whitespace if it is not qwen.
 MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 16 * 1024))
@@ -48,7 +49,7 @@ class Suggestions(pydantic.BaseModel):
 )
 class Engine:
   model_id = MODEL_ID
-  model = bentoml.models.HuggingFaceModel(model_id, exclude=['*.pth', '*.pt', 'original/**/*'])
+  model = bentoml.models.HuggingFaceModel(model_id, exclude=IGNORE_PATTERNS)
 
   def __init__(self):
     self.exit_stack = contextlib.AsyncExitStack()
@@ -68,12 +69,13 @@ class Engine:
     args.request_logger = None
     args.disable_log_stats = True
     args.use_tqdm_on_load = False
-    args.max_model_len = MAX_MODEL_LEN
     args.enable_prefix_caching = True
     args.enable_reasoning = True
     args.reasoning_parser = 'deepseek_r1'
     args.enable_auto_tool_choice = True
     args.tool_call_parser = 'hermes'
+    args.max_model_len = MAX_MODEL_LEN
+    args.ignore_patterns = IGNORE_PATTERNS
     args.guided_decoding_backend = STRUCTURED_OUTPUT_BACKEND
 
     router = fastapi.APIRouter(lifespan=vllm_api_server.lifespan)
@@ -110,18 +112,24 @@ class Engine:
       'access_control_expose_headers': ['Content-Length'],
     }
   },
+  envs=[
+    {'name': 'UV_NO_PROGRESS', 'value': '1'},
+    {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
+  ],
   tracing={'sample_rate': 0.5},
   labels={'owner': 'aarnphm', 'type': 'api'},
   image=IMAGE,
 )
 class API:
-  if os.getenv("YATAI_T_VESRION"):
-    engine = bentoml.depends(Engine)
-  else:
+  if int(os.getenv("DEVELOPMENT", "0")) == 1:
     engine = bentoml.depends(url=f'http://127.0.0.1:{os.getenv("ENGINE_PORT", 3001)}')
+  else:
+    engine = bentoml.depends(Engine)
 
   def __init__(self):
-    self.client = None
+    from openai import AsyncOpenAI
+
+    self.client = AsyncOpenAI(base_url=f'{self.engine.client_url}/v1', api_key='dummy')
 
   @bentoml.api
   async def suggests(
@@ -131,10 +139,6 @@ class API:
     temperature: te.Annotated[float, ae.Ge(0.5), ae.Le(0.7)] = 0.6,
     max_tokens: te.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
   ) -> t.AsyncGenerator[str, None]:
-    from openai import AsyncOpenAI
-
-    if self.client is None: self.client = AsyncOpenAI(base_url=f'{self.engine.client_url}/v1', api_key='dummy')
-
     with (WORKING_DIR/"SYSTEM_PROMPT.md").open('r') as f: system_prompt = f.read()
     messages = [
       {'role': 'system', 'content': system_prompt.format(num_suggestions=num_suggestions)},
@@ -144,12 +148,13 @@ class API:
     prefill = False
     try:
       completions = await self.client.chat.completions.create(
-        model=Engine.inner.model_id,
+        model=MODEL_ID,
         temperature=temperature,
         max_tokens=max_tokens,
         messages=messages,
         stream=True,
-        extra_body=dict(guided_json=Suggestions.model_json_schema()),
+        extra_body={"guided_json": Suggestions.model_json_schema()},
+        extra_headers={'Runner-Name': Engine.name}
       )
       async for chunk in completions:
         delta_choice = chunk.choices[0].delta
