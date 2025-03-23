@@ -335,28 +335,27 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
 
-    let formattedDate
-
+    // Format as MM/DD/YYYY
+    const formattedDate = `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}/${date.getFullYear()}`
+    
+    // Calculate relative time indicator
+    let relativeTime = ""
     if (date.toDateString() === today.toDateString()) {
-      formattedDate = "Today"
+      relativeTime = "today"
     } else if (date.toDateString() === yesterday.toDateString()) {
-      formattedDate = "Yesterday"
+      relativeTime = "yesterday"
     } else {
-      // Format: Month Day, Year (if not current year)
-      const options: Intl.DateTimeFormatOptions = {
-        month: "long",
-        day: "numeric",
-      }
-
-      // Add year if not current year
-      if (date.getFullYear() !== today.getFullYear()) {
-        options.year = "numeric"
-      }
-
-      formattedDate = date.toLocaleDateString(undefined, options)
+      const diffTime = Math.abs(today.getTime() - date.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      relativeTime = `${diffDays} days ago`
     }
 
-    return formattedDate
+    return (
+      <div className="flex justify-between items-center w-full">
+        <span>{formattedDate}</span>
+        <span className="text-xs text-muted-foreground italic">{relativeTime}</span>
+      </div>
+    )
   }, [])
 
   const handleSave = useCallback(async () => {
@@ -421,11 +420,13 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const onFileSelect = useCallback((handle: FileSystemFileHandle) => {
     setCurrentFileHandle(handle)
     setCurrentFile(handle.name)
+    setIsEditMode(false)
   }, [])
 
   const onNewFile = useCallback(() => {
     setCurrentFileHandle(null)
     setCurrentFile("Untitled")
+    setIsEditMode(false)
   }, [])
 
   const handleKeyDown = useCallback(
@@ -470,6 +471,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         setCurrentFile(file.name)
         setMarkdownContent(content)
         setHasUnsavedChanges(false)
+        setIsEditMode(false)
         updatePreview(content)
       } catch {
         //TODO: do something with the error
@@ -539,25 +541,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     ))
   }
 
-  // Render suggestions while they're being generated
-  const renderPendingSuggestions = () => {
-    return pendingSuggestions.map((note, index) => (
-      <NoteCard
-        key={`pending-${index}`}
-        className="w-full"
-        isGenerating={isGeneratingSuggestions}
-        note={{
-          id: `pending-${index}`,
-          content: note.content,
-          color: generatePastelColor(),
-          fileId: currentFile,
-          isInEditor: false,
-          createdAt: new Date(),
-        }}
-      />
-    ))
-  }
-
   return (
     <DndProvider backend={HTML5Backend}>
       <NotesProvider>
@@ -581,6 +564,30 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               <section className="flex flex-1 overflow-hidden m-4 rounded-md border">
                 <div className="flex-1 relative">
                   <EditorNotes />
+                  {showNotes && droppedNotes.length > 0 && (
+                    <div className="absolute top-0 right-0 flex flex-col items-center gap-2 mr-4 mt-4 z-20">
+                      {droppedNotes.map((note, index) => (
+                        <HoverCard key={note.id}>
+                          <HoverCardTrigger asChild>
+                            <div
+                              className={`relative w-8 h-8 shadow cursor-pointer flex items-center justify-center ${note.color}`}
+                              onClick={() => {
+                                // TODO: Clicking -> embeddings search
+                                console.log(
+                                  `Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`,
+                                )
+                              }}
+                            >
+                              <div className="relative z-10">{index + 1}</div>
+                            </div>
+                          </HoverCardTrigger>
+                          <HoverCardContent side="left" className="w-80">
+                            <p className="text-sm">{note.content}</p>
+                          </HoverCardContent>
+                        </HoverCard>
+                      ))}
+                    </div>
+                  )}
                   <div
                     className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
                   >
@@ -610,30 +617,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                           codeMirrorViewRef.current = view
                         }}
                       />
-                      {showNotes && droppedNotes.length > 0 && (
-                        <div className="absolute top-0 right-0 flex flex-col items-center gap-2 mr-4 mt-4">
-                          {droppedNotes.map((note, index) => (
-                            <HoverCard key={note.id}>
-                              <HoverCardTrigger asChild>
-                                <div
-                                  className={`relative w-8 h-8 shadow cursor-pointer flex items-center justify-center ${note.color}`}
-                                  onClick={() => {
-                                    // TODO: Clicking -> embeddings search
-                                    console.log(
-                                      `Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`,
-                                    )
-                                  }}
-                                >
-                                  <div className="relative z-10">{index + 1}</div>
-                                </div>
-                              </HoverCardTrigger>
-                              <HoverCardContent side="left" className="w-80">
-                                <p className="text-sm">{note.content}</p>
-                              </HoverCardContent>
-                            </HoverCard>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </div>
                   <div
@@ -658,7 +641,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       </div>
                     ) : (
                       <>
-                        <div className="p-2 pb-0 bg-background border-b">
+                        <div className="px-2 bg-background border-b">
                           <ReasoningPanel
                             reasoning={streamingReasoning}
                             isStreaming={isNotesLoading && !reasoningComplete}
