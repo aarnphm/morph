@@ -347,6 +347,94 @@
   @apply text-tiny;
 }
 
+@utility notecard-ragged {
+  @apply border-r-2 bg-background border-border border;
+  background-image: url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6H6V4L4 6ZM0 0H2V2L0 0ZM6 0H4V2L6 0ZM0 6H2V4L0 6ZM3 3C3.82843 3 4.5 2.32843 4.5 1.5C4.5 0.671573 3.82843 0 3 0C2.17157 0 1.5 0.671573 1.5 1.5C1.5 2.32843 2.17157 3 3 3ZM3 6C3.82843 6 4.5 5.32843 4.5 4.5C4.5 3.67157 3.82843 3 3 3C2.17157 3 1.5 3.67157 1.5 4.5C1.5 5.32843 2.17157 6 3 6ZM6 3C6 3.82843 5.32843 4.5 4.5 4.5C3.67157 4.5 3 3.82843 3 3C3 2.17157 3.67157 1.5 4.5 1.5C5.32843 1.5 6 2.17157 6 3ZM0 3C0 3.82843 0.671573 4.5 1.5 4.5C2.32843 4.5 3 3.82843 3 3C3 2.17157 2.32843 1.5 1.5 1.5C0.671573 1.5 0 2.17157 0 3Z' fill='gray' fill-opacity='0.02'/%3E%3C/svg%3E"); /* Subtle paper texture */
+
+  /* Ragged edges using clip-path - adjust points as needed */
+  clip-path: polygon(
+    1% 5%,
+    5% 1%,
+    15% 2%,
+    25% 1%,
+    35% 3%,
+    45% 2%,
+    55% 4%,
+    65% 3%,
+    75% 5%,
+    85% 4%,
+    95% 5%,
+    99% 5%,
+    99% 99%,
+    95% 99%,
+    85% 98%,
+    75% 99%,
+    65% 97%,
+    55% 98%,
+    45% 97%,
+    35% 99%,
+    25% 98%,
+    15% 99%,
+    5% 98%,
+    1% 95%,
+    1% 1%
+  );
+}
+
+@utility bg-noise-pattern {
+  /* Primary noise texture */
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  /* Add texture to simulate paper fibers */
+  background-blend-mode: multiply;
+  position: relative;
+}
+
+/* Sticky note tilt variation */
+@utility sticky-note-tilt {
+  transform: rotate(var(--tilt-angle, -1deg));
+  transform-origin: center;
+  transition: transform 0.2s ease-in-out;
+}
+@utility sticky-note-tilt-right {
+  --tilt-angle: 1deg;
+}
+@utility sticky-note-tilt-left {
+  --tilt-angle: -1deg;
+}
+
+/* Note card wiggle animation */
+@keyframes wiggle {
+  0% {
+    transform: rotate(var(--base-rotation, 0deg));
+  }
+  25% {
+    transform: rotate(calc(var(--base-rotation, 0deg) + 1deg));
+  }
+  50% {
+    transform: rotate(calc(var(--base-rotation, 0deg) - 0.5deg));
+  }
+  75% {
+    transform: rotate(calc(var(--base-rotation, 0deg) + 0.5deg));
+  }
+  100% {
+    transform: rotate(var(--base-rotation, 0deg));
+  }
+}
+
+@utility animate-wiggle {
+  animation: wiggle 0.5s ease-in-out;
+}
+
+/* Dragged card state */
+@utility dragging-card {
+  transform: rotate(var(--base-rotation, 0deg)) scale(1.05);
+  box-shadow:
+    0 10px 20px rgba(0, 0, 0, 0.2),
+    0 8px 8px rgba(0, 0, 0, 0.15);
+  opacity: 0.9;
+  z-index: 100;
+}
+
 /*
   The default border color has changed to `currentColor` in Tailwind CSS v4,
   so we've added these compatibility styles to make sure everything still
@@ -1000,21 +1088,6 @@ body {
 
 .dark .cm-focused .cm-cursor {
   border-left-color: var(--flexoki-tx) !important;
-}
-
-.note-card {
-  background-color: var(--flexoki-paper);
-  border-radius: 6px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.3s ease;
-
-  @variant dark {
-    background-color: var(--flexoki-black);
-  }
-
-  &:hover {
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
 }
 
 .tooltip-arrow {
@@ -1710,7 +1783,10 @@ ul#helper {
 
 /* Notes stack explosion effect */
 .notes-stack .absolute {
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), right 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    top 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    right 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .expanded-stack .absolute {

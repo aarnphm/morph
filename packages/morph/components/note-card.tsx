@@ -1,5 +1,5 @@
 import * as React from "react"
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import { useDrag } from "react-dnd"
 import { NOTES_DND_TYPE, type Note } from "@/lib/notes"
 import { cn } from "@/lib/utils"
@@ -16,6 +16,8 @@ export const NoteCard = React.memo(function NoteCard({
   isGenerating = false,
 }: NoteCardProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const [isWiggling, setIsWiggling] = useState(false)
+
   const [{ isDragging }, dragRef] = useDrag(() => ({
     type: NOTES_DND_TYPE,
     item: note,
@@ -42,17 +44,75 @@ export const NoteCard = React.memo(function NoteCard({
     dragRef(element)
   }
 
+  // Generate random rotation between -2.5 and 2.5 degrees for a more natural look
+  const rotation = React.useMemo(() => Math.random() * 5 - 2.5, [])
+
+  // Generate random shadow offset for 3D effect
+  const shadowOffset = React.useMemo(() => {
+    const x = Math.floor(Math.random() * 3) + 2
+    const y = Math.floor(Math.random() * 3) + 2
+    return { x, y }
+  }, [])
+
+  // Handle wiggle animation on hover
+  const startWiggle = () => {
+    if (!isDragging) {
+      setIsWiggling(true)
+    }
+  }
+
+  const stopWiggle = () => {
+    setIsWiggling(false)
+  }
+
+  // Reset wiggle animation when it completes
+  const handleAnimationEnd = () => {
+    setIsWiggling(false)
+  }
+
   return (
     <div
       ref={setRefs}
+      style={{
+        boxShadow: isDragging
+          ? `0 10px 20px rgba(0,0,0,0.25), 0 8px 8px rgba(0,0,0,0.2)`
+          : `${shadowOffset.x}px ${shadowOffset.y}px 8px rgba(0,0,0,0.15)`,
+        backgroundImage: `
+          radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px),
+          radial-gradient(rgba(0,0,0,0.07) 1px, transparent 1px)
+        `,
+        backgroundSize: "20px 20px, 10px 10px",
+        backgroundPosition: "-10px -10px, 0px 0px",
+        transform: isDragging ? `rotate(${rotation}deg) scale(1.02)` : `rotate(${rotation}deg)`,
+        zIndex: isDragging ? 50 : "auto",
+        ...({
+          "--base-rotation": `${rotation}deg`,
+        } as React.CSSProperties),
+      }}
       className={cn(
-        "p-4 border border-border transition-all duration-200 hover:shadow-lg hover:bg-gradient-to-br shadow-sm",
-        isDragging && "opacity-50",
+        "p-4 border border-border transition-all duration-200",
+        "hover:shadow-lg hover:bg-gradient-to-br shadow-md",
+        isDragging &&
+          "opacity-85 cursor-grabbing ring-2 ring-blue-200 dark:ring-blue-800 dragging-card",
+        !isDragging && "cursor-grab",
         isGenerating && "animate-pulse",
+        isWiggling && "animate-wiggle",
         note.color,
         className,
+        "notecard-ragged relative rounded-sm",
+        "before:content-[''] before:absolute before:inset-0 before:z-[-1]",
+        "before:opacity-50 before:mix-blend-multiply before:bg-noise-pattern",
+        "after:content-[''] after:absolute after:bottom-[-8px] after:right-[-8px]",
+        "after:left-[8px] after:top-[8px] after:z-[-2] after:bg-black/10",
       )}
+      onMouseEnter={startWiggle}
+      onMouseLeave={stopWiggle}
+      onAnimationEnd={handleAnimationEnd}
     >
+      {isDragging && (
+        <div className="absolute inset-0 bg-black/5 -z-10 rounded-sm transform translate-x-2 translate-y-2" />
+      )}
+
       <p className="text-sm leading-relaxed text-gray-800 dark:text-gray-200">{note.content}</p>
     </div>
   )

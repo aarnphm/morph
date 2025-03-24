@@ -1,34 +1,37 @@
 from __future__ import annotations
 
 import logging, traceback, os, contextlib, pathlib, typing as t
-import bentoml, fastapi, pydantic, annotated_types as ae, typing_extensions as te
+import bentoml, fastapi, pydantic, jinja2, annotated_types as ae, typing_extensions as te
 
 if t.TYPE_CHECKING:
   from vllm.entrypoints.openai.protocol import DeltaMessage
+  from _bentoml_sdk.images import Image
+  from _bentoml_sdk.service.config import TrafficSchema, TracingSchema
 
 logger = logging.getLogger(__name__)
 
 openai_api_app = fastapi.FastAPI()
 
 IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
-MODEL_ID = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B'
+MODEL_ID = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B'
 STRUCTURED_OUTPUT_BACKEND = 'xgrammar:disable-any-whitespace'  # remove any whitespace if it is not qwen.
 MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 16 * 1024))
 MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 8 * 1024))
 WORKING_DIR = pathlib.Path(__file__).parent
 
-SERVICE_CONFIG = {
-  'image': bentoml.images.PythonImage(python_version='3.11', lock_python_packages=False).requirements_file('requirements.txt').run('uv pip install --compile-bytecode flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.6'),
+
+class ServiceOpts(t.TypedDict, total=False):
+  image: Image
+  traffic: TrafficSchema
+  tracing: TracingSchema
+
+
+SERVICE_CONFIG: ServiceOpts = {
+  'image': bentoml.images.PythonImage(python_version='3.11', lock_python_packages=False)
+  .requirements_file('requirements.txt')
+  .run('uv pip install --compile-bytecode flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.6'),
   'traffic': {'timeout': 1000, 'concurrency': 128},
   'tracing': {'sample_rate': 1.0},
-  'envs': [
-    {'name': 'HF_TOKEN'},
-    {'name': 'UV_NO_PROGRESS', 'value': '1'},
-    {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
-    {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
-    {'name': 'VLLM_USE_V1', 'value': '0'},
-    {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': (WORKING_DIR / 'logging-config.json').__fspath__()},
-  ],
 }
 
 
@@ -44,8 +47,16 @@ class Suggestions(pydantic.BaseModel):
 @bentoml.asgi_app(openai_api_app, path='/v1')
 @bentoml.service(
   name='asteraceae-inference-engine',
-  resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
+  resources={'gpu': 2, 'gpu_type': 'nvidia-a100-80gb'},
   labels={'owner': 'aarnphm', 'type': 'engine'},
+  envs=[
+    {'name': 'HF_TOKEN'},
+    {'name': 'UV_NO_PROGRESS', 'value': '1'},
+    {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
+    {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
+    {'name': 'VLLM_USE_V1', 'value': '0'},
+    {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': (WORKING_DIR / 'logging-config.json').__fspath__()},
+  ],
   **SERVICE_CONFIG,
 )
 class Engine:
@@ -86,7 +97,8 @@ class Engine:
       ['/embeddings', vllm_api_server.create_embedding, ['POST']],
     ]
 
-    for route, endpoint, methods in OPENAI_ENDPOINTS: router.add_api_route(path=route, endpoint=endpoint, methods=methods, include_in_schema=True)
+    for route, endpoint, methods in OPENAI_ENDPOINTS:
+      router.add_api_route(path=route, endpoint=endpoint, methods=methods, include_in_schema=True)
     openai_api_app.include_router(router)
 
     self.engine = await self.exit_stack.enter_async_context(vllm_api_server.build_async_engine_client(args))
@@ -96,11 +108,13 @@ class Engine:
     await vllm_api_server.init_app_state(self.engine, self.model_config, openai_api_app.state, args)
 
   @bentoml.on_shutdown
-  async def teardown_engine(self): await self.exit_stack.aclose()
+  async def teardown_engine(self):
+    await self.exit_stack.aclose()
 
 
 @bentoml.service(
   name='asteraceae-inference-api',
+  resources={'cpu': 2},
   http={
     'cors': {
       'enabled': True,
@@ -113,6 +127,11 @@ class Engine:
     }
   },
   labels={'owner': 'aarnphm', 'type': 'api'},
+  envs=[
+    {'name': 'UV_NO_PROGRESS', 'value': '1'},
+    {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
+    {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': (WORKING_DIR / 'logging-config.json').__fspath__()},
+  ],
   **SERVICE_CONFIG,
 )
 class API:
@@ -126,6 +145,9 @@ class API:
 
     self.client = AsyncOpenAI(base_url=f'{self.engine.client_url}/v1', api_key='dummy')
 
+    loader = jinja2.FileSystemLoader(searchpath=WORKING_DIR)
+    self.jinja_env = jinja2.Environment(loader=loader)
+
   @bentoml.api
   async def suggests(
     self,
@@ -134,20 +156,17 @@ class API:
     temperature: te.Annotated[float, ae.Ge(0.5), ae.Le(0.7)] = 0.6,
     max_tokens: te.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
   ) -> t.AsyncGenerator[str, None]:
-    from openai.types.chat import ChatCompletionSystemMessageParam, ChatCompletionUserMessageParam
-    with (WORKING_DIR / 'SYSTEM_PROMPT.md').open('r') as f: system_prompt = f.read()
-    messages = [
-      ChatCompletionSystemMessageParam(role='system', content=system_prompt.format(num_suggestions=num_suggestions)),
-      ChatCompletionUserMessageParam(role='user', content=essay),
-    ]
+    from openai.types.chat import ChatCompletionUserMessageParam
 
+    PROMPT = self.jinja_env.get_template('SYSTEM_PROMPT.md').render(num_suggestions=num_suggestions, excerpt=essay)
     prefill = False
+
     try:
       completions = await self.client.chat.completions.create(
         model=MODEL_ID,
         temperature=temperature,
         max_tokens=max_tokens,
-        messages=messages,
+        messages=[ChatCompletionUserMessageParam(role='user', content=PROMPT)],
         stream=True,
         extra_body={'guided_json': Suggestions.model_json_schema()},
         extra_headers={'Runner-Name': Engine.name},
@@ -162,7 +181,8 @@ class API:
           prefill = True
           yield ''
         else:
-          if not s.reasoning and not s.suggestion: break
+          if not s.reasoning and not s.suggestion:
+            break
           yield f'{s.model_dump_json()}\n'
     except Exception:
       logger.error(traceback.format_exc())

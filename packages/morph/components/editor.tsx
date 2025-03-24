@@ -60,6 +60,126 @@ interface GeneratedNote {
   content: string
 }
 
+const MemoizedNoteGroup = memo(
+  ({
+    dateStr,
+    dateNotes,
+    reasoning,
+    currentFile,
+    vaultId,
+    handleNoteDropped,
+    onNoteRemoved,
+    formatDate,
+  }: {
+    dateStr: string
+    dateNotes: Note[]
+    reasoning:
+      | {
+          id: string
+          content: string
+          reasoningElapsedTime: number
+        }
+      | undefined
+    currentFile: string
+    vaultId: string | undefined
+    handleNoteDropped: (note: Note) => void
+    onNoteRemoved: (noteId: string) => void
+    formatDate: (dateStr: string) => React.ReactNode
+  }) => {
+    // Memoize the onCollapseComplete handler
+    const handleCollapseComplete = useCallback(() => {
+      // Define the desired behavior here
+    }, [])
+
+    // Refactored handleDragEnd to accept noteId instead of note object
+    const handleDragEnd = useCallback(
+      (noteId: string) => (e: React.DragEvent) => {
+        if (e.dataTransfer.dropEffect === "move") {
+          onNoteRemoved(noteId)
+          const note = dateNotes.find((n) => n.id === noteId)
+          if (note) {
+            handleNoteDropped(note)
+          }
+        }
+      },
+      [onNoteRemoved, handleNoteDropped, dateNotes],
+    )
+
+    // Memoize the notes with stable references
+    const memoizedNotes = useMemo(() => {
+      return dateNotes.map((note) => ({
+        id: note.id,
+        content: note.content,
+        color: note.color ?? generatePastelColor(),
+        fileId: currentFile,
+        isInEditor: false,
+        createdAt: note.createdAt ?? new Date(),
+        reasoningId: note.reasoningId,
+      }))
+    }, [dateNotes, currentFile])
+
+    // Memoize the ReasoningPanel
+    const memoizedReasoningPanel = useMemo(() => {
+      if (!reasoning) return null
+      return (
+        <div className="px-2 bg-background border-b">
+          <ReasoningPanel
+            reasoning={reasoning.content}
+            isStreaming={false}
+            isComplete={true}
+            currentFile={currentFile}
+            vaultId={vaultId}
+            reasoningId={reasoning.id}
+            shouldExpand={false}
+            onCollapseComplete={handleCollapseComplete}
+            elapsedTime={reasoning.reasoningElapsedTime || 0}
+          />
+        </div>
+      )
+    }, [reasoning, currentFile, vaultId, handleCollapseComplete])
+
+    return (
+      <div className="space-y-4">
+        <div className="bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground font-medium border-y border-border">
+          {formatDate(dateStr)}
+        </div>
+
+        {/* Show reasoning panel for this note group if available */}
+        {memoizedReasoningPanel}
+
+        <div className="grid gap-4">
+          {memoizedNotes.map((note) => (
+            <div key={note.id} draggable={true} onDragEnd={handleDragEnd(note.id)}>
+              <NoteCard
+                className="w-full"
+                note={{
+                  id: note.id,
+                  content: note.content,
+                  color: note.color,
+                  fileId: note.fileId,
+                  isInEditor: note.isInEditor,
+                  createdAt: note.createdAt,
+                  reasoningId: note.reasoningId,
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  },
+  (prevProps, nextProps) => {
+    // Only re-render if the notes have changed or the reasoning has changed
+    return (
+      prevProps.dateStr === nextProps.dateStr &&
+      prevProps.dateNotes === nextProps.dateNotes &&
+      prevProps.reasoning === nextProps.reasoning &&
+      prevProps.currentFile === nextProps.currentFile
+    )
+  },
+)
+MemoizedNoteGroup.displayName = "MemoizedNoteGroup"
+
 export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const { theme } = useTheme()
   // PERF: should not call it here, or figure out a way not to calculate the vault twice
@@ -109,6 +229,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   // State to control reasoning panel visibility
   const [, setShowReasoningPanel] = useState(false)
   const [isStackExpanded, setIsStackExpanded] = useState(false)
+  const [streamingSuggestionColors, setStreamingSuggestionColors] = useState<string[]>([])
+  // Add a state to track current generation notes
+  const [currentGenerationNotes, setCurrentGenerationNotes] = useState<Note[]>([])
 
   const vault = vaults.find((v) => v.id === vaultId)
 
@@ -123,12 +246,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
   }, [])
 
-  const handleNoteDropped = (note: Note) => {
+  const handleNoteDropped = useCallback((note: Note) => {
     setDroppedNotes((prev) => {
       if (prev.find((n) => n.id === note.id)) return prev
       return [...prev, note]
     })
-  }
+  }, [])
 
   useEffect(() => {
     contentRef.current = { content: markdownContent, filename: currentFile }
@@ -255,6 +378,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         let inReasoningPhase = true
         let collectedReasoning = ""
 
+        // Generate and preserve colors for each suggestion
+        const colors = Array(num_suggestions)
+          .fill(null)
+          .map(() => generatePastelColor())
+        setStreamingSuggestionColors(colors)
+
         // Process the stream
         while (true) {
           const { value, done } = await reader.read()
@@ -294,7 +423,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 suggestionString += delta.suggestion
               }
             } catch (e) {
-              console.log(e)
+              console.log("Error parsing line:", e)
             }
           }
         }
@@ -340,27 +469,22 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           }
         }
 
-        // Default note if needed
         if (generatedNotes.length === 0) {
-          generatedNotes = [
-            {
-              title: "Suggestion",
-              content: "Could not generate suggestions",
-            },
-          ]
+          // Set error state when no suggestions could be generated
+          setNotesError("Could not generate suggestions for this content")
+        } else {
+          // Save the reasoning content to be associated with the notes later
+          const reasoningData = {
+            id: reasoningId,
+            content: collectedReasoning,
+            timestamp: new Date(),
+            noteIds: [], // Will be populated after creating notes
+            reasoningElapsedTime,
+          }
+          setReasoningHistory((prev) => [...prev, { ...reasoningData }])
+          setNotesError(null)
         }
 
-        // Save the reasoning content to be associated with the notes later
-        const reasoningData = {
-          id: reasoningId,
-          content: collectedReasoning,
-          timestamp: new Date(),
-          noteIds: [], // Will be populated after creating notes
-          reasoningElapsedTime,
-        }
-        setReasoningHistory((prev) => [...prev, { ...reasoningData }])
-
-        setNotesError(null)
         return {
           generatedNotes,
           reasoningId,
@@ -575,7 +699,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         handleSave()
       }
     },
-    [handleSave, settings, toggleNotes],
+    [handleSave, toggleNotes, settings],
   )
 
   const handleFileSelect = useCallback(
@@ -643,22 +767,27 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const generateNewSuggestions = useCallback(async () => {
     if (!currentFile || !vault || !markdownContent) return
 
+    // Clear any previous current generation notes
+    setCurrentGenerationNotes([])
     setIsNotesLoading(true)
     setStreamingReasoning("")
     setReasoningComplete(false)
+    setStreamingSuggestionColors([])
+    setCurrentlyGeneratingDateKey(null)
 
     try {
       const { generatedNotes, reasoningId, reasoningElapsedTime, reasoningContent } =
         await fetchNewNotes(markdownContent)
       const newNoteIds: string[] = []
 
-      const newNotes: Note[] = generatedNotes.map((note) => {
+      const newNotes: Note[] = generatedNotes.map((note, index) => {
         const id = createId()
         newNoteIds.push(id)
         return {
           id,
           content: note.content,
-          color: generatePastelColor(),
+          // Use preserved color or generate a new one
+          color: streamingSuggestionColors[index] || generatePastelColor(),
           fileId: currentFile,
           vaultId: vault.id,
           isInEditor: false,
@@ -688,21 +817,26 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
       await Promise.all(newNotes.map((note) => db.notes.add(note)))
 
-      // Add the new notes to the beginning of the notes array
+      // Set current generation notes
+      setCurrentGenerationNotes(newNotes)
+
+      // Also add the new notes to the beginning of the notes array for historical view
       setNotes((prev) => {
         const combined = [...newNotes, ...prev]
         return combined.sort(
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
         )
       })
-    } catch {
-      // TODO: do something with the error, silent for now
+    } catch (error) {
+      // Just show error for current generation and don't affect previous notes
+      setNotesError("Notes not available for this generation, try again later")
+      console.error("Failed to generate notes:", error)
     } finally {
+      // Still set isNotesLoading to false, but don't clear currentlyGeneratingDateKey
+      // so that the panel stays visible
       setIsNotesLoading(false)
-      // Clear the current generation date key
-      setCurrentlyGeneratingDateKey(null)
     }
-  }, [currentFile, vault, markdownContent, fetchNewNotes])
+  }, [currentFile, vault, markdownContent, fetchNewNotes, streamingSuggestionColors])
 
   // Show reasoning panel when generating suggestions
   useEffect(() => {
@@ -720,16 +854,59 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   }, [notes.length])
 
   // Generate skeletons based on num_suggestions
-  const renderNotesSkeletons = () => {
-    return Array.from({ length: numSuggestions }).map((_, i) => (
-      <div key={i} className="w-full p-4 mb-4 bg-card border border-border rounded animate-pulse">
-        <Skeleton className="h-4 w-1/2 mb-2" />
-        <Skeleton className="h-3 w-full mb-1" />
-        <Skeleton className="h-3 w-full mb-1" />
-        <Skeleton className="h-3 w-2/3" />
-      </div>
-    ))
-  }
+  const renderNotesSkeletons = useCallback(() => {
+    // Fallback to empty skeletons if no streaming suggestions yet
+    return Array.from({ length: numSuggestions }).map((_, i) => {
+      // Generate consistent random values based on index
+      const randomSeed = i + 1
+      // Generate rotation between -2.5 and 2.5 degrees for a natural look
+      const rotation = ((randomSeed * 2.5) % 5) - 2.5
+      // Generate shadow offset for 3D effect
+      const x = (randomSeed % 3) + 2
+      const y = ((randomSeed * 2) % 3) + 2
+      // Use the preserved color for this suggestion or generate a new one
+      const bgColor = streamingSuggestionColors[i] || generatePastelColor()
+
+      return (
+        <div
+          key={i}
+          style={{
+            boxShadow: `${x}px ${y}px 8px rgba(0,0,0,0.15)`,
+            backgroundImage: `
+              radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px),
+              radial-gradient(rgba(0,0,0,0.07) 1px, transparent 1px)
+            `,
+            backgroundSize: "20px 20px, 10px 10px",
+            backgroundPosition: "-10px -10px, 0px 0px",
+            transform: `rotate(${rotation}deg)`,
+            transition: "all 0.3s ease-in-out",
+            ...({
+              "--base-rotation": `${rotation}deg`,
+            } as React.CSSProperties),
+          }}
+          className={cn(
+            "p-4 border border-border transition-all",
+            "shadow-md",
+            "cursor-default",
+            "animate-pulse",
+            bgColor,
+            "w-full mb-4",
+            "notecard-ragged relative rounded-sm",
+            "before:content-[''] before:absolute before:inset-0 before:z-[-1]",
+            "before:opacity-50 before:mix-blend-multiply before:bg-noise-pattern",
+            "after:content-[''] after:absolute after:bottom-[-8px] after:right-[-8px]",
+            "after:left-[8px] after:top-[8px] after:z-[-2] after:bg-black/10",
+          )}
+        >
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-3/4" />
+          </div>
+        </div>
+      )
+    })
+  }, [numSuggestions, streamingSuggestionColors])
 
   // Fetch notes and associated reasoning history when the file changes or when notes panel opens
   useEffect(() => {
@@ -774,6 +951,88 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
     loadNotesAndReasoning()
   }, [currentFile, vault, showNotes])
+
+  // Handle removing a note from the notes array
+  const handleNoteRemoved = useCallback((noteId: string) => {
+    setNotes((prev) => prev.filter((n) => n.id !== noteId))
+  }, [])
+
+  // Memoize the note groups to prevent unnecessary re-renders
+  const memoizedNoteGroups = useMemo(() => {
+    // Create a Set of IDs from current generation notes for efficient filtering
+    const currentGenerationNoteIds = new Set(currentGenerationNotes.map((note) => note.id))
+
+    // Filter the notes to remove any that are currently shown in the currentGenerationNotes
+    const filteredNotes = notes.filter((note) => !currentGenerationNoteIds.has(note.id))
+
+    return groupNotesByDate(filteredNotes).map(([dateStr, dateNotes]) => {
+      // Find the reasoning associated with these notes
+      const dateReasoning = reasoningHistory.find((r) =>
+        r.noteIds.some((id) => dateNotes.some((note) => note.id === id)),
+      )
+
+      return (
+        <MemoizedNoteGroup
+          key={dateStr}
+          dateStr={dateStr}
+          dateNotes={dateNotes}
+          reasoning={dateReasoning}
+          currentFile={currentFile}
+          vaultId={vault?.id}
+          handleNoteDropped={handleNoteDropped}
+          onNoteRemoved={handleNoteRemoved}
+          formatDate={formatDate}
+        />
+      )
+    })
+  }, [
+    notes,
+    reasoningHistory,
+    currentFile,
+    vault?.id,
+    handleNoteDropped,
+    handleNoteRemoved,
+    formatDate,
+    groupNotesByDate,
+    currentGenerationNotes,
+  ])
+
+  // Create a component for rendering actual notes in the current generation panel
+  const MemoizedCurrentGenerationNotes = memo(
+    ({ notes, onNoteDropped }: { notes: Note[]; onNoteDropped: (note: Note) => void }) => {
+      return (
+        <div className="space-y-4">
+          {notes.map((note) => (
+            <div
+              key={note.id}
+              draggable={true}
+              onDragEnd={(e) => {
+                // Remove note from note panel when note dropped onto editor
+                if (e.dataTransfer.dropEffect === "move") {
+                  setCurrentGenerationNotes((prev) => prev.filter((n) => n.id !== note.id))
+                  onNoteDropped(note)
+                }
+              }}
+            >
+              <NoteCard
+                className="w-full"
+                note={{
+                  id: note.id,
+                  content: note.content,
+                  color: note.color ?? generatePastelColor(),
+                  fileId: currentFile,
+                  isInEditor: false,
+                  createdAt: note.createdAt ?? new Date(),
+                  reasoningId: note.reasoningId,
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )
+    },
+  )
+  MemoizedCurrentGenerationNotes.displayName = "MemoizedCurrentGenerationNotes"
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -820,7 +1079,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                         }}
                       >
                         {droppedNotes.map((note, index) => (
-                          <HoverCard key={note.id} openDelay={100} closeDelay={100}>
+                          <HoverCard
+                            key={note.id}
+                            openDelay={100}
+                            closeDelay={100}
+                            defaultOpen={isStackExpanded}
+                          >
                             <HoverCardTrigger asChild>
                               <div
                                 className={cn(
@@ -935,27 +1199,28 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     className="w-88 flex flex-col border-l transition-[right,left,width] duration-200 ease-in-out translate-x-[-100%] data-[show=true]:translate-x-0"
                     data-show={showNotes}
                   >
-                    {notesError ? (
-                      <div className="flex items-center justify-center h-32 text-sm text-muted-foreground p-4">
-                        {notesError}
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex-1 overflow-auto scrollbar-hidden p-4 gap-4 mt-2">
-                          {/* Show message only when no notes and not loading */}
-                          {!isNotesLoading && notes.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground p-4">
-                              <p className="mb-4">No notes found for this document</p>
-                            </div>
-                          ) : (
-                            <div className="space-y-6">
-                              {/* Show current generation group with reasoning panel */}
-                              {isNotesLoading && currentlyGeneratingDateKey && (
-                                <div className="space-y-4">
-                                  <div className="bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground font-medium border-y border-border">
-                                    {formatDate(currentlyGeneratingDateKey)}
-                                  </div>
+                    <div className="flex-1 overflow-auto scrollbar-hidden p-4 gap-4 mt-2">
+                      {/* Show message only when no notes and not loading */}
+                      {!isNotesLoading && notes.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground p-4">
+                          <p className="mb-4">No notes found for this document</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-6">
+                          {/* Show current generation group with reasoning panel */}
+                          {currentlyGeneratingDateKey && (
+                            <div className="space-y-4">
+                              <div className="bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground font-medium border-y border-border">
+                                {formatDate(currentlyGeneratingDateKey)}
+                              </div>
 
+                              {/* Show error message if there is one at the top */}
+                              {notesError ? (
+                                <div className="px-4 py-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive">
+                                  {notesError}
+                                </div>
+                              ) : (
+                                <>
                                   <div className="px-2 bg-background border-b">
                                     <ReasoningPanel
                                       reasoning={streamingReasoning}
@@ -964,85 +1229,37 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                                       currentFile={currentFile}
                                       vaultId={vault?.id}
                                       reasoningId={currentReasoningId}
-                                      shouldExpand={isNotesLoading}
+                                      shouldExpand={
+                                        isNotesLoading || currentGenerationNotes.length > 0
+                                      }
                                       onCollapseComplete={handleReasoningCollapsed}
                                       elapsedTime={currentReasoningElapsedTime}
                                     />
                                   </div>
 
-                                  {/* Show skeletons when reasoning is complete but notes aren't loaded yet */}
-                                  {reasoningComplete && renderNotesSkeletons()}
-                                </div>
-                              )}
+                                  {/* Show loading skeletons during generation */}
+                                  {isNotesLoading && reasoningComplete && !notesError && (
+                                    <div className="space-y-4">{renderNotesSkeletons()}</div>
+                                  )}
 
-                              {/* Display existing note groups */}
-                              {groupNotesByDate(notes).map(([dateStr, dateNotes]) => {
-                                // Find the reasoning associated with these notes
-                                const dateReasoning = reasoningHistory.find((r) =>
-                                  r.noteIds.some((id) => dateNotes.some((note) => note.id === id)),
-                                )
-
-                                return (
-                                  <div key={dateStr} className="space-y-4">
-                                    <div className="bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground font-medium border-y border-border">
-                                      {formatDate(dateStr)}
-                                    </div>
-
-                                    {/* Show reasoning panel for this note group if available */}
-                                    {dateReasoning && (
-                                      <div className="px-2 bg-background border-b">
-                                        <ReasoningPanel
-                                          reasoning={dateReasoning.content}
-                                          isStreaming={false}
-                                          isComplete={true}
-                                          currentFile={currentFile}
-                                          vaultId={vault?.id}
-                                          reasoningId={dateReasoning.id}
-                                          shouldExpand={false}
-                                          onCollapseComplete={handleReasoningCollapsed}
-                                          elapsedTime={dateReasoning.reasoningElapsedTime || 0}
-                                        />
-                                      </div>
+                                  {/* Show actual generated notes when complete */}
+                                  {!isNotesLoading &&
+                                    currentGenerationNotes.length > 0 &&
+                                    !notesError && (
+                                      <MemoizedCurrentGenerationNotes
+                                        notes={currentGenerationNotes}
+                                        onNoteDropped={handleNoteDropped}
+                                      />
                                     )}
-
-                                    <div className="grid gap-4">
-                                      {dateNotes.map((note) => (
-                                        <div
-                                          key={note.id}
-                                          draggable={true}
-                                          onDragEnd={(e) => {
-                                            // Remove note from note panel when note dropped onto editor
-                                            if (e.dataTransfer.dropEffect === "move") {
-                                              setNotes((prev) =>
-                                                prev.filter((n) => n.id !== note.id),
-                                              )
-                                              handleNoteDropped(note)
-                                            }
-                                          }}
-                                        >
-                                          <NoteCard
-                                            className="w-full"
-                                            note={{
-                                              id: note.id,
-                                              content: note.content,
-                                              color: note.color ?? generatePastelColor(),
-                                              fileId: currentFile,
-                                              isInEditor: false,
-                                              createdAt: note.createdAt ?? new Date(),
-                                              reasoningId: note.reasoningId,
-                                            }}
-                                          />
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )
-                              })}
+                                </>
+                              )}
                             </div>
                           )}
+
+                          {memoizedNoteGroups}
                         </div>
-                      </>
-                    )}
+                      )}
+                    </div>
                   </div>
                 )}
               </section>
