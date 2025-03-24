@@ -84,18 +84,22 @@ export class Morph extends Dexie {
     })
   }
 
-  async addVaultWithReference(vault: Omit<Vault, "id">): Promise<string> {
+  async addVaultWithReference(vault: Omit<Vault, "id">, references?: {
+    handle: FileSystemFileHandle | null,
+    path: string,
+    format: "biblatex" | "csl-json"
+  }): Promise<string> {
     return this.transaction("rw", this.vaults, this.references, async () => {
       const id = createId()
       await this.vaults.add({ ...vault, id })
 
-      // Create associated empty reference
+      // Create associated reference
       await this.references.add({
         id: createId(),
         vaultId: id,
-        handle: null as any, // Will be updated later
-        format: "biblatex",
-        path: "",
+        handle: references?.handle ?? null as any,
+        format: references?.format ?? "biblatex",
+        path: references?.path ?? "",
         lastModified: new Date(),
       })
 
