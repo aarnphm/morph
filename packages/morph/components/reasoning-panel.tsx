@@ -1,5 +1,5 @@
 import * as React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import { ChevronRightIcon, CheckIcon } from "@radix-ui/react-icons"
 import { cn } from "@/lib/utils"
 import { db } from "@/db"
@@ -87,6 +87,19 @@ export function ReasoningPanel({
     }
   }
 
+  const memoizedChevronIcon = useMemo(() => (
+    <ChevronRightIcon
+      className={cn(
+        "h-3 w-3 transition-transform duration-200",
+        isExpanded && "transform rotate-90",
+      )}
+    />
+  ), [isExpanded])
+
+  const memoizedCheckIcon = useMemo(() => (
+    <CheckIcon className="h-3 w-3 text-green-500" />
+  ), [])
+
   return (
     <div className={cn("w-full", className)}>
       <div
@@ -99,12 +112,7 @@ export function ReasoningPanel({
             !isExpanded && "text-muted-foreground",
           )}
         >
-          <ChevronRightIcon
-            className={cn(
-              "h-3 w-3 transition-transform duration-200",
-              isExpanded && "transform rotate-90",
-            )}
-          />
+          {memoizedChevronIcon}
           {isComplete ? (
             <span>Finished scheming for {formattedDuration(elapsedTime)}</span>
           ) : (
@@ -114,7 +122,7 @@ export function ReasoningPanel({
 
         <div className="flex items-center">
           {isComplete ? (
-            <CheckIcon className="h-3 w-3 text-green-500" />
+            memoizedCheckIcon
           ) : (
             isStreaming && (
               <span className="flex items-center justify-center">

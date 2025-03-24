@@ -35,7 +35,7 @@ export default function Home() {
         setActiveVaultId(vault.id)
       }
     },
-    [setActiveVaultId],
+    [setActiveVaultId, router],
   )
 
   const renderVaults = useMemo(() => {

@@ -7,7 +7,13 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
 import { EditorView } from "@codemirror/view"
 import { Compartment, EditorState } from "@codemirror/state"
-import { Pencil1Icon, EyeOpenIcon, ShadowInnerIcon } from "@radix-ui/react-icons"
+import {
+  Pencil1Icon,
+  EyeOpenIcon,
+  ShadowInnerIcon,
+  StackIcon,
+  Cross2Icon,
+} from "@radix-ui/react-icons"
 import usePersistedSettings from "@/hooks/use-persisted-settings"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Vim, vim } from "@replit/codemirror-vim"
@@ -15,7 +21,7 @@ import { NoteCard } from "@/components/note-card"
 import Explorer from "@/components/explorer"
 import { Toolbar } from "@/components/toolbar"
 import { fileField, mdToHtml } from "@/components/markdown-inline"
-import { toJsx } from "@/lib"
+import { toJsx, cn } from "@/lib"
 import type { Root } from "hast"
 import { useTheme } from "next-themes"
 import { useVaultContext } from "@/context/vault-context"
@@ -102,6 +108,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [currentlyGeneratingDateKey, setCurrentlyGeneratingDateKey] = useState<string | null>(null)
   // State to control reasoning panel visibility
   const [, setShowReasoningPanel] = useState(false)
+  const [isStackExpanded, setIsStackExpanded] = useState(false)
 
   const vault = vaults.find((v) => v.id === vaultId)
 
@@ -188,184 +195,187 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [updatePreview, markdownContent],
   )
 
-  const fetchNewNotes = async (
-    content: string,
-    num_suggestions: number = 4,
-  ): Promise<{
-    generatedNotes: GeneratedNote[]
-    reasoningId: string
-    reasoningElapsedTime: number
-    reasoningContent: string
-  }> => {
-    try {
-      const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT
-      if (!apiEndpoint) {
-        throw new Error("Notes functionality is currently unavailable")
-      }
+  const fetchNewNotes = useCallback(
+    async (
+      content: string,
+      num_suggestions: number = 4,
+    ): Promise<{
+      generatedNotes: GeneratedNote[]
+      reasoningId: string
+      reasoningElapsedTime: number
+      reasoningContent: string
+    }> => {
+      try {
+        const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT
+        if (!apiEndpoint) {
+          throw new Error("Notes functionality is currently unavailable")
+        }
 
-      // Create a new reasoning ID for this generation
-      const reasoningId = createId()
+        // Create a new reasoning ID for this generation
+        const reasoningId = createId()
 
-      // Reset states for new generation
-      setStreamingReasoning("")
-      setReasoningComplete(false)
-      setNumSuggestions(num_suggestions)
-      setCurrentReasoningElapsedTime(0) // Reset elapsed time at the start
+        // Reset states for new generation
+        setStreamingReasoning("")
+        setReasoningComplete(false)
+        setNumSuggestions(num_suggestions)
+        setCurrentReasoningElapsedTime(0) // Reset elapsed time at the start
 
-      // Set a current date key for the new notes group with 15-second interval
-      const now = new Date()
-      const seconds = now.getSeconds()
-      const interval = Math.floor(seconds / 15) * 15
-      const dateKey = `${now.toDateString()}-${now.getHours()}-${now.getMinutes()}-${interval}`
-      setCurrentlyGeneratingDateKey(dateKey)
+        // Set a current date key for the new notes group with 15-second interval
+        const now = new Date()
+        const seconds = now.getSeconds()
+        const interval = Math.floor(seconds / 15) * 15
+        const dateKey = `${now.toDateString()}-${now.getHours()}-${now.getMinutes()}-${interval}`
+        setCurrentlyGeneratingDateKey(dateKey)
 
-      const essay = md(content).content
-      const max_tokens = 8192
+        const essay = md(content).content
+        const max_tokens = 8192
 
-      // Start timing reasoning phase
-      const reasoningStartTime = Date.now()
-      let reasoningEndTime: number | null = null
+        // Start timing reasoning phase
+        const reasoningStartTime = Date.now()
+        let reasoningEndTime: number | null = null
 
-      // Create streaming request
-      const response = await fetch(`${apiEndpoint}/suggests`, {
-        method: "POST",
-        headers: {
-          Accept: "text/event-stream",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ essay, num_suggestions, max_tokens }),
-      })
+        // Create streaming request
+        const response = await fetch(`${apiEndpoint}/suggests`, {
+          method: "POST",
+          headers: {
+            Accept: "text/event-stream",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ essay, num_suggestions, max_tokens }),
+        })
 
-      if (!response.ok) throw new Error("Failed to fetch suggestions")
-      if (!response.body) throw new Error("Response body is empty")
+        if (!response.ok) throw new Error("Failed to fetch suggestions")
+        if (!response.body) throw new Error("Response body is empty")
 
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
 
-      // We'll collect all suggestion JSON data here
-      let suggestionString = ""
-      let inReasoningPhase = true
-      let collectedReasoning = ""
+        // We'll collect all suggestion JSON data here
+        let suggestionString = ""
+        let inReasoningPhase = true
+        let collectedReasoning = ""
 
-      // Process the stream
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
+        // Process the stream
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
 
-        const chunk = decoder.decode(value, { stream: true })
+          const chunk = decoder.decode(value, { stream: true })
 
-        // Process each line
-        for (const line of chunk.split("\n")) {
-          if (!line.trim()) continue
+          // Process each line
+          for (const line of chunk.split("\n")) {
+            if (!line.trim()) continue
 
-          try {
-            const delta: StreamingDelta = JSON.parse(line)
+            try {
+              const delta: StreamingDelta = JSON.parse(line)
 
-            // Handle reasoning phase
-            if (delta.reasoning) {
-              collectedReasoning += delta.reasoning
-              setStreamingReasoning((prev) => prev + delta.reasoning)
-            }
-
-            // Check for phase transition
-            if (delta.reasoning === "" && delta.suggestion !== "") {
-              // First time we see suggestion means reasoning is complete
-              if (inReasoningPhase) {
-                // Record when reasoning phase ended
-                if (!reasoningEndTime) {
-                  reasoningEndTime = Date.now()
-                  // Calculate and update elapsed time when reasoning ends
-                  const elapsedTime = Math.round((reasoningEndTime - reasoningStartTime) / 1000)
-                  setCurrentReasoningElapsedTime(elapsedTime)
-                }
-                setReasoningComplete(true)
-                inReasoningPhase = false
+              // Handle reasoning phase
+              if (delta.reasoning) {
+                collectedReasoning += delta.reasoning
+                setStreamingReasoning((prev) => prev + delta.reasoning)
               }
 
-              // Collect suggestion data
-              suggestionString += delta.suggestion
+              // Check for phase transition
+              if (delta.reasoning === "" && delta.suggestion !== "") {
+                // First time we see suggestion means reasoning is complete
+                if (inReasoningPhase) {
+                  // Record when reasoning phase ended
+                  if (!reasoningEndTime) {
+                    reasoningEndTime = Date.now()
+                    // Calculate and update elapsed time when reasoning ends
+                    const elapsedTime = Math.round((reasoningEndTime - reasoningStartTime) / 1000)
+                    setCurrentReasoningElapsedTime(elapsedTime)
+                  }
+                  setReasoningComplete(true)
+                  inReasoningPhase = false
+                }
+
+                // Collect suggestion data
+                suggestionString += delta.suggestion
+              }
+            } catch (e) {
+              console.log(e)
+            }
+          }
+        }
+
+        // Ensure we mark reasoning as complete
+        if (inReasoningPhase) {
+          // If we never set the end time but are now complete, set it
+          if (!reasoningEndTime) {
+            reasoningEndTime = Date.now()
+            // Calculate and update elapsed time when reasoning ends
+            const elapsedTime = Math.round((reasoningEndTime - reasoningStartTime) / 1000)
+            setCurrentReasoningElapsedTime(elapsedTime)
+          }
+          setReasoningComplete(true)
+        }
+
+        // Calculate elapsed time for reasoning
+        const reasoningElapsedTime = Math.round((reasoningEndTime! - reasoningStartTime) / 1000)
+        setCurrentReasoningElapsedTime(reasoningElapsedTime)
+
+        // At this point we have the complete reasoning, but we don't yet know which notes it produced
+        // We'll update reasoningHistory later when we know the noteIds
+        setCurrentReasoningId(reasoningId)
+
+        // Clean up
+        reader.releaseLock()
+
+        // Parse collected suggestions
+        let generatedNotes: GeneratedNote[] = []
+
+        if (suggestionString.trim()) {
+          try {
+            const suggestionData: Suggestions = JSON.parse(suggestionString.trim())
+
+            if (suggestionData.suggestions && Array.isArray(suggestionData.suggestions)) {
+              generatedNotes = suggestionData.suggestions.map((suggestion, index) => ({
+                title: `suggestion ${index + 1}`,
+                content: suggestion.suggestion,
+              }))
             }
           } catch (e) {
-            console.log(e)
+            console.error("Error parsing suggestions:", e)
           }
         }
-      }
 
-      // Ensure we mark reasoning as complete
-      if (inReasoningPhase) {
-        // If we never set the end time but are now complete, set it
-        if (!reasoningEndTime) {
-          reasoningEndTime = Date.now()
-          // Calculate and update elapsed time when reasoning ends
-          const elapsedTime = Math.round((reasoningEndTime - reasoningStartTime) / 1000)
-          setCurrentReasoningElapsedTime(elapsedTime)
+        // Default note if needed
+        if (generatedNotes.length === 0) {
+          generatedNotes = [
+            {
+              title: "Suggestion",
+              content: "Could not generate suggestions",
+            },
+          ]
         }
+
+        // Save the reasoning content to be associated with the notes later
+        const reasoningData = {
+          id: reasoningId,
+          content: collectedReasoning,
+          timestamp: new Date(),
+          noteIds: [], // Will be populated after creating notes
+          reasoningElapsedTime,
+        }
+        setReasoningHistory((prev) => [...prev, { ...reasoningData }])
+
+        setNotesError(null)
+        return {
+          generatedNotes,
+          reasoningId,
+          reasoningElapsedTime,
+          reasoningContent: collectedReasoning,
+        }
+      } catch (error) {
+        setNotesError("Notes not available, try again later")
         setReasoningComplete(true)
+        setCurrentlyGeneratingDateKey(null)
+        throw error
       }
-
-      // Calculate elapsed time for reasoning
-      const reasoningElapsedTime = Math.round((reasoningEndTime! - reasoningStartTime) / 1000)
-      setCurrentReasoningElapsedTime(reasoningElapsedTime)
-
-      // At this point we have the complete reasoning, but we don't yet know which notes it produced
-      // We'll update reasoningHistory later when we know the noteIds
-      setCurrentReasoningId(reasoningId)
-
-      // Clean up
-      reader.releaseLock()
-
-      // Parse collected suggestions
-      let generatedNotes: GeneratedNote[] = []
-
-      if (suggestionString.trim()) {
-        try {
-          const suggestionData: Suggestions = JSON.parse(suggestionString.trim())
-
-          if (suggestionData.suggestions && Array.isArray(suggestionData.suggestions)) {
-            generatedNotes = suggestionData.suggestions.map((suggestion, index) => ({
-              title: `suggestion ${index + 1}`,
-              content: suggestion.suggestion,
-            }))
-          }
-        } catch (e) {
-          console.error("Error parsing suggestions:", e)
-        }
-      }
-
-      // Default note if needed
-      if (generatedNotes.length === 0) {
-        generatedNotes = [
-          {
-            title: "Suggestion",
-            content: "Could not generate suggestions",
-          },
-        ]
-      }
-
-      // Save the reasoning content to be associated with the notes later
-      const reasoningData = {
-        id: reasoningId,
-        content: collectedReasoning,
-        timestamp: new Date(),
-        noteIds: [], // Will be populated after creating notes
-        reasoningElapsedTime,
-      }
-      setReasoningHistory((prev) => [...prev, { ...reasoningData }])
-
-      setNotesError(null)
-      return { 
-        generatedNotes, 
-        reasoningId, 
-        reasoningElapsedTime,
-        reasoningContent: collectedReasoning 
-      }
-    } catch (error) {
-      setNotesError("Notes not available, try again later")
-      setReasoningComplete(true)
-      setCurrentlyGeneratingDateKey(null)
-      throw error
-    }
-  }
+    },
+    [],
+  )
 
   // Group notes by date for display (more granular - by minute)
   const groupNotesByDate = useCallback((notesList: Note[]) => {
@@ -728,10 +738,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     const loadNotesAndReasoning = async () => {
       try {
         // First load all notes for this file
-        const loadedNotes = await db.notes
-          .where("fileId")
-          .equals(currentFile)
-          .toArray();
+        const loadedNotes = await db.notes.where("fileId").equals(currentFile).toArray()
 
         // Sort notes from latest to oldest
         const sortedNotes = loadedNotes.sort(
@@ -740,25 +747,21 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         setNotes(sortedNotes)
 
         // Get unique reasoning IDs from the notes
-        const reasoningIds = [...new Set(sortedNotes
-          .filter(n => n.reasoningId)
-          .map(n => n.reasoningId))]
-          .filter((id): id is string => id !== undefined)
-        
+        const reasoningIds = [
+          ...new Set(sortedNotes.filter((n) => n.reasoningId).map((n) => n.reasoningId)),
+        ].filter((id): id is string => id !== undefined)
+
         if (reasoningIds.length > 0) {
           // Fetch all reasonings associated with these notes
-          const reasonings = await db.reasonings
-            .where('id')
-            .anyOf(reasoningIds)
-            .toArray()
+          const reasonings = await db.reasonings.where("id").anyOf(reasoningIds).toArray()
 
           // Map reasonings to the format used in state
-          const reasoningHistoryData = reasonings.map(r => ({
+          const reasoningHistoryData = reasonings.map((r) => ({
             id: r.id,
             content: r.content,
             timestamp: r.createdAt,
-            noteIds: loadedNotes.filter(n => n.reasoningId === r.id).map(n => n.id),
-            reasoningElapsedTime: r.duration || 0
+            noteIds: loadedNotes.filter((n) => n.reasoningId === r.id).map((n) => n.id),
+            reasoningElapsedTime: r.duration || 0,
           }))
 
           // Update reasoning history state
@@ -796,48 +799,102 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 <div className="flex-1 relative">
                   <EditorNotes />
                   {droppedNotes.length > 0 && (
-                    <div className="absolute top-0 right-0 flex flex-col items-center gap-2 mr-4 mt-4 z-20 max-h-80 overflow-y-auto">
-                      {droppedNotes.map((note, index) => (
-                        <HoverCard key={note.id}>
-                          <HoverCardTrigger asChild>
-                            <div
-                              className={`relative w-6 h-6 shadow cursor-pointer flex items-center justify-center ${note.color}`}
-                              onClick={() => {
-                                // TODO: Clicking -> embeddings search
-                                console.log(
-                                  `Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`,
-                                )
-                              }}
-                            >
-                              <div className="relative z-10 text-sm p-1">{index + 1}</div>
-                            </div>
-                          </HoverCardTrigger>
-                          <HoverCardContent side="left" className="w-80">
-                            <p className="text-sm">{note.content}</p>
-                          </HoverCardContent>
-                        </HoverCard>
-                      ))}
-                    </div>
-                  )}
-                  {showNotes && (
-                    <div className="absolute bottom-4 right-4 z-20">
-                      <button
-                        onClick={generateNewSuggestions}
-                        disabled={isNotesLoading}
-                        className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Generate Suggestions"
+                    <div
+                      className={cn(
+                        "absolute top-0 right-0 mr-4 mt-4 z-20 notes-stack transition-transform",
+                        isStackExpanded && "expanded-stack",
+                      )}
+                      onClick={() => setIsStackExpanded(!isStackExpanded)}
+                      title={isStackExpanded ? "Collapse notes" : "Expand notes"}
+                    >
+                      <div
+                        className={cn(
+                          "overflow-auto scrollbar-hidden pb-4",
+                          isStackExpanded ? "max-h-80" : "max-h-40",
+                        )}
+                        style={{
+                          overflowY: "auto",
+                          overflowX: "visible",
+                          scrollBehavior: "smooth",
+                          width: isStackExpanded ? "100px" : "auto",
+                        }}
                       >
-                        <ShadowInnerIcon className={notes.length == 0 ? "animate-pulse" : ""} />
-                      </button>
+                        {droppedNotes.map((note, index) => (
+                          <HoverCard key={note.id} openDelay={100} closeDelay={100}>
+                            <HoverCardTrigger asChild>
+                              <div
+                                className={cn(
+                                  `absolute shadow-md w-8 h-8 rounded-md transition-all duration-300 ease-in-out ${note.color} flex items-center justify-center hover:z-50 cursor-pointer`,
+                                  isStackExpanded && "shadow-lg right-0",
+                                )}
+                                style={{
+                                  top: isStackExpanded ? `${index * 45}px` : index * 3,
+                                  right: isStackExpanded ? 0 : index * 3,
+                                  transform: isStackExpanded
+                                    ? "rotate(0deg)"
+                                    : `rotate(${index * 2}deg)`,
+                                  zIndex: droppedNotes.length - index,
+                                  transitionDelay: `${index * 30}ms`,
+                                  // When hovered, reposition cards in a vertical exploded view
+                                  ...(isStackExpanded
+                                    ? {}
+                                    : droppedNotes.length > 1
+                                      ? {
+                                          ["--explode-y" as any]: `${index * 45}px`,
+                                        }
+                                      : {}),
+                                }}
+                                onClick={(e) => {
+                                  // Prevent triggering parent click
+                                  e.stopPropagation()
+                                  // TODO: Clicking -> embeddings search
+                                  console.log(
+                                    `Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`,
+                                  )
+                                }}
+                              >
+                                <div className="relative z-10 text-sm p-1">{index + 1}</div>
+                              </div>
+                            </HoverCardTrigger>
+                            <HoverCardContent side="left" className="w-64">
+                              <p className="text-sm">{note.content}</p>
+                            </HoverCardContent>
+                          </HoverCard>
+                        ))}
+                      </div>
                     </div>
                   )}
+                  {/* Action Buttons Group */}
+                  {(showNotes || droppedNotes.length > 0) && (
+                    <div className="absolute bottom-4 right-4 z-20 flex flex-col gap-2">
+                      {droppedNotes.length > 0 && (
+                        <button
+                          onClick={() => setIsStackExpanded(!isStackExpanded)}
+                          className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
+                          title={isStackExpanded ? "Collapse notes stack" : "Expand notes stack"}
+                        >
+                          {isStackExpanded ? <Cross2Icon /> : <StackIcon />}
+                        </button>
+                      )}
+                      {showNotes && (
+                        <button
+                          onClick={generateNewSuggestions}
+                          disabled={isNotesLoading}
+                          className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Generate Suggestions"
+                        >
+                          <ShadowInnerIcon className={notes.length == 0 ? "animate-pulse" : ""} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <div className="absolute top-4 left-4 text-sm/7 z-10 flex items-center gap-2">
+                    {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
+                  </div>
                   <div
                     className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
                   >
                     <div className="h-full scrollbar-hidden relative">
-                      <div className="absolute top-4 left-4 text-sm/7 z-10 flex items-center gap-2">
-                        {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
-                      </div>
                       <CodeMirror
                         value={markdownContent}
                         height="100%"
@@ -989,27 +1046,29 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   </div>
                 )}
               </section>
-              <footer className="sticky bottom-0 h-8 border-t text-xs/8 bg-background z-10">
-                <div
-                  className="h-full flex shrink-0 items-center align-middle font-serif justify-end mx-4 gap-4 text-muted-foreground hover:text-accent-foreground cursor-pointer"
-                  aria-hidden
-                  tabIndex={-1}
-                >
-                  <span>{currentFile.replace(".md", "")}</span>
-                  <span>{markdownContent.split(/\s+/).filter(Boolean).length} words</span>
-                  <span>{markdownContent.length} chars</span>
-                  {isEditMode ? (
-                    <EyeOpenIcon className="h-3 w-3 p-0" widths={16} height={16} />
-                  ) : (
-                    <Pencil1Icon className="h-3 w-3 p-0" widths={16} height={16} />
-                  )}
-                </div>
-              </footer>
               <SearchCommand
                 maps={flattenedFileIds}
                 vault={vault!}
                 onFileSelect={handleFileSelect}
               />
+              {("showFooter" in settings ? settings.showFooter !== false : true) && (
+                <footer className="sticky bottom-0 h-8 border-t text-xs/8 bg-background z-10">
+                  <div
+                    className="h-full flex shrink-0 items-center align-middle font-serif justify-end mx-4 gap-4 text-muted-foreground hover:text-accent-foreground cursor-pointer"
+                    aria-hidden
+                    tabIndex={-1}
+                  >
+                    <span>{currentFile.replace(".md", "")}</span>
+                    <span>{markdownContent.split(/\s+/).filter(Boolean).length} words</span>
+                    <span>{markdownContent.length} chars</span>
+                    {isEditMode ? (
+                      <EyeOpenIcon className="h-3 w-3 p-0" widths={16} height={16} />
+                    ) : (
+                      <Pencil1Icon className="h-3 w-3 p-0" widths={16} height={16} />
+                    )}
+                  </div>
+                </footer>
+              )}
             </SidebarInset>
           </SidebarProvider>
         </SearchProvider>

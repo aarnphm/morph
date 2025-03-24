@@ -13,6 +13,7 @@ export interface Settings {
     format: "biblatex" | "csl-json"
     databasePath?: string
   }
+  showFooter: boolean
 }
 
 export default function usePersistedSettings() {

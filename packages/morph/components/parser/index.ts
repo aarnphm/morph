@@ -799,6 +799,7 @@ export const citationRE: RegExp =
   /(?:\[([^[\]]*@[^[\]]+)\])|(?<=\s|^|(-))(?:@([\p{L}\d_][^\s]*[\p{L}\d_]|\{.+\})(?:\s+\[(.*?)\])?)/u
 const permittedTags = ["div", "p", "span", "li", "td", "th"]
 const idRoot = "CITATION"
+//@ts-ignore @typescript-eslint/no-unused-vars
 const Citations = {
   name: "Citations",
   htmlPlugins: (_, vaultId) => {
