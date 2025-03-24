@@ -40,6 +40,7 @@ import { db, type Note, type Vault, type FileSystemTreeNode } from "@/db"
 import { createId } from "@paralleldrive/cuid2"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { ReasoningPanel } from "@/components/reasoning-panel"
+import { Button } from "@/components/ui/button"
 
 interface StreamingDelta {
   suggestion: string
@@ -59,6 +60,14 @@ interface GeneratedNote {
   title: string
   content: string
 }
+
+const MemoizedSidebarTrigger = memo(function MemoizedSidebarTrigger(
+  props: React.ComponentProps<typeof Button>,
+) {
+  const sidebarTrigger = useMemo(() => <SidebarTrigger {...props} />, [props])
+  return sidebarTrigger
+})
+MemoizedSidebarTrigger.displayName = "MemoizedSidebarTrigger"
 
 const MemoizedNoteGroup = memo(
   ({
@@ -86,39 +95,29 @@ const MemoizedNoteGroup = memo(
     onNoteRemoved: (noteId: string) => void
     formatDate: (dateStr: string) => React.ReactNode
   }) => {
-    // Memoize the onCollapseComplete handler
-    const handleCollapseComplete = useCallback(() => {
-      // Define the desired behavior here
-    }, [])
+    const handleCollapseComplete = useCallback(() => {}, [])
+    const handleDragEndMemo = useMemo(() => {
+      const handlers: { [key: string]: (e: React.DragEvent) => void } = {}
 
-    // Refactored handleDragEnd to accept noteId instead of note object
-    const handleDragEnd = useCallback(
-      (noteId: string) => (e: React.DragEvent) => {
-        if (e.dataTransfer.dropEffect === "move") {
-          onNoteRemoved(noteId)
-          const note = dateNotes.find((n) => n.id === noteId)
-          if (note) {
+      dateNotes.forEach((note) => {
+        handlers[note.id] = (e: React.DragEvent) => {
+          if (e.dataTransfer.dropEffect === "move") {
+            onNoteRemoved(note.id)
             handleNoteDropped(note)
           }
         }
-      },
-      [onNoteRemoved, handleNoteDropped, dateNotes],
-    )
+      })
 
-    // Memoize the notes with stable references
+      return handlers
+    }, [onNoteRemoved, handleNoteDropped, dateNotes])
+
     const memoizedNotes = useMemo(() => {
       return dateNotes.map((note) => ({
-        id: note.id,
-        content: note.content,
+        ...note,
         color: note.color ?? generatePastelColor(),
-        fileId: currentFile,
-        isInEditor: false,
-        createdAt: note.createdAt ?? new Date(),
-        reasoningId: note.reasoningId,
       }))
-    }, [dateNotes, currentFile])
+    }, [dateNotes])
 
-    // Memoize the ReasoningPanel
     const memoizedReasoningPanel = useMemo(() => {
       if (!reasoning) return null
       return (
@@ -149,19 +148,8 @@ const MemoizedNoteGroup = memo(
 
         <div className="grid gap-4">
           {memoizedNotes.map((note) => (
-            <div key={note.id} draggable={true} onDragEnd={handleDragEnd(note.id)}>
-              <NoteCard
-                className="w-full"
-                note={{
-                  id: note.id,
-                  content: note.content,
-                  color: note.color,
-                  fileId: note.fileId,
-                  isInEditor: note.isInEditor,
-                  createdAt: note.createdAt,
-                  reasoningId: note.reasoningId,
-                }}
-              />
+            <div key={note.id} draggable={true} onDragEnd={handleDragEndMemo[note.id]}>
+              <NoteCard className="w-full" note={note} />
             </div>
           ))}
         </div>
@@ -472,6 +460,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         if (generatedNotes.length === 0) {
           // Set error state when no suggestions could be generated
           setNotesError("Could not generate suggestions for this content")
+          setCurrentlyGeneratingDateKey(null)
         } else {
           // Save the reasoning content to be associated with the notes later
           const reasoningData = {
@@ -769,6 +758,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
     // Clear any previous current generation notes
     setCurrentGenerationNotes([])
+    setNotesError(null)
     setIsNotesLoading(true)
     setStreamingReasoning("")
     setReasoningComplete(false)
@@ -830,6 +820,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     } catch (error) {
       // Just show error for current generation and don't affect previous notes
       setNotesError("Notes not available for this generation, try again later")
+      setCurrentlyGeneratingDateKey(null)
       console.error("Failed to generate notes:", error)
     } finally {
       // Still set isNotesLoading to false, but don't clear currentlyGeneratingDateKey
@@ -1050,7 +1041,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             <SidebarInset className="flex flex-col h-screen overflow-hidden">
               <header className="sticky top-0 h-10 border-b bg-background z-10">
                 <div className="h-full flex shrink-0 items-center justify-between mx-4">
-                  <SidebarTrigger className="-ml-1" title="Open Explorer" />
+                  <MemoizedSidebarTrigger className="-ml-1" title="Open Explorer" />
                   <Toolbar toggleNotes={toggleNotes} />
                 </div>
               </header>
@@ -1208,19 +1199,18 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       ) : (
                         <div className="space-y-6">
                           {/* Show current generation group with reasoning panel */}
-                          {currentlyGeneratingDateKey && (
-                            <div className="space-y-4">
-                              <div className="bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground font-medium border-y border-border">
-                                {formatDate(currentlyGeneratingDateKey)}
-                              </div>
+                          {notesError ? (
+                            <div className="px-4 py-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive">
+                              {notesError}
+                            </div>
+                          ) : (
+                            <>
+                              {currentlyGeneratingDateKey && (
+                                <div className="space-y-4 flex-shrink-0">
+                                  <div className="bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground font-medium border-y border-border">
+                                    {formatDate(currentlyGeneratingDateKey!)}
+                                  </div>
 
-                              {/* Show error message if there is one at the top */}
-                              {notesError ? (
-                                <div className="px-4 py-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive">
-                                  {notesError}
-                                </div>
-                              ) : (
-                                <>
                                   <div className="px-2 bg-background border-b">
                                     <ReasoningPanel
                                       reasoning={streamingReasoning}
@@ -1251,11 +1241,10 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                                         onNoteDropped={handleNoteDropped}
                                       />
                                     )}
-                                </>
+                                </div>
                               )}
-                            </div>
+                            </>
                           )}
-
                           {memoizedNoteGroups}
                         </div>
                       )}
