@@ -2,12 +2,19 @@ import * as React from "react"
 import { useState, useRef, useEffect } from "react"
 import { ChevronRightIcon, CheckIcon } from "@radix-ui/react-icons"
 import { cn } from "@/lib/utils"
+import { db } from "@/db"
 
 interface ReasoningPanelProps {
   reasoning: string
   className?: string
   isStreaming: boolean
   isComplete: boolean
+  reasoningId: string
+  currentFile?: string
+  vaultId?: string
+  shouldExpand?: boolean
+  onCollapseComplete?: () => void
+  elapsedTime: number
 }
 
 export function ReasoningPanel({
@@ -15,27 +22,50 @@ export function ReasoningPanel({
   className,
   isStreaming,
   isComplete,
+  currentFile,
+  vaultId,
+  reasoningId,
+  shouldExpand = false,
+  onCollapseComplete,
+  elapsedTime,
 }: ReasoningPanelProps) {
-  const [isExpanded, setIsExpanded] = useState(true)
+  const [isExpanded, setIsExpanded] = useState(shouldExpand)
   const reasoningRef = useRef<HTMLDivElement>(null)
-  const [elapsedTime, setElapsedTime] = useState(0)
   const startTimeRef = useRef<number | null>(null)
+
+  // Control expansion state from parent
+  useEffect(() => {
+    setIsExpanded(shouldExpand || isStreaming)
+  }, [shouldExpand, isStreaming])
+
+  // Auto-collapse after completion
+  useEffect(() => {
+    if (isComplete && !isStreaming && !shouldExpand) {
+      // Add a small delay before collapsing
+      const timerId = setTimeout(() => {
+        setIsExpanded(false)
+        if (onCollapseComplete) {
+          onCollapseComplete()
+        }
+      }, 2000) // 2 seconds after completion
+
+      return () => clearTimeout(timerId)
+    }
+  }, [isComplete, isStreaming, onCollapseComplete, shouldExpand])
 
   // Start timer when streaming begins
   useEffect(() => {
     if (isStreaming && !startTimeRef.current) {
-      startTimeRef.current = Date.now();
+      startTimeRef.current = Date.now()
     }
-  }, [isStreaming]);
+  }, [isStreaming])
 
-  // Calculate elapsed time when complete
+  // Save reasoning to database when complete
   useEffect(() => {
-    if (isComplete && startTimeRef.current) {
-      const endTime = Date.now();
-      const duration = Math.round((endTime - startTimeRef.current) / 1000);
-      setElapsedTime(duration);
+    if (isStreaming && reasoning && currentFile && vaultId) {
+      db.reasonings.update(reasoningId, { content: reasoning })
     }
-  }, [isComplete]);
+  }, [isStreaming, reasoning, currentFile, vaultId, reasoningId])
 
   // Auto-scroll to bottom when content changes and panel is expanded
   useEffect(() => {
@@ -46,12 +76,28 @@ export function ReasoningPanel({
 
   const toggleExpand = () => setIsExpanded((prev) => !prev)
 
+  // Format the duration nicely
+  const formattedDuration = (seconds: number) => {
+    if (seconds < 60) {
+      return `${seconds} second${seconds !== 1 ? "s" : ""}`
+    } else {
+      const minutes = Math.floor(seconds / 60)
+      const remainingSeconds = seconds % 60
+      return `${minutes} minute${minutes !== 1 ? "s" : ""} ${remainingSeconds} second${remainingSeconds !== 1 ? "s" : ""}`
+    }
+  }
+
   return (
     <div className={cn("w-full", className)}>
-      <div className={cn("flex items-center justify-between text-xs py-1", isExpanded && "border-b")}>
+      <div
+        className={cn("flex items-center justify-between text-xs py-1", isExpanded && "shadow-lg")}
+      >
         <button
           onClick={toggleExpand}
-          className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors text-left"
+          className={cn(
+            "flex items-center gap-1 hover:text-foreground transition-colors text-left",
+            !isExpanded && "text-muted-foreground",
+          )}
         >
           <ChevronRightIcon
             className={cn(
@@ -60,9 +106,9 @@ export function ReasoningPanel({
             )}
           />
           {isComplete ? (
-            <span>Thought for {elapsedTime} seconds</span>
+            <span>Finished scheming for {formattedDuration(elapsedTime)}</span>
           ) : (
-            <span>Thinking...</span>
+            <span className={isStreaming ? "animate-pulse" : ""}>Scheming</span>
           )}
         </button>
 
@@ -71,10 +117,27 @@ export function ReasoningPanel({
             <CheckIcon className="h-3 w-3 text-green-500" />
           ) : (
             isStreaming && (
-              <span className="flex items-center">
-                <span className="block w-1 h-1 rounded-full bg-blue-500 animate-pulse mr-1"></span>
-                <span className="block w-1 h-1 rounded-full bg-blue-500 animate-pulse delay-150 mr-1"></span>
-                <span className="block w-1 h-1 rounded-full bg-blue-500 animate-pulse delay-300"></span>
+              <span className="flex items-center justify-center">
+                <svg
+                  className="animate-spin h-3 w-3 text-blue-500"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
               </span>
             )
           )}
@@ -86,9 +149,7 @@ export function ReasoningPanel({
           ref={reasoningRef}
           className="text-xs text-muted-foreground whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-60 transition-all duration-200 animate-in slide-in-from-top-2 duration-300 ease-in-out"
         >
-          <span className={isStreaming ? "animate-pulse" : ""}>
-            {reasoning}
-          </span>
+          <span>{reasoning}</span>
         </div>
       )}
     </div>

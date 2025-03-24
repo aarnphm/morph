@@ -7,7 +7,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
 import { EditorView } from "@codemirror/view"
 import { Compartment, EditorState } from "@codemirror/state"
-import { Pencil1Icon, EyeOpenIcon } from "@radix-ui/react-icons"
+import { Pencil1Icon, EyeOpenIcon, ShadowInnerIcon } from "@radix-ui/react-icons"
 import usePersistedSettings from "@/hooks/use-persisted-settings"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Vim, vim } from "@replit/codemirror-vim"
@@ -87,19 +87,28 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [droppedNotes, setDroppedNotes] = useState<Note[]>([])
   const [streamingReasoning, setStreamingReasoning] = useState<string>("")
   const [reasoningComplete, setReasoningComplete] = useState(false)
-  const [pendingSuggestions, setPendingSuggestions] = useState<GeneratedNote[]>([])
   const [numSuggestions, setNumSuggestions] = useState(4) // Default number of suggestions
-  const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false)
+  const [currentReasoningElapsedTime, setCurrentReasoningElapsedTime] = useState(0)
+  const [reasoningHistory, setReasoningHistory] = useState<
+    {
+      id: string
+      content: string
+      timestamp: Date
+      noteIds: string[]
+      reasoningElapsedTime: number
+    }[]
+  >([])
+  const [currentReasoningId, setCurrentReasoningId] = useState<string>("")
+  const [currentlyGeneratingDateKey, setCurrentlyGeneratingDateKey] = useState<string | null>(null)
+  // State to control reasoning panel visibility
+  const [, setShowReasoningPanel] = useState(false)
+
   const vault = vaults.find((v) => v.id === vaultId)
 
-  const contentRef = useRef({
-    content: "",
-    filename: "",
-  })
+  const contentRef = useRef({ content: "", filename: "" })
 
   // Mermaid reference for rendering diagrams
   const mermaidRef = useRef<any>(null)
-
   useEffect(() => {
     // Try to load mermaid dynamically if it's available in the window
     if (typeof window !== "undefined" && window.mermaid) {
@@ -115,12 +124,10 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   }
 
   useEffect(() => {
-    contentRef.current = {
-      content: markdownContent,
-      filename: currentFile,
-    }
+    contentRef.current = { content: markdownContent, filename: currentFile }
   }, [markdownContent, currentFile])
 
+  // Sort notes from latest to oldest
   useEffect(() => {
     if (currentFile && vault) {
       db.notes
@@ -128,7 +135,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         .equals(currentFile)
         .toArray()
         .then((loadedNotes) => {
-          // Sort notes from latest to oldest
           const sortedNotes = loadedNotes.sort(
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
           )
@@ -185,22 +191,40 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const fetchNewNotes = async (
     content: string,
     num_suggestions: number = 4,
-  ): Promise<GeneratedNote[]> => {
+  ): Promise<{
+    generatedNotes: GeneratedNote[]
+    reasoningId: string
+    reasoningElapsedTime: number
+    reasoningContent: string
+  }> => {
     try {
       const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT
       if (!apiEndpoint) {
         throw new Error("Notes functionality is currently unavailable")
       }
 
-      // Reset states
+      // Create a new reasoning ID for this generation
+      const reasoningId = createId()
+
+      // Reset states for new generation
       setStreamingReasoning("")
       setReasoningComplete(false)
-      setPendingSuggestions([])
       setNumSuggestions(num_suggestions)
-      setIsGeneratingSuggestions(false)
+      setCurrentReasoningElapsedTime(0) // Reset elapsed time at the start
+
+      // Set a current date key for the new notes group with 15-second interval
+      const now = new Date()
+      const seconds = now.getSeconds()
+      const interval = Math.floor(seconds / 15) * 15
+      const dateKey = `${now.toDateString()}-${now.getHours()}-${now.getMinutes()}-${interval}`
+      setCurrentlyGeneratingDateKey(dateKey)
 
       const essay = md(content).content
       const max_tokens = 8192
+
+      // Start timing reasoning phase
+      const reasoningStartTime = Date.now()
+      let reasoningEndTime: number | null = null
 
       // Create streaming request
       const response = await fetch(`${apiEndpoint}/suggests`, {
@@ -221,6 +245,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       // We'll collect all suggestion JSON data here
       let suggestionString = ""
       let inReasoningPhase = true
+      let collectedReasoning = ""
 
       // Process the stream
       while (true) {
@@ -238,6 +263,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
             // Handle reasoning phase
             if (delta.reasoning) {
+              collectedReasoning += delta.reasoning
               setStreamingReasoning((prev) => prev + delta.reasoning)
             }
 
@@ -245,8 +271,14 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             if (delta.reasoning === "" && delta.suggestion !== "") {
               // First time we see suggestion means reasoning is complete
               if (inReasoningPhase) {
+                // Record when reasoning phase ended
+                if (!reasoningEndTime) {
+                  reasoningEndTime = Date.now()
+                  // Calculate and update elapsed time when reasoning ends
+                  const elapsedTime = Math.round((reasoningEndTime - reasoningStartTime) / 1000)
+                  setCurrentReasoningElapsedTime(elapsedTime)
+                }
                 setReasoningComplete(true)
-                setIsGeneratingSuggestions(true)
                 inReasoningPhase = false
               }
 
@@ -261,8 +293,23 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
       // Ensure we mark reasoning as complete
       if (inReasoningPhase) {
+        // If we never set the end time but are now complete, set it
+        if (!reasoningEndTime) {
+          reasoningEndTime = Date.now()
+          // Calculate and update elapsed time when reasoning ends
+          const elapsedTime = Math.round((reasoningEndTime - reasoningStartTime) / 1000)
+          setCurrentReasoningElapsedTime(elapsedTime)
+        }
         setReasoningComplete(true)
       }
+
+      // Calculate elapsed time for reasoning
+      const reasoningElapsedTime = Math.round((reasoningEndTime! - reasoningStartTime) / 1000)
+      setCurrentReasoningElapsedTime(reasoningElapsedTime)
+
+      // At this point we have the complete reasoning, but we don't yet know which notes it produced
+      // We'll update reasoningHistory later when we know the noteIds
+      setCurrentReasoningId(reasoningId)
 
       // Clean up
       reader.releaseLock()
@@ -279,16 +326,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               title: `suggestion ${index + 1}`,
               content: suggestion.suggestion,
             }))
-
-            setPendingSuggestions(generatedNotes)
           }
         } catch (e) {
           console.error("Error parsing suggestions:", e)
         }
       }
-
-      // Reset generation state
-      setIsGeneratingSuggestions(false)
 
       // Default note if needed
       if (generatedNotes.length === 0) {
@@ -300,23 +342,41 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         ]
       }
 
+      // Save the reasoning content to be associated with the notes later
+      const reasoningData = {
+        id: reasoningId,
+        content: collectedReasoning,
+        timestamp: new Date(),
+        noteIds: [], // Will be populated after creating notes
+        reasoningElapsedTime,
+      }
+      setReasoningHistory((prev) => [...prev, { ...reasoningData }])
+
       setNotesError(null)
-      return generatedNotes
+      return { 
+        generatedNotes, 
+        reasoningId, 
+        reasoningElapsedTime,
+        reasoningContent: collectedReasoning 
+      }
     } catch (error) {
       setNotesError("Notes not available, try again later")
       setReasoningComplete(true)
-      setIsGeneratingSuggestions(false)
+      setCurrentlyGeneratingDateKey(null)
       throw error
     }
   }
 
-  // Group notes by date for display
+  // Group notes by date for display (more granular - by minute)
   const groupNotesByDate = useCallback((notesList: Note[]) => {
     const groups: { [key: string]: Note[] } = {}
 
     notesList.forEach((note) => {
       const date = new Date(note.createdAt)
-      const dateKey = date.toDateString()
+      // Format with hours, minutes, and 15-second intervals
+      const seconds = date.getSeconds()
+      const interval = Math.floor(seconds / 15) * 15
+      const dateKey = `${date.toDateString()}-${date.getHours()}-${date.getMinutes()}-${interval}`
 
       if (!groups[dateKey]) {
         groups[dateKey] = []
@@ -325,23 +385,79 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       groups[dateKey].push(note)
     })
 
-    return Object.entries(groups)
+    return Object.entries(groups).sort((a, b) => {
+      // Sort from newest to oldest
+      const dateA = new Date(a[0].split("-")[0])
+      const hourA = parseInt(a[0].split("-")[1])
+      const minuteA = parseInt(a[0].split("-")[2])
+      const secondsA = parseInt(a[0].split("-")[3] || "0")
+      const dateB = new Date(b[0].split("-")[0])
+      const hourB = parseInt(b[0].split("-")[1])
+      const minuteB = parseInt(b[0].split("-")[2])
+      const secondsB = parseInt(b[0].split("-")[3] || "0")
+
+      if (dateA.getTime() === dateB.getTime()) {
+        if (hourA === hourB) {
+          if (minuteA === minuteB) {
+            return secondsB - secondsA // If same minute, sort by seconds interval
+          }
+          return minuteB - minuteA // If same hour, sort by minute
+        }
+        return hourB - hourA // If same day, sort by hour
+      }
+      return dateB.getTime() - dateA.getTime() // Otherwise sort by date
+    })
   }, [])
 
   // Format date for display
   const formatDate = useCallback((dateStr: string) => {
-    const date = new Date(dateStr)
+    // Split the dateStr to get the date part, hour part, minute part, and second interval part
+    const [datePart, hourPart, minutePart, secondsPart] = dateStr.split("-")
+    const date = new Date(datePart)
+    const hour = parseInt(hourPart)
+    const minute = parseInt(minutePart)
+    const seconds = secondsPart ? parseInt(secondsPart) : 0
+
     const today = new Date()
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
 
     // Format as MM/DD/YYYY
-    const formattedDate = `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}/${date.getFullYear()}`
-    
+    const formattedDate = `${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getDate().toString().padStart(2, "0")}/${date.getFullYear()}`
+
+    // Format hour and minute (12-hour format with AM/PM)
+    const formattedTime = `${hour % 12 === 0 ? 12 : hour % 12}:${minute.toString().padStart(2, "0")}${seconds > 0 ? `:${seconds}` : ""}${hour < 12 ? "AM" : "PM"}`
+
     // Calculate relative time indicator
     let relativeTime = ""
     if (date.toDateString() === today.toDateString()) {
-      relativeTime = "today"
+      if (today.getHours() === hour) {
+        if (today.getMinutes() === minute) {
+          const secondsDiff = today.getSeconds() - seconds
+          if (secondsDiff < 60) {
+            if (secondsDiff === 0) {
+              relativeTime = "just now"
+            } else if (secondsDiff === 1) {
+              relativeTime = "1 second ago"
+            } else {
+              relativeTime = `${secondsDiff} seconds ago`
+            }
+          }
+        } else {
+          const minuteDiff = today.getMinutes() - minute
+          if (minuteDiff === 0) {
+            relativeTime = "just now"
+          } else if (minuteDiff === 1) {
+            relativeTime = "1 minute ago"
+          } else {
+            relativeTime = `${minuteDiff} minutes ago`
+          }
+        }
+      } else if (today.getHours() - hour === 1) {
+        relativeTime = "1 hour ago"
+      } else {
+        relativeTime = `${today.getHours() - hour} hours ago`
+      }
     } else if (date.toDateString() === yesterday.toDateString()) {
       relativeTime = "yesterday"
     } else {
@@ -352,7 +468,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
     return (
       <div className="flex justify-between items-center w-full">
-        <span>{formattedDate}</span>
+        <span>
+          {formattedDate} {formattedTime}
+        </span>
         <span className="text-xs text-muted-foreground italic">{relativeTime}</span>
       </div>
     )
@@ -495,39 +613,101 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   useEffect(() => {
     if (!showNotes) return
 
-    setIsNotesLoading(true)
+    // First load notes from DB when the notes panel is opened
+    if (currentFile && vault) {
+      db.notes
+        .where("fileId")
+        .equals(currentFile)
+        .toArray()
+        .then((loadedNotes) => {
+          // Sort notes from latest to oldest
+          const sortedNotes = loadedNotes.sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          )
+          setNotes(sortedNotes)
+        })
+    }
+  }, [showNotes, currentFile, vault])
 
-    const timerId = setTimeout(async () => {
-      try {
-        const generatedNotes = await fetchNewNotes(markdownContent)
-        const newNotes: Note[] = generatedNotes.map((note) => ({
-          id: createId(),
+  // Function to generate new suggestions
+  const generateNewSuggestions = useCallback(async () => {
+    if (!currentFile || !vault || !markdownContent) return
+
+    setIsNotesLoading(true)
+    setStreamingReasoning("")
+    setReasoningComplete(false)
+
+    try {
+      const { generatedNotes, reasoningId, reasoningElapsedTime, reasoningContent } =
+        await fetchNewNotes(markdownContent)
+      const newNoteIds: string[] = []
+
+      const newNotes: Note[] = generatedNotes.map((note) => {
+        const id = createId()
+        newNoteIds.push(id)
+        return {
+          id,
           content: note.content,
           color: generatePastelColor(),
           fileId: currentFile,
-          vaultId: vault!.id,
+          vaultId: vault.id,
           isInEditor: false,
           createdAt: new Date(),
           lastModified: new Date(),
-        }))
-        await Promise.all(newNotes.map((note) => db.notes.add(note)))
-        setNotes((prev) => {
-          const combined = [...prev, ...newNotes]
-          return combined.sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-          )
-        })
-      } catch {
-        // TODO: do something with the error, silent for now
-      } finally {
-        setIsNotesLoading(false)
-      }
-    }, 1000)
+          reasoningId: reasoningId,
+        }
+      })
 
-    return () => {
-      clearTimeout(timerId)
+      // Add the note IDs to the reasoning history
+      setReasoningHistory((prev) =>
+        prev.map((r) => (r.id === reasoningId ? { ...r, noteIds: newNoteIds } : r)),
+      )
+
+      // Save reasoning to the database with note IDs and elapsed time
+      db.saveReasoning({
+        id: reasoningId,
+        fileId: currentFile,
+        vaultId: vault.id,
+        content: reasoningContent,
+        noteIds: newNoteIds,
+        createdAt: new Date(),
+        duration: reasoningElapsedTime,
+      }).catch((err) => {
+        console.error("Failed to save reasoning:", err)
+      })
+
+      await Promise.all(newNotes.map((note) => db.notes.add(note)))
+
+      // Add the new notes to the beginning of the notes array
+      setNotes((prev) => {
+        const combined = [...newNotes, ...prev]
+        return combined.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        )
+      })
+    } catch {
+      // TODO: do something with the error, silent for now
+    } finally {
+      setIsNotesLoading(false)
+      // Clear the current generation date key
+      setCurrentlyGeneratingDateKey(null)
     }
-  }, [showNotes, currentFile, vault, markdownContent])
+  }, [currentFile, vault, markdownContent, fetchNewNotes])
+
+  // Show reasoning panel when generating suggestions
+  useEffect(() => {
+    if (isNotesLoading) {
+      setShowReasoningPanel(true)
+    }
+  }, [isNotesLoading])
+
+  // Hide reasoning panel after completion only if there are no notes
+  const handleReasoningCollapsed = useCallback(() => {
+    // Only hide the reasoning panel if there are no notes
+    if (notes.length === 0) {
+      setShowReasoningPanel(false)
+    }
+  }, [notes.length])
 
   // Generate skeletons based on num_suggestions
   const renderNotesSkeletons = () => {
@@ -541,11 +721,62 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     ))
   }
 
+  // Fetch notes and associated reasoning history when the file changes or when notes panel opens
+  useEffect(() => {
+    if (!currentFile || !vault) return
+
+    const loadNotesAndReasoning = async () => {
+      try {
+        // First load all notes for this file
+        const loadedNotes = await db.notes
+          .where("fileId")
+          .equals(currentFile)
+          .toArray();
+
+        // Sort notes from latest to oldest
+        const sortedNotes = loadedNotes.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        )
+        setNotes(sortedNotes)
+
+        // Get unique reasoning IDs from the notes
+        const reasoningIds = [...new Set(sortedNotes
+          .filter(n => n.reasoningId)
+          .map(n => n.reasoningId))]
+          .filter((id): id is string => id !== undefined)
+        
+        if (reasoningIds.length > 0) {
+          // Fetch all reasonings associated with these notes
+          const reasonings = await db.reasonings
+            .where('id')
+            .anyOf(reasoningIds)
+            .toArray()
+
+          // Map reasonings to the format used in state
+          const reasoningHistoryData = reasonings.map(r => ({
+            id: r.id,
+            content: r.content,
+            timestamp: r.createdAt,
+            noteIds: loadedNotes.filter(n => n.reasoningId === r.id).map(n => n.id),
+            reasoningElapsedTime: r.duration || 0
+          }))
+
+          // Update reasoning history state
+          setReasoningHistory(reasoningHistoryData)
+        }
+      } catch (error) {
+        console.error("Error loading notes and reasoning:", error)
+      }
+    }
+
+    loadNotesAndReasoning()
+  }, [currentFile, vault, showNotes])
+
   return (
     <DndProvider backend={HTML5Backend}>
       <NotesProvider>
         <SearchProvider vault={vault!}>
-          <SidebarProvider defaultOpen={true}>
+          <SidebarProvider defaultOpen={false}>
             <Explorer
               vault={vault!}
               editorViewRef={codeMirrorViewRef}
@@ -564,13 +795,13 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               <section className="flex flex-1 overflow-hidden m-4 rounded-md border">
                 <div className="flex-1 relative">
                   <EditorNotes />
-                  {showNotes && droppedNotes.length > 0 && (
-                    <div className="absolute top-0 right-0 flex flex-col items-center gap-2 mr-4 mt-4 z-20">
+                  {droppedNotes.length > 0 && (
+                    <div className="absolute top-0 right-0 flex flex-col items-center gap-2 mr-4 mt-4 z-20 max-h-80 overflow-y-auto">
                       {droppedNotes.map((note, index) => (
                         <HoverCard key={note.id}>
                           <HoverCardTrigger asChild>
                             <div
-                              className={`relative w-8 h-8 shadow cursor-pointer flex items-center justify-center ${note.color}`}
+                              className={`relative w-6 h-6 shadow cursor-pointer flex items-center justify-center ${note.color}`}
                               onClick={() => {
                                 // TODO: Clicking -> embeddings search
                                 console.log(
@@ -578,7 +809,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                                 )
                               }}
                             >
-                              <div className="relative z-10">{index + 1}</div>
+                              <div className="relative z-10 text-sm p-1">{index + 1}</div>
                             </div>
                           </HoverCardTrigger>
                           <HoverCardContent side="left" className="w-80">
@@ -586,6 +817,18 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                           </HoverCardContent>
                         </HoverCard>
                       ))}
+                    </div>
+                  )}
+                  {showNotes && (
+                    <div className="absolute bottom-4 right-4 z-20">
+                      <button
+                        onClick={generateNewSuggestions}
+                        disabled={isNotesLoading}
+                        className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Generate Suggestions"
+                      >
+                        <ShadowInnerIcon className={notes.length == 0 ? "animate-pulse" : ""} />
+                      </button>
                     </div>
                   )}
                   <div
@@ -641,65 +884,104 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       </div>
                     ) : (
                       <>
-                        <div className="px-2 bg-background border-b">
-                          <ReasoningPanel
-                            reasoning={streamingReasoning}
-                            isStreaming={isNotesLoading && !reasoningComplete}
-                            isComplete={reasoningComplete}
-                          />
-                        </div>
-
                         <div className="flex-1 overflow-auto scrollbar-hidden p-4 gap-4 mt-2">
-                          {isNotesLoading &&
-                            reasoningComplete &&
-                            !pendingSuggestions.length &&
-                            renderNotesSkeletons()}
-
-                          {/* Show final notes once loading is complete */}
-                          {!isNotesLoading && notes.length > 0 ? (
-                            <div className="space-y-6">
-                              {groupNotesByDate(notes).map(([dateStr, dateNotes]) => (
-                                <div key={dateStr} className="space-y-4">
-                                  <div className="bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground font-medium border-y border-border">
-                                    {formatDate(dateStr)}
-                                  </div>
-
-                                  <div className="grid gap-4">
-                                    {dateNotes.map((note) => (
-                                      <div
-                                        key={note.id}
-                                        draggable={true}
-                                        onDragEnd={(e) => {
-                                          // Remove note from note panel when note dropped onto editor
-                                          if (e.dataTransfer.dropEffect === "move") {
-                                            setNotes((prev) => prev.filter((n) => n.id !== note.id))
-                                            handleNoteDropped(note)
-                                          }
-                                        }}
-                                      >
-                                        <NoteCard
-                                          className="w-full"
-                                          note={{
-                                            id: note.id,
-                                            content: note.content,
-                                            color: note.color ?? generatePastelColor(),
-                                            fileId: currentFile,
-                                            isInEditor: false,
-                                            createdAt: note.createdAt ?? new Date(),
-                                          }}
-                                        />
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              ))}
+                          {/* Show message only when no notes and not loading */}
+                          {!isNotesLoading && notes.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground p-4">
+                              <p className="mb-4">No notes found for this document</p>
                             </div>
                           ) : (
-                            !isNotesLoading && (
-                              <div className="text-center text-muted-foreground text-sm mt-4">
-                                No notes generated yet
-                              </div>
-                            )
+                            <div className="space-y-6">
+                              {/* Show current generation group with reasoning panel */}
+                              {isNotesLoading && currentlyGeneratingDateKey && (
+                                <div className="space-y-4">
+                                  <div className="bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground font-medium border-y border-border">
+                                    {formatDate(currentlyGeneratingDateKey)}
+                                  </div>
+
+                                  <div className="px-2 bg-background border-b">
+                                    <ReasoningPanel
+                                      reasoning={streamingReasoning}
+                                      isStreaming={isNotesLoading && !reasoningComplete}
+                                      isComplete={reasoningComplete}
+                                      currentFile={currentFile}
+                                      vaultId={vault?.id}
+                                      reasoningId={currentReasoningId}
+                                      shouldExpand={isNotesLoading}
+                                      onCollapseComplete={handleReasoningCollapsed}
+                                      elapsedTime={currentReasoningElapsedTime}
+                                    />
+                                  </div>
+
+                                  {/* Show skeletons when reasoning is complete but notes aren't loaded yet */}
+                                  {reasoningComplete && renderNotesSkeletons()}
+                                </div>
+                              )}
+
+                              {/* Display existing note groups */}
+                              {groupNotesByDate(notes).map(([dateStr, dateNotes]) => {
+                                // Find the reasoning associated with these notes
+                                const dateReasoning = reasoningHistory.find((r) =>
+                                  r.noteIds.some((id) => dateNotes.some((note) => note.id === id)),
+                                )
+
+                                return (
+                                  <div key={dateStr} className="space-y-4">
+                                    <div className="bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground font-medium border-y border-border">
+                                      {formatDate(dateStr)}
+                                    </div>
+
+                                    {/* Show reasoning panel for this note group if available */}
+                                    {dateReasoning && (
+                                      <div className="px-2 bg-background border-b">
+                                        <ReasoningPanel
+                                          reasoning={dateReasoning.content}
+                                          isStreaming={false}
+                                          isComplete={true}
+                                          currentFile={currentFile}
+                                          vaultId={vault?.id}
+                                          reasoningId={dateReasoning.id}
+                                          shouldExpand={false}
+                                          onCollapseComplete={handleReasoningCollapsed}
+                                          elapsedTime={dateReasoning.reasoningElapsedTime || 0}
+                                        />
+                                      </div>
+                                    )}
+
+                                    <div className="grid gap-4">
+                                      {dateNotes.map((note) => (
+                                        <div
+                                          key={note.id}
+                                          draggable={true}
+                                          onDragEnd={(e) => {
+                                            // Remove note from note panel when note dropped onto editor
+                                            if (e.dataTransfer.dropEffect === "move") {
+                                              setNotes((prev) =>
+                                                prev.filter((n) => n.id !== note.id),
+                                              )
+                                              handleNoteDropped(note)
+                                            }
+                                          }}
+                                        >
+                                          <NoteCard
+                                            className="w-full"
+                                            note={{
+                                              id: note.id,
+                                              content: note.content,
+                                              color: note.color ?? generatePastelColor(),
+                                              fileId: currentFile,
+                                              isInEditor: false,
+                                              createdAt: note.createdAt ?? new Date(),
+                                              reasoningId: note.reasoningId,
+                                            }}
+                                          />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
                           )}
                         </div>
                       </>

@@ -53,12 +53,24 @@ export interface Note {
   position?: { x: number; y: number }
   createdAt: Date
   lastModified: Date
+  reasoningId?: string
+}
+
+export interface Reasoning {
+  id: string
+  fileId: string
+  vaultId: string
+  content: string
+  noteIds: string[]
+  createdAt: Date
+  duration: number
 }
 
 export class Morph extends Dexie {
   vaults!: Table<Vault, string>
   references!: Table<Reference, string>
   notes!: Table<Note, string>
+  reasonings!: Table<Reasoning, string>
 
   constructor() {
     super("morph")
@@ -67,6 +79,7 @@ export class Morph extends Dexie {
       vaults: "&id, name, lastOpened",
       references: "id, vaultId",
       notes: "id, fileId, vaultId",
+      reasonings: "id, fileId, vaultId, createdAt",
     })
   }
 
@@ -86,6 +99,23 @@ export class Morph extends Dexie {
       })
 
       return id
+    })
+  }
+
+  async saveReasoning(reasoning: Omit<Reasoning, "id"> | Reasoning): Promise<string> {
+    return this.transaction("rw", this.reasonings, async () => {
+      // Check if reasoning already has an ID
+      const reasoningId = "id" in reasoning ? reasoning.id : createId()
+
+      if ("id" in reasoning) {
+        // If reasoning already has an ID, update it
+        await this.reasonings.put(reasoning)
+      } else {
+        // Otherwise add new reasoning with generated ID
+        await this.reasonings.add({ ...reasoning, id: reasoningId })
+      }
+
+      return reasoningId
     })
   }
 }

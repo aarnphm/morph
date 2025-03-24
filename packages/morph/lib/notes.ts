@@ -8,6 +8,7 @@ export interface Note {
     order: number
   }
   createdAt: Date
+  reasoningId?: string
 }
 
 export interface EditorNoteState {

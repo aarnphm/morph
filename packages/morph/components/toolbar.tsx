@@ -60,8 +60,8 @@ export function Toolbar({ toggleNotes }: ToolbarProps) {
     <>
       <div className="flex items-center justify-between backdrop-blur-sm bg-background/80 supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center gap-4">
-          {MemoizedSettingsButton}
           {MemoizedCopyButton}
+          {MemoizedSettingsButton}
         </div>
       </div>
       {MemoizedSettingsPanel}

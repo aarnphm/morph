@@ -16,7 +16,7 @@ import {
 export default function Loading() {
   return (
     <main className="min-h-screen bg-background">
-      <SidebarProvider defaultOpen={true}>
+      <SidebarProvider defaultOpen={false}>
         <Sidebar className="bg-background">
           <SidebarHeader className="border-b h-10 p-0 min-h-10 sticky">
             <div className="h-full flex items-center justify-end mx-4 gap-2">
@@ -51,7 +51,7 @@ export default function Loading() {
           <SidebarRail />
         </Sidebar>
         <SidebarInset>
-          <header className="inline-block h-10 border-b">
+          <header className="sticky top-0 h-10 border-b bg-background z-10">
             <div className="h-full flex shrink-0 items-center justify-between mx-4">
               <Skeleton className="h-6 w-6 p-0 rounded-full" />
               <div className="flex items-center gap-2">
@@ -60,7 +60,7 @@ export default function Loading() {
               </div>
             </div>
           </header>
-          <section className="flex h-[calc(100vh-104px)] gap-10 rounded-md m-4">
+          <section className="flex flex-1 overflow-hidden m-4 rounded-md border">
             <div className="flex-1 border relative">
               <div className="h-full mx-12 pt-4 scrollbar-hidden">
                 <div className="cm-editor">
@@ -81,8 +81,8 @@ export default function Loading() {
               </div>
             </div>
           </section>
-          <footer className="inline-block h-8 border-t text-xs">
-            <div className="h-full flex shrink-0 items-center align-middle font-mono justify-end mx-4">
+          <footer className="sticky bottom-0 h-8 border-t text-xs/8 bg-background z-10">
+            <div className="h-full flex shrink-0 items-center align-middle font-serif justify-end mx-4 gap-4 text-muted-foreground hover:text-accent-foreground cursor-pointer">
               <Skeleton className="h-6 w-6 p-0 rounded-full" />
             </div>
           </footer>
