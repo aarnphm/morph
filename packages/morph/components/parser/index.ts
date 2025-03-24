@@ -117,7 +117,7 @@ const Frontmatter = {
   markdownPlugins: () => [
     [remarkFrontmatter, ["yaml", "toml"]],
     () => (_, file) => {
-      const { data } = md(Buffer.from(file.value))
+      const { data } = md(Buffer.from(file.value as string))
 
       if (data.title != null && data.title.toString() !== "") {
         data.title = data.title.toString()
@@ -812,18 +812,33 @@ const Citations = {
           lang: "en-US",
         }
         const files = await db.references.where("vaultId").equals(vaultId).toArray()
+        // Skip citation processing if no valid files are found
+        if (!files.length) return
+
         // TODO: add more format support
         const config = (Cite.plugins as { config: any }).config.get("@csl")
+
+        // Process only files with valid handles
+        const validFiles = files.filter((el) => el.handle !== null && el.handle !== undefined)
+        if (!validFiles.length) return
+
         const bibliography: string[] = await Promise.all(
-          files.map(async (el) => {
-            const file = await el.handle.getFile()
-            return await file.text()
+          validFiles.map(async (el) => {
+            try {
+              const file = await el.handle.getFile()
+              return await file.text()
+            } catch (error) {
+              console.error("Error reading citation file:", error)
+              return "" // Return empty string if file can't be read
+            }
           }),
         )
 
-        if (bibliography.length === 0) return
+        // Filter out empty strings
+        const validBibliography = bibliography.filter((text) => text.trim() !== "")
+        if (validBibliography.length === 0) return
 
-        const citations = new Cite(bibliography, { generateGraph: false })
+        const citations = new Cite(validBibliography, { generateGraph: false })
         const citationIds = citations.data.map((x) => x.id)
         const citationPre: [string, number][] = []
         const citationDict: Record<string, string> = {}

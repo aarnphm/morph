@@ -16,6 +16,7 @@ export interface Settings {
   ignorePatterns: string[]
   editModeShortcut: string
   notePanelShortcut: string
+  showFooter: boolean
   citation: {
     enabled: boolean
     format: "biblatex" | "csl-json"
@@ -53,12 +54,24 @@ export interface Note {
   position?: { x: number; y: number }
   createdAt: Date
   lastModified: Date
+  reasoningId?: string
+}
+
+export interface Reasoning {
+  id: string
+  fileId: string
+  vaultId: string
+  content: string
+  noteIds: string[]
+  createdAt: Date
+  duration: number
 }
 
 export class Morph extends Dexie {
   vaults!: Table<Vault, string>
   references!: Table<Reference, string>
   notes!: Table<Note, string>
+  reasonings!: Table<Reasoning, string>
 
   constructor() {
     super("morph")
@@ -67,25 +80,47 @@ export class Morph extends Dexie {
       vaults: "&id, name, lastOpened",
       references: "id, vaultId",
       notes: "id, fileId, vaultId",
+      reasonings: "id, fileId, vaultId, createdAt",
     })
   }
 
-  async addVaultWithReference(vault: Omit<Vault, "id">): Promise<string> {
+  async addVaultWithReference(vault: Omit<Vault, "id">, references?: {
+    handle: FileSystemFileHandle | null,
+    path: string,
+    format: "biblatex" | "csl-json"
+  }): Promise<string> {
     return this.transaction("rw", this.vaults, this.references, async () => {
       const id = createId()
       await this.vaults.add({ ...vault, id })
 
-      // Create associated empty reference
+      // Create associated reference
       await this.references.add({
         id: createId(),
         vaultId: id,
-        handle: null as any, // Will be updated later
-        format: "biblatex",
-        path: "",
+        handle: references?.handle ?? null as any,
+        format: references?.format ?? "biblatex",
+        path: references?.path ?? "",
         lastModified: new Date(),
       })
 
       return id
+    })
+  }
+
+  async saveReasoning(reasoning: Omit<Reasoning, "id"> | Reasoning): Promise<string> {
+    return this.transaction("rw", this.reasonings, async () => {
+      // Check if reasoning already has an ID
+      const reasoningId = "id" in reasoning ? reasoning.id : createId()
+
+      if ("id" in reasoning) {
+        // If reasoning already has an ID, update it
+        await this.reasonings.put(reasoning)
+      } else {
+        // Otherwise add new reasoning with generated ID
+        await this.reasonings.add({ ...reasoning, id: reasoningId })
+      }
+
+      return reasoningId
     })
   }
 }
@@ -107,6 +142,7 @@ export const defaultSettings: Settings = {
   ],
   editModeShortcut: "e",
   notePanelShortcut: "i",
+  showFooter: false,
   citation: {
     enabled: false,
     format: "biblatex",

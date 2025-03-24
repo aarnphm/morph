@@ -121,7 +121,7 @@ function GeneralSettings() {
 }
 
 const EditorSettings = React.memo(function EditorSettings() {
-  const { updateSettings } = usePersistedSettings()
+  const { settings, updateSettings } = usePersistedSettings()
   const { theme, setTheme } = useTheme()
 
   return (
@@ -147,6 +147,15 @@ const EditorSettings = React.memo(function EditorSettings() {
       </SettingItem>
 
       <SettingItem name="Editor" isHeading />
+
+      <SettingItem name="Show Footer" description="Display file info and editor status in footer">
+        <Switch
+          className="cursor-pointer"
+          id="show-footer"
+          checked={settings.showFooter !== false}
+          onCheckedChange={(checked) => updateSettings({ showFooter: checked })}
+        />
+      </SettingItem>
 
       <SettingItem name="Vim Mode" description="Enable Vim key bindings for text editing">
         <Switch

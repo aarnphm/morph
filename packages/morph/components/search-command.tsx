@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/command"
 import { type UserDocument, useSearch } from "@/context/search-context"
 import { useEffect, useState, useCallback, useMemo } from "react"
-import type { Vault, FileSystemTreeNode } from "@/hooks/use-vaults"
+import type { Vault, FileSystemTreeNode } from "@/db"
 import { type FlattenedFileMapping } from "@/context/vault-context"
 import { CommandGroup } from "cmdk"
 import { highlight, slugifyFilePath, toJsx } from "@/lib"

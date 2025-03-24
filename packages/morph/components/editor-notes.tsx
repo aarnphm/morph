@@ -23,7 +23,7 @@ export function EditorNotes() {
       moveNoteToEditor(item.id, position)
 
       console.log("Note dropped at position:", position, "with id:", item.id)
-      
+
       return { noteId: item.id, targetId: "editor" }
     },
     collect: (monitor) => ({
@@ -49,7 +49,7 @@ export function EditorNotes() {
         zIndex: 100,
         pointerEvents: isDragging ? "auto" : "none",
       }}
-      className={isOver ? "border-2 border-blue-500" : ""}
+      className={isOver ? "border-2 border-blue-500/20" : ""}
     >
       {editorNotes.map((note) => (
         <div

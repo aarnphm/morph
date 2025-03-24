@@ -111,11 +111,32 @@ export default function useVaults() {
 
         const tree = await processDirectory(handle, defaultSettings.ignorePatterns)
 
-        const id = await db.addVaultWithReference({
-          name: handle.name,
-          lastOpened: new Date(),
-          tree,
-        })
+        // Check for References.bib file, we hardcode this value for now.
+        let referencesHandle: FileSystemFileHandle | null = null
+        let referencesPath = ""
+        try {
+          referencesHandle = await handle.getFileHandle("References.bib")
+          referencesPath = "References.bib"
+        } catch (error) {
+          // References.bib not found, silently continue
+          console.debug("No References.bib found in vault root")
+        }
+
+        const id = await db.addVaultWithReference(
+          {
+            name: handle.name,
+            lastOpened: new Date(),
+            tree,
+            settings: defaultSettings,
+          },
+          referencesHandle
+            ? {
+                handle: referencesHandle,
+                path: referencesPath,
+                format: "biblatex",
+              }
+            : undefined,
+        )
 
         const newVault = await db.vaults.get(id)
         if (!newVault) throw new Error("Failed to create vault")
@@ -142,7 +163,7 @@ export default function useVaults() {
       try {
         const newTree = await processDirectory(
           vault.tree.handle as FileSystemDirectoryHandle,
-          vault.config.ignorePatterns,
+          vault.settings?.ignorePatterns || defaultSettings.ignorePatterns,
         )
         const updatedVault = { ...vault, tree: newTree }
 
@@ -152,7 +173,7 @@ export default function useVaults() {
         console.error("Error refreshing vault:", error)
       }
     },
-    [vaults, processDirectory],
+    [vaults, processDirectory, defaultSettings.ignorePatterns],
   )
 
   const updateReference = useCallback(
@@ -195,7 +216,7 @@ export default function useVaults() {
 
       return processDirectory(
         vault.tree.handle as FileSystemDirectoryHandle,
-        vault.config.ignorePatterns,
+        vault.settings?.ignorePatterns || defaultSettings.ignorePatterns,
         {
           ...vault.tree,
         },
@@ -210,15 +231,16 @@ export default function useVaults() {
           if (vault) {
             await verifyHandle(vault.tree.handle)
             const tree = await hydrateTree(vault)
-            await updateVaultReferences(vault)
-            return { ...vault, tree }
+            const updatedVault = { ...vault, tree }
+            await updateVaultReferences(updatedVault)
+            return updatedVault
           }
           return null
         }),
       )
       setVaults(loadedVaults.filter(Boolean) as Vault[])
     } catch {}
-  }, [processDirectory, updateVaultReferences])
+  }, [processDirectory, updateVaultReferences, defaultSettings.ignorePatterns])
 
   return {
     vaults,
@@ -240,7 +262,34 @@ export default function useVaults() {
   }
 }
 
-async function verifyHandle(handle: FileSystemDirectoryHandle): Promise<boolean> {
-  if ((await handle.queryPermission({ mode: "read" })) === "granted") return true
-  return (await handle.requestPermission({ mode: "read" })) === "granted"
+async function verifyHandle(
+  handle: FileSystemDirectoryHandle | FileSystemFileHandle,
+): Promise<boolean> {
+  try {
+    // For directory handles
+    if ("getDirectoryHandle" in handle) {
+      if (
+        (await (handle as FileSystemDirectoryHandle).queryPermission({ mode: "read" })) ===
+        "granted"
+      )
+        return true
+      return (
+        (await (handle as FileSystemDirectoryHandle).requestPermission({ mode: "read" })) ===
+        "granted"
+      )
+    }
+    // For file handles, we can't check permissions directly
+    // Instead, we'll try to read a small portion to verify access
+    else if ("getFile" in handle) {
+      try {
+        await (handle as FileSystemFileHandle).getFile()
+        return true
+      } catch {
+        return false
+      }
+    }
+    return false
+  } catch {
+    return false
+  }
 }
