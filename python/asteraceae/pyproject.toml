@@ -1,6 +1,4 @@
-
 [project]
-name = "asteraceae"
 description = "asteraceae backend with LLMs inference engines and embeddings"
 readme = "README.md"
 version = "0.1.0"
