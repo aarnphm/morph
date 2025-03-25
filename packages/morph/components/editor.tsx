@@ -40,6 +40,7 @@ import { db, type Note, type Vault, type FileSystemTreeNode } from "@/db"
 import { createId } from "@paralleldrive/cuid2"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { ReasoningPanel } from "@/components/reasoning-panel"
+import { Virtuoso } from "react-virtuoso"
 import { Button } from "@/components/ui/button"
 
 interface StreamingDelta {
@@ -67,7 +68,56 @@ const MemoizedSidebarTrigger = memo(function MemoizedSidebarTrigger(
   const sidebarTrigger = useMemo(() => <SidebarTrigger {...props} />, [props])
   return sidebarTrigger
 })
-MemoizedSidebarTrigger.displayName = "MemoizedSidebarTrigger"
+
+const NoteCardSkeleton = ({ color = "bg-muted/10" }: { color?: string }) => {
+  // Generate random rotation between -2.5 and 2.5 degrees for natural look
+  const rotation = (Math.random() * 5 - 2.5).toFixed(2)
+  // Generate shadow offset for 3D effect
+  const x = Math.floor(Math.random() * 3) + 2
+  const y = Math.floor(Math.random() * 3) + 2
+
+  const skeletons = useMemo(
+    () => (
+      <div className="space-y-2">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-3/4" />
+      </div>
+    ),
+    [],
+  )
+
+  return (
+    <div
+      style={{
+        boxShadow: `${x}px ${y}px 8px rgba(0,0,0,0.15)`,
+        backgroundImage: `
+          radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px),
+          radial-gradient(rgba(0,0,0,0.07) 1px, transparent 1px)
+        `,
+        backgroundSize: "20px 20px, 10px 10px",
+        backgroundPosition: "-10px -10px, 0px 0px",
+        transform: `rotate(${rotation}deg)`,
+        transition: "all 0.3s ease-in-out",
+      }}
+      className={cn(
+        "p-4 border border-border transition-all",
+        "shadow-md",
+        "cursor-default",
+        "animate-shimmer",
+        color,
+        "w-full mb-4",
+        "notecard-ragged relative rounded-sm",
+        "before:content-[''] before:absolute before:inset-0 before:z-[-1]",
+        "before:opacity-50 before:mix-blend-multiply before:bg-noise-pattern",
+        "after:content-[''] after:absolute after:bottom-[-8px] after:right-[-8px]",
+        "after:left-[8px] after:top-[8px] after:z-[-2] after:bg-black/10",
+      )}
+    >
+      {skeletons}
+    </div>
+  )
+}
 
 const MemoizedNoteGroup = memo(
   ({
@@ -77,8 +127,10 @@ const MemoizedNoteGroup = memo(
     currentFile,
     vaultId,
     handleNoteDropped,
+    handleCollapseComplete,
     onNoteRemoved,
     formatDate,
+    isGenerating = false,
   }: {
     dateStr: string
     dateNotes: Note[]
@@ -91,25 +143,26 @@ const MemoizedNoteGroup = memo(
       | undefined
     currentFile: string
     vaultId: string | undefined
+    handleCollapseComplete: () => void
     handleNoteDropped: (note: Note) => void
     onNoteRemoved: (noteId: string) => void
     formatDate: (dateStr: string) => React.ReactNode
+    isGenerating?: boolean
   }) => {
-    const handleCollapseComplete = useCallback(() => {}, [])
-    const handleDragEndMemo = useMemo(() => {
-      const handlers: { [key: string]: (e: React.DragEvent) => void } = {}
+    // Memoize the callbacks to ensure they have stable references
+    const stableHandleNoteDropped = useCallback(
+      (note: Note) => {
+        handleNoteDropped(note)
+      },
+      [handleNoteDropped],
+    )
 
-      dateNotes.forEach((note) => {
-        handlers[note.id] = (e: React.DragEvent) => {
-          if (e.dataTransfer.dropEffect === "move") {
-            onNoteRemoved(note.id)
-            handleNoteDropped(note)
-          }
-        }
-      })
-
-      return handlers
-    }, [onNoteRemoved, handleNoteDropped, dateNotes])
+    const stableOnNoteRemoved = useCallback(
+      (noteId: string) => {
+        onNoteRemoved(noteId)
+      },
+      [onNoteRemoved],
+    )
 
     const memoizedNotes = useMemo(() => {
       return dateNotes.map((note) => ({
@@ -148,9 +201,14 @@ const MemoizedNoteGroup = memo(
 
         <div className="grid gap-4">
           {memoizedNotes.map((note) => (
-            <div key={note.id} draggable={true} onDragEnd={handleDragEndMemo[note.id]}>
-              <NoteCard className="w-full" note={note} />
-            </div>
+            <DraggableNoteCard
+              key={note.id}
+              note={note}
+              noteId={note.id}
+              handleNoteDropped={stableHandleNoteDropped}
+              onNoteRemoved={stableOnNoteRemoved}
+              isGenerating={isGenerating}
+            />
           ))}
         </div>
       </div>
@@ -162,11 +220,145 @@ const MemoizedNoteGroup = memo(
       prevProps.dateStr === nextProps.dateStr &&
       prevProps.dateNotes === nextProps.dateNotes &&
       prevProps.reasoning === nextProps.reasoning &&
-      prevProps.currentFile === nextProps.currentFile
+      prevProps.currentFile === nextProps.currentFile &&
+      prevProps.isGenerating === nextProps.isGenerating
     )
   },
 )
 MemoizedNoteGroup.displayName = "MemoizedNoteGroup"
+
+// Add a memoized component for individual note cards
+const DraggableNoteCard = memo(
+  ({
+    note,
+    noteId,
+    handleNoteDropped,
+    onNoteRemoved,
+    onCurrentGenerationNote,
+    isGenerating,
+  }: {
+    note: Note
+    noteId: string
+    handleNoteDropped: (note: Note) => void
+    onNoteRemoved: (noteId: string) => void
+    onCurrentGenerationNote?: (note: Note) => void
+    isGenerating: boolean
+  }) => {
+    const handleDragEnd = useCallback(
+      (e: React.DragEvent) => {
+        if (e.dataTransfer.dropEffect === "move") {
+          onNoteRemoved(noteId)
+          onCurrentGenerationNote?.(note)
+          handleNoteDropped(note)
+        }
+      },
+      [onNoteRemoved, handleNoteDropped, noteId, note, onCurrentGenerationNote],
+    )
+
+    return (
+      <div draggable={true} onDragEnd={handleDragEnd}>
+        <NoteCard className="w-full" note={note} isGenerating={isGenerating} />
+      </div>
+    )
+  },
+)
+DraggableNoteCard.displayName = "DraggableNoteCard"
+
+// Add this memoized component after DraggableNoteCard
+const DroppedNotesStack = memo(
+  ({
+    droppedNotes,
+    isStackExpanded,
+    onToggleExpand,
+  }: {
+    droppedNotes: Note[]
+    isStackExpanded: boolean
+    onToggleExpand: () => void
+  }) => {
+    const renderHoverCard = useCallback(
+      (note: Note, index: number) => (
+        <HoverCard key={note.id} openDelay={100} closeDelay={100} defaultOpen={isStackExpanded}>
+          <HoverCardTrigger asChild>
+            <div
+              className={cn(
+                `absolute shadow-md w-8 h-8 rounded-md transition-all duration-300 ease-in-out ${note.color} flex items-center justify-center hover:z-50 cursor-pointer`,
+                isStackExpanded && "shadow-lg right-0",
+              )}
+              style={{
+                top: isStackExpanded ? `${index * 45}px` : index * 3,
+                right: isStackExpanded ? 0 : index * 3,
+                transform: isStackExpanded ? "rotate(0deg)" : `rotate(${index * 2}deg)`,
+                zIndex: droppedNotes.length - index,
+                transitionDelay: `${index * 30}ms`,
+                ...(isStackExpanded
+                  ? {}
+                  : droppedNotes.length > 1
+                    ? {
+                        ["--explode-y" as any]: `${index * 45}px`,
+                      }
+                    : {}),
+              }}
+              onClick={(e) => {
+                // Prevent triggering parent click
+                e.stopPropagation()
+                // TODO: Clicking -> embeddings search
+                console.log(`Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`)
+              }}
+            >
+              <div className="relative z-10 text-sm p-1">{index + 1}</div>
+            </div>
+          </HoverCardTrigger>
+          <HoverCardContent side="left" className="w-64">
+            <p className="text-sm">{note.content}</p>
+          </HoverCardContent>
+        </HoverCard>
+      ),
+      [isStackExpanded, droppedNotes.length],
+    )
+
+    return (
+      <div
+        className={cn(
+          "absolute top-4 right-4 z-20 notes-stack transition-transform",
+          isStackExpanded && "expanded-stack",
+        )}
+        onClick={onToggleExpand}
+        title={isStackExpanded ? "Collapse notes" : "Expand notes"}
+      >
+        <div
+          className={cn(
+            "overflow-auto scrollbar-hidden pb-4",
+            isStackExpanded ? "max-h-60" : "max-h-40",
+          )}
+          style={{
+            overflowY: "auto",
+            overflowX: "visible",
+            scrollBehavior: "smooth",
+            maxHeight: isStackExpanded ? "30vh" : "auto",
+          }}
+        >
+          {droppedNotes.map((note, index) => renderHoverCard(note, index))}
+        </div>
+      </div>
+    )
+  },
+  (prevProps, nextProps) => {
+    // Only re-render if the notes array has changed in length or content
+    if (prevProps.droppedNotes.length !== nextProps.droppedNotes.length) {
+      return false // Re-render if number of notes changed
+    }
+    if (prevProps.isStackExpanded !== nextProps.isStackExpanded) {
+      return false // Re-render if expansion state changed
+    }
+
+    // Check if any note content or IDs have changed
+    return prevProps.droppedNotes.every((prevNote, index) => {
+      const nextNote = nextProps.droppedNotes[index]
+      return prevNote.id === nextNote.id && prevNote.color === nextNote.color
+    })
+  },
+)
+DroppedNotesStack.displayName = "DroppedNotesStack"
 
 export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const { theme } = useTheme()
@@ -195,7 +387,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   }, [])
 
   const [notes, setNotes] = useState<Note[]>([])
-
   const [markdownContent, setMarkdownContent] = useState<string>("")
   const [notesError, setNotesError] = useState<string | null>(null)
   const [droppedNotes, setDroppedNotes] = useState<Note[]>([])
@@ -203,6 +394,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [reasoningComplete, setReasoningComplete] = useState(false)
   const [numSuggestions, setNumSuggestions] = useState(4) // Default number of suggestions
   const [currentReasoningElapsedTime, setCurrentReasoningElapsedTime] = useState(0)
+  const virtuosoRef = useRef<any>(null)
+  const notesContainerRef = useRef<HTMLDivElement>(null)
+
   const [reasoningHistory, setReasoningHistory] = useState<
     {
       id: string
@@ -214,12 +408,14 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   >([])
   const [currentReasoningId, setCurrentReasoningId] = useState<string>("")
   const [currentlyGeneratingDateKey, setCurrentlyGeneratingDateKey] = useState<string | null>(null)
-  // State to control reasoning panel visibility
-  const [, setShowReasoningPanel] = useState(false)
   const [isStackExpanded, setIsStackExpanded] = useState(false)
   const [streamingSuggestionColors, setStreamingSuggestionColors] = useState<string[]>([])
   // Add a state to track current generation notes
   const [currentGenerationNotes, setCurrentGenerationNotes] = useState<Note[]>([])
+
+  const toggleStackExpand = useCallback(() => {
+    setIsStackExpanded((prev) => !prev)
+  }, [])
 
   const vault = vaults.find((v) => v.id === vaultId)
 
@@ -763,7 +959,13 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     setStreamingReasoning("")
     setReasoningComplete(false)
     setStreamingSuggestionColors([])
-    setCurrentlyGeneratingDateKey(null)
+
+    // Set a current date key for the new notes group with 15-second interval
+    const now = new Date()
+    const seconds = now.getSeconds()
+    const interval = Math.floor(seconds / 15) * 15
+    const dateKey = `${now.toDateString()}-${now.getHours()}-${now.getMinutes()}-${interval}`
+    setCurrentlyGeneratingDateKey(dateKey)
 
     try {
       const { generatedNotes, reasoningId, reasoningElapsedTime, reasoningContent } =
@@ -810,7 +1012,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       // Set current generation notes
       setCurrentGenerationNotes(newNotes)
 
-      // Also add the new notes to the beginning of the notes array for historical view
+      // Also add the new notes to the notes array for historical view
+      // (they will remain visible in the current generation section first)
       setNotes((prev) => {
         const combined = [...newNotes, ...prev]
         return combined.sort(
@@ -829,73 +1032,16 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
   }, [currentFile, vault, markdownContent, fetchNewNotes, streamingSuggestionColors])
 
-  // Show reasoning panel when generating suggestions
-  useEffect(() => {
-    if (isNotesLoading) {
-      setShowReasoningPanel(true)
-    }
-  }, [isNotesLoading])
-
-  // Hide reasoning panel after completion only if there are no notes
-  const handleReasoningCollapsed = useCallback(() => {
-    // Only hide the reasoning panel if there are no notes
-    if (notes.length === 0) {
-      setShowReasoningPanel(false)
-    }
-  }, [notes.length])
+  const handleCollapseComplete = useCallback(() => {}, [])
 
   // Generate skeletons based on num_suggestions
   const renderNotesSkeletons = useCallback(() => {
     // Fallback to empty skeletons if no streaming suggestions yet
     return Array.from({ length: numSuggestions }).map((_, i) => {
-      // Generate consistent random values based on index
-      const randomSeed = i + 1
-      // Generate rotation between -2.5 and 2.5 degrees for a natural look
-      const rotation = ((randomSeed * 2.5) % 5) - 2.5
-      // Generate shadow offset for 3D effect
-      const x = (randomSeed % 3) + 2
-      const y = ((randomSeed * 2) % 3) + 2
       // Use the preserved color for this suggestion or generate a new one
       const bgColor = streamingSuggestionColors[i] || generatePastelColor()
 
-      return (
-        <div
-          key={i}
-          style={{
-            boxShadow: `${x}px ${y}px 8px rgba(0,0,0,0.15)`,
-            backgroundImage: `
-              radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px),
-              radial-gradient(rgba(0,0,0,0.07) 1px, transparent 1px)
-            `,
-            backgroundSize: "20px 20px, 10px 10px",
-            backgroundPosition: "-10px -10px, 0px 0px",
-            transform: `rotate(${rotation}deg)`,
-            transition: "all 0.3s ease-in-out",
-            ...({
-              "--base-rotation": `${rotation}deg`,
-            } as React.CSSProperties),
-          }}
-          className={cn(
-            "p-4 border border-border transition-all",
-            "shadow-md",
-            "cursor-default",
-            "animate-pulse",
-            bgColor,
-            "w-full mb-4",
-            "notecard-ragged relative rounded-sm",
-            "before:content-[''] before:absolute before:inset-0 before:z-[-1]",
-            "before:opacity-50 before:mix-blend-multiply before:bg-noise-pattern",
-            "after:content-[''] after:absolute after:bottom-[-8px] after:right-[-8px]",
-            "after:left-[8px] after:top-[8px] after:z-[-2] after:bg-black/10",
-          )}
-        >
-          <div className="space-y-2">
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-3/4" />
-          </div>
-        </div>
-      )
+      return <NoteCardSkeleton key={i} color={bgColor} />
     })
   }, [numSuggestions, streamingSuggestionColors])
 
@@ -948,82 +1094,19 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     setNotes((prev) => prev.filter((n) => n.id !== noteId))
   }, [])
 
-  // Memoize the note groups to prevent unnecessary re-renders
-  const memoizedNoteGroups = useMemo(() => {
-    // Create a Set of IDs from current generation notes for efficient filtering
+  // Calculate note data for Virtuoso - only include historical notes
+  const noteGroupsData = useMemo(() => {
+    // Filter out current generation notes and dropped notes
     const currentGenerationNoteIds = new Set(currentGenerationNotes.map((note) => note.id))
+    const droppedNoteIds = new Set(droppedNotes.map((note) => note.id))
 
-    // Filter the notes to remove any that are currently shown in the currentGenerationNotes
-    const filteredNotes = notes.filter((note) => !currentGenerationNoteIds.has(note.id))
+    // Filter out both current generation notes and dropped notes
+    const filteredNotes = notes.filter(
+      (note) => !currentGenerationNoteIds.has(note.id) && !droppedNoteIds.has(note.id),
+    )
 
-    return groupNotesByDate(filteredNotes).map(([dateStr, dateNotes]) => {
-      // Find the reasoning associated with these notes
-      const dateReasoning = reasoningHistory.find((r) =>
-        r.noteIds.some((id) => dateNotes.some((note) => note.id === id)),
-      )
-
-      return (
-        <MemoizedNoteGroup
-          key={dateStr}
-          dateStr={dateStr}
-          dateNotes={dateNotes}
-          reasoning={dateReasoning}
-          currentFile={currentFile}
-          vaultId={vault?.id}
-          handleNoteDropped={handleNoteDropped}
-          onNoteRemoved={handleNoteRemoved}
-          formatDate={formatDate}
-        />
-      )
-    })
-  }, [
-    notes,
-    reasoningHistory,
-    currentFile,
-    vault?.id,
-    handleNoteDropped,
-    handleNoteRemoved,
-    formatDate,
-    groupNotesByDate,
-    currentGenerationNotes,
-  ])
-
-  // Create a component for rendering actual notes in the current generation panel
-  const MemoizedCurrentGenerationNotes = memo(
-    ({ notes, onNoteDropped }: { notes: Note[]; onNoteDropped: (note: Note) => void }) => {
-      return (
-        <div className="space-y-4">
-          {notes.map((note) => (
-            <div
-              key={note.id}
-              draggable={true}
-              onDragEnd={(e) => {
-                // Remove note from note panel when note dropped onto editor
-                if (e.dataTransfer.dropEffect === "move") {
-                  setCurrentGenerationNotes((prev) => prev.filter((n) => n.id !== note.id))
-                  onNoteDropped(note)
-                }
-              }}
-            >
-              <NoteCard
-                className="w-full"
-                note={{
-                  id: note.id,
-                  content: note.content,
-                  color: note.color ?? generatePastelColor(),
-                  fileId: currentFile,
-                  isInEditor: false,
-                  createdAt: note.createdAt ?? new Date(),
-                  reasoningId: note.reasoningId,
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      )
-    },
-  )
-  MemoizedCurrentGenerationNotes.displayName = "MemoizedCurrentGenerationNotes"
+    return groupNotesByDate(filteredNotes)
+  }, [notes, currentGenerationNotes, droppedNotes, groupNotesByDate])
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -1049,82 +1132,18 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 <div className="flex-1 relative">
                   <EditorNotes />
                   {droppedNotes.length > 0 && (
-                    <div
-                      className={cn(
-                        "absolute top-0 right-0 mr-4 mt-4 z-20 notes-stack transition-transform",
-                        isStackExpanded && "expanded-stack",
-                      )}
-                      onClick={() => setIsStackExpanded(!isStackExpanded)}
-                      title={isStackExpanded ? "Collapse notes" : "Expand notes"}
-                    >
-                      <div
-                        className={cn(
-                          "overflow-auto scrollbar-hidden pb-4",
-                          isStackExpanded ? "max-h-80" : "max-h-40",
-                        )}
-                        style={{
-                          overflowY: "auto",
-                          overflowX: "visible",
-                          scrollBehavior: "smooth",
-                          width: isStackExpanded ? "100px" : "auto",
-                        }}
-                      >
-                        {droppedNotes.map((note, index) => (
-                          <HoverCard
-                            key={note.id}
-                            openDelay={100}
-                            closeDelay={100}
-                            defaultOpen={isStackExpanded}
-                          >
-                            <HoverCardTrigger asChild>
-                              <div
-                                className={cn(
-                                  `absolute shadow-md w-8 h-8 rounded-md transition-all duration-300 ease-in-out ${note.color} flex items-center justify-center hover:z-50 cursor-pointer`,
-                                  isStackExpanded && "shadow-lg right-0",
-                                )}
-                                style={{
-                                  top: isStackExpanded ? `${index * 45}px` : index * 3,
-                                  right: isStackExpanded ? 0 : index * 3,
-                                  transform: isStackExpanded
-                                    ? "rotate(0deg)"
-                                    : `rotate(${index * 2}deg)`,
-                                  zIndex: droppedNotes.length - index,
-                                  transitionDelay: `${index * 30}ms`,
-                                  // When hovered, reposition cards in a vertical exploded view
-                                  ...(isStackExpanded
-                                    ? {}
-                                    : droppedNotes.length > 1
-                                      ? {
-                                          ["--explode-y" as any]: `${index * 45}px`,
-                                        }
-                                      : {}),
-                                }}
-                                onClick={(e) => {
-                                  // Prevent triggering parent click
-                                  e.stopPropagation()
-                                  // TODO: Clicking -> embeddings search
-                                  console.log(
-                                    `Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`,
-                                  )
-                                }}
-                              >
-                                <div className="relative z-10 text-sm p-1">{index + 1}</div>
-                              </div>
-                            </HoverCardTrigger>
-                            <HoverCardContent side="left" className="w-64">
-                              <p className="text-sm">{note.content}</p>
-                            </HoverCardContent>
-                          </HoverCard>
-                        ))}
-                      </div>
-                    </div>
+                    <DroppedNotesStack
+                      droppedNotes={droppedNotes}
+                      isStackExpanded={isStackExpanded}
+                      onToggleExpand={toggleStackExpand}
+                    />
                   )}
                   {/* Action Buttons Group */}
                   {(showNotes || droppedNotes.length > 0) && (
                     <div className="absolute bottom-4 right-4 z-20 flex flex-col gap-2">
                       {droppedNotes.length > 0 && (
                         <button
-                          onClick={() => setIsStackExpanded(!isStackExpanded)}
+                          onClick={toggleStackExpand}
                           className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
                           title={isStackExpanded ? "Collapse notes stack" : "Expand notes stack"}
                         >
@@ -1138,7 +1157,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                           className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Generate Suggestions"
                         >
-                          <ShadowInnerIcon className={notes.length == 0 ? "animate-pulse" : ""} />
+                          <ShadowInnerIcon className={notes.length == 0 ? "animate-shimmer" : ""} />
                         </button>
                       )}
                     </div>
@@ -1166,7 +1185,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                         indentWithTab={false}
                         extensions={memoizedExtensions}
                         onChange={onContentChange}
-                        className="overflow-auto h-full mx-8 pt-4 scrollbar-hidden"
+                        className="overflow-auto h-full mx-8 scrollbar-hidden pt-4"
                         theme={theme === "dark" ? "dark" : editorTheme}
                         onCreateEditor={(view) => {
                           codeMirrorViewRef.current = view
@@ -1178,7 +1197,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     className={`reading-mode absolute inset-0 ${isEditMode ? "hidden" : "block overflow-hidden"}`}
                     ref={readingModeRef}
                   >
-                    <div className="prose dark:prose-invert h-full mx-8 pt-4 overflow-auto scrollbar-hidden">
+                    <div className="prose dark:prose-invert h-full mx-8 overflow-auto scrollbar-hidden">
                       <article className="@container h-full max-w-5xl mx-auto scrollbar-hidden">
                         {previewNode && toJsx(previewNode)}
                       </article>
@@ -1190,7 +1209,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     className="w-88 flex flex-col border-l transition-[right,left,width] duration-200 ease-in-out translate-x-[-100%] data-[show=true]:translate-x-0"
                     data-show={showNotes}
                   >
-                    <div className="flex-1 overflow-auto scrollbar-hidden p-4 gap-4 mt-2">
+                    <div className="flex-1 overflow-auto scrollbar-hidden p-4 gap-4 mb-4">
                       {/* Show message only when no notes and not loading */}
                       {!isNotesLoading && notes.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground p-4">
@@ -1205,47 +1224,158 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                             </div>
                           ) : (
                             <>
-                              {currentlyGeneratingDateKey && (
-                                <div className="space-y-4 flex-shrink-0">
-                                  <div className="bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground font-medium border-y border-border">
-                                    {formatDate(currentlyGeneratingDateKey!)}
-                                  </div>
+                              {/* Create a single scrollable container for both sections */}
+                              <div
+                                className="h-full flex flex-col overflow-auto scrollbar-hidden scroll-smooth max-h-[calc(100vh-4rem)]"
+                                data-role="notes-container"
+                                ref={notesContainerRef}
+                              >
+                                {/* Only show current generation section if there are active notes in it */}
+                                {currentlyGeneratingDateKey &&
+                                  (isNotesLoading ||
+                                    (currentGenerationNotes.length > 0 &&
+                                      currentGenerationNotes.some(
+                                        (note) => !droppedNotes.some((d) => d.id === note.id),
+                                      ))) && (
+                                    <div className="space-y-4 flex-shrink-0 mb-6">
+                                      <div className="bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground font-medium border-y border-border">
+                                        {formatDate(currentlyGeneratingDateKey!)}
+                                      </div>
 
-                                  <div className="px-2 bg-background border-b">
-                                    <ReasoningPanel
-                                      reasoning={streamingReasoning}
-                                      isStreaming={isNotesLoading && !reasoningComplete}
-                                      isComplete={reasoningComplete}
-                                      currentFile={currentFile}
-                                      vaultId={vault?.id}
-                                      reasoningId={currentReasoningId}
-                                      shouldExpand={
-                                        isNotesLoading || currentGenerationNotes.length > 0
-                                      }
-                                      onCollapseComplete={handleReasoningCollapsed}
-                                      elapsedTime={currentReasoningElapsedTime}
-                                    />
-                                  </div>
+                                      <div className="px-2 bg-background border-b">
+                                        <ReasoningPanel
+                                          reasoning={streamingReasoning}
+                                          isStreaming={isNotesLoading && !reasoningComplete}
+                                          isComplete={reasoningComplete}
+                                          currentFile={currentFile}
+                                          vaultId={vault?.id}
+                                          reasoningId={currentReasoningId}
+                                          shouldExpand={
+                                            isNotesLoading || currentGenerationNotes.length > 0
+                                          }
+                                          onCollapseComplete={handleCollapseComplete}
+                                          elapsedTime={currentReasoningElapsedTime}
+                                        />
+                                      </div>
 
-                                  {/* Show loading skeletons during generation */}
-                                  {isNotesLoading && reasoningComplete && !notesError && (
-                                    <div className="space-y-4">{renderNotesSkeletons()}</div>
+                                      {/* Show loading skeletons during generation */}
+                                      {isNotesLoading && reasoningComplete && !notesError && (
+                                        <div className="space-y-4 px-2">
+                                          {renderNotesSkeletons()}
+                                        </div>
+                                      )}
+
+                                      {/* Show actual generated notes when complete */}
+                                      {!isNotesLoading &&
+                                        currentGenerationNotes.length > 0 &&
+                                        !notesError && (
+                                          <div className="space-y-4 px-2">
+                                            {currentGenerationNotes.map((note) => (
+                                              <DraggableNoteCard
+                                                key={note.id}
+                                                note={{
+                                                  ...note,
+                                                  color: note.color ?? generatePastelColor(),
+                                                }}
+                                                noteId={note.id}
+                                                handleNoteDropped={handleNoteDropped}
+                                                onNoteRemoved={handleNoteRemoved}
+                                                onCurrentGenerationNote={(note) => {
+                                                  setCurrentGenerationNotes((prev) =>
+                                                    prev.filter((n) => n.id !== note.id),
+                                                  )
+                                                }}
+                                                isGenerating={isNotesLoading}
+                                              />
+                                            ))}
+                                          </div>
+                                        )}
+                                    </div>
                                   )}
+                                <div className="flex-1 min-h-0">
+                                  {noteGroupsData.length === 0 &&
+                                  !isNotesLoading &&
+                                  reasoningComplete ? (
+                                    <div className="py-4 text-sm text-muted-foreground text-center">
+                                      No previous notes
+                                    </div>
+                                  ) : (
+                                    <Virtuoso
+                                      key={`note-list-${currentlyGeneratingDateKey || "historical"}`}
+                                      style={{ height: "100%", width: "100%" }}
+                                      totalCount={noteGroupsData.length}
+                                      data={noteGroupsData}
+                                      overscan={5}
+                                      components={{
+                                        EmptyPlaceholder: () => (
+                                          <div className="py-4 text-sm text-muted-foreground text-center">
+                                            No notes found
+                                          </div>
+                                        ),
+                                        ScrollSeekPlaceholder: ({ height }) => (
+                                          <div
+                                            className="p-4 border border-border bg-muted/20 flex items-center justify-center"
+                                            style={{ height }}
+                                          >
+                                            <div className="animate-shimmer flex space-x-4 w-full">
+                                              <div className="flex-1 space-y-4 py-1">
+                                                <div className="h-4 bg-muted rounded w-3/4"></div>
+                                                <div className="space-y-2">
+                                                  <div className="h-4 bg-muted rounded"></div>
+                                                  <div className="h-4 bg-muted rounded w-5/6"></div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ),
+                                      }}
+                                      itemContent={(_index, group) => {
+                                        // Add a safety check for when group is undefined or not properly formed
+                                        if (!group || !Array.isArray(group) || group.length < 2) {
+                                          return null
+                                        }
 
-                                  {/* Show actual generated notes when complete */}
-                                  {!isNotesLoading &&
-                                    currentGenerationNotes.length > 0 &&
-                                    !notesError && (
-                                      <MemoizedCurrentGenerationNotes
-                                        notes={currentGenerationNotes}
-                                        onNoteDropped={handleNoteDropped}
-                                      />
-                                    )}
+                                        const [dateStr, dateNotes] = group
+
+                                        // Only handle historical notes now
+                                        const dateReasoning = reasoningHistory.find((r) =>
+                                          r.noteIds.some((id) =>
+                                            dateNotes.some((note) => note.id === id),
+                                          ),
+                                        )
+
+                                        return (
+                                          <div className="mb-6">
+                                            <MemoizedNoteGroup
+                                              dateStr={dateStr}
+                                              dateNotes={dateNotes}
+                                              reasoning={dateReasoning}
+                                              currentFile={currentFile}
+                                              vaultId={vault?.id}
+                                              handleNoteDropped={handleNoteDropped}
+                                              onNoteRemoved={handleNoteRemoved}
+                                              formatDate={formatDate}
+                                              isGenerating={false}
+                                              handleCollapseComplete={handleCollapseComplete}
+                                            />
+                                          </div>
+                                        )
+                                      }}
+                                      initialItemCount={1}
+                                      increaseViewportBy={{ top: 100, bottom: 100 }}
+                                      scrollSeekConfiguration={{
+                                        enter: (velocity) => Math.abs(velocity) > 1000,
+                                        exit: (velocity) => Math.abs(velocity) < 100,
+                                      }}
+                                      ref={virtuosoRef}
+                                      // Use the parent container as the scroll element
+                                      customScrollParent={notesContainerRef.current || undefined}
+                                    />
+                                  )}
                                 </div>
-                              )}
+                              </div>
                             </>
                           )}
-                          {memoizedNoteGroups}
                         </div>
                       )}
                     </div>

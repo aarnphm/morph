@@ -1781,6 +1781,63 @@ ul#helper {
   }
 }
 
+/* Shimmer effect animation */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@utility animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--flexoki-paper) 0%,
+    var(--flexoki-50) 20%,
+    var(--flexoki-100) 40%,
+    var(--flexoki-50) 60%,
+    var(--flexoki-paper) 80%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+  background-repeat: no-repeat;
+}
+
+/* Text shimmer effect that masks a gradient to text */
+@utility animate-text-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--flexoki-tx-3) 0%,
+    var(--flexoki-tx) 20%,
+    var(--flexoki-tx-2) 40%,
+    var(--flexoki-tx) 60%,
+    var(--flexoki-tx-3) 80%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: shimmer 2s infinite;
+  background-repeat: no-repeat;
+}
+
+.dark .animate-text-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--flexoki-tx-3) 0%,
+    var(--flexoki-tx-2) 20%,
+    var(--flexoki-tx) 40%,
+    var(--flexoki-tx-2) 60%,
+    var(--flexoki-tx-3) 80%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: shimmer 2s infinite;
+  background-repeat: no-repeat;
+}
+
 /* Notes stack explosion effect */
 .notes-stack .absolute {
   transition:

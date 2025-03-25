@@ -56,7 +56,7 @@ export const NoteCard = React.memo(function NoteCard({
 
   // Handle wiggle animation on hover
   const startWiggle = () => {
-    if (!isDragging) {
+    if (!isDragging && !isGenerating) {
       setIsWiggling(true)
     }
   }
@@ -96,7 +96,7 @@ export const NoteCard = React.memo(function NoteCard({
           "opacity-85 cursor-grabbing ring-2 ring-blue-200 dark:ring-blue-800 dragging-card",
         !isDragging && "cursor-grab",
         isGenerating && "animate-pulse",
-        isWiggling && "animate-wiggle",
+        isWiggling && !isGenerating && "animate-wiggle",
         note.color,
         className,
         "notecard-ragged relative rounded-sm",

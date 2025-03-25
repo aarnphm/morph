@@ -3,7 +3,6 @@ import { createId } from "@paralleldrive/cuid2"
 import { type Note } from "@/db"
 import { db } from "@/db"
 import { generatePastelColor } from "@/lib/notes"
-import { notesService } from "@/services/notes-service"
 
 interface NotesContextType {
   notes: Note[]
@@ -75,8 +74,9 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       addNote,
       moveNoteToEditor,
       removeNoteFromEditor,
+      loadNotes,
     }),
-    [notes, editorNotes, addNote, moveNoteToEditor, removeNoteFromEditor],
+    [notes, editorNotes, addNote, moveNoteToEditor, removeNoteFromEditor, loadNotes],
   )
 
   return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>

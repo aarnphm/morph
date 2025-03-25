@@ -109,14 +109,14 @@ export function ReasoningPanel({
           onClick={toggleExpand}
           className={cn(
             "flex items-center gap-1 hover:text-foreground transition-colors text-left",
-            !isExpanded && "text-muted-foreground",
+            !isExpanded  || isStreaming && "text-muted-foreground",
           )}
         >
           {memoizedChevronIcon}
           {isComplete ? (
             <span>Finished scheming for {formattedDuration(elapsedTime)}</span>
           ) : (
-            <span className={isStreaming ? "animate-pulse" : ""}>Scheming</span>
+            <span className={isStreaming ? "animate-text-shimmer" : ""}>Scheming</span>
           )}
         </button>
 
