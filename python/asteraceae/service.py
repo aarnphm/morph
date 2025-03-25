@@ -77,7 +77,7 @@ class Engine:
     from vllm.entrypoints.openai.cli_args import make_arg_parser
 
     args = make_arg_parser(FlexibleArgumentParser()).parse_args([])
-    args.task = "generate"
+    args.task = 'generate'
     args.model = self.model
     args.disable_log_requests = True
     args.max_log_len = 1000
@@ -111,13 +111,14 @@ class Engine:
     await vllm_api_server.init_app_state(self.engine, self.model_config, inference_api.state, args)
 
   @bentoml.on_shutdown
-  async def teardown_engine(self): await self.exit_stack.aclose()
+  async def teardown_engine(self):
+    await self.exit_stack.aclose()
 
 
 @bentoml.asgi_app(embedding_api, path='/v1')
 @bentoml.service(
   name='asteraceae-embedding-engine',
-  resources={'gpu': 1, 'gpu_type': 'nvidia-l4'},
+  resources={'gpu': 1, 'gpu_type': 'nvidia-tesla-a100'},
   labels={'owner': 'aarnphm', 'type': 'engine', 'task': 'embed'},
   envs=[
     {'name': 'HF_TOKEN'},
@@ -144,7 +145,7 @@ class Embeddings:
     from vllm.entrypoints.openai.cli_args import make_arg_parser
 
     args = make_arg_parser(FlexibleArgumentParser()).parse_args([])
-    args.task = "embed"
+    args.task = 'embed'
     args.model = self.model
     args.disable_log_requests = True
     args.max_log_len = 1000
@@ -157,9 +158,8 @@ class Embeddings:
     args.reasoning_parser = 'deepseek_r1'
     args.enable_auto_tool_choice = True
     args.tool_call_parser = 'hermes'
-    args.max_model_len = MAX_MODEL_LEN
+    args.max_model_len = 8192
     args.ignore_patterns = IGNORE_PATTERNS
-    args.guided_decoding_backend = STRUCTURED_OUTPUT_BACKEND
 
     router = fastapi.APIRouter(lifespan=vllm_api_server.lifespan)
     OPENAI_ENDPOINTS = [
@@ -169,16 +169,18 @@ class Embeddings:
 
     for route, endpoint, methods in OPENAI_ENDPOINTS:
       router.add_api_route(path=route, endpoint=endpoint, methods=methods, include_in_schema=True)
-    inference_api.include_router(router)
+    embedding_api.include_router(router)
 
     self.engine = await self.exit_stack.enter_async_context(vllm_api_server.build_async_engine_client(args))
     self.model_config = await self.engine.get_model_config()
     self.tokenizer = await self.engine.get_tokenizer()
 
-    await vllm_api_server.init_app_state(self.engine, self.model_config, inference_api.state, args)
+    await vllm_api_server.init_app_state(self.engine, self.model_config, embedding_api.state, args)
 
   @bentoml.on_shutdown
-  async def teardown_engine(self): await self.exit_stack.aclose()
+  async def teardown_engine(self):
+    await self.exit_stack.aclose()
+
 
 class EmbedMetadata(pydantic.BaseModel):
   vault: str
@@ -186,10 +188,12 @@ class EmbedMetadata(pydantic.BaseModel):
   type: t.Literal[0, 1]
   note: t.Optional[str] = pydantic.Field(default=None)
 
+
 class EmbedTask(pydantic.BaseModel):
   metadata: EmbedMetadata
   embedding: list[float]
   error: str = pydantic.Field(default='')
+
 
 @bentoml.service(
   name='asteraceae-inference-api',
@@ -209,6 +213,7 @@ class EmbedTask(pydantic.BaseModel):
   envs=[
     {'name': 'UV_NO_PROGRESS', 'value': '1'},
     {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
+    {'name': 'VLLM_USE_V1', 'value': '0'},
     {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': (WORKING_DIR / 'logging-config.json').__fspath__()},
   ],
   **SERVICE_CONFIG,
@@ -235,12 +240,15 @@ class API:
     # 0 will be note, 1 will be content
     metadata = EmbedMetadata(vault=vault_id, file=file_id, type=0 if note_id is not None else 1, note=note_id)
     try:
-      results = await self.embedding_client.embeddings.create(input=[content], model=EMBEDDING_ID, dimensions=1024)
+      results = await self.embedding_client.embeddings.create(
+        input=[content], model=EMBEDDING_ID, dimensions=1024, extra_headers={'Runner-Name': Embeddings.name}
+      )
       return EmbedTask(metadata=metadata, embedding=results.data[0].embedding)
     except Exception:
       logger.error(traceback.format_exc())
-      return EmbedTask(metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information')
-
+      return EmbedTask(
+        metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information'
+      )
 
   @bentoml.api
   async def suggests(
