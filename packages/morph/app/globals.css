@@ -421,6 +421,124 @@
   }
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Button shimmer border animation */
+@keyframes button-border-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@utility button-shimmer-border {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  isolation: isolate;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: -7px;
+    left: -7px;
+    right: -7px;
+    bottom: -7px;
+    z-index: -1;
+    border-radius: inherit;
+    background: conic-gradient(
+      transparent 0deg,
+      transparent 110deg,
+      var(--primary) 160deg,
+      var(--primary) 200deg,
+      transparent 250deg,
+      transparent 360deg
+    );
+    will-change: transform;
+    transform-origin: center;
+    animation: button-border-rotate 2.5s linear infinite;
+    opacity: 0.8;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    background: var(--background);
+    border-radius: inherit;
+    z-index: -1;
+  }
+}
+
+/* Dark mode shimmer border */
+.dark .button-shimmer-border::before {
+  background: conic-gradient(
+    transparent 0deg,
+    transparent 110deg,
+    var(--flexoki-blue-400) 160deg,
+    var(--flexoki-blue-400) 200deg,
+    transparent 250deg,
+    transparent 360deg
+  );
+  opacity: 0.7;
+}
+
+@utility animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--flexoki-paper) 0%,
+    var(--flexoki-50) 20%,
+    var(--flexoki-100) 40%,
+    var(--flexoki-50) 60%,
+    var(--flexoki-paper) 80%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+  background-repeat: no-repeat;
+}
+
+/* Text shimmer effect that masks a gradient to text */
+@utility animate-text-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--flexoki-tx-3) 0%,
+    var(--flexoki-tx) 25%,
+    var(--flexoki-tx-2) 50%,
+    var(--flexoki-tx) 75%,
+    var(--flexoki-tx-3) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: shimmer 3s linear infinite;
+  background-repeat: no-repeat;
+}
+
+.dark .animate-text-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--flexoki-tx-3) 0%,
+    var(--flexoki-tx-2) 25%,
+    var(--flexoki-tx) 50%,
+    var(--flexoki-tx-2) 75%,
+    var(--flexoki-tx-3) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: shimmer 3s linear infinite;
+  background-repeat: no-repeat;
+}
+
 @utility animate-wiggle {
   animation: wiggle 0.5s ease-in-out;
 }
@@ -1779,63 +1897,6 @@ ul#helper {
   100% {
     transform: translateX(-100%);
   }
-}
-
-/* Shimmer effect animation */
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-@utility animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--flexoki-paper) 0%,
-    var(--flexoki-50) 20%,
-    var(--flexoki-100) 40%,
-    var(--flexoki-50) 60%,
-    var(--flexoki-paper) 80%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 2s infinite;
-  background-repeat: no-repeat;
-}
-
-/* Text shimmer effect that masks a gradient to text */
-@utility animate-text-shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--flexoki-tx-3) 0%,
-    var(--flexoki-tx) 20%,
-    var(--flexoki-tx-2) 40%,
-    var(--flexoki-tx) 60%,
-    var(--flexoki-tx-3) 80%
-  );
-  background-size: 200% 100%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  animation: shimmer 2s infinite;
-  background-repeat: no-repeat;
-}
-
-.dark .animate-text-shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--flexoki-tx-3) 0%,
-    var(--flexoki-tx-2) 20%,
-    var(--flexoki-tx) 40%,
-    var(--flexoki-tx-2) 60%,
-    var(--flexoki-tx-3) 80%
-  );
-  background-size: 200% 100%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  animation: shimmer 2s infinite;
-  background-repeat: no-repeat;
 }
 
 /* Notes stack explosion effect */

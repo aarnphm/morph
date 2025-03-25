@@ -9,6 +9,7 @@ export interface Note {
   }
   createdAt: Date
   reasoningId?: string
+  dropped?: boolean
 }
 
 export interface EditorNoteState {

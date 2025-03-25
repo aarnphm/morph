@@ -9,7 +9,7 @@ authors = [{ name = "Aaron Pham", email = "contact@aarnphm.xyz" }]
 dependencies = [
   "huggingface-hub>=0.25.0",
   "transformers",
-  "vllm==0.8.1",
+  "vllm==0.8.2",
   "bentoml>=1.4.6",
   "openai>=1.67.0",
   "jinja2",
@@ -38,4 +38,6 @@ dev-dependencies = [
   "jupyter>=1.1.1",
   "jupyterlab-vim>=4.1.4",
   "notebook>=7.2.2",
+  "ruff>=0.9.4",
+  "ipython>=8.32.0",
 ]

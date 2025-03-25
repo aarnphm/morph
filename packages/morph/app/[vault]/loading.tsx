@@ -81,11 +81,6 @@ export default function Loading() {
               </div>
             </div>
           </section>
-          <footer className="sticky bottom-0 h-8 border-t text-xs/8 bg-background z-10">
-            <div className="h-full flex shrink-0 items-center align-middle font-serif justify-end mx-4 gap-4 text-muted-foreground hover:text-accent-foreground cursor-pointer">
-              <Skeleton className="h-6 w-6 p-0 rounded-full" />
-            </div>
-          </footer>
         </SidebarInset>
       </SidebarProvider>
     </main>

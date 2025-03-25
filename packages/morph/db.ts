@@ -55,6 +55,7 @@ export interface Note {
   createdAt: Date
   lastModified: Date
   reasoningId?: string
+  dropped?: boolean  // Track whether the note is dropped in the stack
 }
 
 export interface Reasoning {
@@ -79,7 +80,7 @@ export class Morph extends Dexie {
     this.version(1).stores({
       vaults: "&id, name, lastOpened",
       references: "id, vaultId",
-      notes: "id, fileId, vaultId",
+      notes: "id, fileId, vaultId, dropped",
       reasonings: "id, fileId, vaultId, createdAt",
     })
   }
