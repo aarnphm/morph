@@ -1,5 +1,7 @@
-## asteraceae
+# asteraceae
 
-_a BentoML-based service to run SAE-intervention_
+Inference backend for [morph](https://morph-editor.app)
 
-Uses [BentoML](https://bentoml.com) and [vLLM](https://blog.vllm.ai/2023/06/20/vllm.html) for inference.
+Powered by [BentoML](https://bentoml.com), [vLLM](https://blog.vllm.ai/2023/06/20/vllm.html), [LlamaIndex](https://www.llamaindex.ai/), and [Goodfire](https://www.goodfire.ai/)
+
+Using [CalVer](https://calver.org/) versioning
