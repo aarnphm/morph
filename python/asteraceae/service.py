@@ -31,7 +31,7 @@ class ServiceOpts(t.TypedDict, total=False):
 
 SERVICE_CONFIG: ServiceOpts = {
   'image': bentoml.images.PythonImage(python_version='3.11', lock_python_packages=False)
-  .requirements_file('requirements.txt')
+  .pyproject_toml('pyproject.toml')
   .run('uv pip install --compile-bytecode flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.6'),
   'traffic': {'timeout': 1000, 'concurrency': 128},
   'tracing': {'sample_rate': 1.0},
@@ -241,7 +241,7 @@ class API:
     metadata = EmbedMetadata(vault=vault_id, file=file_id, type=0 if note_id is not None else 1, note=note_id)
     try:
       results = await self.embedding_client.embeddings.create(
-        input=[content], model=EMBEDDING_ID, dimensions=1024, extra_headers={'Runner-Name': Embeddings.name}
+        input=[content], model=EMBEDDING_ID, extra_headers={'Runner-Name': Embeddings.name}
       )
       return EmbedTask(metadata=metadata, embedding=results.data[0].embedding)
     except Exception:
