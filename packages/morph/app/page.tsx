@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/c
 import { type Vault } from "@/db"
 import { useVaultContext } from "@/context/vault-context"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useCallback, useMemo, useRef } from "react"
+import { useCallback, useMemo, useRef, useState, useEffect } from "react"
 
 export default function Home() {
   const router = useRouter()
@@ -15,9 +15,29 @@ export default function Home() {
   const searchRef = useRef<SVGSVGElement>(null)
   const clockRef = useRef<SVGSVGElement>(null)
 
+  const [showMobileBlock, setShowMobileBlock] = useState(false)
+  const [showDisclaimer, setShowDisclaimer] = useState(true)
+
+  useEffect(() => {
+    if (showDisclaimer) {
+      const timer = setTimeout(() => {
+        setShowDisclaimer(false)
+      }, 10000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [showDisclaimer])
+
   const { setActiveVaultId, vaults, addVault, isLoading } = useVaultContext()
 
   const handleOpenDirectory = useCallback(async () => {
+    const isMobile = /Mobi|Android/i.test(navigator.userAgent)
+
+    if (isMobile) {
+      setShowMobileBlock(true)
+      return
+    }
+
     try {
       const handle = await window.showDirectoryPicker({ startIn: "documents" })
       const vault = await addVault(handle)
@@ -30,6 +50,7 @@ export default function Home() {
 
   const handleVaultSelect = useCallback(
     (vault: Vault) => {
+      if (showMobileBlock) return
       if (vault?.id) {
         router.push(`/${vault.id}`)
         setActiveVaultId(vault.id)
@@ -104,15 +125,68 @@ export default function Home() {
 
   return (
     <main className="min-h-screen w-full flex items-center justify-center bg-background">
-      <div className="container max-w-4xl py-8">
-        <section className="flex items-center justify-between mb-8">
+      <div className="container max-w-4xl mt-8 mb-4 py-4 border p-4 rounded-md">
+        <section>
+          {showDisclaimer && (
+            <>
+            <div className="fixed top-0 left-0 w-full h-3  bg-[#fff5d1] z-50 border-b border-[#f3cc5c]" />
+              <div
+              className="
+                fixed 
+                top-[11px] 
+                left-1/2 
+                -translate-x-1/2 
+                z-[60]
+                bg-[#fff5d1]
+                border-l border-b border-r border-[#f3cc5c]
+                rounded-bl-xl rounded-br-xl shadow-md
+                text-[#804000] text-sm
+                px-4 py-1
+                flex items-center gap-2
+                w-[35%]
+              "
+              >
+              <span className="mt-[-5px] text-center">
+                ⚠️ Vaults are local to your device and not synced to the cloud. Back up manually.
+                By continuing, you acknowledge responsibility for your vault’s contents.
+              </span>    
+              {/*
+              <button
+                className="ml-4 text-[#804000] underline hover:text-[#5c3000]"
+                onClick={() => setShowDisclaimer(false)}
+              >
+                Dismiss
+              </button>
+              */}
+            </div>
+            </>
+          )}
+          
+          {showMobileBlock && (
+            <div className="fixed inset-0 bg-background/90 z-50 flex flex-col items-center justify-center p-8 text-center">
+              <h2 className="text-xl font-semibold mb-4">Mobile access not supported</h2>
+              <p className="mb-6 text-muted-foreground max-w-md">
+                Our vault editor is currently only accessible on desktop devices.
+                Please visit our documentation or GitHub for more info.
+              </p>
+              <a
+                href="https://github.com/aarnphm/morph"
+                className="bg-black text-white px-4 py-2 rounded shadow"
+              >
+                Go to GitHub
+              </a>
+            </div>
+          )}
+        </section>
+
+        <section className="flex items-center justify-between mb-6">
           <hgroup>
-            <h1 className="text-3xl font-bold tracking-tight">Vaults</h1>
-            <p className="text-muted-foreground mt-2 italic">Manage recently opened vaults</p>
+        <h1 className="text-3xl font-bold tracking-tight">Vaults</h1>
+        <p className="text-muted-foreground mt-2 italic">Manage recently opened vaults</p>
           </hgroup>
           <Button onClick={handleOpenDirectory} className="gap-2 cursor-pointer">
-            <MagnifyingGlassIcon className="w-4 h-4" ref={searchRef} />
-            Open New Vault
+        <MagnifyingGlassIcon className="w-4 h-4" ref={searchRef} />
+        Open New Vault
           </Button>
         </section>
         <div className="flex items-center gap-2 text-sm text-muted-foreground my-4">
