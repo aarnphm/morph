@@ -13,16 +13,15 @@ This document summarizes the contributions of each team member for the final dem
 
 For each team member how many team meetings have they attended over the time period of interest. This number should be determined from the meeting issues in the team's repo. The first entry in the table should be the total number of team meetings held by the team.
 
-| Student | Meetings |
-| ------- | -------- |
-| Total   | Num      |
-| Name 1  | Num      |
-| Name 2  | Num      |
-| Name 3  | Num      |
-| Name 4  | Num      |
-| Name 5  | Num      |
+| Student            | Meetings |
+| ------------------ | -------- |
+| Total              | 5        |
+| Aaron (Anh) Pham   | 5        |
+| Nebras Khan        | 5        |
+| Waleed Malik       | 5        |
+| Zhiwei Li          | 5        |
 
-If needed, an explanation for the counts can be provided here.
+There are 5 team-wide weekly stand-up meeting after the Rev0, and all group members attended the meeting. 
 
 ## Supervisor/Stakeholder Meeting Attendance
 
