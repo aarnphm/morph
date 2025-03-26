@@ -163,19 +163,20 @@ export default function Home() {
           )}
           
           {showMobileBlock && (
-            <div className="fixed inset-0 bg-background/90 z-50 flex flex-col items-center justify-center p-8 text-center">
-              <h2 className="text-xl font-semibold mb-4">Mobile access not supported</h2>
-              <p className="mb-6 text-muted-foreground max-w-md">
-                Our vault editor is currently only accessible on desktop devices.
-                Please visit our documentation or GitHub for more info.
-              </p>
+            <Card className="fixed inset-0 bg-background/90 z-50 flex flex-col items-center justify-center p-8 text-center">
+              <CardTitle className="text-xl font-semibold mb-4">Mobile access not supported</CardTitle>
+              <CardDescription className="mb-6 text-muted-foreground max-w-md">
+              Our vault editor is currently only accessible on desktop devices.
+              Please visit our documentation or GitHub for more info.
+              </CardDescription>
+              <Button asChild>
               <a
                 href="https://github.com/aarnphm/morph"
-                className="bg-black text-white px-4 py-2 rounded shadow"
               >
                 Go to GitHub
               </a>
-            </div>
+              </Button>
+            </Card>
           )}
         </section>
 
