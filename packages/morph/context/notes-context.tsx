@@ -17,7 +17,7 @@ const NotesContext = React.createContext<NotesContextType | null>(null)
 export function NotesProvider({ children }: { children: React.ReactNode }) {
   const [notes, setNotes] = React.useState<Note[]>([])
 
-  const editorNotes = notes.filter((note) => note.isInEditor)
+  const editorNotes = notes.filter((note) => note.dropped)
 
   const addNote = React.useCallback(async (content: string, fileId: string, vaultId: string) => {
     const note: Note = {
@@ -26,7 +26,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       color: generatePastelColor(),
       fileId,
       vaultId,
-      isInEditor: false,
+      dropped: false,
       createdAt: new Date(),
       lastModified: new Date(),
     }
@@ -38,13 +38,11 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const moveNoteToEditor = React.useCallback(
     async (noteId: string, position: { x: number; y: number }) => {
       await db.notes.update(noteId, {
-        isInEditor: true,
+        dropped: true,
         position,
         lastModified: new Date(),
       })
-      setNotes((prev) =>
-        prev.map((n) => (n.id === noteId ? { ...n, isInEditor: true, position } : n)),
-      )
+      setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, dropped: true, position } : n)))
     },
     [],
   )
@@ -54,11 +52,11 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       .where("id")
       .equals(noteId)
       .modify((note) => {
-        note.isInEditor = false
+        note.dropped = false
         note.lastModified = new Date()
       })
     setNotes((prev) =>
-      prev.map((note) => (note.id === noteId ? { ...note, isInEditor: false } : note)),
+      prev.map((note) => (note.id === noteId ? { ...note, dropped: false } : note)),
     )
   }, [])
 

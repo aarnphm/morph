@@ -136,35 +136,33 @@ export const DraggableNoteCard = memo(function DraggableNoteCard({
   isGenerating: boolean
 }) {
   const cardRef = useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
 
-  const [{ isDragging }, drag] = useDrag(
-    () => ({
-      type: NOTES_DND_TYPE,
-      item: note,
-      end: (item, monitor) => {
-        const dropResult = monitor.getDropResult<{ noteId: string; targetId: string }>()
-        if (dropResult) {
-          // Only remove from current view if not already dropped
-          if (!note.dropped) {
-            onNoteRemoved(noteId)
-            onCurrentGenerationNote?.(note)
-          }
-          // Always handle the drop to update DB and UI state
-          handleNoteDropped(note)
-        }
-      },
-      collect: (monitor) => ({
-        isDragging: monitor.isDragging(),
-      }),
-    }),
-    [noteId, note, onNoteRemoved, handleNoteDropped, onCurrentGenerationNote],
-  )
+  const handleDragStart = (e: React.DragEvent) => {
+    setIsDragging(true)
+    e.dataTransfer.setData('text/plain', noteId)
+    e.dataTransfer.effectAllowed = 'move'
+  }
 
-  // Apply the drag ref to our element
-  drag(cardRef)
+  const handleDragEnd = (e: React.DragEvent) => {
+    setIsDragging(false)
+    // Only remove from current view if not already dropped
+    if (!note.dropped) {
+      onNoteRemoved(noteId)
+      onCurrentGenerationNote?.(note)
+    }
+    // Always handle the drop to update DB and UI state
+    handleNoteDropped(note)
+  }
 
   return (
-    <div ref={cardRef} className={isDragging ? "opacity-50" : ""}>
+    <div 
+      ref={cardRef} 
+      className={isDragging ? "opacity-50" : ""}
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
       <NoteCard className="w-full" note={note} isGenerating={isGenerating} />
     </div>
   )

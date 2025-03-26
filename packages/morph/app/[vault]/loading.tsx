@@ -54,7 +54,6 @@ export default function Loading() {
               <Skeleton className="h-6 w-6 p-0 rounded-full" />
               <div className="flex items-center gap-2">
                 <Skeleton className="h-6 w-6 p-0 rounded-full" />
-                <Skeleton className="h-6 w-6 p-0 rounded-full" />
               </div>
             </div>
           </header>

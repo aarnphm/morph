@@ -50,12 +50,11 @@ export interface Note {
   color: string
   fileId: string
   vaultId: string
-  isInEditor: boolean
   position?: { x: number; y: number }
   createdAt: Date
   lastModified: Date
   reasoningId?: string
-  dropped?: boolean  // Track whether the note is dropped in the stack
+  dropped?: boolean
 }
 
 export interface Reasoning {
@@ -85,11 +84,14 @@ export class Morph extends Dexie {
     })
   }
 
-  async addVaultWithReference(vault: Omit<Vault, "id">, references?: {
-    handle: FileSystemFileHandle | null,
-    path: string,
-    format: "biblatex" | "csl-json"
-  }): Promise<string> {
+  async addVaultWithReference(
+    vault: Omit<Vault, "id">,
+    references?: {
+      handle: FileSystemFileHandle | null
+      path: string
+      format: "biblatex" | "csl-json"
+    },
+  ): Promise<string> {
     return this.transaction("rw", this.vaults, this.references, async () => {
       const id = createId()
       await this.vaults.add({ ...vault, id })
@@ -98,7 +100,7 @@ export class Morph extends Dexie {
       await this.references.add({
         id: createId(),
         vaultId: id,
-        handle: references?.handle ?? null as any,
+        handle: references?.handle ?? (null as any),
         format: references?.format ?? "biblatex",
         path: references?.path ?? "",
         lastModified: new Date(),
