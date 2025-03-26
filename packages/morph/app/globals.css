@@ -389,19 +389,6 @@
   position: relative;
 }
 
-/* Sticky note tilt variation */
-@utility sticky-note-tilt {
-  transform: rotate(var(--tilt-angle, -1deg));
-  transform-origin: center;
-  transition: transform 0.2s ease-in-out;
-}
-@utility sticky-note-tilt-right {
-  --tilt-angle: 1deg;
-}
-@utility sticky-note-tilt-left {
-  --tilt-angle: -1deg;
-}
-
 /* Note card wiggle animation */
 @keyframes wiggle {
   0% {
