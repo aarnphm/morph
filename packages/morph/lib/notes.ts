@@ -1,22 +1,3 @@
-export interface Note {
-  id: string
-  content: string
-  color: string
-  fileId: string
-  isInEditor: boolean
-  editorPosition?: {
-    order: number
-  }
-  createdAt: Date
-  reasoningId?: string
-  dropped?: boolean
-}
-
-export interface EditorNoteState {
-  isHovering: boolean
-  isCommandPressed: boolean
-}
-
 // Generate a random pastel color using Tailwind's color scheme
 export function generatePastelColor() {
   const pastelColors = [

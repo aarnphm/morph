@@ -21,8 +21,6 @@ export default function Loading() {
           <SidebarHeader className="border-b h-10 p-0 min-h-10 sticky">
             <div className="h-full flex items-center justify-end mx-4 gap-2">
               <Skeleton className="h-6 w-6 p-0 rounded-full" />
-              <Skeleton className="h-6 w-6 p-0 rounded-full" />
-              <Skeleton className="h-6 w-6 p-0 rounded-full" />
             </div>
           </SidebarHeader>
           <SidebarContent>
@@ -61,7 +59,7 @@ export default function Loading() {
             </div>
           </header>
           <section className="flex flex-1 overflow-hidden m-4 rounded-md border">
-            <div className="flex-1 border relative">
+            <div className="flex-1 relative">
               <div className="h-full mx-12 pt-4 scrollbar-hidden">
                 <div className="cm-editor">
                   <div className="cm-scroller">

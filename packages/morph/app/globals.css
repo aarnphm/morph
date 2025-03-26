@@ -1898,19 +1898,3 @@ ul#helper {
     transform: translateX(-100%);
   }
 }
-
-/* Notes stack explosion effect */
-.notes-stack .absolute {
-  transition:
-    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-    top 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-    right 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.expanded-stack .absolute {
-  transform: rotate(0deg) !important;
-}
-
-.group:hover .notes-stack .absolute {
-  transform: translateY(var(--explode-y, 0)) rotate(0deg) !important;
-}

@@ -1,10 +1,11 @@
 import React, { useRef } from "react"
 import { useDrop, useDragLayer } from "react-dnd"
-import { NOTES_DND_TYPE, type Note } from "@/lib/notes"
+import { NOTES_DND_TYPE } from "@/lib/notes"
 import { useNotes } from "@/context/notes-context"
 import { NoteCard } from "@/components/note-card"
+import type { Note } from "@/db"
 
-export function EditorNotes() {
+export function SuggestionNotes() {
   const { editorNotes, moveNoteToEditor } = useNotes()
   const containerRef = useRef<HTMLDivElement>(null)
 

@@ -13,6 +13,7 @@ export default MillionLint.next({
   })({
     assetPrefix: process.env.NODE_ENV === "production" ? undefined : "",
     transpilePackages: ["next-plausible", "katex", "mermaid"],
+    devIndicators: false,
     webpack(config) {
       config.module.rules.push({
         test: /\.(woff|woff2|eot|ttf|otf)$/,

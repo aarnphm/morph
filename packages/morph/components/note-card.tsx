@@ -1,8 +1,10 @@
 import * as React from "react"
-import { useRef, useState } from "react"
+import { useRef, useState, memo, useMemo } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useDrag } from "react-dnd"
-import { NOTES_DND_TYPE, type Note } from "@/lib/notes"
+import { NOTES_DND_TYPE } from "@/lib/notes"
 import { cn } from "@/lib/utils"
+import type { Note } from "@/db"
 
 interface NoteCardProps {
   note: Note
@@ -10,7 +12,7 @@ interface NoteCardProps {
   isGenerating?: boolean
 }
 
-export const NoteCard = React.memo(function NoteCard({
+export const NoteCard = memo(function NoteCard({
   note,
   className,
   isGenerating = false,
@@ -45,10 +47,10 @@ export const NoteCard = React.memo(function NoteCard({
   }
 
   // Generate random rotation between -2.5 and 2.5 degrees for a more natural look
-  const rotation = React.useMemo(() => Math.random() * 5 - 2.5, [])
+  const rotation = useMemo(() => Math.random() * 5 - 2.5, [])
 
   // Generate random shadow offset for 3D effect
-  const shadowOffset = React.useMemo(() => {
+  const shadowOffset = useMemo(() => {
     const x = Math.floor(Math.random() * 3) + 2
     const y = Math.floor(Math.random() * 3) + 2
     return { x, y }
@@ -114,6 +116,113 @@ export const NoteCard = React.memo(function NoteCard({
       )}
 
       <p className="text-sm leading-relaxed text-gray-800 dark:text-gray-200">{note.content}</p>
+    </div>
+  )
+})
+
+export const DraggableNoteCard = memo(function DraggableNoteCard({
+  note,
+  noteId,
+  handleNoteDropped,
+  onNoteRemoved,
+  onCurrentGenerationNote,
+  isGenerating,
+}: {
+  note: Note
+  noteId: string
+  handleNoteDropped: (note: Note) => void
+  onNoteRemoved: (noteId: string) => void
+  onCurrentGenerationNote?: (note: Note) => void
+  isGenerating: boolean
+}) {
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  const [{ isDragging }, drag] = useDrag(
+    () => ({
+      type: NOTES_DND_TYPE,
+      item: note,
+      end: (item, monitor) => {
+        const dropResult = monitor.getDropResult<{ noteId: string; targetId: string }>()
+        if (dropResult) {
+          // Only remove from current view if not already dropped
+          if (!note.dropped) {
+            onNoteRemoved(noteId)
+            onCurrentGenerationNote?.(note)
+          }
+          // Always handle the drop to update DB and UI state
+          handleNoteDropped(note)
+        }
+      },
+      collect: (monitor) => ({
+        isDragging: monitor.isDragging(),
+      }),
+    }),
+    [noteId, note, onNoteRemoved, handleNoteDropped, onCurrentGenerationNote],
+  )
+
+  // Apply the drag ref to our element
+  drag(cardRef)
+
+  return (
+    <div ref={cardRef} className={isDragging ? "opacity-50" : ""}>
+      <NoteCard className="w-full" note={note} isGenerating={isGenerating} />
+    </div>
+  )
+})
+
+export const NoteCardSkeleton = memo(function NoteCardSkeleton({
+  color = "bg-muted/10",
+  className,
+}: {
+  color?: string
+  className?: string
+}) {
+  // Generate random rotation between -2.5 and 2.5 degrees for natural look
+  const rotation = (Math.random() * 5 - 2.5).toFixed(2)
+  // Generate shadow offset for 3D effect
+  const x = Math.floor(Math.random() * 3) + 2
+  const y = Math.floor(Math.random() * 3) + 2
+
+  const skeletons = useMemo(
+    () => (
+      <div className="space-y-2">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-3/4" />
+      </div>
+    ),
+    [],
+  )
+
+  return (
+    <div
+      style={{
+        boxShadow: `${x}px ${y}px 8px rgba(0,0,0,0.15)`,
+        backgroundImage: `
+          radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px),
+          radial-gradient(rgba(0,0,0,0.07) 1px, transparent 1px)
+        `,
+        backgroundSize: "20px 20px, 10px 10px",
+        backgroundPosition: "-10px -10px, 0px 0px",
+        transform: `rotate(${rotation}deg)`,
+        transition: "all 0.3s ease-in-out",
+      }}
+      className={cn(
+        "p-4 border border-border transition-all",
+        "shadow-md",
+        "cursor-default",
+        "animate-shimmer",
+        color,
+        "w-full mb-4",
+        "notecard-ragged relative rounded-sm",
+        "before:content-[''] before:absolute before:inset-0 before:z-[-1]",
+        "before:opacity-50 before:mix-blend-multiply before:bg-noise-pattern",
+        "after:content-[''] after:absolute after:bottom-[-8px] after:right-[-8px]",
+        "after:left-[8px] after:top-[8px] after:z-[-2] after:bg-black/10",
+        className,
+      )}
+    >
+      {skeletons}
     </div>
   )
 })

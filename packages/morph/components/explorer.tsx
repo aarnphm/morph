@@ -107,7 +107,7 @@ const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect }: FileTree
   )
 })
 
-interface MorphSidebarProps extends React.ComponentProps<typeof Sidebar> {
+interface FileTreeProps extends React.ComponentProps<typeof Sidebar> {
   vault: Vault
   editorViewRef: React.RefObject<EditorView | null>
   onFileSelect?: (handle: FileSystemFileHandle) => void
@@ -196,7 +196,7 @@ const ExplorerHeader = memo(function ExplorerHeader({
     [onExportMarkdown],
   )
 
-  const sidebarHeader = useMemo(
+  const memoSidebarHeader = useMemo(
     () => (
       <SidebarHeader className="border-b h-10 p-0 min-h-10 sticky">
         <div className="h-full flex items-center justify-end mx-4 gap-2">
@@ -212,7 +212,7 @@ const ExplorerHeader = memo(function ExplorerHeader({
     [manageVaultButton, newFileButton, exportButton, memoDropdownMenuContent],
   )
 
-  return sidebarHeader
+  return memoSidebarHeader
 })
 
 export default memo(function Explorer({
@@ -223,7 +223,7 @@ export default memo(function Explorer({
   onContentUpdate,
   onExportMarkdown,
   ...props
-}: MorphSidebarProps) {
+}: FileTreeProps) {
   const { toast } = useToast()
   const router = useRouter()
   const handleFileSelect = useCallback(
