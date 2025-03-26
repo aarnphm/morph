@@ -84,11 +84,8 @@ For each team member how many issues have they authored (including open and clos
 
 | Student             | Authored (O+C) | Assigned (C only) |
 | ------------------- | -------------- | ----------------- |
-| Aaron (Anh) Pham    | Num            | Num               |
-| Nebras Khan         | Num            | Num               |
-| Waleed Malik        | Num            | Num               |
-| Zhiwei Li           | Num            | Num               |
+| Aaron (Anh) Pham    | 43             | 35                |
+| Nebras Khan         | 12             | 10                |
+| Waleed Malik        | 18             | 18                |
+| Zhiwei Li           | 9              | 9                 |
 
-If needed, an explanation for the counts can be provided here.
-
-If your team has additional metrics of productivity, please feel free to add them to this report.
