@@ -283,17 +283,14 @@ const DroppedNotesStack = memo(
   }: DroppedNotesStackProps) {
     const containerRef = useRef<HTMLDivElement>(null)
     const MAX_VISIBLE_NOTES = 5
-    const MAX_TOTAL_NOTES = 20
+    const MAX_TOTAL_NOTES = 14
     const hasMoreNotes = droppedNotes.length > MAX_VISIBLE_NOTES
     const shouldShowScroll = droppedNotes.length > MAX_TOTAL_NOTES
     const hasNotes = droppedNotes.length > 0
 
     // Get notes to display - either first 5 or all (limited to 20 for performance)
     const notesToDisplay = useMemo(
-      () =>
-        isStackExpanded
-          ? droppedNotes.slice(0, MAX_TOTAL_NOTES)
-          : droppedNotes.slice(0, MAX_VISIBLE_NOTES),
+      () => (isStackExpanded ? droppedNotes : droppedNotes.slice(0, MAX_VISIBLE_NOTES)),
       [droppedNotes, isStackExpanded],
     )
 
@@ -826,7 +823,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   const toggleStackExpand = useCallback(() => {
     setIsStackExpanded((prev) => !prev)
-    console.log("Toggle stack expanded: ", !isStackExpanded)
   }, [isStackExpanded])
 
   const vault = vaults.find((v) => v.id === vaultId)
@@ -877,8 +873,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         const fileDroppedNotes = await db.notes
           .filter((note) => note.dropped === true && note.fileId === currentFile)
           .toArray()
-
-        console.log("Loaded dropped notes:", fileDroppedNotes.length)
 
         // Ensure each note has a color
         const notesWithColors = fileDroppedNotes.map((note) => ({

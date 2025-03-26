@@ -18,6 +18,7 @@ dependencies = [
   "llama-index>=0.12.25",
   "llama-index-vector-stores-hnswlib>=0.3.0",
   "hnswlib>=0.8.0",
+  "llama-index-embeddings-openai>=0.3.1",
 ]
 [project.urls]
 Website = "https://morph-editor.app"

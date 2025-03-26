@@ -11,9 +11,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 // Define note card variants using CVA
 const noteCardVariants = cva(
   [
-    "p-4 border border-border transition-all",
-    "shadow-md",
-    "notecard-ragged relative",
+    "p-4 border border-border transition-all shadow-md relative notecard-ragged",
     "before:content-[''] before:absolute before:inset-0 before:z-[-1]",
     "before:opacity-50 before:mix-blend-multiply before:bg-noise-pattern",
     "after:content-[''] after:absolute after:bottom-[-8px] after:right-[-8px]",

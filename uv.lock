@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.11"
 resolution-markers = [
     "python_version < '0'",
@@ -274,6 +275,7 @@ dependencies = [
     { name = "jinja2" },
     { name = "kantoku" },
     { name = "llama-index" },
+    { name = "llama-index-embeddings-openai" },
     { name = "llama-index-vector-stores-hnswlib" },
     { name = "openai" },
     { name = "transformers" },
@@ -301,10 +303,11 @@ requires-dist = [
     { name = "jinja2" },
     { name = "kantoku", specifier = ">=0.18.1" },
     { name = "llama-index", specifier = ">=0.12.25" },
+    { name = "llama-index-embeddings-openai", specifier = ">=0.3.1" },
     { name = "llama-index-vector-stores-hnswlib", specifier = ">=0.3.0" },
     { name = "openai", specifier = ">=1.67.0" },
     { name = "transformers" },
-    { name = "vllm", specifier = "==0.8.1" },
+    { name = "vllm", specifier = "==0.8.2" },
 ]
 
 [package.metadata.requires-dev]
@@ -2385,6 +2388,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/21/af/f0062356f2ba1f32ba26d6f1c35b4f342878db29664efc62093cd2b0193f/llama_parse-0.6.4.post1.tar.gz", hash = "sha256:846d9959f4e034f8d9681dd1f003d42f8d7dc028d394ab04867b59046b4390d6", size = 3685 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/77/d5/9e360e31fb5852842c434043c2a7ba6714a363546b5adeedff537fae5e0d/llama_parse-0.6.4.post1-py3-none-any.whl", hash = "sha256:fdc7adb87283c2f952c830d9057c156a1349c1e6e04444d7466e732903fbc150", size = 4902 },
+]
+
+[[package]]
+name = "llguidance"
+version = "0.7.10"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b7/45/14ee972a29b1a6d9e456949b17b4de4448dd13b470e8832d14e5d92d4fc4/llguidance-0.7.10.tar.gz", hash = "sha256:c38bb403d81e249039cdf82743586ded98e4233ab8a4b2207d1e1bce2f63b498", size = 375105 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/54/1d/13c33ce0a268329d10405d07e1020609cc42d311bbdcaf9a6237420fa309/llguidance-0.7.10-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:a5c641f7c7aa888b7776684828245cc69dffdf8e05c45ae1e636870e7fef640f", size = 3070481 },
+    { url = "https://files.pythonhosted.org/packages/e3/49/f85adf2938b5203a3e853536164089cc6eb6488bdda3ba0672bc74a4d7ad/llguidance-0.7.10-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:bf84873a7078fabfcb7eb83840f1b56698020f4ae64a0a1cba43724939c216f2", size = 2962154 },
+    { url = "https://files.pythonhosted.org/packages/93/21/a17f377f08e1cf06c935a51eeed2cb9f5d186bca829036b548c835ab34dd/llguidance-0.7.10-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:f74871b9bb40c593b88396c2d6c88b9b8cf668f0348a822668953708f10bdd97", size = 13579285 },
+    { url = "https://files.pythonhosted.org/packages/b6/65/6684e20dd0ec6ef679c3e9789605ad253235095bb5094120a993fc452454/llguidance-0.7.10-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0ed278c9bb5ac7553ea6303984c749b01a58f88e406e2239de5dbf3dfc1bbb9d", size = 13705064 },
+    { url = "https://files.pythonhosted.org/packages/f7/1a/e44b9a6f33a80941427822fed8952849ad93a1d8b7f78cf34b47bc75faaa/llguidance-0.7.10-cp39-abi3-win_amd64.whl", hash = "sha256:4d85fa4919bfc72368441612f5de53bf8781cfa9091fc77c60580a04018e83c2", size = 2614197 },
 ]
 
 [[package]]
@@ -5409,7 +5425,7 @@ wheels = [
 
 [[package]]
 name = "vllm"
-version = "0.8.1"
+version = "0.8.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -5424,6 +5440,7 @@ dependencies = [
     { name = "gguf" },
     { name = "importlib-metadata" },
     { name = "lark" },
+    { name = "llguidance", marker = "platform_machine == 'aarch64' or platform_machine == 'arm64' or platform_machine == 'x86_64'" },
     { name = "lm-format-enforcer" },
     { name = "mistral-common", extra = ["opencv"] },
     { name = "msgspec" },
@@ -5461,9 +5478,9 @@ dependencies = [
     { name = "xformers", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "xgrammar", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f3/49/32595e089cd4f821ab49132351b50e449348a625673339aa5c7605bf609b/vllm-0.8.1.tar.gz", hash = "sha256:03d641f10d0181b630243c096484da0b5fdf608befe026af831ab87a51c09ab1", size = 6421764 }
+sdist = { url = "https://files.pythonhosted.org/packages/df/4d/6b27cc14d0c35e578a743a767953500a801ba296694b7e44cca709738b41/vllm-0.8.2.tar.gz", hash = "sha256:9b337b1c4072ccb94b1bf2b716593fadbe2dcb8d091f9bcbd6b5c6d37f9842ac", size = 6450146 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c4/9d/64e107313a19327b049a2267871cceb9b0415f79ee5c00dc360099f929e8/vllm-0.8.1-cp38-abi3-manylinux1_x86_64.whl", hash = "sha256:becc51ff9faa61bf5c8765366afed5b6a4b71942ae35731805082a320e8912d2", size = 265326842 },
+    { url = "https://files.pythonhosted.org/packages/57/49/207364110b96d76139a4e80617e5831d46884abe824941b15c8a748ca5e0/vllm-0.8.2-cp38-abi3-manylinux1_x86_64.whl", hash = "sha256:32442b686c5dad8e6ddcf5a8b0cf3f741359fed6a9e9e940009f1daf80ae15de", size = 293643693 },
 ]
 
 [[package]]
