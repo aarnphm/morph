@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-import enum
-import logging, traceback, os, contextlib, pathlib, typing as t
-import bentoml, fastapi, pydantic, jinja2, numpy as np, annotated_types as ae
+import logging, argparse, enum, traceback, os, contextlib, pathlib, typing as t
+import bentoml, fastapi, pydantic, jinja2, annotated_types as ae
 
-with bentoml.importing():
-  import openai
-  import hnswlib
-  from llama_index.core import Document
-  from llama_index.core.node_parser import SemanticSplitterNodeParser, SentenceSplitter
-  from llama_index.core.schema import TextNode
-  from llama_index.embeddings.openai import OpenAIEmbedding
+# from llama_index.core import Document
+# from llama_index.core.node_parser import SemanticSplitterNodeParser, SentenceSplitter
+# from llama_index.core.schema import TextNode
+# from llama_index.embeddings.openai import OpenAIEmbedding
 
 
 if t.TYPE_CHECKING:
@@ -23,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
 INFERENCE_ID = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B'
-EMBEDDING_ID = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B'
+EMBEDDING_ID = 'Alibaba-NLP/gte-Qwen2-7B-instruct'
 STRUCTURED_OUTPUT_BACKEND = 'xgrammar:disable-any-whitespace'  # remove any whitespace if it is not qwen.
 MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 16 * 1024))
 MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 8 * 1024))
@@ -43,14 +39,69 @@ SERVICE_CONFIG: ServiceOpts = {
   'traffic': {'timeout': 1000, 'concurrency': 128},
   'tracing': {'sample_rate': 1.0},
 }
-VLLM_ENV = [
-  {'name': 'HF_TOKEN'},
-  {'name': 'UV_NO_PROGRESS', 'value': '1'},
-  {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
-  {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
-  {'name': 'VLLM_USE_V1', 'value': '0'},
-  {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': (WORKING_DIR / 'logging-config.json').__fspath__()},
-]
+
+
+def make_env(engine_version: t.Literal[0, 1] = 1) -> list[dict[str, str]]:
+  return [
+    {'name': 'HF_TOKEN'},
+    {'name': 'UV_NO_PROGRESS', 'value': '1'},
+    {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
+    {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
+    {'name': 'VLLM_USE_V1', 'value': str(engine_version)},
+    {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': (WORKING_DIR / 'logging-config.json').__fspath__()},
+  ]
+
+
+TaskType = t.Literal['generate', 'embed']
+
+
+def make_args(
+  model: str,
+  model_id: str,
+  /,
+  *,
+  task: TaskType,
+  max_log_len: int = 2000,
+  max_tokens: int = MAX_MODEL_LEN,
+  reasoning: bool = True,
+  reasoning_parser: str = 'deepseek_r1',
+  trust_remote_code: bool = False,
+  prefix_caching: bool = True,
+  tool: bool = True,
+  tool_parser: str = 'hermes',
+  **kwargs: t.Any,
+) -> argparse.Namespace:
+  from vllm.utils import FlexibleArgumentParser
+  from vllm.entrypoints.openai.cli_args import make_arg_parser
+
+  variables = dict(
+    task=task,
+    model=model,
+    disable_log_requests=True,
+    max_log_len=max_log_len,
+    served_model_name=[model_id],
+    request_logger=None,
+    disable_log_stats=True,
+    use_tqdm_on_load=False,
+    enable_prefix_caching=prefix_caching,
+    enable_auto_tool_choice=tool,
+    tool_call_parser=tool_parser,
+    max_model_len=max_tokens,
+    ignore_patterns=IGNORE_PATTERNS,
+    enable_reasoning=reasoning,
+    trust_remote_code=trust_remote_code,
+    reasoning_parser=reasoning_parser,
+    guided_decoding_backend=STRUCTURED_OUTPUT_BACKEND,
+    **kwargs,
+  )
+  args = make_arg_parser(FlexibleArgumentParser()).parse_args([])
+  for k, v in variables.items():
+    setattr(args, k, v)
+  return args
+
+
+def make_labels(task: TaskType) -> dict[str, t.Any]:
+  return {'owner': 'aarnphm', 'type': 'engine', 'task': task}
 
 
 class Suggestion(pydantic.BaseModel):
@@ -68,9 +119,9 @@ inference_api = fastapi.FastAPI()
 @bentoml.asgi_app(inference_api, path='/v1')
 @bentoml.service(
   name='asteraceae-inference-engine',
-  resources={'gpu': 2, 'gpu_type': 'nvidia-a100-80gb'},
-  labels={'owner': 'aarnphm', 'type': 'engine', 'task': 'generate'},
-  envs=VLLM_ENV,
+  resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
+  labels=make_labels('generate'),
+  envs=make_env(0),
   **SERVICE_CONFIG,
 )
 class Engine:
@@ -84,27 +135,6 @@ class Engine:
   async def init_engine(self) -> None:
     import vllm.entrypoints.openai.api_server as vllm_api_server
 
-    from vllm.utils import FlexibleArgumentParser
-    from vllm.entrypoints.openai.cli_args import make_arg_parser
-
-    args = make_arg_parser(FlexibleArgumentParser()).parse_args([])
-    args.task = 'generate'
-    args.model = self.model
-    args.disable_log_requests = True
-    args.max_log_len = 1000
-    args.served_model_name = [self.model_id]
-    args.request_logger = None
-    args.disable_log_stats = True
-    args.use_tqdm_on_load = False
-    args.enable_prefix_caching = True
-    args.enable_reasoning = True
-    args.reasoning_parser = 'deepseek_r1'
-    args.enable_auto_tool_choice = True
-    args.tool_call_parser = 'hermes'
-    args.max_model_len = MAX_MODEL_LEN
-    args.ignore_patterns = IGNORE_PATTERNS
-    args.guided_decoding_backend = STRUCTURED_OUTPUT_BACKEND
-
     router = fastapi.APIRouter(lifespan=vllm_api_server.lifespan)
     OPENAI_ENDPOINTS = [
       ['/chat/completions', vllm_api_server.create_chat_completion, ['POST']],
@@ -115,10 +145,10 @@ class Engine:
       router.add_api_route(path=route, endpoint=endpoint, methods=methods, include_in_schema=True)
     inference_api.include_router(router)
 
+    args = make_args(self.model, self.model_id, task='generate')
     self.engine = await self.exit_stack.enter_async_context(vllm_api_server.build_async_engine_client(args))
     self.model_config = await self.engine.get_model_config()
     self.tokenizer = await self.engine.get_tokenizer()
-
     await vllm_api_server.init_app_state(self.engine, self.model_config, inference_api.state, args)
 
   @bentoml.on_shutdown
@@ -144,9 +174,9 @@ embedding_api = fastapi.FastAPI()
 @bentoml.asgi_app(embedding_api, path='/v1')
 @bentoml.service(
   name='asteraceae-embedding-engine',
-  resources={'gpu': 1, 'gpu_type': 'nvidia-tesla-a100'},
-  labels={'owner': 'aarnphm', 'type': 'engine', 'task': 'embed'},
-  envs=VLLM_ENV,
+  resources={'gpu': 1, 'gpu_type': 'nvidia-l4'},
+  labels=make_labels('embed'),
+  envs=make_env(0),
   **SERVICE_CONFIG,
 )
 class Embeddings:
@@ -158,23 +188,20 @@ class Embeddings:
 
   @bentoml.on_startup
   async def init_engine(self) -> None:
+    import torch
     import vllm.entrypoints.openai.api_server as vllm_api_server
 
-    from vllm.utils import FlexibleArgumentParser
-    from vllm.entrypoints.openai.cli_args import make_arg_parser
-
-    args = make_arg_parser(FlexibleArgumentParser()).parse_args([])
-    args.task = 'embed'
-    args.model = self.model
-    args.disable_log_requests = True
-    args.max_log_len = 1000
-    args.served_model_name = [self.model_id]
-    args.request_logger = None
-    args.disable_log_stats = True
-    args.use_tqdm_on_load = False
-    args.enable_prefix_caching = True
-    args.max_model_len = 8192
-    args.ignore_patterns = IGNORE_PATTERNS
+    args = make_args(
+      self.model,
+      self.model_id,
+      task='embed',
+      max_tokens=8192,
+      reasoning=False,
+      trust_remote_code=True,
+      prefix_caching=False,
+      dtype=torch.bfloat16,
+    )
+    # args.hf_overrides = {'is_causal': True}
 
     router = fastapi.APIRouter(lifespan=vllm_api_server.lifespan)
     OPENAI_ENDPOINTS = [
@@ -195,24 +222,6 @@ class Embeddings:
   @bentoml.on_shutdown
   async def teardown_engine(self):
     await self.exit_stack.aclose()
-
-  @bentoml.on_startup
-  def setup_parsers_tooling(self):
-    self.embed_model = OpenAIEmbedding(
-      model_name=self.model_id,
-      api_base=f'{Embeddings.client_url}/v1',
-      api_key='dummy',
-      dimensions=None,
-      additional_headers={'Runner-Name': self.__class__.__name__},
-    )
-
-    # Initialize the semantic chunker
-    self.sentence_splitter = SentenceSplitter(
-      paragraph="\n\n",  # note that this supports linebreaks in Quartz and Obsidian.
-      tokenizer=self.tokenizer,
-    )
-    self.chunker = SemanticSplitterNodeParser(buffer_size=1, breakpoint_percentile_threshold=95,
-                                              embed_model=self.embed_model, sentence_splitter=self.sentence_splitter)
 
   @bentoml.task
   async def essays(self, essay: Essay) -> list[EmbedTask]:
@@ -239,9 +248,7 @@ class Embeddings:
 
         # Create embedding for the chunk
         embedding_result = await self.embedding_client.embeddings.create(
-          input=[node.text],
-          model=self.model_id,
-          extra_headers={'Runner-Name': self.__class__.__name__}
+          input=[node.text], model=self.model_id, extra_headers={'Runner-Name': self.__class__.__name__}
         )
 
         # Create metadata with chunk index and original node metadata
@@ -253,25 +260,14 @@ class Embeddings:
         )
 
         # Add embedding to results
-        results.append(
-          EmbedTask(
-            metadata=metadata,
-            embedding=embedding_result.data[0].embedding
-          )
-        )
+        results.append(EmbedTask(metadata=metadata, embedding=embedding_result.data[0].embedding))
 
     except Exception:
       logger.error(traceback.format_exc())
-      metadata = EmbedMetadata(
-        vault=essay.vault_id,
-        file=essay.file_id,
-        type=DocumentType.ESSAY
-      )
+      metadata = EmbedMetadata(vault=essay.vault_id, file=essay.file_id, type=DocumentType.ESSAY)
       results.append(
         EmbedTask(
-          metadata=metadata,
-          embedding=[],
-          error='Internal error found. Check server logs for more information'
+          metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information'
         )
       )
 
@@ -279,35 +275,32 @@ class Embeddings:
 
   @bentoml.api(batchable=True)
   async def notes(self, notes: list[Note]) -> list[EmbedTask]:
-    """Simply embed note content and return embeddings."""
     results = []
 
-    for note in notes:
-      try:
-        # Create embedding for the note
-        embedding_result = await self.embedding_client.embeddings.create(
-          input=[note.content],
-          model=self.model_id,
-          extra_headers={'Runner-Name': self.__class__.__name__}
-        )
+    try:
+      embedding_result = await self.embedding_client.embeddings.create(
+        input=[note.content for note in notes],
+        model=self.model_id,
+        extra_headers={'Runner-Name': self.__class__.__name__},
+      )
 
-        # Create embed task
-        metadata = EmbedMetadata(
-          vault='',  # Note doesn't have vault_id in its parameters
-          file=note.file_id,
-          type=DocumentType.NOTE,
-          note=note.note_id,
-        )
+      # Create embed task
+      metadata = EmbedMetadata(
+        vault='',  # Note doesn't have vault_id in its parameters
+        file=note.file_id,
+        type=DocumentType.NOTE,
+        note=note.note_id,
+      )
 
-        results.append(EmbedTask(metadata=metadata, embedding=embedding_result.data[0].embedding))
-      except Exception:
-        logger.error(traceback.format_exc())
-        metadata = EmbedMetadata(vault='', file=note.file_id, type=DocumentType.NOTE, note=note.note_id)
-        results.append(
-          EmbedTask(
-            metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information'
-          )
+      results.append(EmbedTask(metadata=metadata, embedding=embedding_result.data[0].embedding))
+    except Exception:
+      logger.error(traceback.format_exc())
+      metadata = EmbedMetadata(vault='', file=note.file_id, type=DocumentType.NOTE, note=note.note_id)
+      results.append(
+        EmbedTask(
+          metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information'
         )
+      )
 
     return results
 
@@ -328,135 +321,6 @@ class EmbedTask(pydantic.BaseModel):
   metadata: EmbedMetadata
   embedding: list[float]
   error: str = pydantic.Field(default='')
-
-
-class HNSWIndexManager(pydantic.BaseModel):
-  dim: int = 1024
-  ef_construction: int = 200
-  M: int = 16
-  indexes: dict[str, t.Any] = pydantic.Field(default_factory=dict)
-  metadata: dict[str, list[EmbedMetadata]] = pydantic.Field(default_factory=dict)
-
-  def create_index(self, index_id: str, reset: bool = False) -> None:
-    """Create or reset a vector index.
-
-    Args:
-        index_id: Unique identifier for the index
-        reset: If True, reset an existing index
-    """
-    if index_id in self.indexes and not reset:
-      return
-
-    # Initialize new index
-    index = hnswlib.Index(space='cosine', dim=self.dim)
-    index.init_index(max_elements=10000, ef_construction=self.ef_construction, M=self.M)
-    index.set_ef(50)  # Sets search accuracy vs speed tradeoff
-
-    self.indexes[index_id] = index
-    self.metadata[index_id] = []
-
-  def add_items(self, index_id: str, vectors: List[List[float]], metadata_list: List[EmbedMetadata]) -> None:
-    """Add vectors and their metadata to an index.
-
-    Args:
-        index_id: Target index identifier
-        vectors: List of embedding vectors
-        metadata_list: List of metadata corresponding to vectors
-    """
-    if index_id not in self.indexes:
-      self.create_index(index_id)
-
-    index = self.indexes[index_id]
-    start_idx = len(self.metadata[index_id])
-
-    # Convert to numpy array
-    vectors_np = np.array(vectors, dtype=np.float32)
-
-    # Add items to index
-    index.add_items(vectors_np, list(range(start_idx, start_idx + len(vectors))))
-
-    # Store metadata
-    self.metadata[index_id].extend(metadata_list)
-
-  def search(
-    self, index_id: str, query_vector: List[float], k: int = 5
-  ) -> Tuple[List[int], List[float], List[EmbedMetadata]]:
-    """Search for similar vectors.
-
-    Args:
-        index_id: Target index identifier
-        query_vector: Query embedding vector
-        k: Number of results to return
-
-    Returns:
-        Tuple of (indexes, distances, metadata)
-    """
-    if index_id not in self.indexes:
-      return [], [], []
-
-    index = self.indexes[index_id]
-    query_np = np.array(query_vector, dtype=np.float32).reshape(1, -1)
-
-    # Get k nearest neighbors
-    indexes, distances = index.knn_query(query_np, k=min(k, len(self.metadata[index_id])))
-
-    # Retrieve metadata for each result
-    result_metadata = [self.metadata[index_id][i] for i in indexes[0]]
-
-    return indexes[0].tolist(), distances[0].tolist(), result_metadata
-
-  def save_index(self, index_id: str, path: str) -> None:
-    """Save index to disk.
-
-    Args:
-        index_id: Index identifier to save
-        path: Directory path to save the index
-    """
-    if index_id not in self.indexes:
-      return
-
-    index_path = pathlib.Path(path) / f'{index_id}.hnsw'
-    metadata_path = pathlib.Path(path) / f'{index_id}.metadata'
-
-    # Save index
-    self.indexes[index_id].save_index(str(index_path))
-
-    # Save metadata using pickle
-    import pickle
-
-    with open(metadata_path, 'wb') as f:
-      pickle.dump(self.metadata[index_id], f)
-
-  def load_index(self, index_id: str, path: str, max_elements: int = 10000) -> bool:
-    """Load index from disk.
-
-    Args:
-        index_id: Index identifier to load
-        path: Directory path to load the index from
-        max_elements: Maximum elements in the index
-
-    Returns:
-        True if loaded successfully, False otherwise
-    """
-    index_path = pathlib.Path(path) / f'{index_id}.hnsw'
-    metadata_path = pathlib.Path(path) / f'{index_id}.metadata'
-
-    if not index_path.exists() or not metadata_path.exists():
-      return False
-
-    # Create new index
-    index = hnswlib.Index(space='cosine', dim=self.dim)
-    index.load_index(str(index_path), max_elements=max_elements)
-
-    # Load metadata
-    import pickle
-
-    with open(metadata_path, 'rb') as f:
-      metadata = pickle.load(f)
-
-    self.indexes[index_id] = index
-    self.metadata[index_id] = metadata
-    return True
 
 
 @bentoml.service(
@@ -491,26 +355,13 @@ class API:
     embedding = bentoml.depends(Embeddings)
 
   def __init__(self):
+    import openai
+
     self.inference_client = openai.AsyncOpenAI(base_url=f'{self.inference.client_url}/v1', api_key='dummy')
     self.embedding_client = openai.AsyncOpenAI(base_url=f'{self.embedding.client_url}/v1', api_key='dummy')
 
     loader = jinja2.FileSystemLoader(searchpath=WORKING_DIR)
     self.jinja2_env = jinja2.Environment(loader=loader)
-
-  @bentoml.on_startup
-  def initialize_indexes(self):
-    # Initialize the vector index manager
-    self.index_manager = HNSWIndexManager(dim=512)  # Use 512 dimensions as requested
-    self.index_dir = WORKING_DIR / 'indices'
-    os.makedirs(self.index_dir, exist_ok=True)
-
-    # Try to load existing indices
-    for vault_id in os.listdir(self.index_dir) if self.index_dir.exists() else []:
-      vault_path = self.index_dir / vault_id
-      if vault_path.is_dir():
-        for index_file in vault_path.glob('*.hnsw'):
-          index_id = index_file.stem
-          self.index_manager.load_index(index_id, str(vault_path))
 
   @bentoml.task
   async def embed(self, vault_id: str, file_id: str, content: str, note_id: t.Optional[str] = None) -> EmbedTask:
@@ -524,45 +375,12 @@ class API:
       )
       embed_task = EmbedTask(metadata=metadata, embedding=results.data[0].embedding)
 
-      # Add to appropriate index based on vault and document type
-      index_id = f'{vault_id}_{metadata.type.name.lower()}'
-      self.index_manager.add_items(index_id=index_id, vectors=[embed_task.embedding], metadata_list=[metadata])
-
-      # Save index
-      vault_path = self.index_dir / vault_id
-      os.makedirs(vault_path, exist_ok=True)
-      self.index_manager.save_index(index_id, str(vault_path))
-
       return embed_task
     except Exception:
       logger.error(traceback.format_exc())
       return EmbedTask(
         metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information'
       )
-
-  @bentoml.api
-  async def search_similar(
-    self, vault_id: str, query: str, doc_type: DocumentType, top_k: t.Annotated[int, ae.Ge(1), ae.Le(20)] = 5
-  ) -> List[Tuple[EmbedMetadata, float]]:
-    """Search for similar documents based on semantic similarity."""
-    try:
-      # Create embedding for the query
-      results = await self.embedding_client.embeddings.create(
-        input=[query], model=EMBEDDING_ID, extra_headers={'Runner-Name': Embeddings.name}
-      )
-      query_vector = results.data[0].embedding
-
-      # Get the appropriate index
-      index_id = f'{vault_id}_{doc_type.name.lower()}'
-
-      # Search for similar items
-      _, distances, metadata_list = self.index_manager.search(index_id=index_id, query_vector=query_vector, k=top_k)
-
-      # Return results with similarity scores (convert distance to similarity)
-      return [(metadata, 1.0 - distance) for metadata, distance in zip(metadata_list, distances)]
-    except Exception:
-      logger.error(traceback.format_exc())
-      return []
 
   @bentoml.api
   async def suggests(
