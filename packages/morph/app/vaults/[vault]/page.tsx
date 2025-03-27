@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useCallback, useEffect } from "react"
 import Editor from "@/components/editor"
 import { useVaultContext } from "@/context/vault-context"
 import { useParams } from "next/navigation"
@@ -62,10 +62,14 @@ export default function VaultPage() {
     return () => window.removeEventListener("mermaid-content", handleContentChange)
   }, [])
 
-  const MemoizedEditor = useMemo(
+  const MemoizedEditor = useCallback(
     () => <Editor vaultId={vaultId} vaults={vaults} />,
     [vaultId, vaults],
   )
 
-  return <main className="min-h-screen bg-background overflow-hidden">{MemoizedEditor}</main>
+  return (
+    <main className="min-h-screen bg-background overflow-hidden">
+      <MemoizedEditor />
+    </main>
+  )
 }

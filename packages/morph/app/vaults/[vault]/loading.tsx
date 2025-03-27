@@ -49,14 +49,6 @@ export default function Loading() {
           <SidebarRail />
         </Sidebar>
         <SidebarInset>
-          <header className="sticky top-0 h-10 border-b bg-background z-10">
-            <div className="h-full flex shrink-0 items-center justify-between mx-4">
-              <Skeleton className="h-6 w-6 p-0 rounded-full" />
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-6 w-6 p-0 rounded-full" />
-              </div>
-            </div>
-          </header>
           <section className="flex flex-1 overflow-hidden m-4 rounded-md border">
             <div className="flex-1 relative">
               <div className="h-full mx-12 pt-4 scrollbar-hidden">

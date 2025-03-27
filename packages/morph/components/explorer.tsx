@@ -6,6 +6,7 @@ import {
   PlusIcon,
   DownloadIcon,
   HomeIcon,
+  GearIcon,
 } from "@radix-ui/react-icons"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
@@ -32,6 +33,7 @@ import {
 import { EditorView } from "@uiw/react-codemirror"
 import { setFile } from "@/components/markdown-inline"
 import { Vault, FileSystemTreeNode } from "@/db"
+import { SettingsPanel } from "@/components/settings-panel"
 
 interface FileTreeNodeProps {
   node: FileSystemTreeNode
@@ -130,7 +132,7 @@ const ExplorerHeader = memo(function ExplorerHeader({
   router: any
 }) {
   const onManageVault = useCallback(() => {
-    router.push("/")
+    router.push("/vaults")
   }, [router])
 
   const onNewFileClick = useCallback(() => {
@@ -178,13 +180,38 @@ const ExplorerHeader = memo(function ExplorerHeader({
     [onNewFileClick, vault],
   )
 
-  const exportButton = useMemo(
+  const MemoizedExportButton = useCallback(
     () => (
       <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Export">
         <DownloadIcon className="h-3 w-3" width={16} height={16} />
       </Button>
     ),
     [],
+  )
+
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+
+  const handleOpenSettings = useCallback(() => {
+    setIsSettingsOpen(true)
+  }, [])
+
+  const handleCloseSettings = useCallback(() => {
+    setIsSettingsOpen(false)
+  }, [])
+
+  const MemoizedSettingsButton = useCallback(
+    () => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-6 w-6 p-0"
+        onClick={handleOpenSettings}
+        disabled={true}
+      >
+        <GearIcon className="h-3 w-3" width={16} height={16} />
+      </Button>
+    ),
+    [handleOpenSettings],
   )
 
   const memoDropdownMenuContent = useMemo(
@@ -196,23 +223,40 @@ const ExplorerHeader = memo(function ExplorerHeader({
     [onExportMarkdown],
   )
 
-  const memoSidebarHeader = useMemo(
+  const MemoizedSettingsPanel = useCallback(
+    () => (
+      <SettingsPanel
+        isOpen={isSettingsOpen}
+        onClose={handleCloseSettings}
+        setIsOpen={setIsSettingsOpen}
+      />
+    ),
+    [isSettingsOpen, handleCloseSettings, setIsSettingsOpen],
+  )
+
+  const MemoizedSidebarHeader = useMemo(
     () => (
       <SidebarHeader className="border-b h-10 p-0 min-h-10 sticky">
         <div className="h-full flex items-center justify-end mx-4 gap-2">
           {manageVaultButton}
           {newFileButton}
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>{exportButton}</DropdownMenuTrigger>
+            <DropdownMenuTrigger asChild>
+              <MemoizedExportButton />
+            </DropdownMenuTrigger>
             {memoDropdownMenuContent}
           </DropdownMenu>
+          <div className="flex items-center justify-between backdrop-blur-sm bg-background/80 supports-[backdrop-filter]:bg-background/60">
+            <MemoizedSettingsButton />
+          </div>
+          <MemoizedSettingsPanel />
         </div>
       </SidebarHeader>
     ),
-    [manageVaultButton, newFileButton, exportButton, memoDropdownMenuContent],
+    [manageVaultButton, newFileButton, MemoizedExportButton, memoDropdownMenuContent],
   )
 
-  return memoSidebarHeader
+  return MemoizedSidebarHeader
 })
 
 export default memo(function Explorer({
@@ -280,7 +324,7 @@ export default memo(function Explorer({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarRail />
+      <SidebarRail className="bg-background" />
     </Sidebar>
   )
 })

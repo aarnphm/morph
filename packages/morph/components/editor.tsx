@@ -15,7 +15,6 @@ import {
   Cross2Icon,
   CopyIcon,
   ChevronDownIcon,
-  GearIcon,
 } from "@radix-ui/react-icons"
 import usePersistedSettings from "@/hooks/use-persisted-settings"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
@@ -41,7 +40,6 @@ import { createId } from "@paralleldrive/cuid2"
 import { ReasoningPanel } from "@/components/reasoning-panel"
 import { Virtuoso, Components } from "react-virtuoso"
 import { Button } from "@/components/ui/button"
-import { SettingsPanel } from "@/components/settings-panel"
 import { NOTES_DND_TYPE } from "@/lib/notes"
 import { motion, AnimatePresence } from "motion/react"
 
@@ -198,9 +196,7 @@ const DroppedNotesStack = memo(
   }: DroppedNotesStackProps) {
     const containerRef = useRef<HTMLDivElement>(null)
     const MAX_VISIBLE_NOTES = 5
-    const MAX_TOTAL_NOTES = 14
     const hasMoreNotes = droppedNotes.length > MAX_VISIBLE_NOTES
-    const shouldShowScroll = droppedNotes.length > MAX_TOTAL_NOTES
     const hasNotes = droppedNotes.length > 0
 
     // Get notes to display - either first 5 or all (limited to 20 for performance)
@@ -233,7 +229,7 @@ const DroppedNotesStack = memo(
       <motion.div
         ref={containerRef}
         className={cn(
-          "absolute top-4 right-4 z-20",
+          "absolute top-4 right-4 z-40",
           isStackExpanded && "bg-background/80 backdrop-blur-sm border rounded-md shadow-md p-2",
         )}
         variants={{
@@ -268,10 +264,7 @@ const DroppedNotesStack = memo(
           <motion.div
             className={cn(
               "flex flex-col items-center gap-1.5",
-              isStackExpanded && "notes-scroll-container",
-              isStackExpanded &&
-                shouldShowScroll &&
-                "max-h-[30vh] overflow-y-auto scrollbar-hidden",
+              isStackExpanded && "max-h-[30vh] overflow-y-auto scrollbar-hidden",
             )}
             layout
           >
@@ -319,7 +312,6 @@ const DroppedNotesStack = memo(
   },
 )
 
-// Create a component that returns the components object
 const ScrollSeekPlaceholder: Components["ScrollSeekPlaceholder"] = memo(
   function ScrollSeekPlaceholder({ height }) {
     // Memoize the skeleton components to prevent re-renders
@@ -363,8 +355,8 @@ const DriversBar = memo(
           onClick={generateNewSuggestions}
           disabled={isNotesLoading}
           className={cn(
-            "flex items-center justify-center gap-2 h-6 w-6 rounded-md bg-cyan-600 hover:bg-cyan-700 text-white transition-colors disabled:opacity-50 hover:cursor-pointer disabled:cursor-not-allowed text-xs font-medium shadow-sm",
-            !isNotesRecentlyGenerated && "animate-pulse",
+            "flex items-center justify-center gap-2 h-6 w-6 rounded-md transition-colors disabled:opacity-50 hover:cursor-pointer disabled:cursor-not-allowed text-xs font-medium shadow-sm",
+            !isNotesRecentlyGenerated && "button-shimmer-border",
           )}
           title="Generate Suggestions"
         >
@@ -482,7 +474,9 @@ const NotesPanel = memo(function NotesPanel({
 
   return (
     <div
-      className="w-88 flex flex-col border-l transition-[right,left,width] duration-200 ease-in-out translate-x-[-100%] data-[show=true]:translate-x-0"
+      className={cn(
+        "w-88 flex flex-col border-l transition-[right,left,width] duration-200 ease-in-out translate-x-[-100%] data-[show=true]:translate-x-0",
+      )}
       data-show={true}
     >
       <div className="flex-1 overflow-auto scrollbar-hidden p-1 pt-4 gap-4">
@@ -655,7 +649,7 @@ const EditorDropTarget = memo(function EditorDropTarget({
         drop(element)
       }
     },
-    [drop]
+    [drop],
   )
 
   return (
@@ -724,15 +718,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [streamingSuggestionColors, setStreamingSuggestionColors] = useState<string[]>([])
   // Add a state to track current generation notes
   const [currentGenerationNotes, setCurrentGenerationNotes] = useState<Note[]>([])
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-
-  const handleOpenSettings = useCallback(() => {
-    setIsSettingsOpen(true)
-  }, [])
-
-  const handleCloseSettings = useCallback(() => {
-    setIsSettingsOpen(false)
-  }, [])
 
   const toggleStackExpand = useCallback(() => {
     setIsStackExpanded((prev) => !prev)
@@ -1502,26 +1487,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     return lastNotesGeneratedTime > fiveMinutesAgo
   }, [lastNotesGeneratedTime])
 
-  const MemoizedSettingsButton = useMemo(
-    () => (
-      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleOpenSettings}>
-        <GearIcon className="h-3 w-3" width={16} height={16} />
-      </Button>
-    ),
-    [handleOpenSettings],
-  )
-
-  const MemoizedSettingsPanel = useMemo(
-    () => (
-      <SettingsPanel
-        isOpen={isSettingsOpen}
-        onClose={handleCloseSettings}
-        setIsOpen={setIsSettingsOpen}
-      />
-    ),
-    [isSettingsOpen, handleCloseSettings, setIsSettingsOpen],
-  )
-
   return (
     <DndProvider backend={HTML5Backend}>
       <NotesProvider>
@@ -1537,17 +1502,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               onExportMarkdown={handleExportMarkdown}
             />
             <SidebarInset className="flex flex-col h-screen overflow-hidden">
-              <header
-                className={cn("sticky top-0 h-10 border-b bg-background", isSettingsOpen && "z-10")}
-              >
-                <div className="h-full flex shrink-0 items-center justify-between mx-4">
-                  <MemoizedSidebarTrigger className="-ml-1" title="Open Explorer" />
-                  <div className="flex items-center justify-between backdrop-blur-sm bg-background/80 supports-[backdrop-filter]:bg-background/60">
-                    <div className="flex items-center gap-4">{MemoizedSettingsButton}</div>
-                  </div>
-                  {MemoizedSettingsPanel}
-                </div>
-              </header>
               <section className="flex flex-1 overflow-hidden m-4 rounded-md border">
                 <EditorDropTarget handleNoteDropped={handleNoteDropped}>
                   {memoizedDroppedNotes.length > 0 && (
@@ -1575,9 +1529,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       onClick={toggleNotes}
                       disabled={isNotesLoading}
                       className={cn(
-                        "flex items-center justify-center h-6 w-6 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium shadow-sm hover:cursor-pointer",
-                        showNotes && "bg-white border border-primary/10 hover:bg-teal-50",
-                        !showNotes && "button-shimmer-border",
+                        "flex items-center justify-center h-6 w-6 rounded-md text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium shadow-sm hover:cursor-pointer",
+                        "bg-cyan-600 hover:bg-cyan-700",
                       )}
                       title={showNotes ? "Hide Notes" : "Show Notes"}
                     >

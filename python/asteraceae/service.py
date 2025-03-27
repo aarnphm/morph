@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging, argparse, enum, traceback, os, contextlib, pathlib, typing as t
 import bentoml, fastapi, pydantic, jinja2, annotated_types as ae
 
-# from llama_index.core import Document
-# from llama_index.core.node_parser import SemanticSplitterNodeParser, SentenceSplitter
-# from llama_index.core.schema import TextNode
-# from llama_index.embeddings.openai import OpenAIEmbedding
+with bentoml.importing():
+  from llama_index.core import Document, Settings, VectoreStoreIndex
+  from llama_index.core.node_parser import SemanticSplitterNodeParser, SentenceSplitter
+  from llama_index.core.schema import TextNode
+  from llama_index.embeddings.openai import OpenAIEmbedding
+  from llama_index.vector_stores.hnswlib import HnswlibVectorStore
 
 
 if t.TYPE_CHECKING:
@@ -18,13 +20,15 @@ logger = logging.getLogger(__name__)
 
 
 IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
+
 INFERENCE_ID = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B'
-EMBEDDING_ID = 'Alibaba-NLP/gte-Qwen2-7B-instruct'
 STRUCTURED_OUTPUT_BACKEND = 'xgrammar:disable-any-whitespace'  # remove any whitespace if it is not qwen.
 MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 16 * 1024))
 MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 8 * 1024))
 WORKING_DIR = pathlib.Path(__file__).parent
 
+EMBEDDING_ID = 'Alibaba-NLP/gte-Qwen2-7B-instruct'
+DIMENSIONS = 3584
 
 class ServiceOpts(t.TypedDict, total=False):
   image: Image
@@ -163,9 +167,28 @@ class Essay(pydantic.BaseModel):
 
 
 class Note(pydantic.BaseModel):
+  vault_id: str
   file_id: str
   note_id: str
   content: str
+
+
+class DocumentType(enum.IntEnum):
+  ESSAY = 1
+  NOTE = enum.auto()
+
+
+class EmbedMetadata(pydantic.BaseModel):
+  vault: str
+  file: str
+  type: DocumentType
+  note: t.Optional[str] = pydantic.Field(default=None)
+
+
+class EmbedTask(pydantic.BaseModel):
+  metadata: EmbedMetadata
+  embedding: list[float]
+  error: str = pydantic.Field(default='')
 
 
 embedding_api = fastapi.FastAPI()
@@ -180,8 +203,16 @@ embedding_api = fastapi.FastAPI()
   **SERVICE_CONFIG,
 )
 class Embeddings:
-  model_id = EMBEDDING_ID
-  model = bentoml.models.HuggingFaceModel(model_id, exclude=IGNORE_PATTERNS)
+  model_id: str = EMBEDDING_ID
+  model: str = bentoml.models.HuggingFaceModel(model_id, exclude=IGNORE_PATTERNS)
+
+  # vector stores configuration
+  dimensions: int = DIMENSIONS
+  M: int = 16
+  ef_construction: int = 50
+  max_elements: int = 10000
+  space: t.Literal['ip', 'l2', 'cosine'] = 'l2'
+  metapath: str = WORKING_DIR / 'indexes'
 
   def __init__(self):
     self.exit_stack = contextlib.AsyncExitStack()
@@ -223,104 +254,122 @@ class Embeddings:
   async def teardown_engine(self):
     await self.exit_stack.aclose()
 
+  @bentoml.on_startup
+  def setup_parsers_tooling(self):
+    Settings.embed_model = OpenAIEmbedding(
+      model_name=self.model_id,
+      api_base=f'{Embeddings.client_url}/v1',
+      api_key='dummy',
+      dimensions=self.dimensions,
+      additional_headers={'Runner-Name': self.__class__.__name__},
+    )
+    Settings.sentence_splitter = SentenceSplitter(
+      # NOTE: that this supports linebreaks in Quartz and Obsidian.
+      paragraph='\n\n',
+      tokenizer=self.tokenizer,
+      chunk_size=1024, chunk_overlap=20,
+    )
+    self.chunker = SemanticSplitterNodeParser(
+      buffer_size=1,
+      breakpoint_percentile_threshold=95,
+      embed_model=self.embed_model,
+      sentence_splitter=self.sentence_splitter,
+    )
+
+    # Initialize persistent vector store with HNSW
+    self.metapath.mkdir(exist_ok=True)
+    index = hnswlib.Index(space=self.space, dim=self.dimensions)
+    index.init_index(max_elements=self.max_elements, ef_construction=self.ef_construction, M=self.M)
+    vector_store = HnswlibVectorStore(index)
+
   @bentoml.task
-  async def essays(self, essay: Essay) -> list[EmbedTask]:
-    """Process and embed essay markdown content using semantic chunking.
+  async def essays(self, essay: Essay) -> EmbedTask:
+    metadata = EmbedMetadata(vault=essay.vault_id, file=essay.file_id, type=DocumentType.ESSAY)
 
-    For each essay:
-    1. Create a Document from the content
-    2. Use SemanticChunker to create semantically relevant chunks
-    3. Embed each chunk and store with metadata
-    """
-    results = []
+    # Create a unique ID for the essay
+    essay_id = f"{essay.vault_id}_{essay.file_id}"
+
     try:
-      # Create document from essay content
-      doc = Document(text=essay.content)
+      # Check if the essay is already in the index
+      existing_nodes = self.vector_store.get_by_metadata({"id": essay_id})
 
-      # Apply semantic chunking to get meaningful chunks
-      nodes = self.semantic_chunker.get_nodes_from_documents([doc])
+      if existing_nodes:
+        # Essay already exists in index, return the embedding
+        existing_node = existing_nodes[0]
+        return EmbedTask(metadata=metadata, embedding=existing_node.embedding)
 
-      # Process each semantic chunk
-      for i, node in enumerate(nodes):
-        # Skip empty nodes
-        if not node.text.strip() or node.text.strip() == '---':
-          continue
+      # Essay not found, create embedding
+      result = await self.embedding_client.embeddings.create(
+        input=[essay.content],
+        model=self.model_id,
+        extra_headers={'Runner-Name': self.__class__.__name__},
+      )
 
-        # Create embedding for the chunk
-        embedding_result = await self.embedding_client.embeddings.create(
-          input=[node.text], model=self.model_id, extra_headers={'Runner-Name': self.__class__.__name__}
-        )
+      embedding = result.data[0].embedding
 
-        # Create metadata with chunk index and original node metadata
-        metadata = EmbedMetadata(
-          vault=essay.vault_id,
-          file=essay.file_id,
-          type=DocumentType.ESSAY,
-          note=f'chunk:{i}',  # Store chunk index in the note field
-        )
+      # Create a node and add to vector store
+      node = TextNode(
+        text=essay.content,
+        metadata={"id": essay_id, "vault_id": essay.vault_id, "file_id": essay.file_id},
+        embedding=embedding,
+      )
+      self.vector_store.add([node])
 
-        # Add embedding to results
-        results.append(EmbedTask(metadata=metadata, embedding=embedding_result.data[0].embedding))
+      return EmbedTask(metadata=metadata, embedding=embedding)
 
     except Exception:
       logger.error(traceback.format_exc())
-      metadata = EmbedMetadata(vault=essay.vault_id, file=essay.file_id, type=DocumentType.ESSAY)
-      results.append(
-        EmbedTask(
-          metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information'
-        )
+      return EmbedTask(
+        metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information'
       )
-
-    return results
 
   @bentoml.api(batchable=True)
   async def notes(self, notes: list[Note]) -> list[EmbedTask]:
     results = []
 
-    try:
-      embedding_result = await self.embedding_client.embeddings.create(
-        input=[note.content for note in notes],
-        model=self.model_id,
-        extra_headers={'Runner-Name': self.__class__.__name__},
-      )
+    for note in notes:
+      metadata = EmbedMetadata(vault=note.vault_id, file=note.file_id, type=DocumentType.NOTE, note=note.note_id)
 
-      # Create embed task
-      metadata = EmbedMetadata(
-        vault='',  # Note doesn't have vault_id in its parameters
-        file=note.file_id,
-        type=DocumentType.NOTE,
-        note=note.note_id,
-      )
+      try:
+        # Create a unique ID for the note
+        note_id = f"{note.vault_id}_{note.file_id}_{note.note_id}"
 
-      results.append(EmbedTask(metadata=metadata, embedding=embedding_result.data[0].embedding))
-    except Exception:
-      logger.error(traceback.format_exc())
-      metadata = EmbedMetadata(vault='', file=note.file_id, type=DocumentType.NOTE, note=note.note_id)
-      results.append(
-        EmbedTask(
-          metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information'
+        # Check if the note is already in the index
+        existing_nodes = self.vector_store.get_by_metadata({"id": note_id})
+
+        if existing_nodes:
+          # Note already exists in index, return the embedding
+          existing_node = existing_nodes[0]
+          results.append(EmbedTask(metadata=metadata, embedding=existing_node.embedding))
+          continue
+
+        # Note not found, create embedding
+        embedding_result = await self.embedding_client.embeddings.create(
+          input=[note.content],
+          model=self.model_id,
+          extra_headers={'Runner-Name': self.__class__.__name__},
         )
-      )
+
+        embedding = embedding_result.data[0].embedding
+
+        # Create a node and add to vector store
+        node = TextNode(
+          text=note.content,
+          metadata={"id": note_id, "vault_id": note.vault_id, "file_id": note.file_id, "note_id": note.note_id},
+          embedding=embedding,
+        )
+        self.vector_store.add([node])
+
+        results.append(EmbedTask(metadata=metadata, embedding=embedding))
+      except Exception:
+        logger.error(traceback.format_exc())
+        results.append(
+          EmbedTask(
+            metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information'
+          )
+        )
 
     return results
-
-
-class DocumentType(enum.IntEnum):
-  ESSAY = 1
-  NOTE = enum.auto()
-
-
-class EmbedMetadata(pydantic.BaseModel):
-  vault: str
-  file: str
-  type: DocumentType
-  note: t.Optional[str] = pydantic.Field(default=None)
-
-
-class EmbedTask(pydantic.BaseModel):
-  metadata: EmbedMetadata
-  embedding: list[float]
-  error: str = pydantic.Field(default='')
 
 
 @bentoml.service(
