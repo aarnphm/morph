@@ -20,7 +20,7 @@ import {
 import usePersistedSettings from "@/hooks/use-persisted-settings"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Vim, vim } from "@replit/codemirror-vim"
-import { DraggableNoteCard, NoteCard } from "@/components/note-card"
+import { DraggableNoteCard, NoteCard, AttachedNoteCard } from "@/components/note-card"
 import Explorer from "@/components/explorer"
 import { fileField, mdToHtml } from "@/components/markdown-inline"
 import { toJsx, cn } from "@/lib"
@@ -38,7 +38,6 @@ import { NotesProvider } from "@/context/notes-context"
 import { generatePastelColor } from "@/lib/notes"
 import { db, type Note, type Vault, type FileSystemTreeNode } from "@/db"
 import { createId } from "@paralleldrive/cuid2"
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { ReasoningPanel } from "@/components/reasoning-panel"
 import { Virtuoso, Components } from "react-virtuoso"
 import { Button } from "@/components/ui/button"
@@ -185,90 +184,6 @@ const MemoizedNoteGroup = memo(
   },
 )
 
-interface AttachedNoteProps {
-  note: Note
-  index: number
-  isStackExpanded: boolean
-  droppedNotesLength: number
-}
-
-const AttachedNote = memo(function AttachedNote({
-  note,
-  index,
-  isStackExpanded,
-  droppedNotesLength,
-}: AttachedNoteProps) {
-  const noteRef = useRef<HTMLDivElement>(null)
-
-  // Animation variants for the note card in vertical stack
-  const variants = useMemo(
-    () => ({
-      collapsed: {
-        opacity: 1,
-        y: 0,
-        scale: 1,
-        zIndex: droppedNotesLength - index,
-        transition: {
-          type: "spring",
-          stiffness: 400,
-          damping: 25,
-          delay: index * 0.05,
-        },
-      },
-      expanded: {
-        opacity: 1,
-        y: 0,
-        scale: 1,
-        zIndex: droppedNotesLength - index,
-        transition: {
-          type: "spring",
-          stiffness: 300,
-          damping: 25,
-          delay: index * 0.03,
-        },
-      },
-      hidden: {
-        opacity: 0,
-        y: -10,
-        scale: 0.8,
-        transition: {
-          duration: 0.2,
-        },
-      },
-    }),
-    [droppedNotesLength, index],
-  )
-
-  // Ensure we have a color
-  const noteColor = note.color || generatePastelColor()
-
-  return (
-    <HoverCard key={note.id} openDelay={150} closeDelay={100}>
-      <HoverCardTrigger asChild>
-        <motion.div
-          ref={noteRef}
-          className={cn(`shadow-md w-6 h-6 rounded-md cursor-pointer mb-1`, noteColor)}
-          variants={variants}
-          initial="hidden"
-          animate={isStackExpanded ? "expanded" : "collapsed"}
-          layout
-        >
-          <div className="relative z-10 text-sm p-1 flex items-center justify-center w-full h-full">
-            {index + 1}
-          </div>
-        </motion.div>
-      </HoverCardTrigger>
-      <HoverCardContent
-        side="left"
-        sideOffset={6}
-        className="w-64 bg-transparent border-0 shadow-none"
-      >
-        <NoteCard note={note} />
-      </HoverCardContent>
-    </HoverCard>
-  )
-})
-
 interface DroppedNotesStackProps {
   droppedNotes: Note[]
   isStackExpanded: boolean
@@ -295,16 +210,15 @@ const DroppedNotesStack = memo(
     )
 
     // Memoize the attached notes to prevent unnecessary re-renders
-    const AttachedDisplayNotes = useMemo(
+    const AttachedDisplayNotes = useCallback(
       () => (
         <>
           {notesToDisplay.map((note, index) => (
-            <AttachedNote
+            <AttachedNoteCard
               key={note.id}
               note={note}
               index={index}
               isStackExpanded={isStackExpanded}
-              droppedNotesLength={notesToDisplay.length}
             />
           ))}
         </>
@@ -361,7 +275,7 @@ const DroppedNotesStack = memo(
             )}
             layout
           >
-            {AttachedDisplayNotes}
+            <AttachedDisplayNotes />
             {hasMoreNotes && !isStackExpanded && (
               <motion.div
                 className="text-primary/50 cursor-pointer"
@@ -716,8 +630,6 @@ const EditorDropTarget = memo(function EditorDropTarget({
     handleDroppedRef.current = handleNoteDropped
   }, [handleNoteDropped])
 
-  const ref = useRef<HTMLDivElement>(null)
-
   const onDropped = useCallback(
     (item: Note) => {
       handleNoteDropped(item)
@@ -725,8 +637,7 @@ const EditorDropTarget = memo(function EditorDropTarget({
     [handleNoteDropped],
   )
 
-  // Simplified drop handling - only collect what we need
-  const [{ isOver }, connectDrop] = useDrop(
+  const [{ isOver }, drop] = useDrop(
     () => ({
       accept: NOTES_DND_TYPE,
       drop(item: Note) {
@@ -738,16 +649,18 @@ const EditorDropTarget = memo(function EditorDropTarget({
     [onDropped],
   )
 
-  // Connect the drop ref to our div
-  useEffect(() => {
-    if (ref.current) {
-      connectDrop(ref.current)
-    }
-  }, [connectDrop, ref])
+  const dropRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      if (element) {
+        drop(element)
+      }
+    },
+    [drop]
+  )
 
   return (
     <div
-      ref={ref}
+      ref={dropRef}
       className={cn(
         "flex-1 relative transition-all duration-300 ease-in-out",
         isOver && "border-teal-300 border rounded-s-md rounded-w-md",

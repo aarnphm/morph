@@ -2,11 +2,13 @@ import * as React from "react"
 import { useRef, useState, memo, useMemo, useEffect, useCallback } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DragSourceMonitor, useDrag } from "react-dnd"
-import { NOTES_DND_TYPE } from "@/lib/notes"
+import { NOTES_DND_TYPE, generatePastelColor } from "@/lib/notes"
 import { cn } from "@/lib/utils"
 import type { Note } from "@/db"
 import { getEmptyImage } from "react-dnd-html5-backend"
 import { cva, type VariantProps } from "class-variance-authority"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+import { motion } from "motion/react"
 
 // Define note card variants using CVA
 const noteCardVariants = cva(
@@ -142,8 +144,7 @@ export const DraggableNoteCard = memo(function DraggableNoteCard({
   onCurrentGenerationNote,
   isGenerating,
 }: DraggableNoteCardProps) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [, connectDrag, preview] = useDrag(
+  const [, drag, preview] = useDrag(
     () => ({
       type: NOTES_DND_TYPE,
       // Use the ref to ensure the item reference remains stable during drag
@@ -173,12 +174,14 @@ export const DraggableNoteCard = memo(function DraggableNoteCard({
     [note.id, handleNoteDropped, onNoteRemoved, onCurrentGenerationNote],
   )
 
-  // Connect the drag source to our ref
-  useEffect(() => {
-    if (ref.current) {
-      connectDrag(ref.current)
-    }
-  }, [connectDrag, ref])
+  const connectDragRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      if (element) {
+        drag(element)
+      }
+    },
+    [drag]
+  )
 
   // Use empty image as drag preview (we'll use CustomDragLayer instead)
   useEffect(() => {
@@ -186,8 +189,90 @@ export const DraggableNoteCard = memo(function DraggableNoteCard({
   }, [preview])
 
   return (
-    <div ref={ref}>
+    <div ref={connectDragRef}>
       <NoteCard className="w-full" note={note} isGenerating={isGenerating} />
     </div>
+  )
+})
+
+interface AttachedNoteCardProps {
+  note: Note
+  index: number
+  isStackExpanded: boolean
+}
+
+export const AttachedNoteCard = memo(function AttachedNoteCard({
+  note,
+  index,
+  isStackExpanded,
+}: AttachedNoteCardProps) {
+  const noteRef = useRef<HTMLDivElement>(null)
+
+  // Animation variants for the note card in vertical stack
+  const variants = useMemo(
+    () => ({
+      collapsed: {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        zIndex: 100,
+        transition: {
+          type: "spring",
+          stiffness: 400,
+          damping: 25,
+          delay: index * 0.05,
+        },
+      },
+      expanded: {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        zIndex: 100,
+        transition: {
+          type: "spring",
+          stiffness: 300,
+          damping: 25,
+          delay: index * 0.03,
+        },
+      },
+      hidden: {
+        opacity: 0,
+        y: -10,
+        scale: 0.8,
+        transition: {
+          duration: 0.2,
+        },
+      },
+    }),
+    [index],
+  )
+
+  // Ensure we have a color
+  const noteColor = note.color || generatePastelColor()
+
+  return (
+    <HoverCard key={note.id} openDelay={150} closeDelay={100}>
+      <HoverCardTrigger asChild>
+        <motion.div
+          ref={noteRef}
+          className={cn(`shadow-md w-6 h-6 rounded-md cursor-pointer mb-1`, noteColor)}
+          variants={variants}
+          initial="hidden"
+          animate={isStackExpanded ? "expanded" : "collapsed"}
+          layout
+        >
+          <div className="relative z-10 text-sm p-1 flex items-center justify-center w-full h-full">
+            {index + 1}
+          </div>
+        </motion.div>
+      </HoverCardTrigger>
+      <HoverCardContent
+        side="left"
+        sideOffset={6}
+        className="w-64 bg-transparent border-0 shadow-none z-100"
+      >
+        <NoteCard note={note} className="z-auto" />
+      </HoverCardContent>
+    </HoverCard>
   )
 })
