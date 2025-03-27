@@ -4,12 +4,14 @@ import logging, argparse, enum, traceback, os, contextlib, pathlib, typing as t
 import bentoml, fastapi, pydantic, jinja2, annotated_types as ae
 
 with bentoml.importing():
-  from llama_index.core import Document, Settings, VectoreStoreIndex
+  import hnswlib, openai
+
+  from openai.types.chat import ChatCompletionUserMessageParam
+  from llama_index.core import VectorStoreIndex, StorageContext
   from llama_index.core.node_parser import SemanticSplitterNodeParser, SentenceSplitter
   from llama_index.core.schema import TextNode
   from llama_index.embeddings.openai import OpenAIEmbedding
   from llama_index.vector_stores.hnswlib import HnswlibVectorStore
-
 
 if t.TYPE_CHECKING:
   from vllm.entrypoints.openai.protocol import DeltaMessage
@@ -203,8 +205,8 @@ embedding_api = fastapi.FastAPI()
   **SERVICE_CONFIG,
 )
 class Embeddings:
-  model_id: str = EMBEDDING_ID
-  model: str = bentoml.models.HuggingFaceModel(model_id, exclude=IGNORE_PATTERNS)
+  model_id = EMBEDDING_ID
+  model = bentoml.models.HuggingFaceModel(model_id, exclude=IGNORE_PATTERNS)
 
   # vector stores configuration
   dimensions: int = DIMENSIONS
@@ -219,8 +221,7 @@ class Embeddings:
 
   @bentoml.on_startup
   async def init_engine(self) -> None:
-    import torch
-    import vllm.entrypoints.openai.api_server as vllm_api_server
+    import torch, vllm.entrypoints.openai.api_server as vllm_api_server
 
     args = make_args(
       self.model,
@@ -256,14 +257,17 @@ class Embeddings:
 
   @bentoml.on_startup
   def setup_parsers_tooling(self):
-    Settings.embed_model = OpenAIEmbedding(
+    self.metapath.mkdir(exist_ok=True)
+
+    self.embed_model = OpenAIEmbedding(
       model_name=self.model_id,
-      api_base=f'{Embeddings.client_url}/v1',
       api_key='dummy',
       dimensions=self.dimensions,
+      http_client=self.to_sync.client,
+      async_http_client=self.to_async.client,
       additional_headers={'Runner-Name': self.__class__.__name__},
     )
-    Settings.sentence_splitter = SentenceSplitter(
+    self.sentence_splitter = SentenceSplitter(
       # NOTE: that this supports linebreaks in Quartz and Obsidian.
       paragraph='\n\n',
       tokenizer=self.tokenizer,
@@ -276,11 +280,9 @@ class Embeddings:
       sentence_splitter=self.sentence_splitter,
     )
 
-    # Initialize persistent vector store with HNSW
-    self.metapath.mkdir(exist_ok=True)
-    index = hnswlib.Index(space=self.space, dim=self.dimensions)
-    index.init_index(max_elements=self.max_elements, ef_construction=self.ef_construction, M=self.M)
-    vector_store = HnswlibVectorStore(index)
+    hnsw_index = hnswlib.Index(space=self.space, dim=self.dimensions)
+    hnsw_index.init_index(max_elements=self.max_elements, ef_construction=self.ef_construction, M=self.M)
+    self.index = VectorStoreIndex.from_vector_store(vector_store=HnswlibVectorStore(index), embed_model=self.embed_model)
 
   @bentoml.task
   async def essays(self, essay: Essay) -> EmbedTask:
@@ -396,16 +398,10 @@ class Embeddings:
   **SERVICE_CONFIG,
 )
 class API:
-  if int(os.getenv('DEVELOPMENT', '0')) == 1:
-    inference = bentoml.depends(url=f'http://127.0.0.1:{os.getenv("ENGINE_PORT", 3001)}')
-    embedding = bentoml.depends(url=f'http://127.0.0.1:{os.getenv("EMBED_PORT", 3002)}')
-  else:
-    inference = bentoml.depends(Engine)
-    embedding = bentoml.depends(Embeddings)
+  inference = bentoml.depends(Engine)
+  embedding = bentoml.depends(Embeddings)
 
   def __init__(self):
-    import openai
-
     self.inference_client = openai.AsyncOpenAI(base_url=f'{self.inference.client_url}/v1', api_key='dummy')
     self.embedding_client = openai.AsyncOpenAI(base_url=f'{self.embedding.client_url}/v1', api_key='dummy')
 
@@ -439,8 +435,6 @@ class API:
     temperature: t.Annotated[float, ae.Ge(0.5), ae.Le(0.7)] = 0.6,
     max_tokens: t.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
   ) -> t.AsyncGenerator[str, None]:
-    from openai.types.chat import ChatCompletionUserMessageParam
-
     PROMPT = self.jinja2_env.get_template('SYSTEM_PROMPT.md').render(num_suggestions=num_suggestions, excerpt=essay)
     prefill = False
 

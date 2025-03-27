@@ -12,7 +12,7 @@ export default MillionLint.next({
     customDomain: "https://morph-editor.app",
   })({
     assetPrefix: process.env.NODE_ENV === "production" ? undefined : "",
-    transpilePackages: ["next-plausible", "katex", "mermaid"],
+    transpilePackages: ["next-plausible", "katex", "mermaid", "flexsearch"],
     devIndicators: false,
     webpack(config) {
       config.module.rules.push({

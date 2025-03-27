@@ -27,6 +27,7 @@ dev = [
     { name = "jupyter-client", specifier = ">=8.6.3" },
     { name = "jupytext", specifier = ">=1.16.4" },
     { name = "mypy", specifier = ">=1.13.0" },
+    { name = "mypy-extensions", specifier = ">=1.0.0" },
     { name = "plotly", specifier = ">=5.24.1" },
     { name = "pnglatex", specifier = ">=1.1" },
     { name = "pylatexenc", specifier = ">=2.10" },
@@ -274,6 +275,7 @@ dependencies = [
     { name = "jinja2" },
     { name = "kantoku" },
     { name = "llama-index" },
+    { name = "llama-index-core" },
     { name = "llama-index-embeddings-openai" },
     { name = "llama-index-vector-stores-hnswlib" },
     { name = "openai" },
@@ -282,10 +284,10 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "goodfire" },
     { name = "ipython" },
     { name = "jupyter" },
     { name = "jupyterlab-vim" },
+    { name = "mypy" },
     { name = "nnsight" },
     { name = "notebook" },
     { name = "ruff" },
@@ -301,6 +303,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.5" },
     { name = "kantoku", specifier = ">=0.18.1" },
     { name = "llama-index", specifier = ">=0.12.25" },
+    { name = "llama-index-core", specifier = ">=0.12.25" },
     { name = "llama-index-embeddings-openai", specifier = ">=0.3.1" },
     { name = "llama-index-vector-stores-hnswlib", specifier = ">=0.3.0" },
     { name = "openai", specifier = ">=1.67.0" },
@@ -309,10 +312,10 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "goodfire", specifier = ">=0.3.4" },
     { name = "ipython", specifier = ">=8.32.0" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "jupyterlab-vim", specifier = ">=4.1.4" },
+    { name = "mypy", specifier = ">=1.14.1" },
     { name = "nnsight", specifier = ">=0.3.5" },
     { name = "notebook", specifier = ">=7.2.2" },
     { name = "ruff", specifier = ">=0.9.4" },
@@ -1047,6 +1050,7 @@ wheels = [
 
 [[package]]
 name = "exo"
+version = "0.0.0"
 source = { editable = "python/exo" }
 dependencies = [
     { name = "huggingface-hub" },

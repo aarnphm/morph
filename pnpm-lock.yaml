@@ -347,6 +347,9 @@ importers:
       '@replit/codemirror-vim':
         specifier: ^6.2.1
         version: 6.2.1(@codemirror/commands@6.8.0)(@codemirror/language@6.11.0)(@codemirror/search@6.5.10)(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)
+      '@types/three':
+        specifier: ^0.174.0
+        version: 0.174.0
       '@uiw/codemirror-themes':
         specifier: ^4.23.10
         version: 4.23.10(@codemirror/language@6.11.0)(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)
@@ -369,8 +372,11 @@ importers:
         specifier: ^1.1.7
         version: 1.1.7(@types/react@19.0.12)(dexie@4.0.11)(react@19.0.0)
       flexsearch:
-        specifier: 0.8.1
-        version: 0.8.1
+        specifier: ^0.8.142
+        version: 0.8.142
+      glsl-random:
+        specifier: ^0.0.5
+        version: 0.0.5
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
@@ -427,7 +433,7 @@ importers:
         version: 12.6.0(react-dom@19.0.0)(react@19.0.0)
       next:
         specifier: 15.2.2
-        version: 15.2.2(@babel/core@7.26.10)(react-dom@19.0.0)(react@19.0.0)
+        version: 15.2.2(@babel/core@7.26.0)(react-dom@19.0.0)(react@19.0.0)
       next-plausible:
         specifier: ^3.12.4
         version: 3.12.4(next@15.2.2)(react-dom@19.0.0)(react@19.0.0)
@@ -690,7 +696,6 @@ packages:
       semver: 6.3.1
     transitivePeerDependencies:
       - supports-color
-    dev: false
 
   /@babel/core@7.26.10:
     resolution: {integrity: sha512-vMqyb7XCDMPvJFFOaT9kxtiRh42GwlZEg1/uIgtZshS5a/8OaduUfCi7kynKgc3Tw/6Uo2D+db9qBttghhmxwQ==}
@@ -713,6 +718,7 @@ packages:
       semver: 6.3.1
     transitivePeerDependencies:
       - supports-color
+    dev: true
 
   /@babel/generator@7.27.0:
     resolution: {integrity: sha512-VybsKvpiN1gU1sdMZIp7FcqphVVKEwcuj02x73uvcHE0PTihx1nlBcowYWhDwjpoAXRv43+gDzyggGnn1XZhVw==}
@@ -755,7 +761,6 @@ packages:
       '@babel/traverse': 7.27.0
     transitivePeerDependencies:
       - supports-color
-    dev: false
 
   /@babel/helper-module-transforms@7.26.0(@babel/core@7.26.10):
     resolution: {integrity: sha512-xO+xu6B5K2czEnQye6BHA7DolFFmS3LB7stHZFaOLb1pAwO1HWLS8fXA+eh0A2yIvltPVmx3eNNDBJA2SLHXFw==}
@@ -769,6 +774,7 @@ packages:
       '@babel/traverse': 7.27.0
     transitivePeerDependencies:
       - supports-color
+    dev: true
 
   /@babel/helper-string-parser@7.25.9:
     resolution: {integrity: sha512-4A/SCr/2KLd5jrtOMFzaKjVtAei3+2r/NChoBNoZ3EyP/+GlhoaEGoWOZUmFmoITP7zOJyHIMm+DYRd8o3PvHA==}
@@ -7207,6 +7213,10 @@ packages:
     resolution: {integrity: sha512-YGc/9Y5zbBmbyBzAEz+JdQOVDk3qTaBxVajmPWYAHNB8zvKQwNZtNYfmQlSoYH1VORdqhbwaUsJqnfMxJqndjQ==}
     dev: false
 
+  /flexsearch@0.8.142:
+    resolution: {integrity: sha512-16/Ag/5MUWCjoRjHxdhJrkRIoQpGkRIqoc1bXTEyi7HlxuN3RxW1pB3KuVk6BqrYiFPZi50Jzq+xMhD7CaJwJw==}
+    dev: false
+
   /for-each@0.3.5:
     resolution: {integrity: sha512-dKx12eRCVIzqCxFGplyFKJMPvLEWgmNtUrpTiJIR5u97zEhRG8ySrtboPHZXx7daLxQVrl643cTzbab2tkQjxg==}
     engines: {node: '>= 0.4'}
@@ -7424,6 +7434,10 @@ packages:
 
   /glsl-noise@0.0.0:
     resolution: {integrity: sha512-b/ZCF6amfAUb7dJM/MxRs7AetQEahYzJ8PtgfrmEdtw6uyGOr+ZSGtgjFm6mfsBkxJ4d2W7kg+Nlqzqvn3Bc0w==}
+    dev: false
+
+  /glsl-random@0.0.5:
+    resolution: {integrity: sha512-K2SA3OjnylV3ElXBjcGcXDk/aEGPfjxqIG3Wppau7+VkNAuBTok2BljOAriEgjt/lqT9QErOfgc7W2TdSwZAIg==}
     dev: false
 
   /gopd@1.2.0:
@@ -9280,7 +9294,7 @@ packages:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
     dependencies:
-      next: 15.2.2(@babel/core@7.26.10)(react-dom@19.0.0)(react@19.0.0)
+      next: 15.2.2(@babel/core@7.26.0)(react-dom@19.0.0)(react@19.0.0)
       react: 19.0.0
       react-dom: 19.0.0(react@19.0.0)
     dev: false
@@ -9295,7 +9309,7 @@ packages:
       react-dom: 19.0.0(react@19.0.0)
     dev: false
 
-  /next@15.2.2(@babel/core@7.26.10)(react-dom@19.0.0)(react@19.0.0):
+  /next@15.2.2(@babel/core@7.26.0)(react-dom@19.0.0)(react@19.0.0):
     resolution: {integrity: sha512-dgp8Kcx5XZRjMw2KNwBtUzhngRaURPioxoNIVl5BOyJbhi9CUgEtKDO7fx5wh8Z8vOVX1nYZ9meawJoRrlASYA==}
     engines: {node: ^18.18.0 || ^19.8.0 || >= 20.0.0}
     hasBin: true
@@ -9324,7 +9338,7 @@ packages:
       postcss: 8.4.31
       react: 19.0.0
       react-dom: 19.0.0(react@19.0.0)
-      styled-jsx: 5.1.6(@babel/core@7.26.10)(react@19.0.0)
+      styled-jsx: 5.1.6(@babel/core@7.26.0)(react@19.0.0)
     optionalDependencies:
       '@next/swc-darwin-arm64': 15.2.2
       '@next/swc-darwin-x64': 15.2.2
@@ -9973,7 +9987,7 @@ packages:
       estree-walker: 3.0.3
       kleur: 4.1.5
       mri: 1.2.0
-      next: 15.2.2(@babel/core@7.26.10)(react-dom@19.0.0)(react@19.0.0)
+      next: 15.2.2(@babel/core@7.26.0)(react-dom@19.0.0)(react@19.0.0)
       playwright: 1.51.1
       preact: 10.26.4
       react: 19.0.0
@@ -11247,7 +11261,7 @@ packages:
       tslib: 2.4.0
     dev: false
 
-  /styled-jsx@5.1.6(@babel/core@7.26.10)(react@19.0.0):
+  /styled-jsx@5.1.6(@babel/core@7.26.0)(react@19.0.0):
     resolution: {integrity: sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA==}
     engines: {node: '>= 12.0.0'}
     peerDependencies:
@@ -11260,7 +11274,7 @@ packages:
       babel-plugin-macros:
         optional: true
     dependencies:
-      '@babel/core': 7.26.10
+      '@babel/core': 7.26.0
       client-only: 0.0.1
       react: 19.0.0
 

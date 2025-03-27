@@ -17,7 +17,7 @@ import {
   ChevronDownIcon,
 } from "@radix-ui/react-icons"
 import usePersistedSettings from "@/hooks/use-persisted-settings"
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar"
 import { Vim, vim } from "@replit/codemirror-vim"
 import { DraggableNoteCard, NoteCard, AttachedNoteCard } from "@/components/note-card"
 import Explorer from "@/components/explorer"
@@ -39,7 +39,6 @@ import { db, type Note, type Vault, type FileSystemTreeNode } from "@/db"
 import { createId } from "@paralleldrive/cuid2"
 import { ReasoningPanel } from "@/components/reasoning-panel"
 import { Virtuoso, Components } from "react-virtuoso"
-import { Button } from "@/components/ui/button"
 import { NOTES_DND_TYPE } from "@/lib/notes"
 import { motion, AnimatePresence } from "motion/react"
 
@@ -61,13 +60,6 @@ interface GeneratedNote {
   title: string
   content: string
 }
-
-const MemoizedSidebarTrigger = memo(function MemoizedSidebarTrigger(
-  props: React.ComponentProps<typeof Button>,
-) {
-  const sidebarTrigger = useMemo(() => <SidebarTrigger {...props} />, [props])
-  return sidebarTrigger
-})
 
 interface DateDisplayProps {
   dateStr: string
@@ -479,8 +471,7 @@ const NotesPanel = memo(function NotesPanel({
       )}
       data-show={true}
     >
-      <div className="flex-1 overflow-auto scrollbar-hidden p-1 pt-4 gap-4">
-        {/* Show message only when no notes and not loading */}
+      <div className="flex-1 overflow-auto scrollbar-hidden px-2 pt-4 gap-4">
         {!isNotesLoading && notes.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground p-4">
             <p className="mb-4">
@@ -665,6 +656,22 @@ const EditorDropTarget = memo(function EditorDropTarget({
   )
 })
 
+const Playspace = memo(function Playspace({ children }: { children: React.ReactNode }) {
+  const { state } = useSidebar()
+
+  return (
+    <section
+      className={cn(
+        "flex flex-1 overflow-hidden m-4 border",
+        // Apply rounded corners only when sidebar is expanded/open
+        state === "expanded" ? "mb-0 mr-0 rounded-tl-md" : "rounded-md",
+      )}
+    >
+      {children}
+    </section>
+  )
+})
+
 export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const { theme } = useTheme()
   // PERF: should not call it here, or figure out a way not to calculate the vault twice
@@ -721,7 +728,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   const toggleStackExpand = useCallback(() => {
     setIsStackExpanded((prev) => !prev)
-  }, [isStackExpanded])
+  }, [])
 
   const vault = vaults.find((v) => v.id === vaultId)
 
@@ -908,6 +915,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       try {
         const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT
         if (!apiEndpoint) {
+          throw new Error("Notes functionality is currently unavailable")
+        }
+
+        const readyz = await fetch(`${apiEndpoint}/readyz`)
+        if (!readyz.ok) {
           throw new Error("Notes functionality is currently unavailable")
         }
 
@@ -1502,7 +1514,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               onExportMarkdown={handleExportMarkdown}
             />
             <SidebarInset className="flex flex-col h-screen overflow-hidden">
-              <section className="flex flex-1 overflow-hidden m-4 rounded-md border">
+              <Playspace>
                 <EditorDropTarget handleNoteDropped={handleNoteDropped}>
                   {memoizedDroppedNotes.length > 0 && (
                     <DroppedNotesStack
@@ -1607,7 +1619,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     notesContainerRef={notesContainerRef}
                   />
                 )}
-              </section>
+              </Playspace>
               <SearchCommand
                 maps={flattenedFileIds}
                 vault={vault!}

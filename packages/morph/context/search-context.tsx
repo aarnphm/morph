@@ -2,8 +2,9 @@
 
 import { createContext, useEffect, useContext, useMemo, useCallback } from "react"
 import FlexSearch from "flexsearch"
+import { Document } from "flexsearch"
 import type { FileSystemTreeNode, Vault } from "@/db"
-import { encode } from "@/lib"
+import { db } from "@/db"
 import { debounce } from "lodash"
 
 export interface UserDocument {
@@ -14,65 +15,66 @@ export interface UserDocument {
 }
 
 type SearchContextType = {
-  index: FlexSearch.Document<UserDocument> | null
+  index: Document | null
+  getFileByName: (fileName: string) => Promise<string | undefined>
 }
 
-const SearchContext = createContext<SearchContextType>({ index: null })
+const SearchContext = createContext<SearchContextType>({
+  index: null,
+  getFileByName: async () => undefined,
+})
 
 export function SearchProvider({ children, vault }: { children: React.ReactNode; vault: Vault }) {
-  // Memoize the FlexSearch index
+  const searchDb = new FlexSearch.IndexedDB("search")
   const index = useMemo(() => {
-    return new FlexSearch.Document<UserDocument>({
-      charset: "latin:extra",
-      encode: encode,
-      document: {
-        id: "id",
-        index: [
-          {
-            field: "title",
-            tokenize: "forward",
-            optimize: true,
-          },
-          {
-            field: "path",
-            tokenize: "forward",
-          },
-        ],
-      },
-    })
-  }, []) // No dependencies since the index configuration is static
+    return new FlexSearch.Index({ tokenize: "forward" })
+  }, [])
+
+  // Function to get a file by name
+  const getFileByName = useCallback(
+    async (fileName: string): Promise<string | undefined> => {
+      if (!vault || !vault.id) return undefined
+      return db.getFileIdByName(fileName, vault.id)
+    },
+    [vault],
+  )
 
   // Memoize the indexNode function to ensure stable reference
   const indexNode = useCallback(
     async (node: FileSystemTreeNode) => {
-      const promises: Promise<FlexSearch.Document<UserDocument>>[] = []
       if (node.kind === "file" && node.extension === "md") {
-        promises.push(
-          index.addAsync(node.id, {
-            id: node.id,
-            title: node.name,
-            path: node.path,
-          }),
-        )
+        // Add document to search index
+        await index.add({
+          id: node.id,
+          title: node.name,
+          path: node.path,
+        })
+
+        // Add to fileName → fileId mapping
+        if (vault && vault.id) {
+          await db.indexFileName(node.name, node.id, vault.id)
+        }
       }
       if (node.children) {
         for (const child of node.children) {
-          indexNode(child)
+          await indexNode(child)
         }
       }
-      await Promise.all(promises)
     },
-    [index],
+    [index, vault],
   )
 
   // Debounce the indexing to prevent frequent re-executions
   const debouncedIndexNodes = useMemo(
     () =>
       debounce(async (nodes: FileSystemTreeNode[]) => {
-        const promises = nodes.map((node) => indexNode(node))
-        await Promise.all(promises)
+        for (const node of nodes) {
+          await indexNode(node)
+        }
+        // Commit changes to the index
+        // await index.commit()
       }, 300),
-    [indexNode],
+    [indexNode, index],
   )
 
   // Initialize indexing when vault.tree changes
@@ -87,7 +89,7 @@ export function SearchProvider({ children, vault }: { children: React.ReactNode;
   }, [vault, debouncedIndexNodes])
 
   // Memoize the context value to prevent unnecessary rerenders
-  const value = useMemo(() => ({ index }), [index])
+  const value = useMemo(() => ({ index, getFileByName }), [index, getFileByName])
 
   return useMemo(
     () => <SearchContext.Provider value={value}>{children}</SearchContext.Provider>,

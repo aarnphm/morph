@@ -1,8 +1,8 @@
 "use client"
 
 import { usePathname, useRouter } from "next/navigation"
-import { MagnifyingGlassIcon, ClockIcon } from "@radix-ui/react-icons"
-import { Button } from "@/components/ui/button"
+import { ClockIcon, ArchiveIcon, CardStackPlusIcon } from "@radix-ui/react-icons"
+import { Button, VaultButton } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card"
 import { type Vault } from "@/db"
 import { useVaultContext } from "@/context/vault-context"
@@ -75,7 +75,7 @@ export default function Home() {
                   {new Date(vault.lastOpened).toLocaleDateString("en-US", {
                     month: "2-digit",
                     day: "2-digit",
-                    year: "numeric"
+                    year: "numeric",
                   })}
                 </CardDescription>
               </div>
@@ -88,7 +88,7 @@ export default function Home() {
     return (
       <Card className="group rounded-md">
         <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-          <MagnifyingGlassIcon className="w-12 h-12 text-muted-foreground mb-4" />
+          <ArchiveIcon className="w-10 h-10 text-muted-foreground mb-4" />
           <CardTitle className="mb-2">No Vaults Found</CardTitle>
           <CardDescription>Get started by opening a new vault.</CardDescription>
         </CardContent>
@@ -103,13 +103,9 @@ export default function Home() {
           <hgroup>
             <h1 className="text-3xl font-bold tracking-tight">Vaults</h1>
           </hgroup>
-          <button
-            onClick={handleOpenDirectory}
-            className="flex items-center justify-center gap-2 h-8 w-8 rounded-md bg-cyan-600 hover:bg-cyan-700 text-white transition-colors text-xs font-medium shadow-sm hover:cursor-pointer"
-            title="Open New Vault"
-          >
-            <MagnifyingGlassIcon className="w-4 h-4" ref={searchRef} />
-          </button>
+          <VaultButton onClick={handleOpenDirectory} title="Open New Vault" color="cyan">
+            <CardStackPlusIcon className="w-4 h-4" ref={searchRef} />
+          </VaultButton>
         </section>
         <div className="flex items-center gap-2 text-sm text-muted-foreground my-4">
           <ClockIcon className="w-4 h-4" ref={clockRef} />

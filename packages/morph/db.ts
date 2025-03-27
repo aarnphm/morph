@@ -67,11 +67,19 @@ export interface Reasoning {
   duration: number
 }
 
+export interface FileNameIndex {
+  id: string
+  fileName: string
+  fileId: string
+  vaultId: string
+}
+
 export class Morph extends Dexie {
   vaults!: Table<Vault, string>
   references!: Table<Reference, string>
   notes!: Table<Note, string>
   reasonings!: Table<Reasoning, string>
+  fileNames!: Table<FileNameIndex, string>
 
   constructor() {
     super("morph")
@@ -81,6 +89,11 @@ export class Morph extends Dexie {
       references: "id, vaultId",
       notes: "id, fileId, vaultId, dropped",
       reasonings: "id, fileId, vaultId, createdAt",
+    })
+
+    // Add fileNames table in version 2
+    this.version(2).stores({
+      fileNames: "id, fileName, fileId, vaultId"
     })
   }
 
@@ -125,6 +138,26 @@ export class Morph extends Dexie {
 
       return reasoningId
     })
+  }
+
+  async indexFileName(fileName: string, fileId: string, vaultId: string): Promise<string> {
+    return this.transaction("rw", this.fileNames, async () => {
+      const id = createId()
+      await this.fileNames.add({
+        id,
+        fileName,
+        fileId,
+        vaultId
+      });
+      return id;
+    });
+  }
+
+  async getFileIdByName(fileName: string, vaultId: string): Promise<string | undefined> {
+    const result = await this.fileNames
+      .where({fileName, vaultId})
+      .first();
+    return result?.fileId;
   }
 }
 

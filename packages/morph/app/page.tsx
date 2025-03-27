@@ -1,8 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import { CardStackMinusIcon } from "@radix-ui/react-icons"
+import { EnterIcon } from "@radix-ui/react-icons"
 import PixelatedScene from "@/components/landing/pixelated-scene"
+import { VaultButton } from "@/components/ui/button"
 
 export default function LandingPage() {
   return (
@@ -12,12 +13,9 @@ export default function LandingPage() {
       </div>
       <div className="absolute bottom-4 right-4 z-10">
         <Link href="/vaults">
-          <button
-            className="flex items-center justify-center gap-2 h-8 w-8 rounded-md bg-cyan-600 hover:bg-cyan-700 text-white transition-colors text-xs font-medium shadow-sm hover:cursor-pointer"
-            title="Open Vault"
-          >
-            <CardStackMinusIcon className="w-4 h-4" />
-          </button>
+          <VaultButton title="Open Vault" color="green">
+            <EnterIcon className="w-4 h-4" />
+          </VaultButton>
         </Link>
       </div>
     </div>

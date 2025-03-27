@@ -118,19 +118,21 @@ interface FileTreeProps extends React.ComponentProps<typeof Sidebar> {
   onExportMarkdown: () => void
 }
 
+interface ExplorerHeaderProps {
+  vault: Vault | undefined
+  editorViewRef: React.RefObject<EditorView | null>
+  onNewFile?: () => void
+  onExportMarkdown: () => void
+}
+
 const ExplorerHeader = memo(function ExplorerHeader({
   vault,
   editorViewRef,
   onNewFile,
   onExportMarkdown,
-  router,
-}: {
-  vault: Vault | undefined
-  editorViewRef: React.RefObject<EditorView | null>
-  onNewFile?: () => void
-  onExportMarkdown: () => void
-  router: any
-}) {
+}: ExplorerHeaderProps) {
+  const router = useRouter()
+
   const onManageVault = useCallback(() => {
     router.push("/vaults")
   }, [router])
@@ -149,46 +151,6 @@ const ExplorerHeader = memo(function ExplorerHeader({
     onNewFile?.()
   }, [editorViewRef, onNewFile])
 
-  const manageVaultButton = useMemo(
-    () => (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-6 w-6 p-0 group"
-        title="Manage Vault"
-        onClick={onManageVault}
-      >
-        <HomeIcon className="h-3 w-3 p-0" />
-      </Button>
-    ),
-    [onManageVault],
-  )
-
-  const newFileButton = useMemo(
-    () => (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-6 w-6 p-0"
-        title="New File"
-        disabled={!vault}
-        onClick={onNewFileClick}
-      >
-        <PlusIcon className="h-3 w-3" width={16} height={16} />
-      </Button>
-    ),
-    [onNewFileClick, vault],
-  )
-
-  const MemoizedExportButton = useCallback(
-    () => (
-      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Export">
-        <DownloadIcon className="h-3 w-3" width={16} height={16} />
-      </Button>
-    ),
-    [],
-  )
-
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   const handleOpenSettings = useCallback(() => {
@@ -199,64 +161,57 @@ const ExplorerHeader = memo(function ExplorerHeader({
     setIsSettingsOpen(false)
   }, [])
 
-  const MemoizedSettingsButton = useCallback(
-    () => (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-6 w-6 p-0"
-        onClick={handleOpenSettings}
-        disabled={true}
-      >
-        <GearIcon className="h-3 w-3" width={16} height={16} />
-      </Button>
-    ),
-    [handleOpenSettings],
-  )
-
-  const memoDropdownMenuContent = useMemo(
-    () => (
-      <DropdownMenuContent side="top" align="center" sideOffset={5} alignOffset={2}>
-        <DropdownMenuItem onClick={onExportMarkdown}>Markdown</DropdownMenuItem>
-      </DropdownMenuContent>
-    ),
-    [onExportMarkdown],
-  )
-
-  const MemoizedSettingsPanel = useCallback(
-    () => (
-      <SettingsPanel
-        isOpen={isSettingsOpen}
-        onClose={handleCloseSettings}
-        setIsOpen={setIsSettingsOpen}
-      />
-    ),
-    [isSettingsOpen, handleCloseSettings, setIsSettingsOpen],
-  )
-
-  const MemoizedSidebarHeader = useMemo(
-    () => (
-      <SidebarHeader className="border-b h-10 p-0 min-h-10 sticky">
-        <div className="h-full flex items-center justify-end mx-4 gap-2">
-          {manageVaultButton}
-          {newFileButton}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <MemoizedExportButton />
-            </DropdownMenuTrigger>
-            {memoDropdownMenuContent}
-          </DropdownMenu>
-          <div className="flex items-center justify-between backdrop-blur-sm bg-background/80 supports-[backdrop-filter]:bg-background/60">
-            <MemoizedSettingsButton />
-          </div>
-          <MemoizedSettingsPanel />
+  return (
+    <SidebarHeader className="border-b h-10 p-0 min-h-10 sticky">
+      <div className="h-full flex items-center justify-end mx-4 gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 w-6 p-0 group"
+          title="Manage Vault"
+          onClick={onManageVault}
+        >
+          <HomeIcon className="h-3 w-3 p-0" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 w-6 p-0"
+          title="New File"
+          disabled={!vault}
+          onClick={onNewFileClick}
+        >
+          <PlusIcon className="h-3 w-3" width={16} height={16} />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Export">
+              <DownloadIcon className="h-3 w-3" width={16} height={16} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="center" sideOffset={5} alignOffset={2}>
+            <DropdownMenuItem onClick={onExportMarkdown}>Markdown</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <div className="flex items-center justify-between backdrop-blur-sm bg-background/80 supports-[backdrop-filter]:bg-background/60">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={handleOpenSettings}
+            disabled={true}
+          >
+            <GearIcon className="h-3 w-3" width={16} height={16} />
+          </Button>
         </div>
-      </SidebarHeader>
-    ),
-    [manageVaultButton, newFileButton, MemoizedExportButton, memoDropdownMenuContent],
+        <SettingsPanel
+          isOpen={isSettingsOpen}
+          onClose={handleCloseSettings}
+          setIsOpen={setIsSettingsOpen}
+        />
+      </div>
+    </SidebarHeader>
   )
-
-  return MemoizedSidebarHeader
 })
 
 export default memo(function Explorer({
@@ -269,7 +224,7 @@ export default memo(function Explorer({
   ...props
 }: FileTreeProps) {
   const { toast } = useToast()
-  const router = useRouter()
+
   const handleFileSelect = useCallback(
     async (node: FileSystemTreeNode) => {
       if (!vault || node.kind !== "file" || !editorViewRef.current) return
@@ -310,7 +265,6 @@ export default memo(function Explorer({
         editorViewRef={editorViewRef}
         onNewFile={onNewFile}
         onExportMarkdown={onExportMarkdown}
-        router={router}
       />
       <SidebarContent>
         <SidebarGroup>
