@@ -44,7 +44,7 @@ For each team member how many lectures have they attended over the time period o
 | Student            | lectures |
 | ------------------ | -------- |
 | Total              | 1        |
-| Aaron (Anh) Pham   | 1        |
+| Aaron (Anh) Pham   | 0        |
 | Nebras Khan        | 1        |
 | Waleed Malik       | 1        |
 | Zhiwei Li          | 1        |
