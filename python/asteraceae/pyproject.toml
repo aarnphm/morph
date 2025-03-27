@@ -8,11 +8,10 @@ license = { text = "Apache-2.0" }
 authors = [{ name = "Aaron Pham", email = "contact@aarnphm.xyz" }]
 dependencies = [
   "huggingface-hub>=0.25.0",
-  "transformers",
   "vllm==0.8.2",
   "bentoml>=1.4.6",
   "openai>=1.67.0",
-  "jinja2",
+  "jinja2>=3.1.5",
   "kantoku>=0.18.1",
   "goodfire>=0.3.4",
   "llama-index>=0.12.25",
