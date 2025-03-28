@@ -70,8 +70,16 @@ export default function Home() {
       const handle = await window.showDirectoryPicker({ startIn: "documents" })
       const vault = await addVault(handle)
       if (vault?.id) {
-        router.push(`/vaults/${vault.id}`)
-        setActiveVaultId(vault.id)
+        // Store the last selected vault ID for animation purposes
+        if (typeof window !== "undefined") {
+          localStorage.setItem("lastSelectedVaultId", vault.id)
+        }
+
+        // Add a slight delay to allow any animations to complete
+        setTimeout(() => {
+          router.push(`/vaults/${vault.id}`)
+          setActiveVaultId(vault.id)
+        }, 50)
       }
     } catch {}
   }, [addVault, setActiveVaultId, router])
@@ -79,8 +87,16 @@ export default function Home() {
   const handleVaultSelect = useCallback(
     (vault: Vault) => {
       if (vault?.id) {
-        router.push(`/vaults/${vault.id}`)
-        setActiveVaultId(vault.id)
+        // Store the last selected vault ID for animation purposes
+        if (typeof window !== "undefined") {
+          localStorage.setItem("lastSelectedVaultId", vault.id)
+        }
+
+        // Add a slight delay to allow any animations to complete
+        setTimeout(() => {
+          router.push(`/vaults/${vault.id}`)
+          setActiveVaultId(vault.id)
+        }, 50)
       }
     },
     [setActiveVaultId, router],
@@ -121,7 +137,10 @@ export default function Home() {
             ease: [0.25, 0.1, 0.25, 1],
           }}
         >
-          <Card className="group rounded-md">
+          <motion.div
+            layoutId={`vault-card-${vault.id}`}
+            className="group rounded-md border border-border overflow-hidden"
+          >
             <Button
               variant="ghost"
               className="w-full h-auto p-0 justify-start cursor-pointer"
@@ -140,7 +159,7 @@ export default function Home() {
                 </div>
               </CardContent>
             </Button>
-          </Card>
+          </motion.div>
         </motion.div>
       ))
     }

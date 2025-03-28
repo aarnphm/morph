@@ -779,12 +779,18 @@ const EditorDropTarget = memo(function EditorDropTarget({
   )
 })
 
-const Playspace = memo(function Playspace({ children }: { children: React.ReactNode }) {
+const Playspace = memo(function Playspace({
+  children,
+  vaultId
+}: {
+  children: React.ReactNode,
+  vaultId: string
+}) {
   return (
     <motion.section
       className="flex flex-1 overflow-hidden m-4 border"
       layout
-      layoutId="playspace-container"
+      layoutId={`vault-card-${vaultId}`}
       transition={{
         type: "spring",
         stiffness: 300,
@@ -1843,7 +1849,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               onContentUpdate={updatePreview}
             />
             <SidebarInset className="flex flex-col h-screen flex-1 overflow-hidden">
-              <Playspace>
+              <Playspace vaultId={vault!.id}>
                 <EditorDropTarget handleNoteDropped={handleNoteDropped}>
                   <AnimatePresence>
                     {memoizedDroppedNotes.length > 0 && (
