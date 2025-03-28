@@ -8,6 +8,7 @@ import { type Vault } from "@/db"
 import { useVaultContext } from "@/context/vault-context"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCallback, useMemo, useRef } from "react"
+import { motion } from "motion/react"
 
 export default function Home() {
   const router = useRouter()
@@ -61,60 +62,107 @@ export default function Home() {
 
     if (Array.isArray(vaults) && vaults.length > 0) {
       const uniqueVaults = [...new Map(vaults.map((v) => [v.id, v])).values()]
-      return uniqueVaults.map((vault) => (
-        <Card key={vault.id} className="group rounded-md">
-          <Button
-            variant="ghost"
-            className="w-full h-auto p-0 justify-start cursor-pointer"
-            onClick={() => handleVaultSelect(vault)}
-          >
-            <CardContent className="p-6 w-full">
-              <div className="flex items-center justify-between w-full">
-                <CardTitle>{vault.name}</CardTitle>
-                <CardDescription className="text-right">
-                  {new Date(vault.lastOpened).toLocaleDateString("en-US", {
-                    month: "2-digit",
-                    day: "2-digit",
-                    year: "numeric",
-                  })}
-                </CardDescription>
-              </div>
-            </CardContent>
-          </Button>
-        </Card>
+      return uniqueVaults.map((vault, index) => (
+        <motion.div
+          key={vault.id}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ 
+            duration: 0.3, 
+            delay: index * 0.05,
+            ease: [0.25, 0.1, 0.25, 1]
+          }}
+        >
+          <Card className="group rounded-md">
+            <Button
+              variant="ghost"
+              className="w-full h-auto p-0 justify-start cursor-pointer"
+              onClick={() => handleVaultSelect(vault)}
+            >
+              <CardContent className="p-6 w-full">
+                <div className="flex items-center justify-between w-full">
+                  <CardTitle>{vault.name}</CardTitle>
+                  <CardDescription className="text-right">
+                    {new Date(vault.lastOpened).toLocaleDateString("en-US", {
+                      month: "2-digit",
+                      day: "2-digit",
+                      year: "numeric",
+                    })}
+                  </CardDescription>
+                </div>
+              </CardContent>
+            </Button>
+          </Card>
+        </motion.div>
       ))
     }
 
     return (
-      <Card className="group rounded-md">
-        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-          <ArchiveIcon className="w-10 h-10 text-muted-foreground mb-4" />
-          <CardTitle className="mb-2">No Vaults Found</CardTitle>
-          <CardDescription>Get started by opening a new vault.</CardDescription>
-        </CardContent>
-      </Card>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4 }}
+      >
+        <Card className="group rounded-md">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <ArchiveIcon className="w-10 h-10 text-muted-foreground mb-4" />
+            <CardTitle className="mb-2">No Vaults Found</CardTitle>
+            <CardDescription>Get started by opening a new vault.</CardDescription>
+          </CardContent>
+        </Card>
+      </motion.div>
     )
   }, [isLoading, vaults, handleVaultSelect, pathname])
 
   return (
-    <main className="min-h-screen w-full flex items-center justify-center bg-background">
-      <div className="container max-w-4xl p-8 border rounded-md shadow-md">
-        <section className="flex items-center justify-between mb-8">
-          <hgroup>
-            <h1 className="text-3xl font-bold tracking-tight">Vaults</h1>
-          </hgroup>
+    <motion.main 
+      className="min-h-screen w-full flex items-center justify-center bg-background"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <motion.div 
+        className="container max-w-4xl p-8 border rounded-md shadow-md"
+        layoutId="playspace-container"
+        transition={{
+          type: "spring",
+          stiffness: 300,
+          damping: 30,
+          mass: 0.8,
+        }}
+      >
+        <motion.section 
+          className="flex items-center justify-between mb-8"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.3 }}
+        >
+          <motion.hgroup>
+            <motion.h1 className="text-3xl font-bold tracking-tight">Vaults</motion.h1>
+          </motion.hgroup>
           <VaultButton onClick={handleOpenDirectory} title="Open New Vault" color="cyan">
             <CardStackPlusIcon className="w-4 h-4" ref={searchRef} />
           </VaultButton>
-        </section>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground my-4">
+        </motion.section>
+        <motion.div 
+          className="flex items-center gap-2 text-sm text-muted-foreground my-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
+        >
           <ClockIcon className="w-4 h-4" ref={clockRef} />
           <p>recently opened vaults</p>
-        </div>
-        <section className="grid gap-4">
+        </motion.div>
+        <motion.section 
+          className="grid gap-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3, duration: 0.3 }}
+        >
           <div className="grid gap-4">{renderVaults}</div>
-        </section>
-      </div>
-    </main>
+        </motion.section>
+      </motion.div>
+    </motion.main>
   )
 }

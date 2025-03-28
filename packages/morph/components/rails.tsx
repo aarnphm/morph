@@ -20,7 +20,6 @@ import {
   SidebarGroup,
   SidebarContent,
   useSidebar,
-  SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -30,6 +29,7 @@ import { FileSystemTreeNode, Vault } from "@/db"
 import { EditorView } from "@codemirror/view"
 import { useToast } from "@/hooks/use-toast"
 import { VaultButton } from "@/components/ui/button"
+import { motion, AnimatePresence } from "motion/react"
 
 interface FileTreeNodeProps {
   node: FileSystemTreeNode
@@ -120,7 +120,6 @@ export default memo(function Rails({
   onFileSelect,
   onNewFile,
   onContentUpdate,
-  ...props
 }: RailsProps) {
   const { toast } = useToast()
   const { toggleSidebar, state } = useSidebar()
@@ -194,22 +193,33 @@ export default memo(function Rails({
     [vault, editorViewRef, onFileSelect, onContentUpdate, toast],
   )
 
-  const width = isExpanded ? "16rem" : "3.05rem"
-
   // TODO: Add settings panel back
   return (
     <TooltipProvider delayDuration={300}>
-      <div
+      <motion.div
         className={cn("fixed z-sidebar lg:sticky h-full", className)}
-        style={{ width }}
-        {...props}
+        animate={{ 
+          width: isExpanded ? "16rem" : "3.05rem" 
+        }}
+        transition={{
+          type: "spring",
+          stiffness: 300,
+          damping: 30
+        }}
       >
-        <nav
+        <motion.nav
           className={cn(
-            "h-screen flex flex-col items-center py-4 gap-3 fixed top-0 left-0 z-20 transition duration-100 border-border border-r",
+            "h-screen flex flex-col items-center py-4 gap-3 fixed top-0 left-0 z-20 border-border border-r",
             "shadow-xl !bg-bg-300 backdrop-blur-sm",
           )}
-          style={{ width }}
+          animate={{ 
+            width: isExpanded ? "16rem" : "3.05rem" 
+          }}
+          transition={{
+            type: "spring",
+            stiffness: 300,
+            damping: 30
+          }}
         >
           <div className="flex w-full items-center gap-px px-2">
             <VaultButton
@@ -221,17 +231,33 @@ export default memo(function Rails({
               )}
               title={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
             >
-              {isExpanded ? (
-                <>
-                  <PinLeftIcon className="h-4 w-4 absolute opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <LayoutIcon className="h-4 w-4 group-hover:opacity-0 transition-opacity" />
-                </>
-              ) : (
-                <>
-                  <PinRightIcon className="h-4 w-4 absolute opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <LayoutIcon className="h-4 w-4 group-hover:opacity-0 transition-opacity" />
-                </>
-              )}
+              <AnimatePresence mode="wait">
+                {isExpanded ? (
+                  <motion.div 
+                    key="expanded"
+                    initial={{ opacity: 0, rotate: -10 }}
+                    animate={{ opacity: 1, rotate: 0 }}
+                    exit={{ opacity: 0, rotate: 10 }}
+                    transition={{ duration: 0.2 }}
+                    className="relative"
+                  >
+                    <PinLeftIcon className="h-4 w-4 absolute opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <LayoutIcon className="h-4 w-4 group-hover:opacity-0 transition-opacity" />
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    key="collapsed"
+                    initial={{ opacity: 0, rotate: 10 }}
+                    animate={{ opacity: 1, rotate: 0 }}
+                    exit={{ opacity: 0, rotate: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="relative"
+                  >
+                    <PinRightIcon className="h-4 w-4 absolute opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <LayoutIcon className="h-4 w-4 group-hover:opacity-0 transition-opacity" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </VaultButton>
           </div>
           <div className="flex flex-col align-center h-full w-full overflow-hidden">
@@ -252,19 +278,26 @@ export default memo(function Rails({
                       <div className="-mx-2 flex flex-row items-center gap-3 text-orange-600">
                         <div className="size-4 flex items-center justify-center">
                           <div className="p-1.5 group-active:!scale-[0.98] group-active:!shadow-none group-hover:-rotate-2 group-active:rotate-3 rounded-full transition-all ease-in-out bg-orange-100 group-hover:shadow-md">
-                            <PlusIcon className="h-3 w-3 shrink-0 transition" />
+                            <PlusIcon className="h-3 w-3 shrink-0 transition-transform duration-300 ease-out group-hover:rotate-90" />
                           </div>
                         </div>
-                        <span
-                          className={cn("truncate text-sm whitespace-nowrap mask-image-text")}
-                          style={{
+                        <motion.span
+                          className="truncate text-sm whitespace-nowrap mask-image-text overflow-hidden"
+                          animate={{
                             opacity: isExpanded ? 1 : 0,
                             width: isExpanded ? "auto" : 0,
-                            overflow: "hidden",
+                          }}
+                          transition={{
+                            opacity: { duration: 0.2 },
+                            width: { 
+                              type: "spring", 
+                              stiffness: 300, 
+                              damping: 30 
+                            }
                           }}
                         >
                           New file
-                        </span>
+                        </motion.span>
                       </div>
                     </VaultButton>
                   </TooltipTrigger>
@@ -290,16 +323,23 @@ export default memo(function Rails({
                         <div className="size-4 flex items-center justify-center group-hover:!text-gray-900 text-gray-700">
                           <CrumpledPaperIcon className="h-4 w-4 shrink-0 group-hover:-translate-y-[0.5px] transition group-active:translate-y-0" />
                         </div>
-                        <span
-                          className="truncate text-sm whitespace-nowrap mask-image-text"
-                          style={{
+                        <motion.span
+                          className="truncate text-sm whitespace-nowrap mask-image-text overflow-hidden"
+                          animate={{
                             opacity: isExpanded ? 1 : 0,
                             width: isExpanded ? "auto" : 0,
-                            overflow: "hidden",
+                          }}
+                          transition={{
+                            opacity: { duration: 0.2 },
+                            width: { 
+                              type: "spring", 
+                              stiffness: 300, 
+                              damping: 30 
+                            }
                           }}
                         >
                           Home
-                        </span>
+                        </motion.span>
                       </div>
                     </VaultButton>
                   </TooltipTrigger>
@@ -310,28 +350,48 @@ export default memo(function Rails({
               </div>
             </div>
 
-            {state === "expanded" && (
-              <div className="transition-all duration-200 flex flex-grow flex-col overflow-y-auto overflow-x-hidden relative px-2 mb-2">
-                <h3 className="text-text-300 flex items-center gap-1.5 text-xs text-muted-foreground select-none pb-2 pl-2 sticky top-0 z-10 bg-gradient-to-b from-bg-200 from-50% to-bg-200/40">
-                  Files
-                </h3>
-                <SidebarContent className="w-full p-0">
-                  <SidebarGroup className="p-0">
-                    <SidebarGroupContent>
-                      <SidebarMenu>
-                        {vault &&
-                          vault.tree!.children!.map((node, idx) => (
-                            <FileTreeNode key={idx} node={node} onFileSelect={handleFileSelect} />
-                          ))}
-                      </SidebarMenu>
-                    </SidebarGroupContent>
-                  </SidebarGroup>
-                </SidebarContent>
-              </div>
-            )}
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0, overflow: "hidden" }}
+                  animate={{ 
+                    opacity: 1, 
+                    height: "auto",
+                    overflow: "visible"
+                  }}
+                  exit={{ 
+                    opacity: 0, 
+                    height: 0,
+                    overflow: "hidden"
+                  }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 30
+                  }}
+                  className="flex flex-grow flex-col overflow-y-auto overflow-x-hidden relative px-2 mb-2"
+                >
+                  <h3 className="text-text-300 flex items-center gap-1.5 text-xs text-muted-foreground select-none pb-2 pl-2 sticky top-0 z-10 bg-gradient-to-b from-bg-200 from-50% to-bg-200/40">
+                    Files
+                  </h3>
+                  <SidebarContent className="w-full p-0">
+                    <SidebarGroup className="p-0">
+                      <SidebarGroupContent>
+                        <SidebarMenu>
+                          {vault &&
+                            vault.tree!.children!.map((node, idx) => (
+                              <FileTreeNode key={idx} node={node} onFileSelect={handleFileSelect} />
+                            ))}
+                        </SidebarMenu>
+                      </SidebarGroupContent>
+                    </SidebarGroup>
+                  </SidebarContent>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        </nav>
-      </div>
+        </motion.nav>
+      </motion.div>
     </TooltipProvider>
   )
 })

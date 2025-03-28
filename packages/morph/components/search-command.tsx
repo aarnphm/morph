@@ -210,6 +210,7 @@ export function SearchCommand({ maps, vault, onFileSelect }: SearchCommandProps)
         }}
         title="Rechercher quelque chose"
         description="Rechercher un fichier dans le répertoire"
+        className="backdrop-blur-dialog"
       >
         {MemoizedCommandInput}
         <CommandList

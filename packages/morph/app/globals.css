@@ -1160,7 +1160,7 @@ body {
 }
 
 .cm-panels-bottom {
-  @apply flex relative !bg-background;
+  @apply flex relative !bg-background !z-0;
   border-top: 0px !important;
 }
 

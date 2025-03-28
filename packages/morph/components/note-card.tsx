@@ -67,21 +67,21 @@ export const NoteCard = memo(function NoteCard({
     return { x, y }
   }, [])
 
-  // Handle wiggle animation on hover
-  const startWiggle = () => {
-    if (!isGenerating && variant === "default") {
+  // Use a debounced wiggle effect to prevent jittering
+  const startWiggle = useCallback(() => {
+    if (!isGenerating && variant === "default" && !isWiggling) {
       setIsWiggling(true)
     }
-  }
+  }, [isGenerating, variant, isWiggling])
 
-  const stopWiggle = () => {
+  const stopWiggle = useCallback(() => {
     setIsWiggling(false)
-  }
+  }, [])
 
   // Reset wiggle animation when it completes
-  const handleAnimationEnd = () => {
+  const handleAnimationEnd = useCallback(() => {
     setIsWiggling(false)
-  }
+  }, [])
 
   // Render skeleton content if variant is skeleton
   const content =
@@ -95,27 +95,29 @@ export const NoteCard = memo(function NoteCard({
       <p className="text-sm leading-relaxed text-gray-800 dark:text-gray-200">{note?.content}</p>
     )
 
+  const cardStyle = useMemo(() => ({
+    boxShadow: `${shadowOffset.x}px ${shadowOffset.y}px 8px rgba(0,0,0,0.15)`,
+    backgroundImage: `
+      radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px),
+      radial-gradient(rgba(0,0,0,0.07) 1px, transparent 1px)
+    `,
+    backgroundSize: "20px 20px, 10px 10px",
+    backgroundPosition: "-10px -10px, 0px 0px",
+    transform: `rotate(${rotation}deg)`,
+    zIndex: "auto",
+    ...({
+      "--base-rotation": `${rotation}deg`,
+    } as React.CSSProperties),
+  }), [rotation, shadowOffset.x, shadowOffset.y])
+
   return (
     <div
-      style={{
-        boxShadow: `${shadowOffset.x}px ${shadowOffset.y}px 8px rgba(0,0,0,0.15)`,
-        backgroundImage: `
-          radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px),
-          radial-gradient(rgba(0,0,0,0.07) 1px, transparent 1px)
-        `,
-        backgroundSize: "20px 20px, 10px 10px",
-        backgroundPosition: "-10px -10px, 0px 0px",
-        transform: `rotate(${rotation}deg)`,
-        zIndex: "auto",
-        ...({
-          "--base-rotation": `${rotation}deg`,
-        } as React.CSSProperties),
-      }}
+      style={cardStyle}
       className={cn(
         noteCardVariants({ variant, size }),
         variant === "default" && "cursor-grab",
         variant === "default" && isGenerating && "animate-pulse",
-        variant === "default" && isWiggling && !isGenerating && "animate-wiggle",
+        variant === "default" && isWiggling && !isGenerating && "animate-wiggle will-change-transform",
         note?.color || color,
         className,
       )}
@@ -195,7 +197,7 @@ export const DraggableNoteCard = memo(function DraggableNoteCard({
   )
 })
 
-interface AttachedNoteCardProps {
+interface AttachedNoteCardProps extends React.ComponentProps<typeof motion.div> {
   note: Note
   index: number
   isStackExpanded: boolean
@@ -207,6 +209,8 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
   index,
   isStackExpanded,
   onDragBackToPanel,
+  className,
+  ...props
 }: AttachedNoteCardProps) {
   const noteRef = useRef<HTMLDivElement>(null)
   const constraintsRef = useRef<HTMLDivElement>(null)
@@ -256,7 +260,7 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
     preview(getEmptyImage(), { captureDraggingState: true })
   }, [preview])
 
-  // Animation variants for the note card in vertical stack
+  // Animation variants for the note card in vertical stack - optimized for performance
   const variants = useMemo(
     () => ({
       collapsed: {
@@ -266,8 +270,9 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
         zIndex: 100,
         transition: {
           type: "spring",
-          stiffness: 400,
+          stiffness: 350,
           damping: 25,
+          mass: 0.5,
         },
       },
       expanded: {
@@ -277,8 +282,9 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
         zIndex: 100,
         transition: {
           type: "spring",
-          stiffness: 300,
-          damping: 25,
+          stiffness: 280,
+          damping: 28,
+          mass: 0.65,
         },
       },
       hidden: {
@@ -302,7 +308,7 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
         <HoverCardTrigger asChild>
           <motion.div
             ref={connectDragRef}
-            className={cn(`shadow-md w-6 h-6 rounded-md cursor-grab mb-1`, noteColor)}
+            className={cn(`shadow-md w-6 h-6 rounded-md cursor-grab mb-1 will-change-transform`, className, noteColor)}
             variants={variants}
             initial="hidden"
             animate={isStackExpanded ? "expanded" : "collapsed"}
@@ -310,9 +316,20 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
             drag="x"
             dragDirectionLock
             dragConstraints={{ top: 0, right: 0, bottom: 0, left: 0 }}
-            dragTransition={{ bounceStiffness: 500, bounceDamping: 15 }}
-            dragElastic={0.2}
-            whileDrag={{ cursor: "grabbing" }}
+            dragTransition={{ 
+              bounceStiffness: 450, 
+              bounceDamping: 20,
+              power: 0.2
+            }}
+            dragElastic={0.15}
+            whileDrag={{ 
+              cursor: "grabbing",
+              transition: {
+                type: "tween",
+                ease: "easeOut"
+              }
+            }}
+            {...props}
           >
             <div className="relative z-10 text-sm p-1 flex items-center justify-center w-full h-full">
               {index + 1}

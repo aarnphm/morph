@@ -178,6 +178,7 @@ interface DroppedNotesStackProps {
   isStackExpanded: boolean
   onExpandStack: () => void
   onDragBackToPanel: (noteId: string) => void
+  className?: string
 }
 
 const DroppedNotesStack = memo(
@@ -186,6 +187,7 @@ const DroppedNotesStack = memo(
     isStackExpanded,
     onExpandStack,
     onDragBackToPanel,
+    className,
   }: DroppedNotesStackProps) {
     const containerRef = useRef<HTMLDivElement>(null)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -223,18 +225,37 @@ const DroppedNotesStack = memo(
       () => (
         <>
           {notesToDisplay.map((note, index) => (
-            <div key={note.id} ref={index === notesToDisplay.length - 1 ? lastNoteRef : undefined}>
+            <motion.div
+              key={note.id}
+              ref={index === notesToDisplay.length - 1 ? lastNoteRef : undefined}
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: 1,
+                transition: {
+                  delay: index * 0.03,
+                  duration: 0.2,
+                },
+              }}
+              exit={{
+                opacity: 0,
+                transition: {
+                  delay: (notesToDisplay.length - index - 1) * 0.02,
+                  duration: 0.15,
+                },
+              }}
+            >
               <AttachedNoteCard
                 note={note}
                 index={index}
                 isStackExpanded={isStackExpanded}
                 onDragBackToPanel={onDragBackToPanel}
+                className={className}
               />
-            </div>
+            </motion.div>
           ))}
         </>
       ),
-      [isStackExpanded, notesToDisplay, onDragBackToPanel],
+      [isStackExpanded, notesToDisplay, onDragBackToPanel, className],
     )
 
     // Render nothing if there are no notes
@@ -255,15 +276,21 @@ const DroppedNotesStack = memo(
               type: "spring",
               stiffness: 400,
               damping: 30,
+              when: "afterChildren",
+              staggerChildren: 0.02,
+              staggerDirection: -1,
             },
           },
           expanded: {
             width: "auto",
-            height: isStackExpanded ? "auto" : "auto",
+            height: "auto",
             transition: {
               type: "spring",
               stiffness: 300,
               damping: 25,
+              when: "beforeChildren",
+              staggerChildren: 0.03,
+              delayChildren: 0.05,
             },
           },
         }}
@@ -272,7 +299,7 @@ const DroppedNotesStack = memo(
         layoutId="notes-stack"
         layoutRoot
       >
-        <AnimatePresence>
+        <AnimatePresence mode="sync">
           <motion.div
             ref={scrollContainerRef}
             className={cn(
@@ -517,10 +544,9 @@ const NotesPanel = memo(function NotesPanel({
     <div
       ref={dropRef}
       className={cn(
-        "w-88 flex flex-col border-l transition-[right,left,width] duration-200 ease-in-out translate-x-[-100%] data-[show=true]:translate-x-0",
+        "flex flex-col border-l h-full",
         isOver && "border-red-200 border rounded-e-md rounded-n-md",
       )}
-      data-show={true}
     >
       <div className="flex-1 overflow-auto scrollbar-hidden px-2 pt-4 gap-4">
         {!isNotesLoading && notes.length === 0 ? (
@@ -712,22 +738,44 @@ const Playspace = memo(function Playspace({ children }: { children: React.ReactN
     <motion.section
       className="flex flex-1 overflow-hidden m-4 border"
       layout
-      layoutId="playspace-layout"
+      layoutId="playspace-container"
       transition={{
         type: "spring",
         stiffness: 300,
         damping: 26,
         mass: 0.8,
       }}
+      initial={{ borderRadius: 0 }}
       animate={{
         margin: "16px",
         borderRadius: "8px",
+      }}
+      exit={{
+        margin: "16px",
+        borderRadius: "8px",
+        opacity: 0,
       }}
     >
       {children}
     </motion.section>
   )
 })
+
+interface ReasoningHistory {
+  id: string
+  content: string
+  timestamp: Date
+  noteIds: string[]
+  reasoningElapsedTime: number
+}
+
+interface SuggestionResponse {
+    generatedNotes: GeneratedNote[]
+    reasoningId: string
+    reasoningElapsedTime: number
+    reasoningContent: string
+
+}
 
 export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const { theme } = useTheme()
@@ -744,17 +792,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const codeMirrorViewRef = useRef<EditorView | null>(null)
   const readingModeRef = useRef<HTMLDivElement>(null)
   const [showNotes, setShowNotes] = useState(false)
-  const toggleNotes = useCallback(() => {
-    setShowNotes((prev) => {
-      // Reset reasoning state when hiding notes panel
-      if (prev) {
-        setStreamingReasoning("")
-        setReasoningComplete(false)
-      }
-      return !prev
-    })
-  }, [])
-
   const [notes, setNotes] = useState<Note[]>([])
   const [markdownContent, setMarkdownContent] = useState<string>("")
   const [notesError, setNotesError] = useState<string | null>(null)
@@ -766,16 +803,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [lastNotesGeneratedTime, setLastNotesGeneratedTime] = useState<Date | null>(null)
   const virtuosoRef = useRef<HTMLDivElement>(null)
   const notesContainerRef = useRef<HTMLDivElement>(null)
-
-  const [reasoningHistory, setReasoningHistory] = useState<
-    {
-      id: string
-      content: string
-      timestamp: Date
-      noteIds: string[]
-      reasoningElapsedTime: number
-    }[]
-  >([])
+  const [reasoningHistory, setReasoningHistory] = useState<ReasoningHistory[]>([])
   const [currentReasoningId, setCurrentReasoningId] = useState<string>("")
   const [currentlyGeneratingDateKey, setCurrentlyGeneratingDateKey] = useState<string | null>(null)
   const [isStackExpanded, setIsStackExpanded] = useState(false)
@@ -785,6 +813,17 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   const toggleStackExpand = useCallback(() => {
     setIsStackExpanded((prev) => !prev)
+  }, [])
+
+  const toggleNotes = useCallback(() => {
+    setShowNotes((prev) => {
+      // Reset reasoning state when hiding notes panel
+      if (prev) {
+        setStreamingReasoning("")
+        setReasoningComplete(false)
+      }
+      return !prev
+    })
   }, [])
 
   const vault = vaults.find((v) => v.id === vaultId)
@@ -952,12 +991,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     async (
       content: string,
       num_suggestions: number = 4,
-    ): Promise<{
-      generatedNotes: GeneratedNote[]
-      reasoningId: string
-      reasoningElapsedTime: number
-      reasoningContent: string
-    }> => {
+    ): Promise<SuggestionResponse> => {
       try {
         const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:8000"
         const readyz = await fetch(`${apiEndpoint}/readyz`)
@@ -1258,12 +1292,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       window.dispatchEvent(new CustomEvent("mermaid-content", { detail: true }))
     }
   }, [markdownContent, updatePreview])
-
-  const onFileSelect = useCallback((handle: FileSystemFileHandle) => {
-    setCurrentFileHandle(handle)
-    setCurrentFile(handle.name)
-    setIsEditMode(false)
-  }, [])
 
   const onNewFile = useCallback(() => {
     setCurrentFileHandle(null)
@@ -1587,21 +1615,36 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             <Rails
               vault={vault!}
               editorViewRef={codeMirrorViewRef}
-              onFileSelect={onFileSelect}
+              onFileSelect={handleFileSelect}
               onNewFile={onNewFile}
               onContentUpdate={updatePreview}
             />
             <SidebarInset className="flex flex-col h-screen flex-1 overflow-hidden">
               <Playspace>
                 <EditorDropTarget handleNoteDropped={handleNoteDropped}>
-                  {memoizedDroppedNotes.length > 0 && (
-                    <DroppedNotesStack
-                      droppedNotes={memoizedDroppedNotes}
-                      isStackExpanded={isStackExpanded}
-                      onExpandStack={toggleStackExpand}
-                      onDragBackToPanel={handleNoteDragBackToPanel}
-                    />
-                  )}
+                  <AnimatePresence>
+                    {memoizedDroppedNotes.length > 0 && (
+                      <motion.div
+                        key="dropped-notes-stack"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 400,
+                          damping: 30
+                        }}
+                      >
+                        <DroppedNotesStack
+                          droppedNotes={memoizedDroppedNotes}
+                          isStackExpanded={isStackExpanded}
+                          onExpandStack={toggleStackExpand}
+                          onDragBackToPanel={handleNoteDragBackToPanel}
+                          className="before:mix-blend-multiply before:bg-noise-pattern"
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                   <div className="flex flex-col items-center space-y-2 absolute bottom-4 right-4 z-20">
                     {droppedNotes.length > 0 && (
                       <VaultButton
@@ -1668,34 +1711,58 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     </div>
                   </div>
                 </EditorDropTarget>
-                {showNotes && (
-                  <NotesPanel
-                    notes={notes}
-                    isNotesLoading={isNotesLoading}
-                    notesError={notesError}
-                    currentlyGeneratingDateKey={currentlyGeneratingDateKey}
-                    currentGenerationNotes={currentGenerationNotes}
-                    droppedNotes={droppedNotes}
-                    streamingReasoning={streamingReasoning}
-                    reasoningComplete={reasoningComplete}
-                    currentFile={currentFile}
-                    vaultId={vault?.id}
-                    currentReasoningId={currentReasoningId}
-                    reasoningHistory={reasoningHistory}
-                    handleNoteDropped={handleNoteDropped}
-                    handleNoteRemoved={handleNoteRemoved}
-                    handleCurrentGenerationNote={handleCurrentGenerationNote}
-                    handleCollapseComplete={handleCollapseComplete}
-                    formatDate={formatDate}
-                    renderNotesSkeletons={renderNotesSkeletons}
-                    isNotesRecentlyGenerated={isNotesRecentlyGenerated}
-                    currentReasoningElapsedTime={currentReasoningElapsedTime}
-                    generateNewSuggestions={generateNewSuggestions}
-                    noteGroupsData={noteGroupsData}
-                    virtuosoRef={virtuosoRef}
-                    notesContainerRef={notesContainerRef}
-                  />
-                )}
+                <AnimatePresence mode="wait">
+                  {showNotes && (
+                    <motion.div
+                      key="notes-panel"
+                      initial={{ width: 0, opacity: 0, overflow: "hidden" }}
+                      animate={{ 
+                        width: "22rem", 
+                        opacity: 1,
+                        overflow: "visible" 
+                      }}
+                      exit={{ 
+                        width: 0, 
+                        opacity: 0,
+                        overflow: "hidden"
+                      }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 30,
+                        opacity: { duration: 0.2 }
+                      }}
+                      layout
+                    >
+                      <NotesPanel
+                        notes={notes}
+                        isNotesLoading={isNotesLoading}
+                        notesError={notesError}
+                        currentlyGeneratingDateKey={currentlyGeneratingDateKey}
+                        currentGenerationNotes={currentGenerationNotes}
+                        droppedNotes={droppedNotes}
+                        streamingReasoning={streamingReasoning}
+                        reasoningComplete={reasoningComplete}
+                        currentFile={currentFile}
+                        vaultId={vault?.id}
+                        currentReasoningId={currentReasoningId}
+                        reasoningHistory={reasoningHistory}
+                        handleNoteDropped={handleNoteDropped}
+                        handleNoteRemoved={handleNoteRemoved}
+                        handleCurrentGenerationNote={handleCurrentGenerationNote}
+                        handleCollapseComplete={handleCollapseComplete}
+                        formatDate={formatDate}
+                        renderNotesSkeletons={renderNotesSkeletons}
+                        isNotesRecentlyGenerated={isNotesRecentlyGenerated}
+                        currentReasoningElapsedTime={currentReasoningElapsedTime}
+                        generateNewSuggestions={generateNewSuggestions}
+                        noteGroupsData={noteGroupsData}
+                        virtuosoRef={virtuosoRef}
+                        notesContainerRef={notesContainerRef}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </Playspace>
               <SearchCommand
                 maps={flattenedFileIds}
