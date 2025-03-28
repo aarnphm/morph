@@ -136,19 +136,6 @@ export function ReasoningPanel({
     }
   }
 
-  const memoizedChevronIcon = useMemo(
-    () => (
-      <motion.div
-        initial={{ rotate: isExpanded ? 90 : 0 }}
-        animate={{ rotate: isExpanded ? 90 : 0 }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
-      >
-        <ChevronRightIcon className="h-3 w-3" />
-      </motion.div>
-    ),
-    [isExpanded],
-  )
-
   const checkIconRef = useRef<SVGSVGElement>(null)
 
   return (
@@ -166,7 +153,14 @@ export function ReasoningPanel({
             !isExpanded || (isStreaming && "text-muted-foreground"),
           )}
         >
-          {memoizedChevronIcon}
+          <motion.div
+            initial={{ rotate: isExpanded ? 90 : 0 }}
+            animate={{ rotate: isExpanded ? 90 : 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="cursor-pointer"
+          >
+            <ChevronRightIcon className="h-3 w-3" />
+          </motion.div>
           {isComplete ? (
             <span>Finished scheming for {formattedDuration(elapsedTime)}</span>
           ) : (

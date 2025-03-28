@@ -296,7 +296,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bentoml", specifier = ">=1.4.6" },
+    { name = "bentoml", specifier = "==1.4.7" },
     { name = "goodfire", specifier = ">=0.3.4" },
     { name = "hnswlib", specifier = ">=0.8.0" },
     { name = "huggingface-hub", specifier = ">=0.25.0" },
@@ -405,7 +405,7 @@ wheels = [
 
 [[package]]
 name = "bentoml"
-version = "1.4.6"
+version = "1.4.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "a2wsgi" },
@@ -450,9 +450,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "watchfiles" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/15/02/6ec70260ace9c87c467c76e7f461b954c77befebbb502562406ebfdf26f5/bentoml-1.4.6.tar.gz", hash = "sha256:e7c45ea18dd847a5400d5d1d309173c3c55d33a8e3278e2b64c2d317bd24d9a6", size = 967719 }
+sdist = { url = "https://files.pythonhosted.org/packages/f7/7a/ff5161f1bf97f728c3026d7b5fc177c8b00ac3538f7dadf5b257d43ba523/bentoml-1.4.7.tar.gz", hash = "sha256:3c15aee8122b3248c5b2ac4f6e5e2e9e474b51dbc54c031a73d91c4f011a0329", size = 968314 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/25/4d/4478e52ae5e3a99ee1410c264304f7467e7831b857bc2394b7376beea711/bentoml-1.4.6-py3-none-any.whl", hash = "sha256:227f73b121af6b6ae26180e287a807634824980b8a57ca62ad6c78680046c1dd", size = 1147736 },
+    { url = "https://files.pythonhosted.org/packages/57/c1/e6ec5d8b7672c47c69cd48361eba44c76e93f2b6ca07855e24c969142523/bentoml-1.4.7-py3-none-any.whl", hash = "sha256:8b296699b4195b3ec8182efe9c8fe403861e903267b0a4f6fdb6c697730dd390", size = 1148380 },
 ]
 
 [[package]]

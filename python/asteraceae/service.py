@@ -265,7 +265,7 @@ class Embeddings:
       dimensions=self.dimensions,
       http_client=self.to_sync.client,
       async_http_client=self.to_async.client,
-      additional_headers={'Runner-Name': self.__class__.__name__},
+      default_headers={'Runner-Name': self.__class__.__name__},
     )
     self.sentence_splitter = SentenceSplitter(
       # NOTE: that this supports linebreaks in Quartz and Obsidian.
