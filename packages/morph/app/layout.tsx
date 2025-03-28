@@ -1,11 +1,10 @@
 import "./globals.css"
 import type React from "react"
 import PlausibleProvider from "next-plausible"
-import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeProvider } from "@/context/theme-provider"
 import { VaultProvider } from "@/context/vault-context"
 import Script from "next/script"
 import { Toaster } from "@/components/ui/toaster"
-import { SvgProvider } from "@/components/svg"
 import { type Viewport, type Metadata } from "next"
 
 export const metadata: Metadata = {
@@ -58,7 +57,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </VaultProvider>
         </PlausibleProvider>
         <Toaster />
-        <SvgProvider />
         {process.env.NODE_ENV === "production" && (
           <Script
             defer

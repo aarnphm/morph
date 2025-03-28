@@ -16,7 +16,6 @@ export interface Settings {
   ignorePatterns: string[]
   editModeShortcut: string
   notePanelShortcut: string
-  showFooter: boolean
   citation: {
     enabled: boolean
     format: "biblatex" | "csl-json"
@@ -172,7 +171,6 @@ const defaultSettings: Settings = {
   ],
   editModeShortcut: "e",
   notePanelShortcut: "i",
-  showFooter: false,
   citation: {
     enabled: false,
     format: "biblatex",

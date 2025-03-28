@@ -60,7 +60,7 @@ const vaultButtonVariants = cva(
   {
     variants: {
       color: {
-        none: "",
+        none: "shadow-none hover:bg-gray-400/30",
         cyan: "bg-cyan-600 hover:bg-cyan-700",
         blue: "bg-blue-600 hover:bg-blue-700",
         green: "bg-green-600 hover:bg-green-700",
@@ -84,7 +84,7 @@ type VaultButtonProps = {
   children: React.ReactNode
   title?: string
   asChild?: boolean
-} & React.ComponentProps<"button"> & 
+} & React.ComponentProps<"button"> &
   VariantProps<typeof vaultButtonVariants>
 
 function VaultButton({

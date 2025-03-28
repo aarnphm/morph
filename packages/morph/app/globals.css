@@ -857,6 +857,9 @@
   --shiki-dark: var(--flexoki-black);
   --shiki-dark-bg: var(--flexoki-800);
 
+  --bg-200: 53 28.6% 94.5%;
+  --bg-300: 48 25% 92.2%;
+
   --background: var(--flexoki-bg);
   --foreground: var(--flexoki-tx);
   --card: var(--flexoki-bg);

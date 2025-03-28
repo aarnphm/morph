@@ -8,8 +8,6 @@ import { languages } from "@codemirror/language-data"
 import { EditorView } from "@codemirror/view"
 import { Compartment, EditorState } from "@codemirror/state"
 import {
-  Pencil1Icon,
-  EyeOpenIcon,
   ShadowInnerIcon,
   StackIcon,
   Cross2Icon,
@@ -17,10 +15,9 @@ import {
   ChevronDownIcon,
 } from "@radix-ui/react-icons"
 import usePersistedSettings from "@/hooks/use-persisted-settings"
-import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Vim, vim } from "@replit/codemirror-vim"
 import { DraggableNoteCard, NoteCard, AttachedNoteCard } from "@/components/note-card"
-import Explorer from "@/components/explorer"
 import { fileField, mdToHtml } from "@/components/markdown-inline"
 import { toJsx, cn } from "@/lib"
 import type { Root } from "hast"
@@ -42,7 +39,7 @@ import { Virtuoso, Components } from "react-virtuoso"
 import { NOTES_DND_TYPE } from "@/lib/notes"
 import { motion, AnimatePresence } from "motion/react"
 import { VaultButton } from "@/components/ui/button"
-import { SidebarRails } from "@/components/sidebar"
+import Rails from "@/components/rails"
 
 interface StreamingDelta {
   suggestion: string
@@ -711,8 +708,6 @@ const EditorDropTarget = memo(function EditorDropTarget({
 })
 
 const Playspace = memo(function Playspace({ children }: { children: React.ReactNode }) {
-  const { state } = useSidebar()
-
   return (
     <motion.section
       className="flex flex-1 overflow-hidden m-4 border"
@@ -725,8 +720,8 @@ const Playspace = memo(function Playspace({ children }: { children: React.ReactN
         mass: 0.8,
       }}
       animate={{
-        margin: state === "expanded" ? "16px 0 0 16px" : "16px",
-        borderRadius: state === "expanded" ? "8px 0 0 0" : "8px",
+        margin: "16px",
+        borderRadius: "8px",
       }}
     >
       {children}
@@ -920,19 +915,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         })
     }
   }, [currentFile, vault])
-
-  const handleExportMarkdown = useCallback(() => {
-    const { content, filename } = contentRef.current
-    const blob = new Blob([md(content).content], { type: "text/markdown" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }, [])
 
   const updatePreview = useCallback(
     async (value: string) => {
@@ -1601,16 +1583,15 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       <NotesProvider>
         <CustomDragLayer />
         <SearchProvider vault={vault!}>
-          <SidebarProvider defaultOpen={false}>
-            <Explorer
+          <SidebarProvider defaultOpen={false} className="flex min-h-screen">
+            <Rails
               vault={vault!}
               editorViewRef={codeMirrorViewRef}
               onFileSelect={onFileSelect}
               onNewFile={onNewFile}
               onContentUpdate={updatePreview}
-              onExportMarkdown={handleExportMarkdown}
             />
-            <SidebarInset className="flex flex-col h-screen overflow-hidden">
+            <SidebarInset className="flex flex-col h-screen flex-1 overflow-hidden">
               <Playspace>
                 <EditorDropTarget handleNoteDropped={handleNoteDropped}>
                   {memoizedDroppedNotes.length > 0 && (
@@ -1721,24 +1702,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 vault={vault!}
                 onFileSelect={handleFileSelect}
               />
-              {("showFooter" in settings ? settings.showFooter !== false : true) && (
-                <footer className="sticky bottom-0 h-8 border-t text-xs/8 bg-background z-10">
-                  <div
-                    className="h-full flex shrink-0 items-center align-middle font-serif justify-end mx-4 gap-4 text-muted-foreground hover:text-accent-foreground cursor-pointer"
-                    aria-hidden
-                    tabIndex={-1}
-                  >
-                    <span>{currentFile.replace(".md", "")}</span>
-                    <span>{markdownContent.split(/\s+/).filter(Boolean).length} words</span>
-                    <span>{markdownContent.length} chars</span>
-                    {isEditMode ? (
-                      <EyeOpenIcon className="h-3 w-3 p-0" widths={16} height={16} />
-                    ) : (
-                      <Pencil1Icon className="h-3 w-3 p-0" widths={16} height={16} />
-                    )}
-                  </div>
-                </footer>
-              )}
             </SidebarInset>
           </SidebarProvider>
         </SearchProvider>
