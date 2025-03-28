@@ -81,23 +81,32 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
   }, [vaults, getAllVaults, setVaults, setActiveVaultId])
 
-  return (
-    <VaultContext.Provider
-      value={{
-        vaults,
-        activeVaultId,
-        updateReference,
-        setActiveVaultId,
-        getActiveVault,
-        refreshVault,
-        addVault,
-        isLoading,
-        flattenedFileIds,
-      }}
-    >
-      {children}
-    </VaultContext.Provider>
+  const value = useMemo(
+    () => ({
+      vaults,
+      activeVaultId,
+      updateReference,
+      setActiveVaultId,
+      getActiveVault,
+      refreshVault,
+      addVault,
+      isLoading,
+      flattenedFileIds,
+    }),
+    [
+      vaults,
+      activeVaultId,
+      updateReference,
+      setActiveVaultId,
+      getActiveVault,
+      refreshVault,
+      addVault,
+      isLoading,
+      flattenedFileIds,
+    ],
   )
+
+  return <VaultContext.Provider value={value}>{children}</VaultContext.Provider>
 }
 
 export const useVaultContext = () => useContext(VaultContext)

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { EnterIcon } from "@radix-ui/react-icons"
-import PixelatedScene from "@/components/landing/pixelated-scene"
+import { PixelatedScene } from "@/components/landing"
 import { VaultButton } from "@/components/ui/button"
 
 export default function LandingPage() {

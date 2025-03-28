@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "motion/react"
 
 // Triple dot loading animation component
 const LoadingDots = memo(function LoadingDots() {
-  // Define variants for the container to stagger children animations
   const containerVariants = {
     animate: {
       transition: {
@@ -15,8 +14,6 @@ const LoadingDots = memo(function LoadingDots() {
       },
     },
   }
-
-  // Define variants for individual dots
   const dotVariants = {
     initial: {
       scaleY: 1,

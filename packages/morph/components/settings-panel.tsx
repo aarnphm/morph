@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useCallback, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -171,7 +172,7 @@ const EditorSettings = React.memo(function EditorSettings() {
 const HotkeySettings = React.memo(function HotkeySettings() {
   const { settings, updateSettings } = usePersistedSettings()
 
-  const handleEditModeShortcutChange = React.useCallback(
+  const handleEditModeShortcutChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const key = e.target.value.slice(-1).toLowerCase()
       if (key.match(/[a-z]/i)) {
@@ -205,24 +206,25 @@ const HotkeySettings = React.memo(function HotkeySettings() {
 const CitationSettings = React.memo(function CitationSettings() {
   const { settings, updateSettings } = usePersistedSettings()
   const { getActiveVault, updateReference } = useVaultContext()
-  const [referencesPath, setReferencesPath] = React.useState<string | undefined>(
+  const [referencesPath, setReferencesPath] = useState<string | undefined>(
     settings.citation.databasePath,
   )
-  const [hasManuallyCleared, setHasManuallyCleared] = React.useState(false)
+  const [hasManuallyCleared, setHasManuallyCleared] = useState(false)
 
   const vault = getActiveVault()
 
   // Save raw references to temp file and update database path
-  const handleRawReferencesChange = React.useCallback(
+  const handleRawReferencesChange = useCallback(
     async (value: string) => {
       try {
-        if (!vault?.handle) return
+        if (!vault) return
 
+        const handle = vault.tree.handle as FileSystemDirectoryHandle
         const format = settings.citation.format
         const fileName = `references.${format === "biblatex" ? "bib" : "json"}`
 
         // Create or get .morph directory in vault
-        const morphDir = await vault.tree.handle.getDirectoryHandle(".morph", { create: true })
+        const morphDir = await handle.getDirectoryHandle(".morph", { create: true })
         const fileHandle = await morphDir.getFileHandle(fileName, { create: true })
 
         // Write raw references to file
@@ -247,20 +249,21 @@ const CitationSettings = React.memo(function CitationSettings() {
   )
 
   // Check if References.bib exists in any vault and copy it to .morph directory
-  React.useEffect(() => {
+  useEffect(() => {
     const handleReferences = async () => {
       try {
-        if (!vault?.handle) return
+        if (!vault) return
 
+        const handle = vault.tree.handle as FileSystemDirectoryHandle
         // Try to get the default References.bib
-        const defaultFileHandle = await vault.tree.handle.getFileHandle("References.bib")
+        const defaultFileHandle = await handle.getFileHandle("References.bib")
         if (defaultFileHandle && !hasManuallyCleared) {
           // Read the content of References.bib
           const file = await defaultFileHandle.getFile()
           const content = await file.text()
 
           // Create .morph directory and copy the content
-          const morphDir = await vault.tree.handle.getDirectoryHandle(".morph", { create: true })
+          const morphDir = await handle.getDirectoryHandle(".morph", { create: true })
           const morphFileHandle = await morphDir.getFileHandle("references.bib", { create: true })
 
           // Write content to .morph/references.bib
@@ -290,7 +293,7 @@ const CitationSettings = React.memo(function CitationSettings() {
     if (!settings.citation.databasePath && !hasManuallyCleared) handleReferences()
   }, [vault, settings, hasManuallyCleared, updateReference, updateSettings])
 
-  const handleInputChange = React.useCallback(
+  const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value
       setReferencesPath(newValue)
@@ -305,14 +308,14 @@ const CitationSettings = React.memo(function CitationSettings() {
     [updateSettings, settings],
   )
 
-  const handleTextareaChange = React.useCallback(
+  const handleTextareaChange = useCallback(
     (value: string) => {
       handleRawReferencesChange(value)
     },
     [handleRawReferencesChange],
   )
 
-  const handleRadioGroupChange = React.useCallback(
+  const handleRadioGroupChange = useCallback(
     (value: "biblatex" | "csl-json") => {
       updateSettings({
         citation: {
@@ -433,7 +436,7 @@ const SidebarSettingItem = React.memo(function SidebarSettingItem({
   categoryId: string
   setActiveCategory: (id: string) => void
 }) {
-  const handleClick = React.useCallback(() => {
+  const handleClick = useCallback(() => {
     setActiveCategory(categoryId)
   }, [setActiveCategory, categoryId])
 
@@ -467,10 +470,10 @@ export const SettingsPanel = React.memo(function SettingsPanel({
   onClose,
   setIsOpen,
 }: SettingsPanelProps) {
-  const [activeCategory, setActiveCategory] = React.useState("general")
+  const [activeCategory, setActiveCategory] = useState("general")
   const { isLoaded } = usePersistedSettings()
 
-  const handleKeyDown = React.useCallback(
+  const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (event.key === "Escape" && isOpen) {
         onClose()
@@ -482,7 +485,7 @@ export const SettingsPanel = React.memo(function SettingsPanel({
     [isOpen, onClose, setIsOpen],
   )
 
-  React.useEffect(() => {
+  useEffect(() => {
     document.addEventListener("keydown", handleKeyDown)
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [handleKeyDown])

@@ -42,6 +42,7 @@ import { Virtuoso, Components } from "react-virtuoso"
 import { NOTES_DND_TYPE } from "@/lib/notes"
 import { motion, AnimatePresence } from "motion/react"
 import { VaultButton } from "@/components/ui/button"
+import { SidebarRails } from "@/components/sidebar"
 
 interface StreamingDelta {
   suggestion: string
@@ -713,15 +714,23 @@ const Playspace = memo(function Playspace({ children }: { children: React.ReactN
   const { state } = useSidebar()
 
   return (
-    <section
-      className={cn(
-        "flex flex-1 overflow-hidden m-4 border",
-        // Apply rounded corners only when sidebar is expanded/open
-        state === "expanded" ? "mb-0 mr-0 rounded-tl-md" : "rounded-md",
-      )}
+    <motion.section
+      className="flex flex-1 overflow-hidden m-4 border"
+      layout
+      layoutId="playspace-layout"
+      transition={{
+        type: "spring",
+        stiffness: 300,
+        damping: 26,
+        mass: 0.8,
+      }}
+      animate={{
+        margin: state === "expanded" ? "16px 0 0 16px" : "16px",
+        borderRadius: state === "expanded" ? "8px 0 0 0" : "8px",
+      }}
     >
       {children}
-    </section>
+    </motion.section>
   )
 })
 

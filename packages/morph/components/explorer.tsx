@@ -193,17 +193,9 @@ const ExplorerHeader = memo(function ExplorerHeader({
             <DropdownMenuItem onClick={onExportMarkdown}>Markdown</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <div className="flex items-center justify-between backdrop-blur-sm bg-background/80 supports-[backdrop-filter]:bg-background/60">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0"
-            onClick={handleOpenSettings}
-            disabled={true}
-          >
-            <GearIcon className="h-3 w-3" width={16} height={16} />
-          </Button>
-        </div>
+        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleOpenSettings}>
+          <GearIcon className="h-3 w-3" width={16} height={16} />
+        </Button>
         <SettingsPanel
           isOpen={isSettingsOpen}
           onClose={handleCloseSettings}
@@ -278,7 +270,7 @@ export default memo(function Explorer({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarRail className="bg-background" />
+      <SidebarRail />
     </Sidebar>
   )
 })
