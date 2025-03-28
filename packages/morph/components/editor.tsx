@@ -136,7 +136,7 @@ const MemoizedNoteGroup = memo(
     const MemoizedReasoningPanel = useMemo(() => {
       if (!reasoning) return null
       return (
-        <div className="px-2 bg-background border-b">
+        <div className="px-2 bg-background">
           <ReasoningPanel
             reasoning={reasoning.content}
             isStreaming={false}
@@ -588,7 +588,7 @@ const NotesPanel = memo(function NotesPanel({
                     <div className="space-y-4 flex-shrink-0 mb-6">
                       <DateDisplay dateStr={currentlyGeneratingDateKey!} formatDate={formatDate} />
 
-                      <div className="px-2 bg-background border-b">
+                      <div className="px-2 bg-background">
                         <ReasoningPanel
                           reasoning={streamingReasoning}
                           isStreaming={isNotesLoading && !reasoningComplete}

@@ -1,6 +1,6 @@
 import * as React from "react"
 import { useState, useRef, useEffect, memo } from "react"
-import { ChevronRightIcon, CheckIcon } from "@radix-ui/react-icons"
+import { ChevronRightIcon, TransformIcon } from "@radix-ui/react-icons"
 import { cn } from "@/lib/utils"
 import { db } from "@/db"
 import { motion, AnimatePresence } from "motion/react"
@@ -76,6 +76,7 @@ export function ReasoningPanel({
   elapsedTime,
 }: ReasoningPanelProps) {
   const [isExpanded, setIsExpanded] = useState(shouldExpand)
+  const [isHovering, setIsHovering] = useState(false)
   const reasoningRef = useRef<HTMLDivElement>(null)
   const startTimeRef = useRef<number | null>(null)
 
@@ -133,30 +134,33 @@ export function ReasoningPanel({
     }
   }
 
-  const checkIconRef = useRef<SVGSVGElement>(null)
-
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("w-full border rounded-md", className)}>
       <div
         className={cn(
-          "flex items-center justify-between text-xs py-1",
+          "flex items-center justify-between text-xs p-1",
           isExpanded && "shadow-lg transition-shadow duration-300",
         )}
       >
         <button
           onClick={toggleExpand}
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
           className={cn(
             "flex items-center gap-1 hover:text-foreground transition-colors text-left",
             !isExpanded || (isStreaming && "text-muted-foreground"),
           )}
         >
           <motion.div
-            initial={{ rotate: isExpanded ? 90 : 0 }}
             animate={{ rotate: isExpanded ? 90 : 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
+            transition={{ duration: 0.2 }}
             className="cursor-pointer"
           >
-            <ChevronRightIcon className="h-3 w-3" />
+            {isHovering ? (
+              <ChevronRightIcon className="h-3 w-3" />
+            ) : (
+              <TransformIcon className="h-3 w-3" />
+            )}
           </motion.div>
           {isComplete ? (
             <span>Finished scheming for {formattedDuration(elapsedTime)}</span>
@@ -166,11 +170,7 @@ export function ReasoningPanel({
         </button>
 
         <div className="flex items-center">
-          {isComplete ? (
-            <CheckIcon className="h-3 w-3 text-green-500" ref={checkIconRef} />
-          ) : (
-            isStreaming && <LoadingDots />
-          )}
+          { isStreaming && <LoadingDots /> }
         </div>
       </div>
 
@@ -179,22 +179,9 @@ export function ReasoningPanel({
           <motion.div
             ref={reasoningRef}
             initial={{ height: 0, opacity: 0 }}
-            animate={{
-              height: "auto",
-              opacity: 1,
-              transition: {
-                height: { duration: 0.3, ease: "easeOut" },
-                opacity: { duration: 0.2, delay: 0.1 },
-              },
-            }}
-            exit={{
-              height: 0,
-              opacity: 0,
-              transition: {
-                height: { duration: 0.3, ease: "easeIn" },
-                opacity: { duration: 0.2 },
-              },
-            }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
             className="text-xs text-muted-foreground whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72"
           >
             <span>{reasoning}</span>
