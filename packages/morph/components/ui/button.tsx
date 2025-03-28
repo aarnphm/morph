@@ -55,39 +55,52 @@ function Button({
   )
 }
 
-interface VaultButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  children: React.ReactNode;
-  color?: "cyan" | "blue" | "green" | "orange" | "purple" | "yellow";
-  title?: string;
-  asChild?: boolean;
-}
+const vaultButtonVariants = cva(
+  "flex items-center justify-center gap-2 rounded-md text-white transition-colors text-xs font-medium shadow-sm hover:cursor-pointer",
+  {
+    variants: {
+      color: {
+        none: "",
+        cyan: "bg-cyan-600 hover:bg-cyan-700",
+        blue: "bg-blue-600 hover:bg-blue-700",
+        green: "bg-green-600 hover:bg-green-700",
+        orange: "bg-orange-600 hover:bg-orange-700",
+        purple: "bg-purple-600 hover:bg-purple-700",
+        yellow: "bg-yellow-500 hover:bg-yellow-700/80",
+      },
+      size: {
+        default: "h-8 w-8",
+        small: "h-6 w-6",
+      },
+    },
+    defaultVariants: {
+      color: "cyan",
+      size: "default",
+    },
+  }
+)
+
+type VaultButtonProps = {
+  children: React.ReactNode
+  title?: string
+  asChild?: boolean
+} & React.ComponentProps<"button"> & 
+  VariantProps<typeof vaultButtonVariants>
 
 function VaultButton({
+  className,
   children,
-  color = "cyan",
+  color,
+  size,
   title,
   asChild = false,
-  className,
   ...props
 }: VaultButtonProps) {
-  const colorClasses = {
-    cyan: "bg-cyan-600 hover:bg-cyan-700",
-    blue: "bg-blue-600 hover:bg-blue-700",
-    green: "bg-green-600 hover:bg-green-700",
-    orange: "bg-orange-600 hover:bg-orange-700",
-    purple: "bg-purple-600 hover:bg-purple-700",
-    yellow: "bg-yellow-500 hover:bg-yellow-700/80",
-  };
-
   const Comp = asChild ? Slot : "button";
 
   return (
     <Comp
-      className={cn(
-        "flex items-center justify-center gap-2 h-8 w-8 rounded-md text-white transition-colors text-xs font-medium shadow-sm hover:cursor-pointer",
-        colorClasses[color],
-        className
-      )}
+      className={cn(vaultButtonVariants({ color, size, className }))}
       title={title}
       {...props}
     >
@@ -96,4 +109,4 @@ function VaultButton({
   );
 }
 
-export { Button, buttonVariants, VaultButton }
+export { Button, buttonVariants, VaultButton, vaultButtonVariants }

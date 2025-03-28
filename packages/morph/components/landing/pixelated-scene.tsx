@@ -1,28 +1,41 @@
 "use client"
 
-import { useRef, useLayoutEffect } from "react"
+import { useRef, useLayoutEffect, useEffect, forwardRef, memo } from "react"
 import { Canvas, useThree, useFrame } from "@react-three/fiber"
 import { OrbitControls } from "@react-three/drei"
 import { useTime } from "motion/react"
 import { degreesToRadians, mix, progress } from "popmotion"
-import type * as THREE from "three"
+import * as THREE from "three"
 
-const color = "#111111"
+const bgColor = "#f2f0e5"
+const wireframeColor = "#111111"
 
-// Icosahedron component
-function Icosahedron() {
-  return (
-    <mesh rotation-x={0.35}>
-      <icosahedronGeometry args={[1, 0]} />
-      <meshBasicMaterial wireframe color={color} />
-    </mesh>
-  )
-}
+const Icosahedron = memo(
+  forwardRef<THREE.Mesh>(function Icosahedron(_, ref) {
+    const meshRef = useRef<THREE.Mesh>(null)
+    
+    useEffect(() => {
+      if (!ref) return
+      if (typeof ref === "function") {
+        ref(meshRef.current)
+      } else {
+        ref.current = meshRef.current
+      }
+    }, [ref])
+    
+    return (
+      <mesh ref={meshRef} rotation-x={0.35}>
+        <icosahedronGeometry args={[1, 0]} />
+        <meshBasicMaterial wireframe color={wireframeColor} />
+      </mesh>
+    )
+  })
+)
 
 // Star component
 function Star({ p }: { p: number }) {
-  const ref = useRef<THREE.Object3D>(null)
-
+  const ref = useRef<THREE.Mesh>(null)
+  
   useLayoutEffect(() => {
     if (!ref.current) return
 
@@ -34,28 +47,27 @@ function Star({ p }: { p: number }) {
 
   return (
     <mesh ref={ref}>
-      <boxGeometry args={[0.05, 0.05, 0.05]} />
-      <meshBasicMaterial wireframe color={color} />
+      <boxGeometry args={[0.07, 0.07, 0.07]} />
+      <meshBasicMaterial wireframe color={wireframeColor} />
     </mesh>
   )
 }
 
 function Scene({ numStars = 100 }) {
   const gl = useThree((state) => state.gl)
+  const scene = useThree((state) => state.scene)
   const time = useTime()
 
-  // Set low pixel ratio for pixelated effect
   useLayoutEffect(() => {
     gl.setPixelRatio(0.3)
-  }, [gl])
+    scene.background = new THREE.Color(bgColor)
+  }, [gl, scene])
 
-  // Gentle auto-rotation
   useFrame(({ camera }) => {
-    camera.position.setFromSphericalCoords(5, degreesToRadians(75), time.get() * 0.0002)
+    camera.position.setFromSphericalCoords(8, degreesToRadians(75), time.get() * 0.0002)
     camera.lookAt(0, 0, 0)
   })
 
-  // Generate stars
   const stars = []
   for (let i = 0; i < numStars; i++) {
     stars.push(<Star key={i} p={progress(0, numStars, i)} />)
@@ -69,7 +81,7 @@ function Scene({ numStars = 100 }) {
   )
 }
 
-export default function PixelatedScene() {
+export default memo(function PixelatedScene() {
   return (
     <Canvas gl={{ antialias: false }}>
       <Scene />
@@ -82,4 +94,4 @@ export default function PixelatedScene() {
       />
     </Canvas>
   )
-}
+})

@@ -74,7 +74,7 @@ export interface FileNameIndex {
   vaultId: string
 }
 
-export class Morph extends Dexie {
+export class DB extends Dexie {
   vaults!: Table<Vault, string>
   references!: Table<Reference, string>
   notes!: Table<Note, string>
@@ -89,11 +89,7 @@ export class Morph extends Dexie {
       references: "id, vaultId",
       notes: "id, fileId, vaultId, dropped",
       reasonings: "id, fileId, vaultId, createdAt",
-    })
-
-    // Add fileNames table in version 2
-    this.version(2).stores({
-      fileNames: "id, fileName, fileId, vaultId"
+      fileNames: "id, fileName, fileId, vaultId",
     })
   }
 
@@ -147,23 +143,21 @@ export class Morph extends Dexie {
         id,
         fileName,
         fileId,
-        vaultId
-      });
-      return id;
-    });
+        vaultId,
+      })
+      return id
+    })
   }
 
   async getFileIdByName(fileName: string, vaultId: string): Promise<string | undefined> {
-    const result = await this.fileNames
-      .where({fileName, vaultId})
-      .first();
-    return result?.fileId;
+    const result = await this.fileNames.where({ fileName, vaultId }).first()
+    return result?.fileId
   }
 }
 
-export const db = new Morph()
+const db = new DB()
 
-export const defaultSettings: Settings = {
+const defaultSettings: Settings = {
   vimMode: false,
   tabSize: 2,
   ignorePatterns: [
@@ -184,3 +178,5 @@ export const defaultSettings: Settings = {
     format: "biblatex",
   },
 }
+
+export { db, defaultSettings }

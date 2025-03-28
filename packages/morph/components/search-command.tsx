@@ -26,7 +26,7 @@ export function SearchCommand({ maps, vault, onFileSelect }: SearchCommandProps)
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [results, setResults] = useState<Array<UserDocument>>([])
   const [searchKey, setSearchKey] = useState(0)
-  const { index } = useSearch()
+  const { isIndexReady, searchDocuments } = useSearch()
   const { toast } = useToast()
 
   // Debounce the query input to reduce the number of search operations
@@ -49,45 +49,76 @@ export function SearchCommand({ maps, vault, onFileSelect }: SearchCommandProps)
     return () => document.removeEventListener("keydown", down)
   }, [open])
 
+  // Search functionality
   useEffect(() => {
-    if (!index || !open) return
+    if (!open || !isIndexReady || !debouncedQuery.trim()) {
+      setResults([])
+      return
+    }
 
-    const search = async () => {
+    let isMounted = true
+
+    const performSearch = async () => {
       try {
-        const results = await index.searchAsync({
-          query: debouncedQuery,
+        // Use the search method from the context to avoid TypeScript errors
+        const searchResults = await searchDocuments(debouncedQuery, {
           index: ["title"],
           limit: 100,
           suggest: true,
         })
 
-        // Flatten and map results to documents
-        const docs = results.flatMap((fieldResults) =>
-          fieldResults.result
-            .map(String)
-            .map((id) => {
-              const item = maps.get(id)
-              if (!item) return null
+        if (!isMounted) return
 
-              const { name, path } = item
+        // Handle empty results
+        if (!searchResults || searchResults.length === 0) {
+          setResults([])
+          return
+        }
 
-              return {
-                id,
-                title: name,
-                path,
-              } as UserDocument
-            })
-            .filter((el) => el !== null),
-        )
-        setResults(docs)
-      } catch {
-        toast({ title: "Cmd-K", description: "Failed to search query" })
-        setResults([])
+        // Process the search results
+        const uniqueIds = new Set<string>()
+
+        // Collect unique document IDs from search results
+        for (const result of searchResults) {
+          if (result && Array.isArray(result.result)) {
+            for (const id of result.result) {
+              uniqueIds.add(String(id))
+            }
+          }
+        }
+
+        // Map IDs to document objects
+        const docs = Array.from(uniqueIds)
+          .map((id) => {
+            const item = maps.get(id)
+            if (!item) return null
+
+            return {
+              id,
+              title: item.name,
+              path: item.path,
+            }
+          })
+          .filter(Boolean) as UserDocument[]
+
+        if (isMounted) {
+          setResults(docs)
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error("Search error:", error)
+          toast({ title: "Cmd-K", description: "Failed to search query" })
+          setResults([])
+        }
       }
     }
 
-    search()
-  }, [debouncedQuery, open, index, maps, toast])
+    performSearch()
+
+    return () => {
+      isMounted = false
+    }
+  }, [debouncedQuery, open, searchDocuments, maps, toast, isIndexReady])
 
   // Update the search key when the dialog opens
   useEffect(() => {
@@ -207,7 +238,7 @@ export function SearchCommand({ maps, vault, onFileSelect }: SearchCommandProps)
           }}
         >
           <CommandEmpty className="flex whitespace-pre-wrap gap-0 px-3 py-1.5 text-xs/8 flex-col py-2 items-start text-muted-foreground italic">
-            Aucun fichier trouvé
+            {!isIndexReady ? "Initialisation de la recherche..." : "Aucun fichier trouvé"}
           </CommandEmpty>
           {MemoizedCommandItems}
         </CommandList>
@@ -227,6 +258,6 @@ export function SearchCommand({ maps, vault, onFileSelect }: SearchCommandProps)
         </ul>
       </CommandDialog>
     ),
-    [open, setOpen, MemoizedCommandInput, MemoizedCommandItems, searchKey],
+    [open, setOpen, MemoizedCommandInput, MemoizedCommandItems, searchKey, isIndexReady],
   )
 }

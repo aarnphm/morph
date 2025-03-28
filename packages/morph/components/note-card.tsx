@@ -220,7 +220,6 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
           type: "spring",
           stiffness: 400,
           damping: 25,
-          delay: index * 0.05,
         },
       },
       expanded: {
@@ -232,7 +231,6 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
           type: "spring",
           stiffness: 300,
           damping: 25,
-          delay: index * 0.03,
         },
       },
       hidden: {
@@ -244,7 +242,7 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
         },
       },
     }),
-    [index],
+    [],
   )
 
   // Ensure we have a color
@@ -259,7 +257,7 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
           variants={variants}
           initial="hidden"
           animate={isStackExpanded ? "expanded" : "collapsed"}
-          layout
+          layout="position"
         >
           <div className="relative z-10 text-sm p-1 flex items-center justify-center w-full h-full">
             {index + 1}

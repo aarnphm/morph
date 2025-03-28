@@ -41,6 +41,7 @@ import { ReasoningPanel } from "@/components/reasoning-panel"
 import { Virtuoso, Components } from "react-virtuoso"
 import { NOTES_DND_TYPE } from "@/lib/notes"
 import { motion, AnimatePresence } from "motion/react"
+import { VaultButton } from "@/components/ui/button"
 
 interface StreamingDelta {
   suggestion: string
@@ -187,6 +188,9 @@ const DroppedNotesStack = memo(
     onExpandStack,
   }: DroppedNotesStackProps) {
     const containerRef = useRef<HTMLDivElement>(null)
+    const scrollContainerRef = useRef<HTMLDivElement>(null)
+    const lastNoteRef = useRef<HTMLDivElement>(null)
+    const prevNotesLengthRef = useRef(droppedNotes.length)
     const MAX_VISIBLE_NOTES = 5
     const hasMoreNotes = droppedNotes.length > MAX_VISIBLE_NOTES
     const hasNotes = droppedNotes.length > 0
@@ -197,17 +201,31 @@ const DroppedNotesStack = memo(
       [droppedNotes, isStackExpanded],
     )
 
-    // Memoize the attached notes to prevent unnecessary re-renders
+    // Scroll to the newly added note when in expanded mode
+    useEffect(() => {
+      // Check if a new note was added
+      if (
+        droppedNotes.length > prevNotesLengthRef.current &&
+        isStackExpanded &&
+        lastNoteRef.current &&
+        scrollContainerRef.current
+      ) {
+        // Scroll to the last note
+        lastNoteRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" })
+      }
+
+      // Update the reference for next comparison
+      prevNotesLengthRef.current = droppedNotes.length
+    }, [droppedNotes.length, isStackExpanded])
+
+    // Modified to provide a ref to the last note
     const AttachedDisplayNotes = useCallback(
       () => (
         <>
           {notesToDisplay.map((note, index) => (
-            <AttachedNoteCard
-              key={note.id}
-              note={note}
-              index={index}
-              isStackExpanded={isStackExpanded}
-            />
+            <div key={note.id} ref={index === notesToDisplay.length - 1 ? lastNoteRef : undefined}>
+              <AttachedNoteCard note={note} index={index} isStackExpanded={isStackExpanded} />
+            </div>
           ))}
         </>
       ),
@@ -232,8 +250,6 @@ const DroppedNotesStack = memo(
               type: "spring",
               stiffness: 400,
               damping: 30,
-              staggerChildren: 0.05,
-              delayChildren: 0.05,
             },
           },
           expanded: {
@@ -243,22 +259,22 @@ const DroppedNotesStack = memo(
               type: "spring",
               stiffness: 300,
               damping: 25,
-              staggerChildren: 0.05,
-              delayChildren: 0.03,
             },
           },
         }}
         initial="collapsed"
         animate={isStackExpanded ? "expanded" : "collapsed"}
-        layout
+        layoutId="notes-stack"
+        layoutRoot
       >
         <AnimatePresence>
           <motion.div
+            ref={scrollContainerRef}
             className={cn(
               "flex flex-col items-center gap-1.5",
-              isStackExpanded && "max-h-[30vh] overflow-y-auto scrollbar-hidden",
+              isStackExpanded && "max-h-[20vh] overflow-y-auto scrollbar-hidden",
             )}
-            layout
+            layout="position"
           >
             <AttachedDisplayNotes />
             {hasMoreNotes && !isStackExpanded && (
@@ -343,17 +359,19 @@ const DriversBar = memo(
   }: DriversBarProps) {
     return (
       <div className="flex items-center justify-end gap-3 p-2 border-t bg-background/95 backdrop-blur-sm shadow-md z-10 relative">
-        <button
+        <VaultButton
           onClick={generateNewSuggestions}
           disabled={isNotesLoading}
+          color="none"
+          size="small"
           className={cn(
-            "flex items-center justify-center gap-2 h-6 w-6 rounded-md transition-colors disabled:opacity-50 hover:cursor-pointer disabled:cursor-not-allowed text-xs font-medium shadow-sm",
+            "text-primary border border-accent-foreground/40",
             !isNotesRecentlyGenerated && "button-shimmer-border",
           )}
           title="Generate Suggestions"
         >
           <ShadowInnerIcon className="w-3 h-3" />
-        </button>
+        </VaultButton>
       </div>
     )
   },
@@ -752,8 +770,10 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       lastModified: new Date(),
     }
 
+    // Update droppedNotes optimistically without triggering unnecessary motion
     setDroppedNotes((prev) => {
       if (prev.find((n) => n.id === noteWithColor.id)) return prev
+      // Add note to the end of the array for proper scroll-to behavior
       return [...prev, noteWithColor]
     })
 
@@ -913,11 +933,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       reasoningContent: string
     }> => {
       try {
-        const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT
-        if (!apiEndpoint) {
-          throw new Error("Notes functionality is currently unavailable")
-        }
-
+        const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:8000"
         const readyz = await fetch(`${apiEndpoint}/readyz`)
         if (!readyz.ok) {
           throw new Error("Notes functionality is currently unavailable")
@@ -1525,9 +1541,10 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   )}
                   <div className="flex flex-col items-center space-y-2 absolute bottom-4 right-4 z-20">
                     {droppedNotes.length > 0 && (
-                      <button
+                      <VaultButton
                         onClick={toggleStackExpand}
-                        className="flex items-center justify-center gap-2 h-6 w-6 rounded-md bg-orange-400 hover:bg-orange-700 text-white transition-colors text-xs font-medium shadow-sm hover:cursor-pointer"
+                        color="orange"
+                        size="small"
                         title={isStackExpanded ? "Collapse notes stack" : "Expand notes stack"}
                       >
                         {isStackExpanded ? (
@@ -1535,19 +1552,16 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                         ) : (
                           <StackIcon className="w-3 h-3" />
                         )}
-                      </button>
+                      </VaultButton>
                     )}
-                    <button
+                    <VaultButton
                       onClick={toggleNotes}
                       disabled={isNotesLoading}
-                      className={cn(
-                        "flex items-center justify-center h-6 w-6 rounded-md text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium shadow-sm hover:cursor-pointer",
-                        "bg-cyan-600 hover:bg-cyan-700",
-                      )}
+                      size="small"
                       title={showNotes ? "Hide Notes" : "Show Notes"}
                     >
                       <CopyIcon className="w-3 h-3" />
-                    </button>
+                    </VaultButton>
                   </div>
                   <div className="absolute top-4 left-4 text-sm/7 z-10 flex items-center gap-2">
                     {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
