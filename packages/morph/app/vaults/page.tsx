@@ -67,8 +67,8 @@ export default function Home() {
           key={vault.id}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ 
-            duration: 0.3, 
+          transition={{
+            duration: 0.3,
             delay: index * 0.05,
             ease: [0.25, 0.1, 0.25, 1]
           }}
@@ -115,14 +115,14 @@ export default function Home() {
   }, [isLoading, vaults, handleVaultSelect, pathname])
 
   return (
-    <motion.main 
+    <motion.main
       className="min-h-screen w-full flex items-center justify-center bg-background"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <motion.div 
+      <motion.div
         className="container max-w-4xl p-8 border rounded-md shadow-md"
         layoutId="playspace-container"
         transition={{
@@ -132,7 +132,7 @@ export default function Home() {
           mass: 0.8,
         }}
       >
-        <motion.section 
+        <motion.section
           className="flex items-center justify-between mb-8"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -145,7 +145,7 @@ export default function Home() {
             <CardStackPlusIcon className="w-4 h-4" ref={searchRef} />
           </VaultButton>
         </motion.section>
-        <motion.div 
+        <motion.div
           className="flex items-center gap-2 text-sm text-muted-foreground my-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -154,7 +154,7 @@ export default function Home() {
           <ClockIcon className="w-4 h-4" ref={clockRef} />
           <p>recently opened vaults</p>
         </motion.div>
-        <motion.section 
+        <motion.section
           className="grid gap-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

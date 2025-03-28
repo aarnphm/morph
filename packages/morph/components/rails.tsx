@@ -49,11 +49,6 @@ export const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect }: F
     onFileSelect?.(node)
   }, [onFileSelect, node])
 
-  // Filter out non-markdown files
-  if (node.kind === "file" && node.extension !== "md") {
-    return null
-  }
-
   const MemoizedSidebarFolderItem = useMemo(
     () => (
       <SidebarMenuItem>
@@ -96,6 +91,11 @@ export const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect }: F
     [handleFileClick, node],
   )
 
+  // Filter out non-markdown files
+  if (node.kind === "file" && node.extension !== "md") {
+    return null
+  }
+
   if (node.kind === "file") return MemoizedSidebarFileItem
 
   return (
@@ -108,7 +108,7 @@ export const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect }: F
 interface RailsProps extends React.ComponentProps<typeof Sidebar> {
   vault: Vault
   editorViewRef: React.RefObject<EditorView | null>
-  onFileSelect?: (handle: FileSystemFileHandle) => void
+  onFileSelect?: (node: FileSystemTreeNode) => void
   onNewFile?: () => void
   onContentUpdate?: (content: string) => void
 }
@@ -172,7 +172,7 @@ export default memo(function Rails({
         const file = await node.handle.getFile()
         const content = await file.text()
 
-        if (onFileSelect) onFileSelect(node.handle as FileSystemFileHandle)
+        if (onFileSelect) onFileSelect(node)
 
         editorViewRef.current.dispatch({
           changes: {
@@ -198,13 +198,13 @@ export default memo(function Rails({
     <TooltipProvider delayDuration={300}>
       <motion.div
         className={cn("fixed z-sidebar lg:sticky h-full", className)}
-        animate={{ 
-          width: isExpanded ? "16rem" : "3.05rem" 
+        animate={{
+          width: isExpanded ? "16rem" : "3.05rem",
         }}
         transition={{
           type: "spring",
           stiffness: 300,
-          damping: 30
+          damping: 30,
         }}
       >
         <motion.nav
@@ -212,13 +212,13 @@ export default memo(function Rails({
             "h-screen flex flex-col items-center py-4 gap-3 fixed top-0 left-0 z-20 border-border border-r",
             "shadow-xl !bg-bg-300 backdrop-blur-sm",
           )}
-          animate={{ 
-            width: isExpanded ? "16rem" : "3.05rem" 
+          animate={{
+            width: isExpanded ? "16rem" : "3.05rem",
           }}
           transition={{
             type: "spring",
             stiffness: 300,
-            damping: 30
+            damping: 30,
           }}
         >
           <div className="flex w-full items-center gap-px px-2">
@@ -233,7 +233,7 @@ export default memo(function Rails({
             >
               <AnimatePresence mode="wait">
                 {isExpanded ? (
-                  <motion.div 
+                  <motion.div
                     key="expanded"
                     initial={{ opacity: 0, rotate: -10 }}
                     animate={{ opacity: 1, rotate: 0 }}
@@ -245,7 +245,7 @@ export default memo(function Rails({
                     <LayoutIcon className="h-4 w-4 group-hover:opacity-0 transition-opacity" />
                   </motion.div>
                 ) : (
-                  <motion.div 
+                  <motion.div
                     key="collapsed"
                     initial={{ opacity: 0, rotate: 10 }}
                     animate={{ opacity: 1, rotate: 0 }}
@@ -289,11 +289,11 @@ export default memo(function Rails({
                           }}
                           transition={{
                             opacity: { duration: 0.2 },
-                            width: { 
-                              type: "spring", 
-                              stiffness: 300, 
-                              damping: 30 
-                            }
+                            width: {
+                              type: "spring",
+                              stiffness: 300,
+                              damping: 30,
+                            },
                           }}
                         >
                           New file
@@ -331,11 +331,11 @@ export default memo(function Rails({
                           }}
                           transition={{
                             opacity: { duration: 0.2 },
-                            width: { 
-                              type: "spring", 
-                              stiffness: 300, 
-                              damping: 30 
-                            }
+                            width: {
+                              type: "spring",
+                              stiffness: 300,
+                              damping: 30,
+                            },
                           }}
                         >
                           Home
@@ -352,22 +352,22 @@ export default memo(function Rails({
 
             <AnimatePresence>
               {isExpanded && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, height: 0, overflow: "hidden" }}
-                  animate={{ 
-                    opacity: 1, 
+                  animate={{
+                    opacity: 1,
                     height: "auto",
-                    overflow: "visible"
+                    overflow: "visible",
                   }}
-                  exit={{ 
-                    opacity: 0, 
+                  exit={{
+                    opacity: 0,
                     height: 0,
-                    overflow: "hidden"
+                    overflow: "hidden",
                   }}
                   transition={{
                     type: "spring",
                     stiffness: 300,
-                    damping: 30
+                    damping: 30,
                   }}
                   className="flex flex-grow flex-col overflow-y-auto overflow-x-hidden relative px-2 mb-2"
                 >

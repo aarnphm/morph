@@ -82,7 +82,7 @@ Anticipated changes are the source of the information that is to be hidden insid
 - **AC7**: Enable exporting user data for backup purposes.
 - **AC8**: Add tools to compare progress across multiple documents.
 - **AC9**: Use A100 GPU for rendering visualizations and running text generation faster.
-- **AC10**: May not integrate application with Notion and Obsidian. 
+- **AC10**: May not integrate application with Notion and Obsidian.
 - **AC11**: Add tools to compare progress across multiple documents.
 
 

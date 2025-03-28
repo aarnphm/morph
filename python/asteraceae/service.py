@@ -7,7 +7,7 @@ with bentoml.importing():
   import hnswlib, openai
 
   from openai.types.chat import ChatCompletionUserMessageParam
-  from llama_index.core import VectorStoreIndex, StorageContext
+  from llama_index.core import VectorStoreIndex
   from llama_index.core.node_parser import SemanticSplitterNodeParser, SentenceSplitter
   from llama_index.core.schema import TextNode
   from llama_index.embeddings.openai import OpenAIEmbedding
@@ -31,6 +31,7 @@ WORKING_DIR = pathlib.Path(__file__).parent
 
 EMBEDDING_ID = 'Alibaba-NLP/gte-Qwen2-7B-instruct'
 DIMENSIONS = 3584
+
 
 class ServiceOpts(t.TypedDict, total=False):
   image: Image
@@ -271,7 +272,8 @@ class Embeddings:
       # NOTE: that this supports linebreaks in Quartz and Obsidian.
       paragraph='\n\n',
       tokenizer=self.tokenizer,
-      chunk_size=1024, chunk_overlap=20,
+      chunk_size=1024,
+      chunk_overlap=20,
     )
     self.chunker = SemanticSplitterNodeParser(
       buffer_size=1,
@@ -282,18 +284,20 @@ class Embeddings:
 
     hnsw_index = hnswlib.Index(space=self.space, dim=self.dimensions)
     hnsw_index.init_index(max_elements=self.max_elements, ef_construction=self.ef_construction, M=self.M)
-    self.index = VectorStoreIndex.from_vector_store(vector_store=HnswlibVectorStore(index), embed_model=self.embed_model)
+    self.index = VectorStoreIndex.from_vector_store(
+      vector_store=HnswlibVectorStore(hnsw_index), embed_model=self.embed_model
+    )
 
   @bentoml.task
   async def essays(self, essay: Essay) -> EmbedTask:
     metadata = EmbedMetadata(vault=essay.vault_id, file=essay.file_id, type=DocumentType.ESSAY)
 
     # Create a unique ID for the essay
-    essay_id = f"{essay.vault_id}_{essay.file_id}"
+    essay_id = f'{essay.vault_id}_{essay.file_id}'
 
     try:
       # Check if the essay is already in the index
-      existing_nodes = self.vector_store.get_by_metadata({"id": essay_id})
+      existing_nodes = self.vector_store.get_by_metadata({'id': essay_id})
 
       if existing_nodes:
         # Essay already exists in index, return the embedding
@@ -302,9 +306,7 @@ class Embeddings:
 
       # Essay not found, create embedding
       result = await self.embedding_client.embeddings.create(
-        input=[essay.content],
-        model=self.model_id,
-        extra_headers={'Runner-Name': self.__class__.__name__},
+        input=[essay.content], model=self.model_id, extra_headers={'Runner-Name': self.__class__.__name__}
       )
 
       embedding = result.data[0].embedding
@@ -312,7 +314,7 @@ class Embeddings:
       # Create a node and add to vector store
       node = TextNode(
         text=essay.content,
-        metadata={"id": essay_id, "vault_id": essay.vault_id, "file_id": essay.file_id},
+        metadata={'id': essay_id, 'vault_id': essay.vault_id, 'file_id': essay.file_id},
         embedding=embedding,
       )
       self.vector_store.add([node])
@@ -334,10 +336,10 @@ class Embeddings:
 
       try:
         # Create a unique ID for the note
-        note_id = f"{note.vault_id}_{note.file_id}_{note.note_id}"
+        note_id = f'{note.vault_id}_{note.file_id}_{note.note_id}'
 
         # Check if the note is already in the index
-        existing_nodes = self.vector_store.get_by_metadata({"id": note_id})
+        existing_nodes = self.vector_store.get_by_metadata({'id': note_id})
 
         if existing_nodes:
           # Note already exists in index, return the embedding
@@ -347,9 +349,7 @@ class Embeddings:
 
         # Note not found, create embedding
         embedding_result = await self.embedding_client.embeddings.create(
-          input=[note.content],
-          model=self.model_id,
-          extra_headers={'Runner-Name': self.__class__.__name__},
+          input=[note.content], model=self.model_id, extra_headers={'Runner-Name': self.__class__.__name__}
         )
 
         embedding = embedding_result.data[0].embedding
@@ -357,7 +357,7 @@ class Embeddings:
         # Create a node and add to vector store
         node = TextNode(
           text=note.content,
-          metadata={"id": note_id, "vault_id": note.vault_id, "file_id": note.file_id, "note_id": note.note_id},
+          metadata={'id': note_id, 'vault_id': note.vault_id, 'file_id': note.file_id, 'note_id': note.note_id},
           embedding=embedding,
         )
         self.vector_store.add([node])

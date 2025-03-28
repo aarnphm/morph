@@ -1895,3 +1895,43 @@ canvas {
   image-rendering: pixelated;
   image-rendering: optimize-contrast;
 }
+
+@keyframes scan-down {
+  0% {
+    clip-path: polygon(0 0, 100% 0, 100% 0, 0 0);
+    background-color: rgba(136, 144, 194, 0.2);
+    opacity: 0.7;
+  }
+  10% {
+    clip-path: polygon(0 0, 100% 0, 100% 5%, 0 5%);
+    background-color: rgba(136, 144, 194, 0.2);
+    opacity: 0.7;
+  }
+  90% {
+    clip-path: polygon(0 0, 100% 0, 100% 90%, 0 90%);
+    background-color: rgba(136, 144, 194, 0.1);
+    opacity: 0.5;
+  }
+  100% {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    background-color: rgba(136, 144, 194, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes cursor-blink {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-scan-down {
+  animation: scan-down 1s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+}
+
+.animate-cursor-blink {
+  animation: cursor-blink 0.8s infinite;
+}

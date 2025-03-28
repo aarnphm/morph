@@ -44,6 +44,8 @@ export type NoteCardProps = React.HTMLAttributes<HTMLDivElement> &
     note?: Note
     isGenerating?: boolean
     color?: string
+    isStreaming?: boolean
+    isScanComplete?: boolean
   }
 
 export const NoteCard = memo(function NoteCard({
@@ -53,6 +55,8 @@ export const NoteCard = memo(function NoteCard({
   variant = "default",
   size,
   color,
+  isStreaming = false,
+  isScanComplete = false,
   ...props
 }: NoteCardProps) {
   const [isWiggling, setIsWiggling] = useState(false)
@@ -92,23 +96,39 @@ export const NoteCard = memo(function NoteCard({
         <Skeleton className="h-3 w-3/4" />
       </div>
     ) : (
-      <p className="text-sm leading-relaxed text-gray-800 dark:text-gray-200">{note?.content}</p>
+      <div className="relative">
+        <p className="text-sm leading-relaxed text-gray-800 dark:text-gray-200">
+          {note?.content}
+          {isStreaming && (
+            <span className="ml-0.5 inline-block h-2 w-0.5 animate-cursor-blink bg-gray-800 dark:bg-gray-200 opacity-70"></span>
+          )}
+        </p>
+        {isStreaming && (
+          <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-transparent to-accent/10 dark:to-accent/5 animate-text-shimmer"></div>
+        )}
+        {isScanComplete && (
+          <div className="absolute inset-0 pointer-events-none bg-accent/5 dark:bg-accent/10 animate-scan-down"></div>
+        )}
+      </div>
     )
 
-  const cardStyle = useMemo(() => ({
-    boxShadow: `${shadowOffset.x}px ${shadowOffset.y}px 8px rgba(0,0,0,0.15)`,
-    backgroundImage: `
+  const cardStyle = useMemo(
+    () => ({
+      boxShadow: `${shadowOffset.x}px ${shadowOffset.y}px 8px rgba(0,0,0,0.15)`,
+      backgroundImage: `
       radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px),
       radial-gradient(rgba(0,0,0,0.07) 1px, transparent 1px)
     `,
-    backgroundSize: "20px 20px, 10px 10px",
-    backgroundPosition: "-10px -10px, 0px 0px",
-    transform: `rotate(${rotation}deg)`,
-    zIndex: "auto",
-    ...({
-      "--base-rotation": `${rotation}deg`,
-    } as React.CSSProperties),
-  }), [rotation, shadowOffset.x, shadowOffset.y])
+      backgroundSize: "20px 20px, 10px 10px",
+      backgroundPosition: "-10px -10px, 0px 0px",
+      transform: `rotate(${rotation}deg)`,
+      zIndex: "auto",
+      ...({
+        "--base-rotation": `${rotation}deg`,
+      } as React.CSSProperties),
+    }),
+    [rotation, shadowOffset.x, shadowOffset.y],
+  )
 
   return (
     <div
@@ -116,8 +136,12 @@ export const NoteCard = memo(function NoteCard({
       className={cn(
         noteCardVariants({ variant, size }),
         variant === "default" && "cursor-grab",
-        variant === "default" && isGenerating && "animate-pulse",
-        variant === "default" && isWiggling && !isGenerating && "animate-wiggle will-change-transform",
+        variant === "default" &&
+          isWiggling &&
+          !isGenerating &&
+          "animate-wiggle will-change-transform",
+        isStreaming && "overflow-hidden animate-text-shimmer",
+        isScanComplete && "transition-all duration-500 ease-out shadow-lg",
         note?.color || color,
         className,
       )}
@@ -182,7 +206,7 @@ export const DraggableNoteCard = memo(function DraggableNoteCard({
         drag(element)
       }
     },
-    [drag]
+    [drag],
   )
 
   // Use empty image as drag preview (we'll use CustomDragLayer instead)
@@ -214,7 +238,7 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
 }: AttachedNoteCardProps) {
   const noteRef = useRef<HTMLDivElement>(null)
   const constraintsRef = useRef<HTMLDivElement>(null)
-  
+
   // Set up drag functionality similar to DraggableNoteCard but with constraints
   const [, drag, preview] = useDrag(
     () => ({
@@ -231,7 +255,6 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
           const dropResult = monitor.getDropResult<{ targetId: string }>()
           if (!dropResult || !dropResult.targetId) return
 
-
           // If drag position is beyond threshold, trigger "return to panel"
           if (dropResult.targetId === "notes-panel") {
             onDragBackToPanel?.(item.id)
@@ -241,7 +264,7 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
         }
       },
     }),
-    [note.id, onDragBackToPanel]
+    [note.id, onDragBackToPanel],
   )
 
   // Connect drag ref to the motion.div
@@ -252,7 +275,7 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
         drag(element)
       }
     },
-    [drag]
+    [drag],
   )
 
   // Use empty image as drag preview (we'll use CustomDragLayer instead)
@@ -308,7 +331,11 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
         <HoverCardTrigger asChild>
           <motion.div
             ref={connectDragRef}
-            className={cn(`shadow-md w-6 h-6 rounded-md cursor-grab mb-1 will-change-transform`, className, noteColor)}
+            className={cn(
+              `shadow-md w-6 h-6 rounded-md cursor-grab mb-1 will-change-transform`,
+              className,
+              noteColor,
+            )}
             variants={variants}
             initial="hidden"
             animate={isStackExpanded ? "expanded" : "collapsed"}
@@ -316,18 +343,18 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
             drag="x"
             dragDirectionLock
             dragConstraints={{ top: 0, right: 0, bottom: 0, left: 0 }}
-            dragTransition={{ 
-              bounceStiffness: 450, 
+            dragTransition={{
+              bounceStiffness: 450,
               bounceDamping: 20,
-              power: 0.2
+              power: 0.2,
             }}
             dragElastic={0.15}
-            whileDrag={{ 
+            whileDrag={{
               cursor: "grabbing",
               transition: {
                 type: "tween",
-                ease: "easeOut"
-              }
+                ease: "easeOut",
+              },
             }}
             {...props}
           >

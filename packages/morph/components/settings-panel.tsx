@@ -122,7 +122,7 @@ function GeneralSettings() {
 }
 
 const EditorSettings = React.memo(function EditorSettings() {
-  const { settings, updateSettings } = usePersistedSettings()
+  const { updateSettings } = usePersistedSettings()
   const { theme, setTheme } = useTheme()
 
   return (

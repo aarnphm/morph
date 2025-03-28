@@ -13,7 +13,7 @@ const wireframeColor = "#111111"
 const Icosahedron = memo(
   forwardRef<THREE.Mesh>(function Icosahedron(_, ref) {
     const meshRef = useRef<THREE.Mesh>(null)
-    
+
     useEffect(() => {
       if (!ref) return
       if (typeof ref === "function") {
@@ -22,7 +22,7 @@ const Icosahedron = memo(
         ref.current = meshRef.current
       }
     }, [ref])
-    
+
     return (
       <mesh ref={meshRef} rotation-x={0.35}>
         <icosahedronGeometry args={[1, 0]} />
@@ -35,7 +35,7 @@ const Icosahedron = memo(
 // Star component
 function Star({ p }: { p: number }) {
   const ref = useRef<THREE.Mesh>(null)
-  
+
   useLayoutEffect(() => {
     if (!ref.current) return
 

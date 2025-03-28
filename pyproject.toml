@@ -7,6 +7,7 @@ dev-dependencies = [
   "mypy-extensions>=1.0.0",
   "plotly>=5.24.1",
   "pnglatex>=1.1",
+  "pre-commit>=4.2.0",
   "pylatexenc>=2.10",
   "pynvim>=0.5.0",
   "pyperclip>=1.9.0",

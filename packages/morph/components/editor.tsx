@@ -50,6 +50,14 @@ interface Suggestions {
   suggestions: { suggestion: string }[]
 }
 
+interface StreamingNote {
+  id: string
+  content: string
+  color: string
+  isComplete: boolean
+  isScanComplete?: boolean
+}
+
 interface EditorProps {
   vaultId: string
   vaults: Vault[]
@@ -437,13 +445,14 @@ interface NotesPanelProps {
   handleCurrentGenerationNote: (note: Note) => void
   handleCollapseComplete: () => void
   formatDate: (dateStr: string) => React.ReactNode
-  renderNotesSkeletons: () => React.ReactNode
   isNotesRecentlyGenerated: boolean
   currentReasoningElapsedTime: number
   generateNewSuggestions: () => void
   noteGroupsData: [string, Note[]][]
   virtuosoRef: React.RefObject<any>
   notesContainerRef: React.RefObject<HTMLDivElement | null>
+  streamingNotes?: StreamingNote[]
+  scanAnimationComplete?: boolean
 }
 
 const CustomDragLayer = memo(function CustomDragLayer() {
@@ -507,13 +516,14 @@ const NotesPanel = memo(function NotesPanel({
   handleCurrentGenerationNote,
   handleCollapseComplete,
   formatDate,
-  renderNotesSkeletons,
   isNotesRecentlyGenerated,
   currentReasoningElapsedTime,
   generateNewSuggestions,
   noteGroupsData,
   virtuosoRef,
   notesContainerRef,
+  streamingNotes,
+  scanAnimationComplete,
 }: NotesPanelProps) {
   const memoizedNoteSkeletons = useMemo(() => <NoteCard variant="skeleton" />, [])
 
@@ -571,10 +581,10 @@ const NotesPanel = memo(function NotesPanel({
                 {/* Only show current generation section if there are active notes in it */}
                 {currentlyGeneratingDateKey &&
                   (isNotesLoading ||
-                    (currentGenerationNotes.length > 0 &&
-                      currentGenerationNotes.some(
-                        (note) => !droppedNotes.some((d) => d.id === note.id),
-                      ))) && (
+                    (!scanAnimationComplete && reasoningComplete) ||
+                    (scanAnimationComplete &&
+                      currentGenerationNotes.length > 0 &&
+                      !droppedNotes.some((d) => d.id === currentGenerationNotes[0]?.id))) && (
                     <div className="space-y-4 flex-shrink-0 mb-6">
                       <DateDisplay dateStr={currentlyGeneratingDateKey!} formatDate={formatDate} />
 
@@ -592,26 +602,62 @@ const NotesPanel = memo(function NotesPanel({
                         />
                       </div>
 
-                      {/* Show loading skeletons during generation */}
-                      {isNotesLoading && reasoningComplete && !notesError && (
-                        <div className="space-y-4 px-2">{renderNotesSkeletons()}</div>
-                      )}
+                      {/* Show streaming notes during generation phase */}
+                      {reasoningComplete &&
+                        !scanAnimationComplete &&
+                        streamingNotes &&
+                        streamingNotes.length > 0 && (
+                          <div className="space-y-4 px-2">
+                            {streamingNotes.map((note) => (
+                              <NoteCard
+                                key={note.id}
+                                color={note.color || generatePastelColor()}
+                                className={cn(
+                                  "w-full h-full",
+                                  !note.isComplete && "will-change-contents",
+                                )}
+                                note={{
+                                  id: note.id,
+                                  content: note.content,
+                                  color: note.color || generatePastelColor(),
+                                  fileId: currentFile,
+                                  vaultId: vaultId || "",
+                                  createdAt: new Date(),
+                                  lastModified: new Date(),
+                                }}
+                                isGenerating={!note.isComplete}
+                                isStreaming={!note.isComplete}
+                                isScanComplete={note.isScanComplete}
+                              />
+                            ))}
+                          </div>
+                        )}
 
                       {/* Show actual generated notes when complete */}
-                      {!isNotesLoading && currentGenerationNotes.length > 0 && !notesError && (
-                        <div className="space-y-4 px-2">
-                          {currentGenerationNotes.map((note) => (
-                            <DraggableNoteCard
-                              key={note.id}
-                              note={note}
-                              handleNoteDropped={handleNoteDropped}
-                              onNoteRemoved={handleNoteRemoved}
-                              onCurrentGenerationNote={handleCurrentGenerationNote}
-                              isGenerating={isNotesLoading}
-                            />
-                          ))}
-                        </div>
-                      )}
+                      {!isNotesLoading &&
+                        scanAnimationComplete &&
+                        currentGenerationNotes.length > 0 &&
+                        !notesError && (
+                          <AnimatePresence mode="wait">
+                            <motion.div
+                              className="space-y-4 px-2"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              {currentGenerationNotes.map((note) => (
+                                <DraggableNoteCard
+                                  key={note.id}
+                                  note={note}
+                                  handleNoteDropped={handleNoteDropped}
+                                  onNoteRemoved={handleNoteRemoved}
+                                  onCurrentGenerationNote={handleCurrentGenerationNote}
+                                  isGenerating={false}
+                                />
+                              ))}
+                            </motion.div>
+                          </AnimatePresence>
+                        )}
                     </div>
                   )}
                 <div className="flex-1 min-h-0">
@@ -770,11 +816,32 @@ interface ReasoningHistory {
 }
 
 interface SuggestionResponse {
-    generatedNotes: GeneratedNote[]
-    reasoningId: string
-    reasoningElapsedTime: number
-    reasoningContent: string
+  generatedNotes: GeneratedNote[]
+  reasoningId: string
+  reasoningElapsedTime: number
+  reasoningContent: string
+}
 
+// Add a helper function to sanitize streaming content by removing trailing JSON syntax
+const sanitizeStreamingContent = (content: string): string => {
+  if (!content) return ""
+
+  // Remove any trailing JSON syntax characters that might be part of streaming
+  // This handles cases like trailing quotes, braces, commas, etc.
+  let sanitized = content
+
+  // First, check if we have an incomplete escape sequence at the end
+  if (sanitized.endsWith("\\")) {
+    sanitized = sanitized.slice(0, -1)
+  }
+
+  // Remove any trailing JSON syntax characters
+  sanitized = sanitized.replace(/[\"\}\,\]\s]+$/, "")
+
+  // Also handle cases where there might be escaped quotes
+  sanitized = sanitized.replace(/\\\"$/, "")
+
+  return sanitized
 }
 
 export default memo(function Editor({ vaultId, vaults }: EditorProps) {
@@ -787,6 +854,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [isNotesLoading, setIsNotesLoading] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [currentFileHandle, setCurrentFileHandle] = useState<FileSystemFileHandle | null>(null)
+  const [scanAnimationComplete, setScanAnimationComplete] = useState(false)
 
   const { settings } = usePersistedSettings()
   const codeMirrorViewRef = useRef<EditorView | null>(null)
@@ -810,6 +878,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [streamingSuggestionColors, setStreamingSuggestionColors] = useState<string[]>([])
   // Add a state to track current generation notes
   const [currentGenerationNotes, setCurrentGenerationNotes] = useState<Note[]>([])
+  const [streamingNotes, setStreamingNotes] = useState<StreamingNote[]>([])
 
   const toggleStackExpand = useCallback(() => {
     setIsStackExpanded((prev) => !prev)
@@ -990,7 +1059,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const fetchNewNotes = useCallback(
     async (
       content: string,
-      num_suggestions: number = 4,
+      num_suggestions: number = numSuggestions,
     ): Promise<SuggestionResponse> => {
       try {
         const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:8000"
@@ -1007,6 +1076,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         setReasoningComplete(false)
         setNumSuggestions(num_suggestions)
         setCurrentReasoningElapsedTime(0) // Reset elapsed time at the start
+        setStreamingNotes([]) // Reset streaming notes
+        setScanAnimationComplete(false) // Reset scan animation state
 
         // Set a current date key for the new notes group with 15-second interval
         const now = new Date()
@@ -1043,11 +1114,36 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         let inReasoningPhase = true
         let collectedReasoning = ""
 
-        // Generate and preserve colors for each suggestion
+        // Initialize variables for streaming JSON parsing
         const colors = Array(num_suggestions)
           .fill(null)
           .map(() => generatePastelColor())
         setStreamingSuggestionColors(colors)
+
+        // Create empty streaming notes with unique IDs
+        const initialStreamingNotes = Array(num_suggestions)
+          .fill(null)
+          .map((_, index) => ({
+            id: createId(),
+            content: "",
+            color: colors[index] || generatePastelColor(),
+            isComplete: false,
+            isScanComplete: false,
+          }))
+        setStreamingNotes(initialStreamingNotes)
+
+        // Variables for tracking streaming JSON state
+        let currentNoteIndex = 0
+        let partialJSON = ""
+        let inJsonSuggestion = false
+        let currentSuggestion = ""
+        let isFirstNote = true
+
+        // Pattern variables that account for whitespace
+        const firstNoteStartPattern = '{"suggestions":\\s*\\[\\s*{"suggestion":\\s*"'
+        const subsequentNoteStartPattern = '\\s*{"suggestion":\\s*"'
+        const endPatternWithComma = '"\\s*}\\s*,'
+        const endPatternFinal = '"\\s*}\\s*]\\s*}'
 
         // Process the stream
         while (true) {
@@ -1084,7 +1180,106 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   inReasoningPhase = false
                 }
 
-                // Collect suggestion data
+                // Handle each delta suggestion chunk for streaming JSON
+                partialJSON += delta.suggestion
+
+                // First note has a different start pattern than subsequent ones
+                if (!inJsonSuggestion) {
+                  if (isFirstNote) {
+                    // Check for the first note start pattern
+                    const firstStartRegex = new RegExp(firstNoteStartPattern)
+                    const match = firstStartRegex.exec(partialJSON)
+
+                    if (match) {
+                      inJsonSuggestion = true
+                      const matchIndex = match.index + match[0].length
+                      currentSuggestion = partialJSON.substring(matchIndex)
+                      partialJSON = ""
+                      isFirstNote = false
+                    }
+                  } else {
+                    // Check for subsequent note start pattern
+                    const subsequentStartRegex = new RegExp(subsequentNoteStartPattern)
+                    const match = subsequentStartRegex.exec(partialJSON)
+
+                    if (match) {
+                      inJsonSuggestion = true
+                      const matchIndex = match.index + match[0].length
+                      currentSuggestion = partialJSON.substring(matchIndex)
+                      partialJSON = ""
+                    }
+                  }
+                }
+                // If we're inside a suggestion object, accumulate content
+                else if (inJsonSuggestion) {
+                  currentSuggestion += delta.suggestion
+
+                  // For a better streaming experience, update the note's content with each delta
+                  setStreamingNotes((prevNotes) => {
+                    if (!prevNotes[currentNoteIndex]) return prevNotes
+
+                    // Create a new array to avoid mutating the previous state
+                    const updatedNotes = [...prevNotes]
+
+                    // Only update the current note - this fixes the flashing bug
+                    updatedNotes[currentNoteIndex] = {
+                      ...updatedNotes[currentNoteIndex],
+                      content: sanitizeStreamingContent(currentSuggestion),
+                    }
+
+                    return updatedNotes
+                  })
+
+                  // Check for end patterns - either with comma (more notes to come) or final closing pattern
+                  const endWithCommaRegex = new RegExp(endPatternWithComma)
+                  const endFinalRegex = new RegExp(endPatternFinal)
+
+                  const endWithCommaMatch = endWithCommaRegex.exec(currentSuggestion)
+                  const endFinalMatch = endFinalRegex.exec(currentSuggestion)
+
+                  // Process if we found either ending pattern
+                  if (endWithCommaMatch || endFinalMatch) {
+                    // Get the end index based on which pattern matched
+                    const match = endWithCommaMatch || endFinalMatch
+                    const endIndex = match!.index
+
+                    // Extract the suggestion content up to the end pattern
+                    const suggestionContent = currentSuggestion.substring(0, endIndex)
+
+                    // Update the streaming note with the current content
+                    setStreamingNotes((prevNotes) => {
+                      if (!prevNotes[currentNoteIndex]) return prevNotes
+
+                      // Create a new array to avoid mutating the previous state
+                      const updatedNotes = [...prevNotes]
+
+                      // Only update the current note - this fixes the flashing bug
+                      updatedNotes[currentNoteIndex] = {
+                        ...updatedNotes[currentNoteIndex],
+                        content: sanitizeStreamingContent(suggestionContent),
+                        isComplete:
+                          endFinalMatch !== null && currentNoteIndex === num_suggestions - 1,
+                      }
+
+                      return updatedNotes
+                    })
+
+                    // Reset suggestion tracking
+                    inJsonSuggestion = false
+
+                    // Set remaining text for next iteration
+                    const remaining = currentSuggestion.substring(endIndex + match![0].length)
+                    partialJSON = remaining
+                    currentSuggestion = ""
+
+                    // Move to next note if there's more to process
+                    if (endWithCommaMatch) {
+                      currentNoteIndex = Math.min(currentNoteIndex + 1, num_suggestions - 1)
+                    }
+                  }
+                }
+
+                // Collect suggestion data for final processing
                 suggestionString += delta.suggestion
               }
             } catch (e) {
@@ -1105,9 +1300,47 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           setReasoningComplete(true)
         }
 
+        // Mark all streaming notes as complete
+        setStreamingNotes((prevNotes) => {
+          const allComplete = prevNotes.map((note) => ({ ...note, isComplete: true }))
+          return allComplete
+        })
+
         // Calculate elapsed time for reasoning
         const reasoningElapsedTime = Math.round((reasoningEndTime! - reasoningStartTime) / 1000)
         setCurrentReasoningElapsedTime(reasoningElapsedTime)
+
+        // Run scan animation after a small delay
+        const runScanAnimation = async () => {
+          // Wait a moment before starting the animation
+          await new Promise((resolve) => setTimeout(resolve, 400))
+
+          const noteCount = streamingNotes.length
+          for (let i = 0; i < noteCount; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 150)) // Delay between each note
+
+            setStreamingNotes((prevNotes) => {
+              const updatedNotes = [...prevNotes]
+              if (updatedNotes[i]) {
+                updatedNotes[i] = {
+                  ...updatedNotes[i],
+                  isScanComplete: true,
+                }
+              }
+              return updatedNotes
+            })
+          }
+
+          // Final animation complete - wait a moment before showing final notes
+          await new Promise((resolve) => setTimeout(resolve, 500))
+
+          // Set loading to false which will trigger showing the final notes
+          setIsNotesLoading(false)
+          setScanAnimationComplete(true)
+        }
+
+        // Start the scan animation sequence
+        runScanAnimation()
 
         // At this point we have the complete reasoning, but we don't yet know which notes it produced
         // We'll update reasoningHistory later when we know the noteIds
@@ -1164,7 +1397,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         throw error
       }
     },
-    [],
+    [numSuggestions, streamingNotes.length],
   )
 
   // Format date for display
@@ -1392,6 +1625,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     setStreamingReasoning("")
     setReasoningComplete(false)
     setStreamingSuggestionColors([])
+    setScanAnimationComplete(false) // Reset scan animation state
 
     // Update the last notes generation time
     setLastNotesGeneratedTime(new Date())
@@ -1469,17 +1703,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   }, [currentFile, vault, markdownContent, fetchNewNotes, streamingSuggestionColors])
 
   const handleCollapseComplete = useCallback(() => {}, [])
-
-  // Generate skeletons based on num_suggestions
-  const renderNotesSkeletons = useCallback(() => {
-    // Fallback to empty skeletons if no streaming suggestions yet
-    return Array.from({ length: numSuggestions }).map((_, i) => {
-      // Use the preserved color for this suggestion or generate a new one
-      const bgColor = streamingSuggestionColors[i] || generatePastelColor()
-
-      return <NoteCard key={i} color={bgColor} variant="skeleton" />
-    })
-  }, [numSuggestions, streamingSuggestionColors])
 
   // Fetch notes and associated reasoning history when the file changes or when notes panel opens
   useEffect(() => {
@@ -1632,7 +1855,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                         transition={{
                           type: "spring",
                           stiffness: 400,
-                          damping: 30
+                          damping: 30,
                         }}
                       >
                         <DroppedNotesStack
@@ -1716,21 +1939,21 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     <motion.div
                       key="notes-panel"
                       initial={{ width: 0, opacity: 0, overflow: "hidden" }}
-                      animate={{ 
-                        width: "22rem", 
+                      animate={{
+                        width: "22rem",
                         opacity: 1,
-                        overflow: "visible" 
+                        overflow: "visible",
                       }}
-                      exit={{ 
-                        width: 0, 
+                      exit={{
+                        width: 0,
                         opacity: 0,
-                        overflow: "hidden"
+                        overflow: "hidden",
                       }}
                       transition={{
                         type: "spring",
                         stiffness: 300,
                         damping: 30,
-                        opacity: { duration: 0.2 }
+                        opacity: { duration: 0.2 },
                       }}
                       layout
                     >
@@ -1752,13 +1975,14 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                         handleCurrentGenerationNote={handleCurrentGenerationNote}
                         handleCollapseComplete={handleCollapseComplete}
                         formatDate={formatDate}
-                        renderNotesSkeletons={renderNotesSkeletons}
                         isNotesRecentlyGenerated={isNotesRecentlyGenerated}
                         currentReasoningElapsedTime={currentReasoningElapsedTime}
                         generateNewSuggestions={generateNewSuggestions}
                         noteGroupsData={noteGroupsData}
                         virtuosoRef={virtuosoRef}
                         notesContainerRef={notesContainerRef}
+                        streamingNotes={streamingNotes}
+                        scanAnimationComplete={scanAnimationComplete}
                       />
                     </motion.div>
                   )}
