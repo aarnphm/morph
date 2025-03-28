@@ -611,7 +611,7 @@ const NotesPanel = memo(function NotesPanel({
                             {streamingNotes.map((note) => (
                               <NoteCard
                                 key={note.id}
-                                color={note.color || generatePastelColor()}
+                                color={generatePastelColor()}
                                 className={cn(
                                   "w-full h-full",
                                   !note.isComplete && "will-change-contents",
@@ -619,7 +619,7 @@ const NotesPanel = memo(function NotesPanel({
                                 note={{
                                   id: note.id,
                                   content: note.content,
-                                  color: note.color || generatePastelColor(),
+                                  color: generatePastelColor(),
                                   fileId: currentFile,
                                   vaultId: vaultId || "",
                                   createdAt: new Date(),
@@ -781,9 +781,9 @@ const EditorDropTarget = memo(function EditorDropTarget({
 
 const Playspace = memo(function Playspace({
   children,
-  vaultId
+  vaultId,
 }: {
-  children: React.ReactNode,
+  children: React.ReactNode
   vaultId: string
 }) {
   return (
@@ -821,6 +821,15 @@ interface ReasoningHistory {
   reasoningElapsedTime: number
 }
 
+interface SuggestionRequest {
+  essay: string
+  authors?: string[]
+  tonality?: { [key: string]: number }
+  num_suggestions?: number
+  temperature?: number
+  max_tokens?: number
+}
+
 interface SuggestionResponse {
   generatedNotes: GeneratedNote[]
   reasoningId: string
@@ -852,6 +861,7 @@ const sanitizeStreamingContent = (content: string): string => {
 
 export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const { theme } = useTheme()
+
   // PERF: should not call it here, or figure out a way not to calculate the vault twice
   const { refreshVault, flattenedFileIds } = useVaultContext()
   const [currentFile, setCurrentFile] = useState<string>("Untitled")
@@ -872,7 +882,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [droppedNotes, setDroppedNotes] = useState<Note[]>([])
   const [streamingReasoning, setStreamingReasoning] = useState<string>("")
   const [reasoningComplete, setReasoningComplete] = useState(false)
-  const [numSuggestions, setNumSuggestions] = useState(4) // Default number of suggestions
   const [currentReasoningElapsedTime, setCurrentReasoningElapsedTime] = useState(0)
   const [lastNotesGeneratedTime, setLastNotesGeneratedTime] = useState<Date | null>(null)
   const virtuosoRef = useRef<HTMLDivElement>(null)
@@ -885,6 +894,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   // Add a state to track current generation notes
   const [currentGenerationNotes, setCurrentGenerationNotes] = useState<Note[]>([])
   const [streamingNotes, setStreamingNotes] = useState<StreamingNote[]>([])
+  const [numSuggestions, setNumSuggestions] = useState(4) // Default number of suggestions
 
   const toggleStackExpand = useCallback(() => {
     setIsStackExpanded((prev) => !prev)
@@ -1063,10 +1073,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   )
 
   const fetchNewNotes = useCallback(
-    async (
-      content: string,
-      num_suggestions: number = numSuggestions,
-    ): Promise<SuggestionResponse> => {
+    async (content: string, numSuggestions: number): Promise<SuggestionResponse> => {
       try {
         const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:8000"
         const readyz = await fetch(`${apiEndpoint}/readyz`)
@@ -1080,7 +1087,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         // Reset states for new generation
         setStreamingReasoning("")
         setReasoningComplete(false)
-        setNumSuggestions(num_suggestions)
+        setNumSuggestions(numSuggestions)
         setCurrentReasoningElapsedTime(0) // Reset elapsed time at the start
         setStreamingNotes([]) // Reset streaming notes
         setScanAnimationComplete(false) // Reset scan animation state
@@ -1094,6 +1101,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
         const essay = md(content).content
         const max_tokens = 8192
+        const request: SuggestionRequest = {
+          essay,
+          num_suggestions: numSuggestions,
+          temperature: 0.6,
+          max_tokens,
+        }
 
         // Start timing reasoning phase
         const reasoningStartTime = Date.now()
@@ -1102,11 +1115,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         // Create streaming request
         const response = await fetch(`${apiEndpoint}/suggests`, {
           method: "POST",
-          headers: {
-            Accept: "text/event-stream",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ essay, num_suggestions, max_tokens }),
+          headers: { Accept: "text/event-stream", "Content-Type": "application/json" },
+          body: JSON.stringify(request),
         })
 
         if (!response.ok) throw new Error("Failed to fetch suggestions")
@@ -1121,13 +1131,13 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         let collectedReasoning = ""
 
         // Initialize variables for streaming JSON parsing
-        const colors = Array(num_suggestions)
+        const colors = Array(numSuggestions)
           .fill(null)
           .map(() => generatePastelColor())
         setStreamingSuggestionColors(colors)
 
         // Create empty streaming notes with unique IDs
-        const initialStreamingNotes = Array(num_suggestions)
+        const initialStreamingNotes = Array(numSuggestions)
           .fill(null)
           .map((_, index) => ({
             id: createId(),
@@ -1264,7 +1274,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                         ...updatedNotes[currentNoteIndex],
                         content: sanitizeStreamingContent(suggestionContent),
                         isComplete:
-                          endFinalMatch !== null && currentNoteIndex === num_suggestions - 1,
+                          endFinalMatch !== null && currentNoteIndex === numSuggestions - 1,
                       }
 
                       return updatedNotes
@@ -1280,7 +1290,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
                     // Move to next note if there's more to process
                     if (endWithCommaMatch) {
-                      currentNoteIndex = Math.min(currentNoteIndex + 1, num_suggestions - 1)
+                      currentNoteIndex = Math.min(currentNoteIndex + 1, numSuggestions - 1)
                     }
                   }
                 }
@@ -1645,7 +1655,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
     try {
       const { generatedNotes, reasoningId, reasoningElapsedTime, reasoningContent } =
-        await fetchNewNotes(markdownContent)
+        await fetchNewNotes(markdownContent, numSuggestions)
       const newNoteIds: string[] = []
 
       const newNotes: Note[] = generatedNotes.map((note, index) => {

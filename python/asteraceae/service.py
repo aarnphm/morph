@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
 
-INFERENCE_ID = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B'
+INFERENCE_ID = 'deepseek-ai/DeepSeek-R1-Distill-Llama-70B'
 STRUCTURED_OUTPUT_BACKEND = 'xgrammar:disable-any-whitespace'  # remove any whitespace if it is not qwen.
 MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 16 * 1024))
 MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 8 * 1024))
@@ -126,7 +126,7 @@ inference_api = fastapi.FastAPI()
 @bentoml.asgi_app(inference_api, path='/v1')
 @bentoml.service(
   name='asteraceae-inference-engine',
-  resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
+  resources={'gpu': 2, 'gpu_type': 'nvidia-a100-80gb'},
   labels=make_labels('generate'),
   envs=make_env(0),
   **SERVICE_CONFIG,
@@ -431,11 +431,19 @@ class API:
   async def suggests(
     self,
     essay: str,
+    authors: t.Optional[t.Annotated[list[str], ae.Ge(1)]] = None,
+    tonality: t.Optional[dict[str, t.Any]] = None,
     num_suggestions: t.Annotated[int, ae.Ge(2)] = 3,
     temperature: t.Annotated[float, ae.Ge(0.5), ae.Le(0.7)] = 0.6,
     max_tokens: t.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
   ) -> t.AsyncGenerator[str, None]:
-    PROMPT = self.jinja2_env.get_template('SYSTEM_PROMPT.md').render(num_suggestions=num_suggestions, excerpt=essay)
+    # TODO: add tonality lookup and steering vector strength for influence the distributions
+    # for now, we will just use the features lookup from given SAEs constrasted with the models.
+    if authors is None:
+      authors = ['Raymond Carver', 'Franz Kafka', 'Albert Camus', 'Iain McGilchrist', 'Ian McEwan']
+    PROMPT = self.jinja2_env.get_template('SYSTEM_PROMPT.md').render(
+      num_suggestions=num_suggestions, authors=authors, tonality=tonality, excerpt=essay
+    )
     prefill = False
 
     try:
