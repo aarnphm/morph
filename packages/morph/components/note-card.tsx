@@ -199,14 +199,62 @@ interface AttachedNoteCardProps {
   note: Note
   index: number
   isStackExpanded: boolean
+  onDragBackToPanel?: (noteId: string) => void
 }
 
 export const AttachedNoteCard = memo(function AttachedNoteCard({
   note,
   index,
   isStackExpanded,
+  onDragBackToPanel,
 }: AttachedNoteCardProps) {
   const noteRef = useRef<HTMLDivElement>(null)
+  const constraintsRef = useRef<HTMLDivElement>(null)
+  
+  // Set up drag functionality similar to DraggableNoteCard but with constraints
+  const [, drag, preview] = useDrag(
+    () => ({
+      type: NOTES_DND_TYPE,
+      item: () => ({ ...note }),
+      collect: (monitor) => ({
+        isDragging: monitor.isDragging(),
+      }),
+      end: (item, monitor) => {
+        // If not dropped or drop result is undefined, don't attempt any state updates
+        if (!monitor.didDrop()) return
+
+        try {
+          const dropResult = monitor.getDropResult<{ targetId: string }>()
+          if (!dropResult || !dropResult.targetId) return
+
+
+          // If drag position is beyond threshold, trigger "return to panel"
+          if (dropResult.targetId === "notes-panel") {
+            onDragBackToPanel?.(item.id)
+          }
+        } catch (error) {
+          console.error("Error in drag end handler:", error)
+        }
+      },
+    }),
+    [note.id, onDragBackToPanel]
+  )
+
+  // Connect drag ref to the motion.div
+  const connectDragRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      if (element) {
+        noteRef.current = element
+        drag(element)
+      }
+    },
+    [drag]
+  )
+
+  // Use empty image as drag preview (we'll use CustomDragLayer instead)
+  useEffect(() => {
+    preview(getEmptyImage(), { captureDraggingState: true })
+  }, [preview])
 
   // Animation variants for the note card in vertical stack
   const variants = useMemo(
@@ -249,28 +297,36 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
   const noteColor = note.color || generatePastelColor()
 
   return (
-    <HoverCard key={note.id} openDelay={150} closeDelay={100}>
-      <HoverCardTrigger asChild>
-        <motion.div
-          ref={noteRef}
-          className={cn(`shadow-md w-6 h-6 rounded-md cursor-pointer mb-1`, noteColor)}
-          variants={variants}
-          initial="hidden"
-          animate={isStackExpanded ? "expanded" : "collapsed"}
-          layout="position"
+    <div ref={constraintsRef} className="relative">
+      <HoverCard key={note.id} openDelay={150} closeDelay={100}>
+        <HoverCardTrigger asChild>
+          <motion.div
+            ref={connectDragRef}
+            className={cn(`shadow-md w-6 h-6 rounded-md cursor-grab mb-1`, noteColor)}
+            variants={variants}
+            initial="hidden"
+            animate={isStackExpanded ? "expanded" : "collapsed"}
+            layout="position"
+            drag="x"
+            dragDirectionLock
+            dragConstraints={{ top: 0, right: 0, bottom: 0, left: 0 }}
+            dragTransition={{ bounceStiffness: 500, bounceDamping: 15 }}
+            dragElastic={0.2}
+            whileDrag={{ cursor: "grabbing" }}
+          >
+            <div className="relative z-10 text-sm p-1 flex items-center justify-center w-full h-full">
+              {index + 1}
+            </div>
+          </motion.div>
+        </HoverCardTrigger>
+        <HoverCardContent
+          side="left"
+          sideOffset={6}
+          className="w-64 bg-transparent border-0 shadow-none z-100"
         >
-          <div className="relative z-10 text-sm p-1 flex items-center justify-center w-full h-full">
-            {index + 1}
-          </div>
-        </motion.div>
-      </HoverCardTrigger>
-      <HoverCardContent
-        side="left"
-        sideOffset={6}
-        className="w-64 bg-transparent border-0 shadow-none z-100"
-      >
-        <NoteCard note={note} className="z-auto" />
-      </HoverCardContent>
-    </HoverCard>
+          <NoteCard note={note} className="z-auto" />
+        </HoverCardContent>
+      </HoverCard>
+    </div>
   )
 })

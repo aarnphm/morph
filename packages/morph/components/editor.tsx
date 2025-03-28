@@ -179,6 +179,7 @@ interface DroppedNotesStackProps {
   droppedNotes: Note[]
   isStackExpanded: boolean
   onExpandStack: () => void
+  onDragBackToPanel: (noteId: string) => void
 }
 
 const DroppedNotesStack = memo(
@@ -186,6 +187,7 @@ const DroppedNotesStack = memo(
     droppedNotes,
     isStackExpanded,
     onExpandStack,
+    onDragBackToPanel,
   }: DroppedNotesStackProps) {
     const containerRef = useRef<HTMLDivElement>(null)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -218,18 +220,23 @@ const DroppedNotesStack = memo(
       prevNotesLengthRef.current = droppedNotes.length
     }, [droppedNotes.length, isStackExpanded])
 
-    // Modified to provide a ref to the last note
+    // Modified to provide a ref to the last note and pass the onDragBackToPanel handler
     const AttachedDisplayNotes = useCallback(
       () => (
         <>
           {notesToDisplay.map((note, index) => (
             <div key={note.id} ref={index === notesToDisplay.length - 1 ? lastNoteRef : undefined}>
-              <AttachedNoteCard note={note} index={index} isStackExpanded={isStackExpanded} />
+              <AttachedNoteCard
+                note={note}
+                index={index}
+                isStackExpanded={isStackExpanded}
+                onDragBackToPanel={onDragBackToPanel}
+              />
             </div>
           ))}
         </>
       ),
-      [isStackExpanded, notesToDisplay],
+      [isStackExpanded, notesToDisplay, onDragBackToPanel],
     )
 
     // Render nothing if there are no notes
@@ -310,6 +317,9 @@ const DroppedNotesStack = memo(
     }
     if (prevProps.isStackExpanded !== nextProps.isStackExpanded) {
       return false // Re-render if expansion state changed
+    }
+    if (prevProps.onDragBackToPanel !== nextProps.onDragBackToPanel) {
+      return false // Re-render if the handler changed
     }
 
     // Check if any note content or IDs have changed
@@ -482,10 +492,35 @@ const NotesPanel = memo(function NotesPanel({
 }: NotesPanelProps) {
   const memoizedNoteSkeletons = useMemo(() => <NoteCard variant="skeleton" />, [])
 
+  const [{ isOver }, drop] = useDrop(
+    () => ({
+      accept: NOTES_DND_TYPE,
+      drop(item: Note) {
+        if (item.dropped) {
+          item.dropped = false
+        }
+        return { targetId: "notes-panel" }
+      },
+      collect: (monitor) => ({ isOver: monitor.isOver() }),
+    }),
+    [],
+  )
+
+  const dropRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      if (element) {
+        drop(element)
+      }
+    },
+    [drop],
+  )
+
   return (
     <div
+      ref={dropRef}
       className={cn(
         "w-88 flex flex-col border-l transition-[right,left,width] duration-200 ease-in-out translate-x-[-100%] data-[show=true]:translate-x-0",
+        isOver && "border-red-200 border rounded-e-md rounded-n-md",
       )}
       data-show={true}
     >
@@ -1515,6 +1550,43 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     return lastNotesGeneratedTime > fiveMinutesAgo
   }, [lastNotesGeneratedTime])
 
+  // Handle dragging a dropped note back to the panel
+  const handleNoteDragBackToPanel = useCallback(
+    async (noteId: string) => {
+      // Find the note in the droppedNotes
+      const note = droppedNotes.find((n) => n.id === noteId)
+      if (!note) return
+
+      // Update the note to indicate it's no longer dropped
+      const undropNote = {
+        ...note,
+        dropped: false,
+        lastModified: new Date(),
+      }
+
+      // Remove from droppedNotes state
+      setDroppedNotes((prev) => prev.filter((n) => n.id !== noteId))
+
+      // Update the database
+      try {
+        await db.notes.update(noteId, {
+          dropped: false,
+          lastModified: new Date(),
+        })
+
+        // Add back to main notes collection if not already there
+        const existingNote = notes.find((n) => n.id === noteId)
+        if (!existingNote) {
+          // Add to the beginning of the notes array to make it appear at the top
+          setNotes((prev) => [undropNote, ...prev])
+        }
+      } catch (error) {
+        console.error("Failed to update note status:", error)
+      }
+    },
+    [droppedNotes, notes],
+  )
+
   return (
     <DndProvider backend={HTML5Backend}>
       <NotesProvider>
@@ -1537,6 +1609,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       droppedNotes={memoizedDroppedNotes}
                       isStackExpanded={isStackExpanded}
                       onExpandStack={toggleStackExpand}
+                      onDragBackToPanel={handleNoteDragBackToPanel}
                     />
                   )}
                   <div className="flex flex-col items-center space-y-2 absolute bottom-4 right-4 z-20">
