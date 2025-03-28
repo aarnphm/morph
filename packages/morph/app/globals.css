@@ -1920,7 +1920,8 @@ canvas {
 }
 
 @keyframes cursor-blink {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0;
   }
   50% {
@@ -1935,3 +1936,57 @@ canvas {
 .animate-cursor-blink {
   animation: cursor-blink 0.8s infinite;
 }
+
+.active {
+  transform: translateX(0) !important;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--flexoki-green-400), 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(var(--flexoki-green-400), 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--flexoki-green-400), 0);
+  }
+}
+
+.animated-pulse {
+  animation: pulse 2s infinite;
+}
+
+.chevron-container {
+  display: flex;
+  gap: 2px;
+}
+
+.chevron-one,
+.chevron-two {
+  color: var(--flexoki-850);
+  filter: drop-shadow(0 0 6px rgba(var(--flexoki-850), 0.7));
+  opacity: 0;
+  transform: translateX(-5px);
+  animation: chevronAnimation 1.5s ease-in-out infinite;
+}
+
+.chevron-two {
+  animation-delay: 0.2s;
+}
+
+@keyframes chevronAnimation {
+  0% {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+}
+

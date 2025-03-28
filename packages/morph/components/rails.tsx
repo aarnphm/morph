@@ -127,7 +127,9 @@ export default memo(function Rails({
   const router = useRouter()
 
   const onManageVault = useCallback(() => {
-    router.push("/vaults")
+    setTimeout(() => {
+      router.push("/vaults")
+    }, 100)
   }, [router])
 
   const onNewFileClick = useCallback(() => {
