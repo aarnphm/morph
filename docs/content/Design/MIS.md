@@ -548,16 +548,16 @@ None
 
 #### State Variables
 
-- `currentInferenceTasks`: $\textbf{JSON}(\text{tasks}=[\text{task}_1,\dots,\text{task}_n])$ where $\text{task}_i = \{\text{id}, \text{model}, \text{status}, \text{progress}\}$ 
+- `currentInferenceTasks`: $\textbf{JSON}(\text{tasks}=[\text{task}_1,\dots,\text{task}_n])$ where $\text{task}_i = \{\text{id}, \text{model}, \text{status}, \text{progress}\}$
    - Tracks active inference tasks
-- `modelStates`: $\textbf{JSON}(\text{models}=[\{\text{name}: \text{String}, \text{SAE}: \mathbb{R}\}])$ 
+- `modelStates`: $\textbf{JSON}(\text{models}=[\{\text{name}: \text{String}, \text{SAE}: \mathbb{R}\}])$
    - Tracks loaded models and their Self-Attention Entropy scores
 - `generationStates`: $\textbf{JSON}(\text{intermediates}=[\text{gen}_1,\dots,\text{gen}_k])$ where $\text{gen}_i = \{\text{text}, \text{score}, \text{timestamp}\}$
    - Stores intermediate generations for each task
 
 #### Environment Variables
 
-- `CUDA_VISIBLE_DEVICES` 
+- `CUDA_VISIBLE_DEVICES`
    - Tracks current available GPUs devices for inference
 
 #### Assumptions
@@ -667,22 +667,22 @@ User Configuration Module
 
 - `userConfigurations: Object`
    - Tracks current user configurations
-- `generationParams: Object` 
+- `generationParams: Object`
    - Part of user configuration involving temperature, top_p, and token settings
-- `styleConfig: Object` 
+- `styleConfig: Object`
    - Part of user configuration involving tonality, formality, and creativity parameters
-- `saeSettings: Object` 
+- `saeSettings: Object`
    - Part of user configuration involving Self-Attention Entropy tuning configurations
 - `configHistory: Array`
    - Maintains history of configuration changes
-- `stylePresets: Object` 
+- `stylePresets: Object`
    - Predefined style combinations
 
 #### Environment Variables
 
-- `localStorage` 
+- `localStorage`
    - Stores user preferences
-- `modelConfig` 
+- `modelConfig`
    - Current model configuration state
 - `inferenceMetrics`
    - Real-time inference performance metrics
@@ -798,7 +798,7 @@ Analytics Module
 
 - `userConfigurations: Object`
    - Tracks current user configurations
-- `generationParams: Object` 
+- `generationParams: Object`
    - Part of user configuration involving temperature, top_p, and token settings
 - `styleConfig: Object`
    - Part of user configuration involving tonality, formality, and creativity parameters
@@ -815,7 +815,7 @@ Analytics Module
    - Stores user preferences
 - `modelConfig`
    - Current model configuration state
-- `inferenceMetrics` 
+- `inferenceMetrics`
    - Real-time inference performance metrics
 
 #### Assumptions

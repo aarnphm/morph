@@ -1,0 +1,44 @@
+[project]
+name = 'asteraceae-inference-api'
+description = "morph inference backend with LLMs and embeddings and thinking and structured outputs and steering vectors and the whole lot."
+readme = "README.md"
+version = "25.0.0"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Aaron Pham", email = "contact@aarnphm.xyz" }]
+dependencies = [
+  "vllm==0.8.2",
+  "bentoml==1.4.7",
+  "huggingface-hub>=0.25.0",
+  "openai>=1.67.0",
+  "jinja2>=3.1.5",
+  "kantoku>=0.18.1",
+  "goodfire>=0.3.4",
+  "hnswlib>=0.8.0",
+  "llama-index>=0.12.25",
+  "llama-index-core>=0.12.25",
+  "llama-index-vector-stores-hnswlib>=0.3.0",
+  "llama-index-embeddings-openai>=0.3.1",
+]
+[project.urls]
+Website = "https://morph-editor.app"
+Documentation = "https://tinymorph.aarnphm.xyz"
+GitHub = "https://github.com/aarnphm/morph"
+Twitter = "https://twitter.com/aarnphm_"
+Tracker = "https://github.com/aarnphm/morph/issues"
+
+[tool.bentoml.build]
+service = "service.py:API"
+include = ["LICENCE", "*.py", "*.yaml", "*.txt", "*.md", "*.json"]
+
+[tool.uv]
+dev-dependencies = [
+  "nnsight>=0.3.5",
+  "sae-lens>=0.5.0",
+  "jupyter>=1.1.1",
+  "jupyterlab-vim>=4.1.4",
+  "notebook>=7.2.2",
+  "ruff>=0.9.4",
+  "ipython>=8.32.0",
+  "mypy>=1.14.1",
+]

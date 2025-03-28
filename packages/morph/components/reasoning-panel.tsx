@@ -1,8 +1,54 @@
 import * as React from "react"
-import { useState, useRef, useEffect, useMemo } from "react"
+import { useState, useRef, useEffect, memo } from "react"
 import { ChevronRightIcon, CheckIcon } from "@radix-ui/react-icons"
 import { cn } from "@/lib/utils"
 import { db } from "@/db"
+import { motion, AnimatePresence } from "motion/react"
+
+// Triple dot loading animation component
+const LoadingDots = memo(function LoadingDots() {
+  const containerVariants = {
+    animate: {
+      transition: {
+        staggerChildren: 0.12,
+      },
+    },
+  }
+  const dotVariants = {
+    initial: {
+      scaleY: 1,
+      opacity: 0.5,
+    },
+    animate: {
+      scaleY: [1, 2.2, 1],
+      opacity: [0.5, 1, 0.5],
+      transition: {
+        duration: 0.7,
+        repeat: Infinity,
+        repeatType: "loop" as const,
+        ease: "easeInOut",
+      },
+    },
+  }
+
+  return (
+    <motion.div
+      className="flex items-center space-x-1.5 ml-1"
+      variants={containerVariants}
+      initial="initial"
+      animate="animate"
+    >
+      {[0, 1, 2].map((dot) => (
+        <motion.span
+          key={dot}
+          className="w-[2px] h-[3px] bg-current text-primary/70 inline-block"
+          style={{ transformOrigin: "center" }}
+          variants={dotVariants}
+        />
+      ))}
+    </motion.div>
+  )
+})
 
 interface ReasoningPanelProps {
   reasoning: string
@@ -87,79 +133,74 @@ export function ReasoningPanel({
     }
   }
 
-  const memoizedChevronIcon = useMemo(() => (
-    <ChevronRightIcon
-      className={cn(
-        "h-3 w-3 transition-transform duration-200",
-        isExpanded && "transform rotate-90",
-      )}
-    />
-  ), [isExpanded])
-
-  const memoizedCheckIcon = useMemo(() => (
-    <CheckIcon className="h-3 w-3 text-green-500" />
-  ), [])
+  const checkIconRef = useRef<SVGSVGElement>(null)
 
   return (
     <div className={cn("w-full", className)}>
       <div
-        className={cn("flex items-center justify-between text-xs py-1", isExpanded && "shadow-lg")}
+        className={cn(
+          "flex items-center justify-between text-xs py-1",
+          isExpanded && "shadow-lg transition-shadow duration-300",
+        )}
       >
         <button
           onClick={toggleExpand}
           className={cn(
             "flex items-center gap-1 hover:text-foreground transition-colors text-left",
-            !isExpanded && "text-muted-foreground",
+            !isExpanded || (isStreaming && "text-muted-foreground"),
           )}
         >
-          {memoizedChevronIcon}
+          <motion.div
+            initial={{ rotate: isExpanded ? 90 : 0 }}
+            animate={{ rotate: isExpanded ? 90 : 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="cursor-pointer"
+          >
+            <ChevronRightIcon className="h-3 w-3" />
+          </motion.div>
           {isComplete ? (
             <span>Finished scheming for {formattedDuration(elapsedTime)}</span>
           ) : (
-            <span className={isStreaming ? "animate-pulse" : ""}>Scheming</span>
+            <span className={isStreaming ? "animate-text-shimmer" : ""}>Scheming</span>
           )}
         </button>
 
         <div className="flex items-center">
           {isComplete ? (
-            memoizedCheckIcon
+            <CheckIcon className="h-3 w-3 text-green-500" ref={checkIconRef} />
           ) : (
-            isStreaming && (
-              <span className="flex items-center justify-center">
-                <svg
-                  className="animate-spin h-3 w-3 text-blue-500"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-              </span>
-            )
+            isStreaming && <LoadingDots />
           )}
         </div>
       </div>
 
-      {isExpanded && reasoning && (
-        <div
-          ref={reasoningRef}
-          className="text-xs text-muted-foreground whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-60 transition-all duration-200 animate-in slide-in-from-top-2 duration-300 ease-in-out"
-        >
-          <span>{reasoning}</span>
-        </div>
-      )}
+      <AnimatePresence>
+        {isExpanded && reasoning && (
+          <motion.div
+            ref={reasoningRef}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{
+              height: "auto",
+              opacity: 1,
+              transition: {
+                height: { duration: 0.3, ease: "easeOut" },
+                opacity: { duration: 0.2, delay: 0.1 },
+              },
+            }}
+            exit={{
+              height: 0,
+              opacity: 0,
+              transition: {
+                height: { duration: 0.3, ease: "easeIn" },
+                opacity: { duration: 0.2 },
+              },
+            }}
+            className="text-xs text-muted-foreground whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72"
+          >
+            <span>{reasoning}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

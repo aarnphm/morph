@@ -8,18 +8,16 @@ import { languages } from "@codemirror/language-data"
 import { EditorView } from "@codemirror/view"
 import { Compartment, EditorState } from "@codemirror/state"
 import {
-  Pencil1Icon,
-  EyeOpenIcon,
   ShadowInnerIcon,
   StackIcon,
   Cross2Icon,
+  CopyIcon,
+  ChevronDownIcon,
 } from "@radix-ui/react-icons"
 import usePersistedSettings from "@/hooks/use-persisted-settings"
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Vim, vim } from "@replit/codemirror-vim"
-import { NoteCard } from "@/components/note-card"
-import Explorer from "@/components/explorer"
-import { Toolbar } from "@/components/toolbar"
+import { DraggableNoteCard, NoteCard, AttachedNoteCard } from "@/components/note-card"
 import { fileField, mdToHtml } from "@/components/markdown-inline"
 import { toJsx, cn } from "@/lib"
 import type { Root } from "hast"
@@ -28,18 +26,20 @@ import { useVaultContext } from "@/context/vault-context"
 import { md, frontmatter, syntaxHighlighting, theme as editorTheme } from "@/components/parser"
 import { setFile } from "@/components/markdown-inline"
 import { DotIcon } from "@/components/ui/icons"
-import { Skeleton } from "@/components/ui/skeleton"
 import { SearchProvider } from "@/context/search-context"
 import { SearchCommand } from "@/components/search-command"
-import { DndProvider } from "react-dnd"
+import { DndProvider, useDrop, useDragLayer } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
 import { NotesProvider } from "@/context/notes-context"
-import { EditorNotes } from "@/components/editor-notes"
 import { generatePastelColor } from "@/lib/notes"
 import { db, type Note, type Vault, type FileSystemTreeNode } from "@/db"
 import { createId } from "@paralleldrive/cuid2"
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { ReasoningPanel } from "@/components/reasoning-panel"
+import { Virtuoso, Components } from "react-virtuoso"
+import { NOTES_DND_TYPE } from "@/lib/notes"
+import { motion, AnimatePresence } from "motion/react"
+import { VaultButton } from "@/components/ui/button"
+import Rails from "@/components/rails"
 
 interface StreamingDelta {
   suggestion: string
@@ -48,6 +48,14 @@ interface StreamingDelta {
 
 interface Suggestions {
   suggestions: { suggestion: string }[]
+}
+
+interface StreamingNote {
+  id: string
+  content: string
+  color: string
+  isComplete: boolean
+  isScanComplete?: boolean
 }
 
 interface EditorProps {
@@ -60,8 +68,38 @@ interface GeneratedNote {
   content: string
 }
 
+interface DateDisplayProps {
+  dateStr: string
+  formatDate: (dateStr: string) => React.ReactNode
+}
+
+const DateDisplay = memo(function DateDisplay({ dateStr, formatDate }: DateDisplayProps) {
+  return (
+    <div className="bg-muted px-3 py-1.5 text-xs text-muted-foreground font-medium border rounded-md border-border">
+      {formatDate(dateStr)}
+    </div>
+  )
+})
+
+interface NoteGroupProps {
+  dateStr: string
+  dateNotes: Note[]
+  reasoning?: {
+    id: string
+    content: string
+    reasoningElapsedTime: number
+  }
+  currentFile: string
+  vaultId?: string
+  handleCollapseComplete: () => void
+  handleNoteDropped: (note: Note) => void
+  onNoteRemoved: (noteId: string) => void
+  formatDate: (dateStr: string) => React.ReactNode
+  isGenerating?: boolean
+}
+
 const MemoizedNoteGroup = memo(
-  ({
+  function MemoizedNoteGroup({
     dateStr,
     dateNotes,
     reasoning,
@@ -70,56 +108,32 @@ const MemoizedNoteGroup = memo(
     handleNoteDropped,
     onNoteRemoved,
     formatDate,
-  }: {
-    dateStr: string
-    dateNotes: Note[]
-    reasoning:
-      | {
-          id: string
-          content: string
-          reasoningElapsedTime: number
-        }
-      | undefined
-    currentFile: string
-    vaultId: string | undefined
-    handleNoteDropped: (note: Note) => void
-    onNoteRemoved: (noteId: string) => void
-    formatDate: (dateStr: string) => React.ReactNode
-  }) => {
-    // Memoize the onCollapseComplete handler
-    const handleCollapseComplete = useCallback(() => {
-      // Define the desired behavior here
-    }, [])
-
-    // Refactored handleDragEnd to accept noteId instead of note object
-    const handleDragEnd = useCallback(
-      (noteId: string) => (e: React.DragEvent) => {
-        if (e.dataTransfer.dropEffect === "move") {
-          onNoteRemoved(noteId)
-          const note = dateNotes.find((n) => n.id === noteId)
-          if (note) {
-            handleNoteDropped(note)
-          }
-        }
+    isGenerating = false,
+    handleCollapseComplete,
+  }: NoteGroupProps) {
+    // Memoize the callbacks to ensure they have stable references
+    const stableHandleNoteDropped = useCallback(
+      (note: Note) => {
+        handleNoteDropped(note)
       },
-      [onNoteRemoved, handleNoteDropped, dateNotes],
+      [handleNoteDropped],
     )
 
-    // Memoize the notes with stable references
+    const stableOnNoteRemoved = useCallback(
+      (noteId: string) => {
+        onNoteRemoved(noteId)
+      },
+      [onNoteRemoved],
+    )
+
     const memoizedNotes = useMemo(() => {
       return dateNotes.map((note) => ({
-        id: note.id,
-        content: note.content,
+        ...note,
         color: note.color ?? generatePastelColor(),
-        fileId: currentFile,
-        isInEditor: false,
-        createdAt: note.createdAt ?? new Date(),
-        reasoningId: note.reasoningId,
       }))
-    }, [dateNotes, currentFile])
+    }, [dateNotes])
 
-    // Memoize the ReasoningPanel
-    const memoizedReasoningPanel = useMemo(() => {
+    const MemoizedReasoningPanel = useMemo(() => {
       if (!reasoning) return null
       return (
         <div className="px-2 bg-background border-b">
@@ -140,45 +154,695 @@ const MemoizedNoteGroup = memo(
 
     return (
       <div className="space-y-4">
-        <div className="bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground font-medium border-y border-border">
-          {formatDate(dateStr)}
-        </div>
-
-        {/* Show reasoning panel for this note group if available */}
-        {memoizedReasoningPanel}
-
+        <DateDisplay dateStr={dateStr} formatDate={formatDate} />
+        {MemoizedReasoningPanel}
         <div className="grid gap-4">
           {memoizedNotes.map((note) => (
-            <div key={note.id} draggable={true} onDragEnd={handleDragEnd(note.id)}>
-              <NoteCard
-                className="w-full"
-                note={{
-                  id: note.id,
-                  content: note.content,
-                  color: note.color,
-                  fileId: note.fileId,
-                  isInEditor: note.isInEditor,
-                  createdAt: note.createdAt,
-                  reasoningId: note.reasoningId,
-                }}
-              />
-            </div>
+            <DraggableNoteCard
+              key={note.id}
+              note={note}
+              handleNoteDropped={stableHandleNoteDropped}
+              onNoteRemoved={stableOnNoteRemoved}
+              isGenerating={isGenerating}
+            />
           ))}
         </div>
       </div>
     )
   },
   (prevProps, nextProps) => {
-    // Only re-render if the notes have changed or the reasoning has changed
     return (
       prevProps.dateStr === nextProps.dateStr &&
       prevProps.dateNotes === nextProps.dateNotes &&
       prevProps.reasoning === nextProps.reasoning &&
-      prevProps.currentFile === nextProps.currentFile
+      prevProps.currentFile === nextProps.currentFile &&
+      prevProps.isGenerating === nextProps.isGenerating
     )
   },
 )
-MemoizedNoteGroup.displayName = "MemoizedNoteGroup"
+
+interface DroppedNotesStackProps {
+  droppedNotes: Note[]
+  isStackExpanded: boolean
+  onExpandStack: () => void
+  onDragBackToPanel: (noteId: string) => void
+  className?: string
+}
+
+const DroppedNotesStack = memo(
+  function DroppedNotesStack({
+    droppedNotes,
+    isStackExpanded,
+    onExpandStack,
+    onDragBackToPanel,
+    className,
+  }: DroppedNotesStackProps) {
+    const containerRef = useRef<HTMLDivElement>(null)
+    const scrollContainerRef = useRef<HTMLDivElement>(null)
+    const lastNoteRef = useRef<HTMLDivElement>(null)
+    const prevNotesLengthRef = useRef(droppedNotes.length)
+    const MAX_VISIBLE_NOTES = 5
+    const hasMoreNotes = droppedNotes.length > MAX_VISIBLE_NOTES
+    const hasNotes = droppedNotes.length > 0
+
+    // Get notes to display - either first 5 or all (limited to 20 for performance)
+    const notesToDisplay = useMemo(
+      () => (isStackExpanded ? droppedNotes : droppedNotes.slice(0, MAX_VISIBLE_NOTES)),
+      [droppedNotes, isStackExpanded],
+    )
+
+    // Scroll to the newly added note when in expanded mode
+    useEffect(() => {
+      // Check if a new note was added
+      if (
+        droppedNotes.length > prevNotesLengthRef.current &&
+        isStackExpanded &&
+        lastNoteRef.current &&
+        scrollContainerRef.current
+      ) {
+        // Scroll to the last note
+        lastNoteRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" })
+      }
+
+      // Update the reference for next comparison
+      prevNotesLengthRef.current = droppedNotes.length
+    }, [droppedNotes.length, isStackExpanded])
+
+    // Modified to provide a ref to the last note and pass the onDragBackToPanel handler
+    const AttachedDisplayNotes = useCallback(
+      () => (
+        <>
+          {notesToDisplay.map((note, index) => (
+            <motion.div
+              key={note.id}
+              ref={index === notesToDisplay.length - 1 ? lastNoteRef : undefined}
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: 1,
+                transition: {
+                  delay: index * 0.03,
+                  duration: 0.2,
+                },
+              }}
+              exit={{
+                opacity: 0,
+                transition: {
+                  delay: (notesToDisplay.length - index - 1) * 0.02,
+                  duration: 0.15,
+                },
+              }}
+            >
+              <AttachedNoteCard
+                note={note}
+                index={index}
+                isStackExpanded={isStackExpanded}
+                onDragBackToPanel={onDragBackToPanel}
+                className={className}
+              />
+            </motion.div>
+          ))}
+        </>
+      ),
+      [isStackExpanded, notesToDisplay, onDragBackToPanel, className],
+    )
+
+    // Render nothing if there are no notes
+    if (!hasNotes) return null
+
+    return (
+      <motion.div
+        ref={containerRef}
+        className={cn(
+          "absolute top-4 right-4 z-40",
+          isStackExpanded && "bg-background/80 backdrop-blur-sm border rounded-md shadow-md p-2",
+        )}
+        variants={{
+          collapsed: {
+            width: "auto",
+            height: "auto",
+            transition: {
+              type: "spring",
+              stiffness: 400,
+              damping: 30,
+              when: "afterChildren",
+              staggerChildren: 0.02,
+              staggerDirection: -1,
+            },
+          },
+          expanded: {
+            width: "auto",
+            height: "auto",
+            transition: {
+              type: "spring",
+              stiffness: 300,
+              damping: 25,
+              when: "beforeChildren",
+              staggerChildren: 0.03,
+              delayChildren: 0.05,
+            },
+          },
+        }}
+        initial="collapsed"
+        animate={isStackExpanded ? "expanded" : "collapsed"}
+        layoutId="notes-stack"
+        layoutRoot
+      >
+        <AnimatePresence mode="sync">
+          <motion.div
+            ref={scrollContainerRef}
+            className={cn(
+              "flex flex-col items-center gap-1.5",
+              isStackExpanded && "max-h-[20vh] overflow-y-auto scrollbar-hidden",
+            )}
+            layout="position"
+          >
+            <AttachedDisplayNotes />
+            {hasMoreNotes && !isStackExpanded && (
+              <motion.div
+                className="text-primary/50 cursor-pointer"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                title={`${droppedNotes.length - MAX_VISIBLE_NOTES} more notes`}
+              >
+                <motion.div
+                  animate={{ y: [0, 4, 0] }}
+                  transition={{
+                    duration: 2,
+                    ease: "easeInOut",
+                    repeat: Infinity,
+                  }}
+                  onClick={onExpandStack}
+                >
+                  <ChevronDownIcon className="w-4 h-4" />
+                </motion.div>
+              </motion.div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </motion.div>
+    )
+  },
+  (prevProps, nextProps) => {
+    // Only re-render if the notes array has changed in length or content
+    if (prevProps.droppedNotes.length !== nextProps.droppedNotes.length) {
+      return false // Re-render if number of notes changed
+    }
+    if (prevProps.isStackExpanded !== nextProps.isStackExpanded) {
+      return false // Re-render if expansion state changed
+    }
+    if (prevProps.onDragBackToPanel !== nextProps.onDragBackToPanel) {
+      return false // Re-render if the handler changed
+    }
+
+    // Check if any note content or IDs have changed
+    return prevProps.droppedNotes.every((prevNote, index) => {
+      const nextNote = nextProps.droppedNotes[index]
+      return prevNote.id === nextNote.id && prevNote.color === nextNote.color
+    })
+  },
+)
+
+const ScrollSeekPlaceholder: Components["ScrollSeekPlaceholder"] = memo(
+  function ScrollSeekPlaceholder({ height }) {
+    // Memoize the skeleton components to prevent re-renders
+    const skeletonComponents = useMemo(() => {
+      // Generate colors once
+      const colors = Array.from({ length: 5 }).map(() => generatePastelColor())
+      return colors.map((color, i) => (
+        <NoteCard
+          key={i}
+          color={color}
+          className="w-full h-32 animate-shimmer"
+          variant="skeleton"
+        />
+      ))
+    }, [])
+
+    return (
+      <div className="p-1 border border-border bg-muted/20 flex" style={{ height }}>
+        <div className="flex flex-col gap-4 w-full">{skeletonComponents}</div>
+      </div>
+    )
+  },
+)
+
+// Create a memoized driver bar component for the notes panel
+interface DriversBarProps {
+  generateNewSuggestions: () => void
+  isNotesLoading: boolean
+  isNotesRecentlyGenerated: boolean
+}
+
+const DriversBar = memo(
+  function DriversBar({
+    generateNewSuggestions,
+    isNotesLoading,
+    isNotesRecentlyGenerated,
+  }: DriversBarProps) {
+    return (
+      <div className="flex items-center justify-end gap-3 p-2 border-t bg-background/95 backdrop-blur-sm shadow-md z-10 relative">
+        <VaultButton
+          onClick={generateNewSuggestions}
+          disabled={isNotesLoading}
+          color="none"
+          size="small"
+          className={cn(
+            "text-primary border border-accent-foreground/40",
+            !isNotesRecentlyGenerated && "button-shimmer-border",
+          )}
+          title="Generate Suggestions"
+        >
+          <ShadowInnerIcon className="w-3 h-3" />
+        </VaultButton>
+      </div>
+    )
+  },
+  (prevProps, nextProps) => prevProps.isNotesLoading === nextProps.isNotesLoading,
+)
+
+interface NotesPanelProps {
+  notes: Note[]
+  isNotesLoading: boolean
+  notesError: string | null
+  currentlyGeneratingDateKey: string | null
+  currentGenerationNotes: Note[]
+  droppedNotes: Note[]
+  streamingReasoning: string
+  reasoningComplete: boolean
+  currentFile: string
+  vaultId?: string
+  currentReasoningId: string
+  reasoningHistory: {
+    id: string
+    content: string
+    timestamp: Date
+    noteIds: string[]
+    reasoningElapsedTime: number
+  }[]
+  handleNoteDropped: (note: Note) => void
+  handleNoteRemoved: (noteId: string) => void
+  handleCurrentGenerationNote: (note: Note) => void
+  handleCollapseComplete: () => void
+  formatDate: (dateStr: string) => React.ReactNode
+  isNotesRecentlyGenerated: boolean
+  currentReasoningElapsedTime: number
+  generateNewSuggestions: () => void
+  noteGroupsData: [string, Note[]][]
+  virtuosoRef: React.RefObject<any>
+  notesContainerRef: React.RefObject<HTMLDivElement | null>
+  streamingNotes?: StreamingNote[]
+  scanAnimationComplete?: boolean
+}
+
+const CustomDragLayer = memo(function CustomDragLayer() {
+  const { isDragging, item, currentOffset } = useDragLayer((monitor) => ({
+    isDragging: monitor.isDragging(),
+    item: monitor.getItem() as Note | null,
+    currentOffset: monitor.getSourceClientOffset(),
+  }))
+
+  if (!isDragging || !currentOffset || !item) {
+    return null
+  }
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        pointerEvents: "none", // Important: prevent interference with drop detection
+        zIndex: 9999,
+        left: 0,
+        top: 0,
+        transform: `translate(${currentOffset.x}px, ${currentOffset.y}px)`,
+        width: "256px",
+        maxWidth: "256px",
+        opacity: 0.9,
+      }}
+    >
+      <div
+        className={cn(
+          "p-3 border border-border shadow-xl rounded-sm",
+          "transition-shadow",
+          "notecard-ragged relative",
+          "before:content-[''] before:absolute before:inset-0 before:z-[-1]",
+          "before:opacity-50 before:mix-blend-multiply before:bg-noise-pattern",
+          "after:content-[''] after:absolute after:bottom-[-4px] after:right-[-4px]",
+          "after:left-[4px] after:top-[4px] after:z-[-2]",
+          item.color || "bg-muted",
+        )}
+      >
+        <p className="text-sm leading-relaxed text-gray-800 dark:text-gray-200">{item.content}</p>
+      </div>
+    </div>
+  )
+})
+
+const NotesPanel = memo(function NotesPanel({
+  notes,
+  isNotesLoading,
+  notesError,
+  currentlyGeneratingDateKey,
+  currentGenerationNotes,
+  droppedNotes,
+  streamingReasoning,
+  reasoningComplete,
+  currentFile,
+  vaultId,
+  currentReasoningId,
+  reasoningHistory,
+  handleNoteDropped,
+  handleNoteRemoved,
+  handleCurrentGenerationNote,
+  handleCollapseComplete,
+  formatDate,
+  isNotesRecentlyGenerated,
+  currentReasoningElapsedTime,
+  generateNewSuggestions,
+  noteGroupsData,
+  virtuosoRef,
+  notesContainerRef,
+  streamingNotes,
+  scanAnimationComplete,
+}: NotesPanelProps) {
+  const memoizedNoteSkeletons = useMemo(() => <NoteCard variant="skeleton" />, [])
+
+  const [{ isOver }, drop] = useDrop(
+    () => ({
+      accept: NOTES_DND_TYPE,
+      drop(item: Note) {
+        if (item.dropped) {
+          item.dropped = false
+        }
+        return { targetId: "notes-panel" }
+      },
+      collect: (monitor) => ({ isOver: monitor.isOver() }),
+    }),
+    [],
+  )
+
+  const dropRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      if (element) {
+        drop(element)
+      }
+    },
+    [drop],
+  )
+
+  return (
+    <div
+      ref={dropRef}
+      className={cn(
+        "flex flex-col border-l h-full",
+        isOver && "border-red-200 border rounded-e-md rounded-n-md",
+      )}
+    >
+      <div className="flex-1 overflow-auto scrollbar-hidden px-2 pt-4 gap-4">
+        {!isNotesLoading && notes.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground p-4">
+            <p className="mb-4">
+              {droppedNotes.length !== 0
+                ? "All notes are currently in the stack."
+                : "No notes found for this document"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6 h-full">
+            {notesError ? (
+              <div className="px-4 py-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive">
+                {notesError}
+              </div>
+            ) : (
+              <div
+                className={cn("h-full flex flex-col overflow-auto scrollbar-hidden scroll-smooth")}
+                ref={notesContainerRef}
+              >
+                {/* Only show current generation section if there are active notes in it */}
+                {currentlyGeneratingDateKey &&
+                  (isNotesLoading ||
+                    (!scanAnimationComplete && reasoningComplete) ||
+                    (scanAnimationComplete &&
+                      currentGenerationNotes.length > 0 &&
+                      !droppedNotes.some((d) => d.id === currentGenerationNotes[0]?.id))) && (
+                    <div className="space-y-4 flex-shrink-0 mb-6">
+                      <DateDisplay dateStr={currentlyGeneratingDateKey!} formatDate={formatDate} />
+
+                      <div className="px-2 bg-background border-b">
+                        <ReasoningPanel
+                          reasoning={streamingReasoning}
+                          isStreaming={isNotesLoading && !reasoningComplete}
+                          isComplete={reasoningComplete}
+                          currentFile={currentFile}
+                          vaultId={vaultId}
+                          reasoningId={currentReasoningId}
+                          shouldExpand={isNotesLoading || currentGenerationNotes.length > 0}
+                          onCollapseComplete={handleCollapseComplete}
+                          elapsedTime={currentReasoningElapsedTime}
+                        />
+                      </div>
+
+                      {/* Show streaming notes during generation phase */}
+                      {reasoningComplete &&
+                        !scanAnimationComplete &&
+                        streamingNotes &&
+                        streamingNotes.length > 0 && (
+                          <div className="space-y-4 px-2">
+                            {streamingNotes.map((note) => (
+                              <NoteCard
+                                key={note.id}
+                                color={note.color || generatePastelColor()}
+                                className={cn(
+                                  "w-full h-full",
+                                  !note.isComplete && "will-change-contents",
+                                )}
+                                note={{
+                                  id: note.id,
+                                  content: note.content,
+                                  color: note.color || generatePastelColor(),
+                                  fileId: currentFile,
+                                  vaultId: vaultId || "",
+                                  createdAt: new Date(),
+                                  lastModified: new Date(),
+                                }}
+                                isGenerating={!note.isComplete}
+                                isStreaming={!note.isComplete}
+                                isScanComplete={note.isScanComplete}
+                              />
+                            ))}
+                          </div>
+                        )}
+
+                      {/* Show actual generated notes when complete */}
+                      {!isNotesLoading &&
+                        scanAnimationComplete &&
+                        currentGenerationNotes.length > 0 &&
+                        !notesError && (
+                          <AnimatePresence mode="wait">
+                            <motion.div
+                              className="space-y-4 px-2"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              {currentGenerationNotes.map((note) => (
+                                <DraggableNoteCard
+                                  key={note.id}
+                                  note={note}
+                                  handleNoteDropped={handleNoteDropped}
+                                  onNoteRemoved={handleNoteRemoved}
+                                  onCurrentGenerationNote={handleCurrentGenerationNote}
+                                  isGenerating={false}
+                                />
+                              ))}
+                            </motion.div>
+                          </AnimatePresence>
+                        )}
+                    </div>
+                  )}
+                <div className="flex-1 min-h-0">
+                  <Virtuoso
+                    key={`note-list-${currentFile}`}
+                    style={{ height: "100%", width: "100%" }}
+                    totalCount={noteGroupsData.length}
+                    data={noteGroupsData}
+                    overscan={5}
+                    components={{ ScrollSeekPlaceholder }}
+                    itemContent={(index, group) => {
+                      // Add a safety check for when group is undefined or not properly formed
+                      if (!group || !Array.isArray(group) || group.length < 2) {
+                        return memoizedNoteSkeletons
+                      }
+
+                      const [dateStr, dateNotes] = group
+
+                      // Only handle historical notes now
+                      const dateReasoning = reasoningHistory.find((r) =>
+                        r.noteIds.some((id) => dateNotes.some((note: Note) => note.id === id)),
+                      )
+
+                      return (
+                        <div className="mb-6">
+                          <MemoizedNoteGroup
+                            key={index}
+                            dateStr={dateStr}
+                            dateNotes={dateNotes}
+                            reasoning={dateReasoning}
+                            currentFile={currentFile}
+                            vaultId={vaultId}
+                            handleNoteDropped={handleNoteDropped}
+                            onNoteRemoved={handleNoteRemoved}
+                            formatDate={formatDate}
+                            isGenerating={false}
+                            handleCollapseComplete={handleCollapseComplete}
+                          />
+                        </div>
+                      )
+                    }}
+                    initialItemCount={10}
+                    increaseViewportBy={{ top: 100, bottom: 100 }}
+                    scrollSeekConfiguration={{
+                      enter: (velocity) => Math.abs(velocity) > 1000,
+                      exit: (velocity) => Math.abs(velocity) < 100,
+                    }}
+                    ref={virtuosoRef}
+                    customScrollParent={notesContainerRef.current!}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <DriversBar
+        generateNewSuggestions={generateNewSuggestions}
+        isNotesLoading={isNotesLoading}
+        isNotesRecentlyGenerated={isNotesRecentlyGenerated}
+      />
+    </div>
+  )
+})
+
+interface EditorDropTargetProps {
+  children: React.ReactNode
+  handleNoteDropped: (note: Note) => void
+}
+
+const EditorDropTarget = memo(function EditorDropTarget({
+  children,
+  handleNoteDropped,
+}: EditorDropTargetProps) {
+  // Save the handleNoteDropped reference in a ref to avoid dependency changes
+  const handleDroppedRef = useRef(handleNoteDropped)
+  useEffect(() => {
+    handleDroppedRef.current = handleNoteDropped
+  }, [handleNoteDropped])
+
+  const onDropped = useCallback(
+    (item: Note) => {
+      handleNoteDropped(item)
+    },
+    [handleNoteDropped],
+  )
+
+  const [{ isOver }, drop] = useDrop(
+    () => ({
+      accept: NOTES_DND_TYPE,
+      drop(item: Note) {
+        onDropped(item)
+        return { targetId: "editor" }
+      },
+      collect: (monitor) => ({ isOver: monitor.isOver() }),
+    }),
+    [onDropped],
+  )
+
+  const dropRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      if (element) {
+        drop(element)
+      }
+    },
+    [drop],
+  )
+
+  return (
+    <div
+      ref={dropRef}
+      className={cn(
+        "flex-1 relative transition-all duration-300 ease-in-out",
+        isOver && "border-teal-300 border rounded-s-md rounded-w-md",
+      )}
+    >
+      {children}
+    </div>
+  )
+})
+
+const Playspace = memo(function Playspace({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.section
+      className="flex flex-1 overflow-hidden m-4 border"
+      layout
+      layoutId="playspace-container"
+      transition={{
+        type: "spring",
+        stiffness: 300,
+        damping: 26,
+        mass: 0.8,
+      }}
+      initial={{ borderRadius: 0 }}
+      animate={{
+        margin: "16px",
+        borderRadius: "8px",
+      }}
+      exit={{
+        margin: "16px",
+        borderRadius: "8px",
+        opacity: 0,
+      }}
+    >
+      {children}
+    </motion.section>
+  )
+})
+
+interface ReasoningHistory {
+  id: string
+  content: string
+  timestamp: Date
+  noteIds: string[]
+  reasoningElapsedTime: number
+}
+
+interface SuggestionResponse {
+  generatedNotes: GeneratedNote[]
+  reasoningId: string
+  reasoningElapsedTime: number
+  reasoningContent: string
+}
+
+// Add a helper function to sanitize streaming content by removing trailing JSON syntax
+const sanitizeStreamingContent = (content: string): string => {
+  if (!content) return ""
+
+  // Remove any trailing JSON syntax characters that might be part of streaming
+  // This handles cases like trailing quotes, braces, commas, etc.
+  let sanitized = content
+
+  // First, check if we have an incomplete escape sequence at the end
+  if (sanitized.endsWith("\\")) {
+    sanitized = sanitized.slice(0, -1)
+  }
+
+  // Remove any trailing JSON syntax characters
+  sanitized = sanitized.replace(/[\"\}\,\]\s]+$/, "")
+
+  // Also handle cases where there might be escaped quotes
+  sanitized = sanitized.replace(/\\\"$/, "")
+
+  return sanitized
+}
 
 export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const { theme } = useTheme()
@@ -190,11 +854,36 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [isNotesLoading, setIsNotesLoading] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [currentFileHandle, setCurrentFileHandle] = useState<FileSystemFileHandle | null>(null)
+  const [scanAnimationComplete, setScanAnimationComplete] = useState(false)
 
   const { settings } = usePersistedSettings()
   const codeMirrorViewRef = useRef<EditorView | null>(null)
   const readingModeRef = useRef<HTMLDivElement>(null)
   const [showNotes, setShowNotes] = useState(false)
+  const [notes, setNotes] = useState<Note[]>([])
+  const [markdownContent, setMarkdownContent] = useState<string>("")
+  const [notesError, setNotesError] = useState<string | null>(null)
+  const [droppedNotes, setDroppedNotes] = useState<Note[]>([])
+  const [streamingReasoning, setStreamingReasoning] = useState<string>("")
+  const [reasoningComplete, setReasoningComplete] = useState(false)
+  const [numSuggestions, setNumSuggestions] = useState(4) // Default number of suggestions
+  const [currentReasoningElapsedTime, setCurrentReasoningElapsedTime] = useState(0)
+  const [lastNotesGeneratedTime, setLastNotesGeneratedTime] = useState<Date | null>(null)
+  const virtuosoRef = useRef<HTMLDivElement>(null)
+  const notesContainerRef = useRef<HTMLDivElement>(null)
+  const [reasoningHistory, setReasoningHistory] = useState<ReasoningHistory[]>([])
+  const [currentReasoningId, setCurrentReasoningId] = useState<string>("")
+  const [currentlyGeneratingDateKey, setCurrentlyGeneratingDateKey] = useState<string | null>(null)
+  const [isStackExpanded, setIsStackExpanded] = useState(false)
+  const [streamingSuggestionColors, setStreamingSuggestionColors] = useState<string[]>([])
+  // Add a state to track current generation notes
+  const [currentGenerationNotes, setCurrentGenerationNotes] = useState<Note[]>([])
+  const [streamingNotes, setStreamingNotes] = useState<StreamingNote[]>([])
+
+  const toggleStackExpand = useCallback(() => {
+    setIsStackExpanded((prev) => !prev)
+  }, [])
+
   const toggleNotes = useCallback(() => {
     setShowNotes((prev) => {
       // Reset reasoning state when hiding notes panel
@@ -205,33 +894,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       return !prev
     })
   }, [])
-
-  const [notes, setNotes] = useState<Note[]>([])
-
-  const [markdownContent, setMarkdownContent] = useState<string>("")
-  const [notesError, setNotesError] = useState<string | null>(null)
-  const [droppedNotes, setDroppedNotes] = useState<Note[]>([])
-  const [streamingReasoning, setStreamingReasoning] = useState<string>("")
-  const [reasoningComplete, setReasoningComplete] = useState(false)
-  const [numSuggestions, setNumSuggestions] = useState(4) // Default number of suggestions
-  const [currentReasoningElapsedTime, setCurrentReasoningElapsedTime] = useState(0)
-  const [reasoningHistory, setReasoningHistory] = useState<
-    {
-      id: string
-      content: string
-      timestamp: Date
-      noteIds: string[]
-      reasoningElapsedTime: number
-    }[]
-  >([])
-  const [currentReasoningId, setCurrentReasoningId] = useState<string>("")
-  const [currentlyGeneratingDateKey, setCurrentlyGeneratingDateKey] = useState<string | null>(null)
-  // State to control reasoning panel visibility
-  const [, setShowReasoningPanel] = useState(false)
-  const [isStackExpanded, setIsStackExpanded] = useState(false)
-  const [streamingSuggestionColors, setStreamingSuggestionColors] = useState<string[]>([])
-  // Add a state to track current generation notes
-  const [currentGenerationNotes, setCurrentGenerationNotes] = useState<Note[]>([])
 
   const vault = vaults.find((v) => v.id === vaultId)
 
@@ -246,260 +908,63 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
   }, [])
 
-  const handleNoteDropped = useCallback((note: Note) => {
+  const handleNoteDropped = useCallback(async (note: Note) => {
+    // Ensure note has a color if it doesn't already
+    const noteWithColor = {
+      ...note,
+      color: note.color || generatePastelColor(),
+      dropped: true,
+      lastModified: new Date(),
+    }
+
+    // Update droppedNotes optimistically without triggering unnecessary motion
     setDroppedNotes((prev) => {
-      if (prev.find((n) => n.id === note.id)) return prev
-      return [...prev, note]
+      if (prev.find((n) => n.id === noteWithColor.id)) return prev
+      // Add note to the end of the array for proper scroll-to behavior
+      return [...prev, noteWithColor]
     })
+
+    // Save to database - update the note's dropped flag
+    try {
+      await db.notes.update(noteWithColor.id, {
+        dropped: true,
+        color: noteWithColor.color,
+        lastModified: new Date(),
+      })
+    } catch (error) {
+      console.error("Failed to update note dropped status:", error)
+    }
   }, [])
+
+  useEffect(() => {
+    if (!currentFile || !vault) return
+
+    const loadDroppedNotes = async () => {
+      try {
+        // Get notes that are dropped for this file
+        const fileDroppedNotes = await db.notes
+          .filter((note) => note.dropped === true && note.fileId === currentFile)
+          .toArray()
+
+        // Ensure each note has a color
+        const notesWithColors = fileDroppedNotes.map((note) => ({
+          ...note,
+          color: note.color || generatePastelColor(),
+        }))
+
+        setDroppedNotes(notesWithColors)
+      } catch (error) {
+        console.error("Failed to load dropped notes:", error)
+        setDroppedNotes([])
+      }
+    }
+
+    loadDroppedNotes()
+  }, [currentFile, vault])
 
   useEffect(() => {
     contentRef.current = { content: markdownContent, filename: currentFile }
   }, [markdownContent, currentFile])
-
-  // Sort notes from latest to oldest
-  useEffect(() => {
-    if (currentFile && vault) {
-      db.notes
-        .where("fileId")
-        .equals(currentFile)
-        .toArray()
-        .then((loadedNotes) => {
-          const sortedNotes = loadedNotes.sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-          )
-          setNotes(sortedNotes)
-        })
-    }
-  }, [currentFile, vault])
-
-  const handleExportMarkdown = useCallback(() => {
-    const { content, filename } = contentRef.current
-    const blob = new Blob([md(content).content], { type: "text/markdown" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }, [])
-
-  const updatePreview = useCallback(
-    async (value: string) => {
-      try {
-        const tree = await mdToHtml({
-          value,
-          settings,
-          vaultId,
-          filename: currentFile,
-          returnHast: true,
-        })
-        setPreviewNode(tree)
-      } catch (error) {
-        console.log(error)
-      }
-    },
-    [currentFile, settings, vaultId],
-  )
-
-  const onContentChange = useCallback(
-    async (value: string) => {
-      setMarkdownContent(value)
-      if (value !== markdownContent) {
-        setHasUnsavedChanges(true)
-      }
-
-      const timeoutId = setTimeout(() => updatePreview(value), 100)
-
-      return () => clearTimeout(timeoutId)
-    },
-    [updatePreview, markdownContent],
-  )
-
-  const fetchNewNotes = useCallback(
-    async (
-      content: string,
-      num_suggestions: number = 4,
-    ): Promise<{
-      generatedNotes: GeneratedNote[]
-      reasoningId: string
-      reasoningElapsedTime: number
-      reasoningContent: string
-    }> => {
-      try {
-        const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT
-        if (!apiEndpoint) {
-          throw new Error("Notes functionality is currently unavailable")
-        }
-
-        // Create a new reasoning ID for this generation
-        const reasoningId = createId()
-
-        // Reset states for new generation
-        setStreamingReasoning("")
-        setReasoningComplete(false)
-        setNumSuggestions(num_suggestions)
-        setCurrentReasoningElapsedTime(0) // Reset elapsed time at the start
-
-        // Set a current date key for the new notes group with 15-second interval
-        const now = new Date()
-        const seconds = now.getSeconds()
-        const interval = Math.floor(seconds / 15) * 15
-        const dateKey = `${now.toDateString()}-${now.getHours()}-${now.getMinutes()}-${interval}`
-        setCurrentlyGeneratingDateKey(dateKey)
-
-        const essay = md(content).content
-        const max_tokens = 8192
-
-        // Start timing reasoning phase
-        const reasoningStartTime = Date.now()
-        let reasoningEndTime: number | null = null
-
-        // Create streaming request
-        const response = await fetch(`${apiEndpoint}/suggests`, {
-          method: "POST",
-          headers: {
-            Accept: "text/event-stream",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ essay, num_suggestions, max_tokens }),
-        })
-
-        if (!response.ok) throw new Error("Failed to fetch suggestions")
-        if (!response.body) throw new Error("Response body is empty")
-
-        const reader = response.body.getReader()
-        const decoder = new TextDecoder()
-
-        // We'll collect all suggestion JSON data here
-        let suggestionString = ""
-        let inReasoningPhase = true
-        let collectedReasoning = ""
-
-        // Generate and preserve colors for each suggestion
-        const colors = Array(num_suggestions)
-          .fill(null)
-          .map(() => generatePastelColor())
-        setStreamingSuggestionColors(colors)
-
-        // Process the stream
-        while (true) {
-          const { value, done } = await reader.read()
-          if (done) break
-
-          const chunk = decoder.decode(value, { stream: true })
-
-          // Process each line
-          for (const line of chunk.split("\n")) {
-            if (!line.trim()) continue
-
-            try {
-              const delta: StreamingDelta = JSON.parse(line)
-
-              // Handle reasoning phase
-              if (delta.reasoning) {
-                collectedReasoning += delta.reasoning
-                setStreamingReasoning((prev) => prev + delta.reasoning)
-              }
-
-              // Check for phase transition
-              if (delta.reasoning === "" && delta.suggestion !== "") {
-                // First time we see suggestion means reasoning is complete
-                if (inReasoningPhase) {
-                  // Record when reasoning phase ended
-                  if (!reasoningEndTime) {
-                    reasoningEndTime = Date.now()
-                    // Calculate and update elapsed time when reasoning ends
-                    const elapsedTime = Math.round((reasoningEndTime - reasoningStartTime) / 1000)
-                    setCurrentReasoningElapsedTime(elapsedTime)
-                  }
-                  setReasoningComplete(true)
-                  inReasoningPhase = false
-                }
-
-                // Collect suggestion data
-                suggestionString += delta.suggestion
-              }
-            } catch (e) {
-              console.log("Error parsing line:", e)
-            }
-          }
-        }
-
-        // Ensure we mark reasoning as complete
-        if (inReasoningPhase) {
-          // If we never set the end time but are now complete, set it
-          if (!reasoningEndTime) {
-            reasoningEndTime = Date.now()
-            // Calculate and update elapsed time when reasoning ends
-            const elapsedTime = Math.round((reasoningEndTime - reasoningStartTime) / 1000)
-            setCurrentReasoningElapsedTime(elapsedTime)
-          }
-          setReasoningComplete(true)
-        }
-
-        // Calculate elapsed time for reasoning
-        const reasoningElapsedTime = Math.round((reasoningEndTime! - reasoningStartTime) / 1000)
-        setCurrentReasoningElapsedTime(reasoningElapsedTime)
-
-        // At this point we have the complete reasoning, but we don't yet know which notes it produced
-        // We'll update reasoningHistory later when we know the noteIds
-        setCurrentReasoningId(reasoningId)
-
-        // Clean up
-        reader.releaseLock()
-
-        // Parse collected suggestions
-        let generatedNotes: GeneratedNote[] = []
-
-        if (suggestionString.trim()) {
-          try {
-            const suggestionData: Suggestions = JSON.parse(suggestionString.trim())
-
-            if (suggestionData.suggestions && Array.isArray(suggestionData.suggestions)) {
-              generatedNotes = suggestionData.suggestions.map((suggestion, index) => ({
-                title: `suggestion ${index + 1}`,
-                content: suggestion.suggestion,
-              }))
-            }
-          } catch (e) {
-            console.error("Error parsing suggestions:", e)
-          }
-        }
-
-        if (generatedNotes.length === 0) {
-          // Set error state when no suggestions could be generated
-          setNotesError("Could not generate suggestions for this content")
-        } else {
-          // Save the reasoning content to be associated with the notes later
-          const reasoningData = {
-            id: reasoningId,
-            content: collectedReasoning,
-            timestamp: new Date(),
-            noteIds: [], // Will be populated after creating notes
-            reasoningElapsedTime,
-          }
-          setReasoningHistory((prev) => [...prev, { ...reasoningData }])
-          setNotesError(null)
-        }
-
-        return {
-          generatedNotes,
-          reasoningId,
-          reasoningElapsedTime,
-          reasoningContent: collectedReasoning,
-        }
-      } catch (error) {
-        setNotesError("Notes not available, try again later")
-        setReasoningComplete(true)
-        setCurrentlyGeneratingDateKey(null)
-        throw error
-      }
-    },
-    [],
-  )
 
   // Group notes by date for display (more granular - by minute)
   const groupNotesByDate = useCallback((notesList: Note[]) => {
@@ -542,6 +1007,398 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       return dateB.getTime() - dateA.getTime() // Otherwise sort by date
     })
   }, [])
+
+  // Sort notes from latest to oldest
+  useEffect(() => {
+    if (currentFile && vault) {
+      db.notes
+        .where("fileId")
+        .equals(currentFile)
+        .toArray()
+        .then((loadedNotes) => {
+          const sortedNotes = loadedNotes.sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          )
+          setNotes(sortedNotes)
+        })
+    }
+  }, [currentFile, vault])
+
+  const updatePreview = useCallback(
+    async (value: string) => {
+      try {
+        const tree = await mdToHtml({
+          value,
+          settings,
+          vaultId,
+          filename: currentFile,
+          returnHast: true,
+        })
+        setPreviewNode(tree)
+      } catch (error) {
+        console.log(error)
+      }
+    },
+    [currentFile, settings, vaultId],
+  )
+
+  const onContentChange = useCallback(
+    async (value: string) => {
+      setMarkdownContent(value)
+      if (value !== markdownContent) {
+        setHasUnsavedChanges(true)
+      }
+
+      const timeoutId = setTimeout(() => updatePreview(value), 100)
+
+      return () => clearTimeout(timeoutId)
+    },
+    [updatePreview, markdownContent],
+  )
+
+  const fetchNewNotes = useCallback(
+    async (
+      content: string,
+      num_suggestions: number = numSuggestions,
+    ): Promise<SuggestionResponse> => {
+      try {
+        const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:8000"
+        const readyz = await fetch(`${apiEndpoint}/readyz`)
+        if (!readyz.ok) {
+          throw new Error("Notes functionality is currently unavailable")
+        }
+
+        // Create a new reasoning ID for this generation
+        const reasoningId = createId()
+
+        // Reset states for new generation
+        setStreamingReasoning("")
+        setReasoningComplete(false)
+        setNumSuggestions(num_suggestions)
+        setCurrentReasoningElapsedTime(0) // Reset elapsed time at the start
+        setStreamingNotes([]) // Reset streaming notes
+        setScanAnimationComplete(false) // Reset scan animation state
+
+        // Set a current date key for the new notes group with 15-second interval
+        const now = new Date()
+        const seconds = now.getSeconds()
+        const interval = Math.floor(seconds / 15) * 15
+        const dateKey = `${now.toDateString()}-${now.getHours()}-${now.getMinutes()}-${interval}`
+        setCurrentlyGeneratingDateKey(dateKey)
+
+        const essay = md(content).content
+        const max_tokens = 8192
+
+        // Start timing reasoning phase
+        const reasoningStartTime = Date.now()
+        let reasoningEndTime: number | null = null
+
+        // Create streaming request
+        const response = await fetch(`${apiEndpoint}/suggests`, {
+          method: "POST",
+          headers: {
+            Accept: "text/event-stream",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ essay, num_suggestions, max_tokens }),
+        })
+
+        if (!response.ok) throw new Error("Failed to fetch suggestions")
+        if (!response.body) throw new Error("Response body is empty")
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+
+        // We'll collect all suggestion JSON data here
+        let suggestionString = ""
+        let inReasoningPhase = true
+        let collectedReasoning = ""
+
+        // Initialize variables for streaming JSON parsing
+        const colors = Array(num_suggestions)
+          .fill(null)
+          .map(() => generatePastelColor())
+        setStreamingSuggestionColors(colors)
+
+        // Create empty streaming notes with unique IDs
+        const initialStreamingNotes = Array(num_suggestions)
+          .fill(null)
+          .map((_, index) => ({
+            id: createId(),
+            content: "",
+            color: colors[index] || generatePastelColor(),
+            isComplete: false,
+            isScanComplete: false,
+          }))
+        setStreamingNotes(initialStreamingNotes)
+
+        // Variables for tracking streaming JSON state
+        let currentNoteIndex = 0
+        let partialJSON = ""
+        let inJsonSuggestion = false
+        let currentSuggestion = ""
+        let isFirstNote = true
+
+        // Pattern variables that account for whitespace
+        const firstNoteStartPattern = '{"suggestions":\\s*\\[\\s*{"suggestion":\\s*"'
+        const subsequentNoteStartPattern = '\\s*{"suggestion":\\s*"'
+        const endPatternWithComma = '"\\s*}\\s*,'
+        const endPatternFinal = '"\\s*}\\s*]\\s*}'
+
+        // Process the stream
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
+
+          const chunk = decoder.decode(value, { stream: true })
+
+          // Process each line
+          for (const line of chunk.split("\n")) {
+            if (!line.trim()) continue
+
+            try {
+              const delta: StreamingDelta = JSON.parse(line)
+
+              // Handle reasoning phase
+              if (delta.reasoning) {
+                collectedReasoning += delta.reasoning
+                setStreamingReasoning((prev) => prev + delta.reasoning)
+              }
+
+              // Check for phase transition
+              if (delta.reasoning === "" && delta.suggestion !== "") {
+                // First time we see suggestion means reasoning is complete
+                if (inReasoningPhase) {
+                  // Record when reasoning phase ended
+                  if (!reasoningEndTime) {
+                    reasoningEndTime = Date.now()
+                    // Calculate and update elapsed time when reasoning ends
+                    const elapsedTime = Math.round((reasoningEndTime - reasoningStartTime) / 1000)
+                    setCurrentReasoningElapsedTime(elapsedTime)
+                  }
+                  setReasoningComplete(true)
+                  inReasoningPhase = false
+                }
+
+                // Handle each delta suggestion chunk for streaming JSON
+                partialJSON += delta.suggestion
+
+                // First note has a different start pattern than subsequent ones
+                if (!inJsonSuggestion) {
+                  if (isFirstNote) {
+                    // Check for the first note start pattern
+                    const firstStartRegex = new RegExp(firstNoteStartPattern)
+                    const match = firstStartRegex.exec(partialJSON)
+
+                    if (match) {
+                      inJsonSuggestion = true
+                      const matchIndex = match.index + match[0].length
+                      currentSuggestion = partialJSON.substring(matchIndex)
+                      partialJSON = ""
+                      isFirstNote = false
+                    }
+                  } else {
+                    // Check for subsequent note start pattern
+                    const subsequentStartRegex = new RegExp(subsequentNoteStartPattern)
+                    const match = subsequentStartRegex.exec(partialJSON)
+
+                    if (match) {
+                      inJsonSuggestion = true
+                      const matchIndex = match.index + match[0].length
+                      currentSuggestion = partialJSON.substring(matchIndex)
+                      partialJSON = ""
+                    }
+                  }
+                }
+                // If we're inside a suggestion object, accumulate content
+                else if (inJsonSuggestion) {
+                  currentSuggestion += delta.suggestion
+
+                  // For a better streaming experience, update the note's content with each delta
+                  setStreamingNotes((prevNotes) => {
+                    if (!prevNotes[currentNoteIndex]) return prevNotes
+
+                    // Create a new array to avoid mutating the previous state
+                    const updatedNotes = [...prevNotes]
+
+                    // Only update the current note - this fixes the flashing bug
+                    updatedNotes[currentNoteIndex] = {
+                      ...updatedNotes[currentNoteIndex],
+                      content: sanitizeStreamingContent(currentSuggestion),
+                    }
+
+                    return updatedNotes
+                  })
+
+                  // Check for end patterns - either with comma (more notes to come) or final closing pattern
+                  const endWithCommaRegex = new RegExp(endPatternWithComma)
+                  const endFinalRegex = new RegExp(endPatternFinal)
+
+                  const endWithCommaMatch = endWithCommaRegex.exec(currentSuggestion)
+                  const endFinalMatch = endFinalRegex.exec(currentSuggestion)
+
+                  // Process if we found either ending pattern
+                  if (endWithCommaMatch || endFinalMatch) {
+                    // Get the end index based on which pattern matched
+                    const match = endWithCommaMatch || endFinalMatch
+                    const endIndex = match!.index
+
+                    // Extract the suggestion content up to the end pattern
+                    const suggestionContent = currentSuggestion.substring(0, endIndex)
+
+                    // Update the streaming note with the current content
+                    setStreamingNotes((prevNotes) => {
+                      if (!prevNotes[currentNoteIndex]) return prevNotes
+
+                      // Create a new array to avoid mutating the previous state
+                      const updatedNotes = [...prevNotes]
+
+                      // Only update the current note - this fixes the flashing bug
+                      updatedNotes[currentNoteIndex] = {
+                        ...updatedNotes[currentNoteIndex],
+                        content: sanitizeStreamingContent(suggestionContent),
+                        isComplete:
+                          endFinalMatch !== null && currentNoteIndex === num_suggestions - 1,
+                      }
+
+                      return updatedNotes
+                    })
+
+                    // Reset suggestion tracking
+                    inJsonSuggestion = false
+
+                    // Set remaining text for next iteration
+                    const remaining = currentSuggestion.substring(endIndex + match![0].length)
+                    partialJSON = remaining
+                    currentSuggestion = ""
+
+                    // Move to next note if there's more to process
+                    if (endWithCommaMatch) {
+                      currentNoteIndex = Math.min(currentNoteIndex + 1, num_suggestions - 1)
+                    }
+                  }
+                }
+
+                // Collect suggestion data for final processing
+                suggestionString += delta.suggestion
+              }
+            } catch (e) {
+              console.log("Error parsing line:", e)
+            }
+          }
+        }
+
+        // Ensure we mark reasoning as complete
+        if (inReasoningPhase) {
+          // If we never set the end time but are now complete, set it
+          if (!reasoningEndTime) {
+            reasoningEndTime = Date.now()
+            // Calculate and update elapsed time when reasoning ends
+            const elapsedTime = Math.round((reasoningEndTime - reasoningStartTime) / 1000)
+            setCurrentReasoningElapsedTime(elapsedTime)
+          }
+          setReasoningComplete(true)
+        }
+
+        // Mark all streaming notes as complete
+        setStreamingNotes((prevNotes) => {
+          const allComplete = prevNotes.map((note) => ({ ...note, isComplete: true }))
+          return allComplete
+        })
+
+        // Calculate elapsed time for reasoning
+        const reasoningElapsedTime = Math.round((reasoningEndTime! - reasoningStartTime) / 1000)
+        setCurrentReasoningElapsedTime(reasoningElapsedTime)
+
+        // Run scan animation after a small delay
+        const runScanAnimation = async () => {
+          // Wait a moment before starting the animation
+          await new Promise((resolve) => setTimeout(resolve, 400))
+
+          const noteCount = streamingNotes.length
+          for (let i = 0; i < noteCount; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 150)) // Delay between each note
+
+            setStreamingNotes((prevNotes) => {
+              const updatedNotes = [...prevNotes]
+              if (updatedNotes[i]) {
+                updatedNotes[i] = {
+                  ...updatedNotes[i],
+                  isScanComplete: true,
+                }
+              }
+              return updatedNotes
+            })
+          }
+
+          // Final animation complete - wait a moment before showing final notes
+          await new Promise((resolve) => setTimeout(resolve, 500))
+
+          // Set loading to false which will trigger showing the final notes
+          setIsNotesLoading(false)
+          setScanAnimationComplete(true)
+        }
+
+        // Start the scan animation sequence
+        runScanAnimation()
+
+        // At this point we have the complete reasoning, but we don't yet know which notes it produced
+        // We'll update reasoningHistory later when we know the noteIds
+        setCurrentReasoningId(reasoningId)
+
+        // Clean up
+        reader.releaseLock()
+
+        // Parse collected suggestions
+        let generatedNotes: GeneratedNote[] = []
+
+        if (suggestionString.trim()) {
+          try {
+            const suggestionData: Suggestions = JSON.parse(suggestionString.trim())
+
+            if (suggestionData.suggestions && Array.isArray(suggestionData.suggestions)) {
+              generatedNotes = suggestionData.suggestions.map((suggestion, index) => ({
+                title: `suggestion ${index + 1}`,
+                content: suggestion.suggestion,
+              }))
+            }
+          } catch (e) {
+            console.error("Error parsing suggestions:", e)
+          }
+        }
+
+        if (generatedNotes.length === 0) {
+          // Set error state when no suggestions could be generated
+          setNotesError("Could not generate suggestions for this content")
+          setCurrentlyGeneratingDateKey(null)
+        } else {
+          // Save the reasoning content to be associated with the notes later
+          const reasoningData = {
+            id: reasoningId,
+            content: collectedReasoning,
+            timestamp: new Date(),
+            noteIds: [], // Will be populated after creating notes
+            reasoningElapsedTime,
+          }
+          setReasoningHistory((prev) => [...prev, { ...reasoningData }])
+          setNotesError(null)
+        }
+
+        return {
+          generatedNotes,
+          reasoningId,
+          reasoningElapsedTime,
+          reasoningContent: collectedReasoning,
+        }
+      } catch (error) {
+        setNotesError("Notes not available, try again later")
+        setReasoningComplete(true)
+        setCurrentlyGeneratingDateKey(null)
+        throw error
+      }
+    },
+    [numSuggestions, streamingNotes.length],
+  )
 
   // Format date for display
   const formatDate = useCallback((dateStr: string) => {
@@ -669,12 +1526,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
   }, [markdownContent, updatePreview])
 
-  const onFileSelect = useCallback((handle: FileSystemFileHandle) => {
-    setCurrentFileHandle(handle)
-    setCurrentFile(handle.name)
-    setIsEditMode(false)
-  }, [])
-
   const onNewFile = useCallback(() => {
     setCurrentFileHandle(null)
     setCurrentFile("Untitled")
@@ -769,11 +1620,22 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
     // Clear any previous current generation notes
     setCurrentGenerationNotes([])
+    setNotesError(null)
     setIsNotesLoading(true)
     setStreamingReasoning("")
     setReasoningComplete(false)
     setStreamingSuggestionColors([])
-    setCurrentlyGeneratingDateKey(null)
+    setScanAnimationComplete(false) // Reset scan animation state
+
+    // Update the last notes generation time
+    setLastNotesGeneratedTime(new Date())
+
+    // Set a current date key for the new notes group with 15-second interval
+    const now = new Date()
+    const seconds = now.getSeconds()
+    const interval = Math.floor(seconds / 15) * 15
+    const dateKey = `${now.toDateString()}-${now.getHours()}-${now.getMinutes()}-${interval}`
+    setCurrentlyGeneratingDateKey(dateKey)
 
     try {
       const { generatedNotes, reasoningId, reasoningElapsedTime, reasoningContent } =
@@ -820,7 +1682,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       // Set current generation notes
       setCurrentGenerationNotes(newNotes)
 
-      // Also add the new notes to the beginning of the notes array for historical view
+      // Also add the new notes to the notes array for historical view
+      // (they will remain visible in the current generation section first)
       setNotes((prev) => {
         const combined = [...newNotes, ...prev]
         return combined.sort(
@@ -830,6 +1693,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     } catch (error) {
       // Just show error for current generation and don't affect previous notes
       setNotesError("Notes not available for this generation, try again later")
+      setCurrentlyGeneratingDateKey(null)
       console.error("Failed to generate notes:", error)
     } finally {
       // Still set isNotesLoading to false, but don't clear currentlyGeneratingDateKey
@@ -838,75 +1702,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
   }, [currentFile, vault, markdownContent, fetchNewNotes, streamingSuggestionColors])
 
-  // Show reasoning panel when generating suggestions
-  useEffect(() => {
-    if (isNotesLoading) {
-      setShowReasoningPanel(true)
-    }
-  }, [isNotesLoading])
-
-  // Hide reasoning panel after completion only if there are no notes
-  const handleReasoningCollapsed = useCallback(() => {
-    // Only hide the reasoning panel if there are no notes
-    if (notes.length === 0) {
-      setShowReasoningPanel(false)
-    }
-  }, [notes.length])
-
-  // Generate skeletons based on num_suggestions
-  const renderNotesSkeletons = useCallback(() => {
-    // Fallback to empty skeletons if no streaming suggestions yet
-    return Array.from({ length: numSuggestions }).map((_, i) => {
-      // Generate consistent random values based on index
-      const randomSeed = i + 1
-      // Generate rotation between -2.5 and 2.5 degrees for a natural look
-      const rotation = ((randomSeed * 2.5) % 5) - 2.5
-      // Generate shadow offset for 3D effect
-      const x = (randomSeed % 3) + 2
-      const y = ((randomSeed * 2) % 3) + 2
-      // Use the preserved color for this suggestion or generate a new one
-      const bgColor = streamingSuggestionColors[i] || generatePastelColor()
-
-      return (
-        <div
-          key={i}
-          style={{
-            boxShadow: `${x}px ${y}px 8px rgba(0,0,0,0.15)`,
-            backgroundImage: `
-              radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px),
-              radial-gradient(rgba(0,0,0,0.07) 1px, transparent 1px)
-            `,
-            backgroundSize: "20px 20px, 10px 10px",
-            backgroundPosition: "-10px -10px, 0px 0px",
-            transform: `rotate(${rotation}deg)`,
-            transition: "all 0.3s ease-in-out",
-            ...({
-              "--base-rotation": `${rotation}deg`,
-            } as React.CSSProperties),
-          }}
-          className={cn(
-            "p-4 border border-border transition-all",
-            "shadow-md",
-            "cursor-default",
-            "animate-pulse",
-            bgColor,
-            "w-full mb-4",
-            "notecard-ragged relative rounded-sm",
-            "before:content-[''] before:absolute before:inset-0 before:z-[-1]",
-            "before:opacity-50 before:mix-blend-multiply before:bg-noise-pattern",
-            "after:content-[''] after:absolute after:bottom-[-8px] after:right-[-8px]",
-            "after:left-[8px] after:top-[8px] after:z-[-2] after:bg-black/10",
-          )}
-        >
-          <div className="space-y-2">
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-3/4" />
-          </div>
-        </div>
-      )
-    })
-  }, [numSuggestions, streamingSuggestionColors])
+  const handleCollapseComplete = useCallback(() => {}, [])
 
   // Fetch notes and associated reasoning history when the file changes or when notes panel opens
   useEffect(() => {
@@ -922,6 +1718,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
         )
         setNotes(sortedNotes)
+
+        // If there are notes, set the last generation time to the most recent note's creation time
+        if (sortedNotes.length > 0) {
+          setLastNotesGeneratedTime(new Date(sortedNotes[0].createdAt))
+        }
 
         // Get unique reasoning IDs from the notes
         const reasoningIds = [
@@ -957,201 +1758,140 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     setNotes((prev) => prev.filter((n) => n.id !== noteId))
   }, [])
 
-  // Memoize the note groups to prevent unnecessary re-renders
-  const memoizedNoteGroups = useMemo(() => {
-    // Create a Set of IDs from current generation notes for efficient filtering
+  const noteGroupsData = useMemo(() => {
+    // Filter out current generation notes and dropped notes
     const currentGenerationNoteIds = new Set(currentGenerationNotes.map((note) => note.id))
+    const droppedNoteIds = new Set(droppedNotes.map((note) => note.id))
 
-    // Filter the notes to remove any that are currently shown in the currentGenerationNotes
-    const filteredNotes = notes.filter((note) => !currentGenerationNoteIds.has(note.id))
+    // Filter out both current generation notes and dropped notes
+    const filteredNotes = notes.filter(
+      (note) =>
+        !currentGenerationNoteIds.has(note.id) && !droppedNoteIds.has(note.id) && !note.dropped,
+    )
 
-    return groupNotesByDate(filteredNotes).map(([dateStr, dateNotes]) => {
-      // Find the reasoning associated with these notes
-      const dateReasoning = reasoningHistory.find((r) =>
-        r.noteIds.some((id) => dateNotes.some((note) => note.id === id)),
-      )
+    return groupNotesByDate(filteredNotes)
+  }, [notes, currentGenerationNotes, droppedNotes, groupNotesByDate])
 
-      return (
-        <MemoizedNoteGroup
-          key={dateStr}
-          dateStr={dateStr}
-          dateNotes={dateNotes}
-          reasoning={dateReasoning}
-          currentFile={currentFile}
-          vaultId={vault?.id}
-          handleNoteDropped={handleNoteDropped}
-          onNoteRemoved={handleNoteRemoved}
-          formatDate={formatDate}
-        />
-      )
-    })
-  }, [
-    notes,
-    reasoningHistory,
-    currentFile,
-    vault?.id,
-    handleNoteDropped,
-    handleNoteRemoved,
-    formatDate,
-    groupNotesByDate,
-    currentGenerationNotes,
-  ])
+  const handleCurrentGenerationNote = useCallback((note: Note) => {
+    setCurrentGenerationNotes((prev) => prev.filter((n) => n.id !== note.id))
+  }, [])
 
-  // Create a component for rendering actual notes in the current generation panel
-  const MemoizedCurrentGenerationNotes = memo(
-    ({ notes, onNoteDropped }: { notes: Note[]; onNoteDropped: (note: Note) => void }) => {
-      return (
-        <div className="space-y-4">
-          {notes.map((note) => (
-            <div
-              key={note.id}
-              draggable={true}
-              onDragEnd={(e) => {
-                // Remove note from note panel when note dropped onto editor
-                if (e.dataTransfer.dropEffect === "move") {
-                  setCurrentGenerationNotes((prev) => prev.filter((n) => n.id !== note.id))
-                  onNoteDropped(note)
-                }
-              }}
-            >
-              <NoteCard
-                className="w-full"
-                note={{
-                  id: note.id,
-                  content: note.content,
-                  color: note.color ?? generatePastelColor(),
-                  fileId: currentFile,
-                  isInEditor: false,
-                  createdAt: note.createdAt ?? new Date(),
-                  reasoningId: note.reasoningId,
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      )
+  // Memoize dropped notes to prevent unnecessary re-renders
+  const memoizedDroppedNotes = useMemo(() => {
+    return droppedNotes.map((note) => ({
+      ...note,
+      color: note.color || generatePastelColor(),
+    }))
+  }, [droppedNotes])
+
+  // Check if notes were recently generated (within the last 5 minutes)
+  // TODO: a small tool calling Qwen to determine if we should recommends users to generate suggestions.
+  const isNotesRecentlyGenerated = useMemo(() => {
+    if (!lastNotesGeneratedTime) return false
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000) // 5 minutes in milliseconds
+    return lastNotesGeneratedTime > fiveMinutesAgo
+  }, [lastNotesGeneratedTime])
+
+  // Handle dragging a dropped note back to the panel
+  const handleNoteDragBackToPanel = useCallback(
+    async (noteId: string) => {
+      // Find the note in the droppedNotes
+      const note = droppedNotes.find((n) => n.id === noteId)
+      if (!note) return
+
+      // Update the note to indicate it's no longer dropped
+      const undropNote = {
+        ...note,
+        dropped: false,
+        lastModified: new Date(),
+      }
+
+      // Remove from droppedNotes state
+      setDroppedNotes((prev) => prev.filter((n) => n.id !== noteId))
+
+      // Update the database
+      try {
+        await db.notes.update(noteId, {
+          dropped: false,
+          lastModified: new Date(),
+        })
+
+        // Add back to main notes collection if not already there
+        const existingNote = notes.find((n) => n.id === noteId)
+        if (!existingNote) {
+          // Add to the beginning of the notes array to make it appear at the top
+          setNotes((prev) => [undropNote, ...prev])
+        }
+      } catch (error) {
+        console.error("Failed to update note status:", error)
+      }
     },
+    [droppedNotes, notes],
   )
-  MemoizedCurrentGenerationNotes.displayName = "MemoizedCurrentGenerationNotes"
 
   return (
     <DndProvider backend={HTML5Backend}>
       <NotesProvider>
+        <CustomDragLayer />
         <SearchProvider vault={vault!}>
-          <SidebarProvider defaultOpen={false}>
-            <Explorer
+          <SidebarProvider defaultOpen={false} className="flex min-h-screen">
+            <Rails
               vault={vault!}
               editorViewRef={codeMirrorViewRef}
-              onFileSelect={onFileSelect}
+              onFileSelect={handleFileSelect}
               onNewFile={onNewFile}
               onContentUpdate={updatePreview}
-              onExportMarkdown={handleExportMarkdown}
             />
-            <SidebarInset className="flex flex-col h-screen overflow-hidden">
-              <header className="sticky top-0 h-10 border-b bg-background z-10">
-                <div className="h-full flex shrink-0 items-center justify-between mx-4">
-                  <SidebarTrigger className="-ml-1" title="Open Explorer" />
-                  <Toolbar toggleNotes={toggleNotes} />
-                </div>
-              </header>
-              <section className="flex flex-1 overflow-hidden m-4 rounded-md border">
-                <div className="flex-1 relative">
-                  <EditorNotes />
-                  {droppedNotes.length > 0 && (
-                    <div
-                      className={cn(
-                        "absolute top-0 right-0 mr-4 mt-4 z-20 notes-stack transition-transform",
-                        isStackExpanded && "expanded-stack",
-                      )}
-                      onClick={() => setIsStackExpanded(!isStackExpanded)}
-                      title={isStackExpanded ? "Collapse notes" : "Expand notes"}
-                    >
-                      <div
-                        className={cn(
-                          "overflow-auto scrollbar-hidden pb-4",
-                          isStackExpanded ? "max-h-80" : "max-h-40",
-                        )}
-                        style={{
-                          overflowY: "auto",
-                          overflowX: "visible",
-                          scrollBehavior: "smooth",
-                          width: isStackExpanded ? "100px" : "auto",
+            <SidebarInset className="flex flex-col h-screen flex-1 overflow-hidden">
+              <Playspace>
+                <EditorDropTarget handleNoteDropped={handleNoteDropped}>
+                  <AnimatePresence>
+                    {memoizedDroppedNotes.length > 0 && (
+                      <motion.div
+                        key="dropped-notes-stack"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 400,
+                          damping: 30,
                         }}
                       >
-                        {droppedNotes.map((note, index) => (
-                          <HoverCard
-                            key={note.id}
-                            openDelay={100}
-                            closeDelay={100}
-                            defaultOpen={isStackExpanded}
-                          >
-                            <HoverCardTrigger asChild>
-                              <div
-                                className={cn(
-                                  `absolute shadow-md w-8 h-8 rounded-md transition-all duration-300 ease-in-out ${note.color} flex items-center justify-center hover:z-50 cursor-pointer`,
-                                  isStackExpanded && "shadow-lg right-0",
-                                )}
-                                style={{
-                                  top: isStackExpanded ? `${index * 45}px` : index * 3,
-                                  right: isStackExpanded ? 0 : index * 3,
-                                  transform: isStackExpanded
-                                    ? "rotate(0deg)"
-                                    : `rotate(${index * 2}deg)`,
-                                  zIndex: droppedNotes.length - index,
-                                  transitionDelay: `${index * 30}ms`,
-                                  // When hovered, reposition cards in a vertical exploded view
-                                  ...(isStackExpanded
-                                    ? {}
-                                    : droppedNotes.length > 1
-                                      ? {
-                                          ["--explode-y" as any]: `${index * 45}px`,
-                                        }
-                                      : {}),
-                                }}
-                                onClick={(e) => {
-                                  // Prevent triggering parent click
-                                  e.stopPropagation()
-                                  // TODO: Clicking -> embeddings search
-                                  console.log(
-                                    `Note ID: ${note.id}, Content: ${note.content}, Color: ${note.color}`,
-                                  )
-                                }}
-                              >
-                                <div className="relative z-10 text-sm p-1">{index + 1}</div>
-                              </div>
-                            </HoverCardTrigger>
-                            <HoverCardContent side="left" className="w-64">
-                              <p className="text-sm">{note.content}</p>
-                            </HoverCardContent>
-                          </HoverCard>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {/* Action Buttons Group */}
-                  {(showNotes || droppedNotes.length > 0) && (
-                    <div className="absolute bottom-4 right-4 z-20 flex flex-col gap-2">
-                      {droppedNotes.length > 0 && (
-                        <button
-                          onClick={() => setIsStackExpanded(!isStackExpanded)}
-                          className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
-                          title={isStackExpanded ? "Collapse notes stack" : "Expand notes stack"}
-                        >
-                          {isStackExpanded ? <Cross2Icon /> : <StackIcon />}
-                        </button>
-                      )}
-                      {showNotes && (
-                        <button
-                          onClick={generateNewSuggestions}
-                          disabled={isNotesLoading}
-                          className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Generate Suggestions"
-                        >
-                          <ShadowInnerIcon className={notes.length == 0 ? "animate-pulse" : ""} />
-                        </button>
-                      )}
-                    </div>
-                  )}
+                        <DroppedNotesStack
+                          droppedNotes={memoizedDroppedNotes}
+                          isStackExpanded={isStackExpanded}
+                          onExpandStack={toggleStackExpand}
+                          onDragBackToPanel={handleNoteDragBackToPanel}
+                          className="before:mix-blend-multiply before:bg-noise-pattern"
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <div className="flex flex-col items-center space-y-2 absolute bottom-4 right-4 z-20">
+                    {droppedNotes.length > 0 && (
+                      <VaultButton
+                        onClick={toggleStackExpand}
+                        color="orange"
+                        size="small"
+                        title={isStackExpanded ? "Collapse notes stack" : "Expand notes stack"}
+                      >
+                        {isStackExpanded ? (
+                          <Cross2Icon className="w-3 h-3" />
+                        ) : (
+                          <StackIcon className="w-3 h-3" />
+                        )}
+                      </VaultButton>
+                    )}
+                    <VaultButton
+                      onClick={toggleNotes}
+                      disabled={isNotesLoading}
+                      size="small"
+                      title={showNotes ? "Hide Notes" : "Show Notes"}
+                    >
+                      <CopyIcon className="w-3 h-3" />
+                    </VaultButton>
+                  </div>
                   <div className="absolute top-4 left-4 text-sm/7 z-10 flex items-center gap-2">
                     {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
                   </div>
@@ -1175,7 +1915,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                         indentWithTab={false}
                         extensions={memoizedExtensions}
                         onChange={onContentChange}
-                        className="overflow-auto h-full mx-8 pt-4 scrollbar-hidden"
+                        className="overflow-auto h-full mx-8 scrollbar-hidden pt-4"
                         theme={theme === "dark" ? "dark" : editorTheme}
                         onCreateEditor={(view) => {
                           codeMirrorViewRef.current = view
@@ -1187,105 +1927,72 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     className={`reading-mode absolute inset-0 ${isEditMode ? "hidden" : "block overflow-hidden"}`}
                     ref={readingModeRef}
                   >
-                    <div className="prose dark:prose-invert h-full mx-8 pt-4 overflow-auto scrollbar-hidden">
+                    <div className="prose dark:prose-invert h-full mx-8 overflow-auto scrollbar-hidden">
                       <article className="@container h-full max-w-5xl mx-auto scrollbar-hidden">
                         {previewNode && toJsx(previewNode)}
                       </article>
                     </div>
                   </div>
-                </div>
-                {showNotes && (
-                  <div
-                    className="w-88 flex flex-col border-l transition-[right,left,width] duration-200 ease-in-out translate-x-[-100%] data-[show=true]:translate-x-0"
-                    data-show={showNotes}
-                  >
-                    <div className="flex-1 overflow-auto scrollbar-hidden p-4 gap-4 mt-2">
-                      {/* Show message only when no notes and not loading */}
-                      {!isNotesLoading && notes.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground p-4">
-                          <p className="mb-4">No notes found for this document</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-6">
-                          {/* Show current generation group with reasoning panel */}
-                          {currentlyGeneratingDateKey && (
-                            <div className="space-y-4">
-                              <div className="bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground font-medium border-y border-border">
-                                {formatDate(currentlyGeneratingDateKey)}
-                              </div>
-
-                              {/* Show error message if there is one at the top */}
-                              {notesError ? (
-                                <div className="px-4 py-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive">
-                                  {notesError}
-                                </div>
-                              ) : (
-                                <>
-                                  <div className="px-2 bg-background border-b">
-                                    <ReasoningPanel
-                                      reasoning={streamingReasoning}
-                                      isStreaming={isNotesLoading && !reasoningComplete}
-                                      isComplete={reasoningComplete}
-                                      currentFile={currentFile}
-                                      vaultId={vault?.id}
-                                      reasoningId={currentReasoningId}
-                                      shouldExpand={
-                                        isNotesLoading || currentGenerationNotes.length > 0
-                                      }
-                                      onCollapseComplete={handleReasoningCollapsed}
-                                      elapsedTime={currentReasoningElapsedTime}
-                                    />
-                                  </div>
-
-                                  {/* Show loading skeletons during generation */}
-                                  {isNotesLoading && reasoningComplete && !notesError && (
-                                    <div className="space-y-4">{renderNotesSkeletons()}</div>
-                                  )}
-
-                                  {/* Show actual generated notes when complete */}
-                                  {!isNotesLoading &&
-                                    currentGenerationNotes.length > 0 &&
-                                    !notesError && (
-                                      <MemoizedCurrentGenerationNotes
-                                        notes={currentGenerationNotes}
-                                        onNoteDropped={handleNoteDropped}
-                                      />
-                                    )}
-                                </>
-                              )}
-                            </div>
-                          )}
-
-                          {memoizedNoteGroups}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </section>
+                </EditorDropTarget>
+                <AnimatePresence mode="wait">
+                  {showNotes && (
+                    <motion.div
+                      key="notes-panel"
+                      initial={{ width: 0, opacity: 0, overflow: "hidden" }}
+                      animate={{
+                        width: "22rem",
+                        opacity: 1,
+                        overflow: "visible",
+                      }}
+                      exit={{
+                        width: 0,
+                        opacity: 0,
+                        overflow: "hidden",
+                      }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 30,
+                        opacity: { duration: 0.2 },
+                      }}
+                      layout
+                    >
+                      <NotesPanel
+                        notes={notes}
+                        isNotesLoading={isNotesLoading}
+                        notesError={notesError}
+                        currentlyGeneratingDateKey={currentlyGeneratingDateKey}
+                        currentGenerationNotes={currentGenerationNotes}
+                        droppedNotes={droppedNotes}
+                        streamingReasoning={streamingReasoning}
+                        reasoningComplete={reasoningComplete}
+                        currentFile={currentFile}
+                        vaultId={vault?.id}
+                        currentReasoningId={currentReasoningId}
+                        reasoningHistory={reasoningHistory}
+                        handleNoteDropped={handleNoteDropped}
+                        handleNoteRemoved={handleNoteRemoved}
+                        handleCurrentGenerationNote={handleCurrentGenerationNote}
+                        handleCollapseComplete={handleCollapseComplete}
+                        formatDate={formatDate}
+                        isNotesRecentlyGenerated={isNotesRecentlyGenerated}
+                        currentReasoningElapsedTime={currentReasoningElapsedTime}
+                        generateNewSuggestions={generateNewSuggestions}
+                        noteGroupsData={noteGroupsData}
+                        virtuosoRef={virtuosoRef}
+                        notesContainerRef={notesContainerRef}
+                        streamingNotes={streamingNotes}
+                        scanAnimationComplete={scanAnimationComplete}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </Playspace>
               <SearchCommand
                 maps={flattenedFileIds}
                 vault={vault!}
                 onFileSelect={handleFileSelect}
               />
-              {("showFooter" in settings ? settings.showFooter !== false : true) && (
-                <footer className="sticky bottom-0 h-8 border-t text-xs/8 bg-background z-10">
-                  <div
-                    className="h-full flex shrink-0 items-center align-middle font-serif justify-end mx-4 gap-4 text-muted-foreground hover:text-accent-foreground cursor-pointer"
-                    aria-hidden
-                    tabIndex={-1}
-                  >
-                    <span>{currentFile.replace(".md", "")}</span>
-                    <span>{markdownContent.split(/\s+/).filter(Boolean).length} words</span>
-                    <span>{markdownContent.length} chars</span>
-                    {isEditMode ? (
-                      <EyeOpenIcon className="h-3 w-3 p-0" widths={16} height={16} />
-                    ) : (
-                      <Pencil1Icon className="h-3 w-3 p-0" widths={16} height={16} />
-                    )}
-                  </div>
-                </footer>
-              )}
             </SidebarInset>
           </SidebarProvider>
         </SearchProvider>

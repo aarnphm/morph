@@ -1,0 +1,37 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: pnpm-lock.yaml
+      - id: end-of-file-fixer
+        exclude: pnpm-lock.yaml
+      - id: check-yaml
+        exclude: pnpm-lock.yaml
+      - id: check-added-large-files
+        exclude: pnpm-lock.yaml
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.0
+    hooks:
+      - id: ruff
+        args: [--fix, --config=pyproject.toml]
+        files: ^python/
+      - id: ruff-format
+        args: [--config=pyproject.toml]
+        files: ^python/
+  - repo: local
+    hooks:
+      - id: next-build
+        name: Next.js build
+        entry: bash -c "pnpm run -w morph:build"
+        language: system
+        pass_filenames: false
+        files: ^packages/morph/
+        types: [file]
+      - id: bentoml-build
+        name: BentoML build
+        entry: bash -c "pnpm run -w morph:inference:build"
+        language: system
+        pass_filenames: false
+        files: ^python/
+        types: [file]

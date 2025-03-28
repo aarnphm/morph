@@ -389,19 +389,6 @@
   position: relative;
 }
 
-/* Sticky note tilt variation */
-@utility sticky-note-tilt {
-  transform: rotate(var(--tilt-angle, -1deg));
-  transform-origin: center;
-  transition: transform 0.2s ease-in-out;
-}
-@utility sticky-note-tilt-right {
-  --tilt-angle: 1deg;
-}
-@utility sticky-note-tilt-left {
-  --tilt-angle: -1deg;
-}
-
 /* Note card wiggle animation */
 @keyframes wiggle {
   0% {
@@ -419,6 +406,124 @@
   100% {
     transform: rotate(var(--base-rotation, 0deg));
   }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Button shimmer border animation */
+@keyframes button-border-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@utility button-shimmer-border {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  isolation: isolate;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: -7px;
+    left: -7px;
+    right: -7px;
+    bottom: -7px;
+    z-index: -1;
+    border-radius: inherit;
+    background: conic-gradient(
+      transparent 0deg,
+      transparent 110deg,
+      var(--primary) 160deg,
+      var(--primary) 200deg,
+      transparent 250deg,
+      transparent 360deg
+    );
+    will-change: transform;
+    transform-origin: center;
+    animation: button-border-rotate 2.5s linear infinite;
+    opacity: 0.8;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    background: var(--background);
+    border-radius: inherit;
+    z-index: -1;
+  }
+}
+
+/* Dark mode shimmer border */
+.dark .button-shimmer-border::before {
+  background: conic-gradient(
+    transparent 0deg,
+    transparent 110deg,
+    var(--flexoki-blue-400) 160deg,
+    var(--flexoki-blue-400) 200deg,
+    transparent 250deg,
+    transparent 360deg
+  );
+  opacity: 0.7;
+}
+
+@utility animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--flexoki-paper) 0%,
+    var(--flexoki-50) 20%,
+    var(--flexoki-100) 40%,
+    var(--flexoki-50) 60%,
+    var(--flexoki-paper) 80%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+  background-repeat: no-repeat;
+}
+
+/* Text shimmer effect that masks a gradient to text */
+@utility animate-text-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--flexoki-tx-3) 0%,
+    var(--flexoki-tx) 25%,
+    var(--flexoki-tx-2) 50%,
+    var(--flexoki-tx) 75%,
+    var(--flexoki-tx-3) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: shimmer 3s linear infinite;
+  background-repeat: no-repeat;
+}
+
+.dark .animate-text-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--flexoki-tx-3) 0%,
+    var(--flexoki-tx-2) 25%,
+    var(--flexoki-tx) 50%,
+    var(--flexoki-tx-2) 75%,
+    var(--flexoki-tx-3) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: shimmer 3s linear infinite;
+  background-repeat: no-repeat;
 }
 
 @utility animate-wiggle {
@@ -752,6 +857,9 @@
   --shiki-dark: var(--flexoki-black);
   --shiki-dark-bg: var(--flexoki-800);
 
+  --bg-200: 53 28.6% 94.5%;
+  --bg-300: 48 25% 92.2%;
+
   --background: var(--flexoki-bg);
   --foreground: var(--flexoki-tx);
   --card: var(--flexoki-bg);
@@ -773,13 +881,13 @@
   --ring: var(--flexoki-ui-3);
   --radius: 0.5rem;
 
-  --sidebar: var(--flexoki-50);
-  --sidebar-foreground: var(--flexoki-tx);
-  --sidebar-primary: var(--flexoki-ui-2);
-  --sidebar-primary-foreground: var(--flexoki-tx);
-  --sidebar-accent: var(--flexoki-ui);
-  --sidebar-accent-foreground: var(--flexoki-tx-2);
-  --sidebar-border: var(--flexoki-ui-2);
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--secondary);
+  --sidebar-primary-foreground: var(--secondary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
   --sidebar-ring: var(--flexoki-blue-400);
 
   --color-sidebar: var(--sidebar);
@@ -1052,7 +1160,7 @@ body {
 }
 
 .cm-panels-bottom {
-  @apply flex relative !bg-background;
+  @apply flex relative !bg-background !z-0;
   border-top: 0px !important;
 }
 
@@ -1781,18 +1889,49 @@ ul#helper {
   }
 }
 
-/* Notes stack explosion effect */
-.notes-stack .absolute {
-  transition:
-    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-    top 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-    right 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+canvas {
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: pixelated;
+  image-rendering: optimize-contrast;
 }
 
-.expanded-stack .absolute {
-  transform: rotate(0deg) !important;
+@keyframes scan-down {
+  0% {
+    clip-path: polygon(0 0, 100% 0, 100% 0, 0 0);
+    background-color: rgba(136, 144, 194, 0.2);
+    opacity: 0.7;
+  }
+  10% {
+    clip-path: polygon(0 0, 100% 0, 100% 5%, 0 5%);
+    background-color: rgba(136, 144, 194, 0.2);
+    opacity: 0.7;
+  }
+  90% {
+    clip-path: polygon(0 0, 100% 0, 100% 90%, 0 90%);
+    background-color: rgba(136, 144, 194, 0.1);
+    opacity: 0.5;
+  }
+  100% {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    background-color: rgba(136, 144, 194, 0);
+    opacity: 0;
+  }
 }
 
-.group:hover .notes-stack .absolute {
-  transform: translateY(var(--explode-y, 0)) rotate(0deg) !important;
+@keyframes cursor-blink {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-scan-down {
+  animation: scan-down 1s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+}
+
+.animate-cursor-blink {
+  animation: cursor-blink 0.8s infinite;
 }

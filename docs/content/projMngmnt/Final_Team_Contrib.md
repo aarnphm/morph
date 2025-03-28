@@ -21,7 +21,7 @@ For each team member how many team meetings have they attended over the time per
 | Waleed Malik       | 5        |
 | Zhiwei Li          | 5        |
 
-The weekly stand-up meeting is agreed by team members as a time slot to sync up the development progress and any important information from TA meeting or lecture, along with the task divisions of the deliverables writing. It also sometimes works as a knowledge sharing session among group members to conduct Q&A about the backgroup theory of the project, when there is a mentioned research direction raised by the supervisor. There are 5 team-wide weekly stand-up meeting after the Rev0, and all group members attended the meeting. 
+The weekly stand-up meeting is agreed by team members as a time slot to sync up the development progress and any important information from TA meeting or lecture, along with the task divisions of the deliverables writing. It also sometimes works as a knowledge sharing session among group members to conduct Q&A about the backgroup theory of the project, when there is a mentioned research direction raised by the supervisor. There are 5 team-wide weekly stand-up meeting after the Rev0, and all group members attended the meeting.
 
 ## Supervisor/Stakeholder Meeting Attendance
 
@@ -88,4 +88,3 @@ For each team member how many issues have they authored (including open and clos
 | Nebras Khan         | 12             | 10                |
 | Waleed Malik        | 18             | 18                |
 | Zhiwei Li           | 9              | 9                 |
-

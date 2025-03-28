@@ -32,11 +32,11 @@ quartz for knowledge management
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-uv venv
+uv venv -p 3.11
 source .venv/bin/activate
-
-ln -s .python-version-default .python-version
 ```
+
+We will use [CalVer](https://calver.org/) for service versioning
 
 ## ui.
 

@@ -16,7 +16,6 @@ export interface Settings {
   ignorePatterns: string[]
   editModeShortcut: string
   notePanelShortcut: string
-  showFooter: boolean
   citation: {
     enabled: boolean
     format: "biblatex" | "csl-json"
@@ -50,11 +49,11 @@ export interface Note {
   color: string
   fileId: string
   vaultId: string
-  isInEditor: boolean
   position?: { x: number; y: number }
   createdAt: Date
   lastModified: Date
   reasoningId?: string
+  dropped?: boolean
 }
 
 export interface Reasoning {
@@ -67,11 +66,19 @@ export interface Reasoning {
   duration: number
 }
 
-export class Morph extends Dexie {
+export interface FileNameIndex {
+  id: string
+  fileName: string
+  fileId: string
+  vaultId: string
+}
+
+export class DB extends Dexie {
   vaults!: Table<Vault, string>
   references!: Table<Reference, string>
   notes!: Table<Note, string>
   reasonings!: Table<Reasoning, string>
+  fileNames!: Table<FileNameIndex, string>
 
   constructor() {
     super("morph")
@@ -79,16 +86,20 @@ export class Morph extends Dexie {
     this.version(1).stores({
       vaults: "&id, name, lastOpened",
       references: "id, vaultId",
-      notes: "id, fileId, vaultId",
+      notes: "id, fileId, vaultId, dropped",
       reasonings: "id, fileId, vaultId, createdAt",
+      fileNames: "id, fileName, fileId, vaultId",
     })
   }
 
-  async addVaultWithReference(vault: Omit<Vault, "id">, references?: {
-    handle: FileSystemFileHandle | null,
-    path: string,
-    format: "biblatex" | "csl-json"
-  }): Promise<string> {
+  async addVaultWithReference(
+    vault: Omit<Vault, "id">,
+    references?: {
+      handle: FileSystemFileHandle | null
+      path: string
+      format: "biblatex" | "csl-json"
+    },
+  ): Promise<string> {
     return this.transaction("rw", this.vaults, this.references, async () => {
       const id = createId()
       await this.vaults.add({ ...vault, id })
@@ -97,7 +108,7 @@ export class Morph extends Dexie {
       await this.references.add({
         id: createId(),
         vaultId: id,
-        handle: references?.handle ?? null as any,
+        handle: references?.handle ?? (null as any),
         format: references?.format ?? "biblatex",
         path: references?.path ?? "",
         lastModified: new Date(),
@@ -123,11 +134,29 @@ export class Morph extends Dexie {
       return reasoningId
     })
   }
+
+  async indexFileName(fileName: string, fileId: string, vaultId: string): Promise<string> {
+    return this.transaction("rw", this.fileNames, async () => {
+      const id = createId()
+      await this.fileNames.add({
+        id,
+        fileName,
+        fileId,
+        vaultId,
+      })
+      return id
+    })
+  }
+
+  async getFileIdByName(fileName: string, vaultId: string): Promise<string | undefined> {
+    const result = await this.fileNames.where({ fileName, vaultId }).first()
+    return result?.fileId
+  }
 }
 
-export const db = new Morph()
+const db = new DB()
 
-export const defaultSettings: Settings = {
+const defaultSettings: Settings = {
   vimMode: false,
   tabSize: 2,
   ignorePatterns: [
@@ -142,9 +171,10 @@ export const defaultSettings: Settings = {
   ],
   editModeShortcut: "e",
   notePanelShortcut: "i",
-  showFooter: false,
   citation: {
     enabled: false,
     format: "biblatex",
   },
 }
+
+export { db, defaultSettings }
