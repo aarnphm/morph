@@ -1,5 +1,5 @@
 import * as React from "react"
-import { useState, useRef, useEffect, useMemo, memo } from "react"
+import { useState, useRef, useEffect, memo } from "react"
 import { ChevronRightIcon, CheckIcon } from "@radix-ui/react-icons"
 import { cn } from "@/lib/utils"
 import { db } from "@/db"
