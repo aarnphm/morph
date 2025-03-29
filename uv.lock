@@ -1069,7 +1069,6 @@ wheels = [
 
 [[package]]
 name = "exo"
-version = "0.0.0"
 source = { editable = "python/exo" }
 dependencies = [
     { name = "huggingface-hub" },

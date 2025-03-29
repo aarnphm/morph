@@ -54,6 +54,10 @@ export interface Note {
   lastModified: Date
   reasoningId?: string
   dropped?: boolean
+  authors?: string[]
+  tonality?: { [key: string]: number }
+  temperature?: number
+  numSuggestions?: number
 }
 
 export interface Reasoning {
@@ -64,6 +68,10 @@ export interface Reasoning {
   noteIds: string[]
   createdAt: Date
   duration: number
+  authors?: string[]
+  tonality?: { [key: string]: number }
+  temperature?: number
+  numSuggestions?: number
 }
 
 export interface FileNameIndex {
