@@ -40,6 +40,8 @@ import { NOTES_DND_TYPE } from "@/lib/notes"
 import { motion, AnimatePresence } from "motion/react"
 import { VaultButton } from "@/components/ui/button"
 import Rails from "@/components/rails"
+import SteeringPanel from "@/components/steering-panel"
+import type { SteeringSettings } from "@/components/steering-panel"
 
 interface StreamingDelta {
   suggestion: string
@@ -819,6 +821,10 @@ interface ReasoningHistory {
   timestamp: Date
   noteIds: string[]
   reasoningElapsedTime: number
+  authors?: string[]
+  tonality?: Record<string, number>
+  temperature?: number
+  numSuggestions?: number
 }
 
 interface SuggestionRequest {
@@ -895,6 +901,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [currentGenerationNotes, setCurrentGenerationNotes] = useState<Note[]>([])
   const [streamingNotes, setStreamingNotes] = useState<StreamingNote[]>([])
   const [numSuggestions, setNumSuggestions] = useState(4) // Default number of suggestions
+  const [steeringSettings, setSteeringSettings] = useState<SteeringSettings | null>(null)
 
   const toggleStackExpand = useCallback(() => {
     setIsStackExpanded((prev) => !prev)
@@ -1073,7 +1080,15 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   )
 
   const fetchNewNotes = useCallback(
-    async (content: string, numSuggestions: number): Promise<SuggestionResponse> => {
+    async (
+      content: string,
+      numSuggestions: number,
+      steeringOptions?: {
+        authors?: string[]
+        tonality?: Record<string, number>
+        temperature?: number
+      },
+    ): Promise<SuggestionResponse> => {
       try {
         const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:8000"
         const readyz = await fetch(`${apiEndpoint}/readyz`)
@@ -1104,8 +1119,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         const request: SuggestionRequest = {
           essay,
           num_suggestions: numSuggestions,
-          temperature: 0.6,
+          temperature: steeringOptions?.temperature ?? 0.6,
           max_tokens,
+          // Add steering parameters if they exist
+          ...(steeringOptions?.authors && { authors: steeringOptions.authors }),
+          ...(steeringOptions?.tonality && { tonality: steeringOptions.tonality }),
         }
 
         // Start timing reasoning phase
@@ -1395,6 +1413,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             timestamp: new Date(),
             noteIds: [], // Will be populated after creating notes
             reasoningElapsedTime,
+            // Add steering parameters if they exist
+            authors: steeringSettings?.authors,
+            tonality: steeringSettings?.tonalityEnabled ? steeringSettings.tonality : undefined,
+            temperature: steeringSettings?.temperature,
+            numSuggestions: steeringSettings?.numSuggestions || numSuggestions,
           }
           setReasoningHistory((prev) => [...prev, { ...reasoningData }])
           setNotesError(null)
@@ -1655,7 +1678,17 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
     try {
       const { generatedNotes, reasoningId, reasoningElapsedTime, reasoningContent } =
-        await fetchNewNotes(markdownContent, numSuggestions)
+        await fetchNewNotes(
+          markdownContent,
+          steeringSettings?.numSuggestions || numSuggestions,
+          steeringSettings
+            ? {
+                authors: steeringSettings.authors,
+                tonality: steeringSettings.tonalityEnabled ? steeringSettings.tonality : undefined,
+                temperature: steeringSettings.temperature,
+              }
+            : undefined,
+        )
       const newNoteIds: string[] = []
 
       const newNotes: Note[] = generatedNotes.map((note, index) => {
@@ -1672,6 +1705,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           createdAt: new Date(),
           lastModified: new Date(),
           reasoningId: reasoningId,
+          // Add steering parameters if they exist
+          authors: steeringSettings?.authors,
+          tonality: steeringSettings?.tonalityEnabled ? steeringSettings.tonality : undefined,
+          temperature: steeringSettings?.temperature,
+          numSuggestions: steeringSettings?.numSuggestions || numSuggestions,
         }
       })
 
@@ -1689,6 +1727,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         noteIds: newNoteIds,
         createdAt: new Date(),
         duration: reasoningElapsedTime,
+        // Add steering parameters if they exist
+        authors: steeringSettings?.authors,
+        tonality: steeringSettings?.tonalityEnabled ? steeringSettings.tonality : undefined,
+        temperature: steeringSettings?.temperature,
+        numSuggestions: steeringSettings?.numSuggestions || numSuggestions,
       }).catch((err) => {
         console.error("Failed to save reasoning:", err)
       })
@@ -1716,7 +1759,15 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       // so that the panel stays visible
       setIsNotesLoading(false)
     }
-  }, [currentFile, vault, markdownContent, fetchNewNotes, streamingSuggestionColors])
+  }, [
+    currentFile,
+    vault,
+    markdownContent,
+    fetchNewNotes,
+    streamingSuggestionColors,
+    steeringSettings,
+    numSuggestions,
+  ])
 
   const handleCollapseComplete = useCallback(() => {}, [])
 
@@ -1845,6 +1896,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [droppedNotes, notes],
   )
 
+  const handleSteeringSettingsChange = useCallback((settings: SteeringSettings) => {
+    setSteeringSettings(settings)
+    setNumSuggestions(settings.numSuggestions)
+  }, [])
+
   return (
     <DndProvider backend={HTML5Backend}>
       <NotesProvider>
@@ -1859,7 +1915,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               onContentUpdate={updatePreview}
             />
             <SidebarInset className="flex flex-col h-screen flex-1 overflow-hidden">
-              <Playspace vaultId={vault!.id}>
+              <Playspace vaultId={vaultId}>
+                <SteeringPanel
+                  fileId={currentFile}
+                  onSettingsChange={handleSteeringSettingsChange}
+                />
                 <EditorDropTarget handleNoteDropped={handleNoteDropped}>
                   <AnimatePresence>
                     {memoizedDroppedNotes.length > 0 && (
