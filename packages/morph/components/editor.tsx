@@ -1731,25 +1731,28 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           prev.map((r) => (r.id === reasoningId ? { ...r, noteIds: newNoteIds } : r)),
         )
 
-        // Save reasoning to the database with note IDs and elapsed time
-        db.saveReasoning({
-          id: reasoningId,
-          fileId: currentFile,
-          vaultId: vault.id,
-          content: reasoningContent,
-          noteIds: newNoteIds,
-          createdAt: new Date(),
-          duration: reasoningElapsedTime,
-          // Add steering parameters if they exist
-          authors: steeringSettings.authors,
-          tonality: steeringSettings.tonalityEnabled ? steeringSettings.tonality : undefined,
-          temperature: steeringSettings.temperature,
-          numSuggestions: steeringSettings.numSuggestions,
-        }).catch((err) => {
-          console.error("Failed to save reasoning:", err)
-        })
+        // Only save if the file is not "Untitled"
+        if (currentFile !== "Untitled") {
+          // Save reasoning to the database with note IDs and elapsed time
+          db.saveReasoning({
+            id: reasoningId,
+            fileId: currentFile,
+            vaultId: vault.id,
+            content: reasoningContent,
+            noteIds: newNoteIds,
+            createdAt: new Date(),
+            duration: reasoningElapsedTime,
+            // Add steering parameters if they exist
+            authors: steeringSettings.authors,
+            tonality: steeringSettings.tonalityEnabled ? steeringSettings.tonality : undefined,
+            temperature: steeringSettings.temperature,
+            numSuggestions: steeringSettings.numSuggestions,
+          }).catch((err) => {
+            console.error("Failed to save reasoning:", err)
+          })
 
-        await Promise.all(newNotes.map((note) => db.notes.add(note)))
+          await Promise.all(newNotes.map((note) => db.notes.add(note)))
+        }
 
         // Set current generation notes
         setCurrentGenerationNotes(newNotes)
