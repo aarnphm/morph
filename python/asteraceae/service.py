@@ -14,9 +14,9 @@ with bentoml.importing():
   from llama_index.embeddings.openai import OpenAIEmbedding
   from llama_index.vector_stores.hnswlib import HnswlibVectorStore
 
-  from protocol import ServiceOpts
+  from libs.protocol import ServiceOpts
 
-from protocol import (
+from libs.protocol import (
   ReasoningModels,
   EmbeddingModels,
   SERVICE_CONFIG,
