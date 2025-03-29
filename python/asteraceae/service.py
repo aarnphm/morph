@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import logging, argparse, traceback, os, contextlib, pathlib, typing as t
+import logging, argparse, traceback, asyncio, os, contextlib, pathlib, typing as t
 import bentoml, fastapi, pydantic, jinja2, annotated_types as ae
 
 with bentoml.importing():
-  import hnswlib, openai
+  import hnswlib, openai, transformers
 
   from openai.types.chat import ChatCompletionUserMessageParam
   from openai.types.completion_usage import CompletionUsage
-  from llama_index.core import VectorStoreIndex
+  from llama_index.core import VectorStoreIndex, StorageContext
   from llama_index.core.node_parser import SemanticSplitterNodeParser, SentenceSplitter
   from llama_index.core.schema import TextNode
   from llama_index.embeddings.openai import OpenAIEmbedding
@@ -95,6 +95,7 @@ def make_args(
     task=task,
     model=model,
     disable_log_requests=True,
+    disable_uvicorn_access_log=True,
     max_log_len=max_log_len,
     served_model_name=[model_id],
     request_logger=None,
@@ -176,14 +177,6 @@ embedding_api = fastapi.FastAPI()
 class Embeddings:
   model_id = EMBED_ID
   model = bentoml.models.HuggingFaceModel(model_id, exclude=IGNORE_PATTERNS)
-  metapath = WORKING_DIR / 'indexes'
-
-  # vector stores configuration
-  dimensions: int = DIMENSIONS
-  M: int = 16
-  ef_construction: int = 50
-  max_elements: int = 10000
-  space: t.Literal['ip', 'l2', 'cosine'] = 'l2'
 
   def __init__(self):
     self.exit_stack = contextlib.AsyncExitStack()
@@ -201,8 +194,8 @@ class Embeddings:
       trust_remote_code=True,
       prefix_caching=False,
       dtype=torch.bfloat16,
+      hf_overrides={'is_causal': True},
     )
-    # args.hf_overrides = {'is_causal': True}
 
     router = fastapi.APIRouter(lifespan=vllm_api_server.lifespan)
     OPENAI_ENDPOINTS = [
@@ -224,22 +217,65 @@ class Embeddings:
   async def teardown_engine(self):
     await self.exit_stack.aclose()
 
+
+@bentoml.service(
+  name='asteraceae-inference-api',
+  resources={'cpu': 2},
+  http={
+    'cors': {
+      'enabled': True,
+      'access_control_allow_origins': ['*'],
+      'access_control_allow_methods': ['GET', 'OPTIONS', 'POST', 'HEAD', 'PUT'],
+      'access_control_allow_credentials': True,
+      'access_control_allow_headers': ['*'],
+      'access_control_max_age': 1200,
+      'access_control_expose_headers': ['Content-Length'],
+    }
+  },
+  labels={'owner': 'aarnphm', 'type': 'api'},
+  envs=make_env(0, skip_hf=True),
+  **SERVICE_CONFIG,
+)
+class API:
+  inference = bentoml.depends(
+    Engine, url=f'http://127.0.0.1:{os.getenv("LLM_PORT", "3001")}' if os.getenv('DEVELOPMENT') else None
+  )
+  embedding = bentoml.depends(
+    Embeddings, url=f'http://127.0.0.1:{os.getenv("EMBED_PORT", "3002")}' if os.getenv('DEVELOPMENT') else None
+  )
+
+  metapath = WORKING_DIR / 'indexes'
+
+  # vector stores configuration
+  dimensions: int = DIMENSIONS
+  M: int = 16
+  ef_construction: int = 50
+  max_elements: int = 10000
+  space: t.Literal['ip', 'l2', 'cosine'] = 'l2'
+
+  def __init__(self):
+    self.llm_client = openai.AsyncOpenAI(base_url=f'{self.inference.client_url}/v1', api_key='dummy')
+    self.embed_client = openai.AsyncOpenAI(base_url=f'{self.embedding.client_url}/v1', api_key='dummy')
+
+    loader = jinja2.FileSystemLoader(searchpath=WORKING_DIR)
+    self.jinja2_env = jinja2.Environment(loader=loader)
+
   @bentoml.on_startup
   def setup_parsers_tooling(self):
     self.metapath.mkdir(exist_ok=True)
 
     self.embed_model = OpenAIEmbedding(
-      model_name=self.model_id,
       api_key='dummy',
+      api_base=f'{self.embedding.client_url}/v1',
       dimensions=self.dimensions,
-      http_client=self.to_sync.client,
-      async_http_client=self.to_async.client,
-      default_headers={'Runner-Name': self.__class__.__name__},
+      default_headers={'Runner-Name': Embeddings.name},
     )
+
+    tokenizer = transformers.AutoTokenizer.from_pretrained(Embeddings.inner.model_id)
     self.sentence_splitter = SentenceSplitter(
       # NOTE: that this supports linebreaks in Quartz and Obsidian.
-      paragraph='\n\n',
-      tokenizer=self.tokenizer,
+      paragraph_separator='\n\n',
+      tokenizer=tokenizer,
       chunk_size=1024,
       chunk_overlap=20,
     )
@@ -252,9 +288,8 @@ class Embeddings:
 
     hnsw_index = hnswlib.Index(space=self.space, dim=self.dimensions)
     hnsw_index.init_index(max_elements=self.max_elements, ef_construction=self.ef_construction, M=self.M)
-    self.index = VectorStoreIndex.from_vector_store(
-      vector_store=HnswlibVectorStore(hnsw_index), embed_model=self.embed_model
-    )
+    storage_context = StorageContext.from_defaults(vector_store=HnswlibVectorStore(hnsw_index))
+    self.index = VectorStoreIndex.from_documents([], storage_context=storage_context, embed_model=self.embed_model)
 
   @bentoml.task
   async def essays(self, essay: Essay) -> EmbedTask:
@@ -273,7 +308,7 @@ class Embeddings:
         return EmbedTask(metadata=metadata, embedding=existing_node.embedding)
 
       # Essay not found, create embedding
-      result = await self.embedding_client.embeddings.create(
+      result = await self.embed_model.embeddings.create(
         input=[essay.content], model=self.model_id, extra_headers={'Runner-Name': self.__class__.__name__}
       )
 
@@ -316,7 +351,7 @@ class Embeddings:
           continue
 
         # Note not found, create embedding
-        embedding_result = await self.embedding_client.embeddings.create(
+        embedding_result = await self.embed_model.embeddings.create(
           input=[note.content], model=self.model_id, extra_headers={'Runner-Name': self.__class__.__name__}
         )
 
@@ -341,57 +376,14 @@ class Embeddings:
 
     return results
 
-
-@bentoml.service(
-  name='asteraceae-inference-api',
-  resources={'cpu': 2},
-  http={
-    'cors': {
-      'enabled': True,
-      'access_control_allow_origins': ['*'],
-      'access_control_allow_methods': ['GET', 'OPTIONS', 'POST', 'HEAD', 'PUT'],
-      'access_control_allow_credentials': True,
-      'access_control_allow_headers': ['*'],
-      'access_control_max_age': 1200,
-      'access_control_expose_headers': ['Content-Length'],
-    }
-  },
-  labels={'owner': 'aarnphm', 'type': 'api'},
-  envs=make_env(0, skip_hf=True),
-  **SERVICE_CONFIG,
-)
-class API:
-  if os.getenv('DEVELOPMENT'):
-    inference = bentoml.depends(url=f'http://127.0.0.1:{os.getenv("LLM_PORT", "3001")}', on=Engine)
-    embedding = bentoml.depends(url=f'http://127.0.0.1:{os.getenv("EMBED_PORT", "3002")}', on=Embeddings)
-  else:
-    inference = bentoml.depends(Engine)
-    embedding = bentoml.depends(Embeddings)
-
-  def __init__(self):
-    self.inference_client = openai.AsyncOpenAI(base_url=f'{self.inference.client_url}/v1', api_key='dummy')
-    self.embedding_client = openai.AsyncOpenAI(base_url=f'{self.embedding.client_url}/v1', api_key='dummy')
-
-    loader = jinja2.FileSystemLoader(searchpath=WORKING_DIR)
-    self.jinja2_env = jinja2.Environment(loader=loader)
-
-  @bentoml.task
-  async def embed(self, vault_id: str, file_id: str, content: str, note_id: t.Optional[str] = None) -> EmbedTask:
-    # 0 will be note, 1 will be content
-    metadata = EmbedMetadata(
-      vault=vault_id, file=file_id, note=note_id, type=DocumentType.NOTE if note_id is not None else DocumentType.ESSAY
-    )
-    try:
-      results = await self.embedding_client.embeddings.create(
-        input=[content], model=EMBED_ID, extra_headers={'Runner-Name': Embeddings.name}
-      )
-      embed_task = EmbedTask(metadata=metadata, embedding=results.data[0].embedding)
-
-      return embed_task
-    except Exception:
-      logger.error(traceback.format_exc())
-      return EmbedTask(
-        metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information'
+  @bentoml.api
+  async def health(self) -> bool:
+    async with (
+      bentoml.AsyncHTTPClient(self.inference.client_url) as llm_client,
+      bentoml.AsyncHTTPClient(self.embedding.client_url) as embed_client,
+    ):
+      return all(
+        await asyncio.gather(*[asyncio.create_task(i) for i in [llm_client.is_ready(30), embed_client.is_ready(30)]])
       )
 
   @bentoml.api
@@ -414,7 +406,7 @@ class API:
     prefill = False
 
     try:
-      completions = await self.inference_client.chat.completions.create(
+      completions = await self.llm_client.chat.completions.create(
         model=LLM_ID,
         temperature=temperature,
         max_tokens=max_tokens,
