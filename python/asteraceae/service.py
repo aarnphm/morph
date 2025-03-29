@@ -361,12 +361,12 @@ class Embeddings:
   **SERVICE_CONFIG,
 )
 class API:
-  if os.getenv('YATAI_T_VERSION'):
-    inference = bentoml.depends(Engine)
-    embedding = bentoml.depends(Embeddings)
-  else:
+  if os.getenv('DEVELOPMENT'):
     inference = bentoml.depends(url=f'http://127.0.0.1:{os.getenv("LLM_PORT", "3001")}', on=Engine)
     embedding = bentoml.depends(url=f'http://127.0.0.1:{os.getenv("EMBED_PORT", "3002")}', on=Embeddings)
+  else:
+    inference = bentoml.depends(Engine)
+    embedding = bentoml.depends(Embeddings)
 
   def __init__(self):
     self.inference_client = openai.AsyncOpenAI(base_url=f'{self.inference.client_url}/v1', api_key='dummy')

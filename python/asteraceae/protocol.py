@@ -3,9 +3,10 @@ from __future__ import annotations
 import enum, typing as t
 import bentoml, pydantic
 
+
 if t.TYPE_CHECKING:
-  from _bentoml_sdk.service.config import ResourceSchema
   from _bentoml_sdk.images import Image
+  from _bentoml_sdk.service.config import ResourceSchema
   from _bentoml_sdk.service.config import TrafficSchema, TracingSchema
 
 EmbedType = t.Literal['gte-qwen']
