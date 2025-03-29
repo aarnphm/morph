@@ -276,10 +276,11 @@ const DroppedNotesStack = memo(
             isStackExpanded && "max-h-[20vh] overflow-y-auto scrollbar-hidden",
           )}
         >
-          <AnimatePresence mode="sync" key={`validate-${droppedNotes.length}`}>
-            <AttachedDisplayNotes />
+          <AnimatePresence mode="sync">
+            <AttachedDisplayNotes key="attached-notes" />
             {hasMoreNotes && !isStackExpanded && (
               <motion.div
+                key="more-notes-indicator"
                 className="text-primary/50 cursor-pointer"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -881,6 +882,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   // Add a state to track current generation notes
   const [currentGenerationNotes, setCurrentGenerationNotes] = useState<Note[]>([])
   const [streamingNotes, setStreamingNotes] = useState<StreamingNote[]>([])
+  const [vimMode] = useState(false)
 
   const toggleStackExpand = useCallback(() => {
     setIsStackExpanded((prev) => !prev)
@@ -1548,7 +1550,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const memoizedExtensions = useMemo(() => {
     const tabSize = new Compartment()
 
-    return [
+    const exts = [
       markdown({ base: markdownLanguage, codeLanguages: languages }),
       frontmatter(),
       EditorView.lineWrapping,
@@ -1561,9 +1563,10 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         }
       }),
       syntaxHighlighting(),
-      vim(),
     ]
-  }, [settings.tabSize, currentFile])
+    if (vimMode) exts.push(vim())
+    return exts
+  }, [settings.tabSize, currentFile, vimMode])
 
   useEffect(() => {
     if (markdownContent) {
@@ -1575,7 +1578,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const onNewFile = useCallback(() => {
     setCurrentFileHandle(null)
     setCurrentFile("Untitled")
-    setIsEditMode(false)
+    setIsEditMode(true)
   }, [])
 
   const handleKeyDown = useCallback(
@@ -1620,7 +1623,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         setCurrentFile(file.name)
         setMarkdownContent(content)
         setHasUnsavedChanges(false)
-        setIsEditMode(false)
+        setIsEditMode(true)
         updatePreview(content)
       } catch {
         //TODO: do something with the error

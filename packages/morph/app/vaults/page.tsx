@@ -190,7 +190,7 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle>Research Preview</DialogTitle>
             <DialogDescription asChild>
-              <div className="space-y-3 mt-2 flex flex-col gap-2">
+              <div className="space-y-3 mt-2 flex flex-col gap-2 text-foreground">
                 <div>
                   <code className="bg-amber-100/50 px-1 py-0.5 rounded">morph</code> is currently in
                   research preview and uses experimental Chrome{" "}

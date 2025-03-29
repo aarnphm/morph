@@ -390,7 +390,7 @@ export default memo(function SteeringPanel({ className }: { className?: string }
   )
 
   return (
-    <div className={cn("absolute right-4 top-1/2 z-20", className)}>
+    <div className={cn("absolute right-4 top-1/2 z-50", className)}>
       <AnimatePresence mode="wait">
         {isExpanded ? (
           <motion.div
