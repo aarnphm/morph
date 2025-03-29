@@ -190,7 +190,7 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle>Research Preview</DialogTitle>
             <DialogDescription asChild>
-              <div className="space-y-3 mt-2 flex flex-col gap-2">
+              <div className="space-y-3 mt-2 flex flex-col gap-2 text-foreground">
                 <div>
                   <code className="bg-amber-100/50 px-1 py-0.5 rounded">morph</code> is currently in
                   research preview and uses experimental Chrome{" "}
@@ -223,6 +223,9 @@ export default function Home() {
                   We also recommend to pair{" "}
                   <code className="bg-amber-100/50 px-1 py-0.5 rounded">morph</code> with Git to
                   track your changes locally for data backup.
+                </div>
+                <div>
+                  Currently <code>morph</code> is only available on Desktop.
                 </div>
                 <div>
                   If you have any feedback, please reach out on{" "}

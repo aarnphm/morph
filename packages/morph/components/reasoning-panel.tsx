@@ -1,6 +1,6 @@
 import * as React from "react"
 import { useState, useRef, useEffect, memo } from "react"
-import { ChevronRightIcon, CheckIcon } from "@radix-ui/react-icons"
+import { ChevronRightIcon, TransformIcon } from "@radix-ui/react-icons"
 import { cn } from "@/lib/utils"
 import { db } from "@/db"
 import { motion, AnimatePresence } from "motion/react"
@@ -59,7 +59,6 @@ interface ReasoningPanelProps {
   currentFile?: string
   vaultId?: string
   shouldExpand?: boolean
-  onCollapseComplete?: () => void
   elapsedTime: number
 }
 
@@ -72,10 +71,10 @@ export function ReasoningPanel({
   vaultId,
   reasoningId,
   shouldExpand = false,
-  onCollapseComplete,
   elapsedTime,
 }: ReasoningPanelProps) {
   const [isExpanded, setIsExpanded] = useState(shouldExpand)
+  const [isHovering, setIsHovering] = useState(false)
   const reasoningRef = useRef<HTMLDivElement>(null)
   const startTimeRef = useRef<number | null>(null)
 
@@ -90,14 +89,11 @@ export function ReasoningPanel({
       // Add a small delay before collapsing
       const timerId = setTimeout(() => {
         setIsExpanded(false)
-        if (onCollapseComplete) {
-          onCollapseComplete()
-        }
       }, 2000) // 2 seconds after completion
 
       return () => clearTimeout(timerId)
     }
-  }, [isComplete, isStreaming, onCollapseComplete, shouldExpand])
+  }, [isComplete, isStreaming, shouldExpand])
 
   // Start timer when streaming begins
   useEffect(() => {
@@ -133,30 +129,33 @@ export function ReasoningPanel({
     }
   }
 
-  const checkIconRef = useRef<SVGSVGElement>(null)
-
   return (
-    <div className={cn("w-full", className)}>
+    <div
+      className={cn("w-full border rounded-md transition-colors duration-200", className)}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
       <div
         className={cn(
-          "flex items-center justify-between text-xs py-1",
+          "flex items-center justify-between text-xs p-1",
           isExpanded && "shadow-lg transition-shadow duration-300",
+          isHovering ? "text-foreground" : "text-muted-foreground",
         )}
       >
         <button
           onClick={toggleExpand}
-          className={cn(
-            "flex items-center gap-1 hover:text-foreground transition-colors text-left",
-            !isExpanded || (isStreaming && "text-muted-foreground"),
-          )}
+          className="flex items-center gap-1 transition-colors text-left"
         >
           <motion.div
-            initial={{ rotate: isExpanded ? 90 : 0 }}
             animate={{ rotate: isExpanded ? 90 : 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
+            transition={{ duration: 0.2 }}
             className="cursor-pointer"
           >
-            <ChevronRightIcon className="h-3 w-3" />
+            {isHovering ? (
+              <ChevronRightIcon className="h-3 w-3" />
+            ) : (
+              <TransformIcon className="h-3 w-3" />
+            )}
           </motion.div>
           {isComplete ? (
             <span>Finished scheming for {formattedDuration(elapsedTime)}</span>
@@ -165,13 +164,7 @@ export function ReasoningPanel({
           )}
         </button>
 
-        <div className="flex items-center">
-          {isComplete ? (
-            <CheckIcon className="h-3 w-3 text-green-500" ref={checkIconRef} />
-          ) : (
-            isStreaming && <LoadingDots />
-          )}
-        </div>
+        <div className="flex items-center">{isStreaming && <LoadingDots />}</div>
       </div>
 
       <AnimatePresence>
@@ -179,23 +172,13 @@ export function ReasoningPanel({
           <motion.div
             ref={reasoningRef}
             initial={{ height: 0, opacity: 0 }}
-            animate={{
-              height: "auto",
-              opacity: 1,
-              transition: {
-                height: { duration: 0.3, ease: "easeOut" },
-                opacity: { duration: 0.2, delay: 0.1 },
-              },
-            }}
-            exit={{
-              height: 0,
-              opacity: 0,
-              transition: {
-                height: { duration: 0.3, ease: "easeIn" },
-                opacity: { duration: 0.2 },
-              },
-            }}
-            className="text-xs text-muted-foreground whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72"
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className={cn(
+              "text-xs whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72 transition-colors duration-200",
+              isHovering ? "text-foreground" : "text-muted-foreground",
+            )}
           >
             <span>{reasoning}</span>
           </motion.div>

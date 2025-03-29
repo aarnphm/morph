@@ -34,11 +34,16 @@ import { motion, AnimatePresence } from "motion/react"
 interface FileTreeNodeProps {
   node: FileSystemTreeNode
   onFileSelect?: (node: FileSystemTreeNode) => void
+  isExpanded?: boolean
 }
 
 // TODO: reducer and context for states
 // https://react.dev/learn/scaling-up-with-reducer-and-context
-export const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect }: FileTreeNodeProps) {
+export const FileTreeNode = memo(function FileTreeNode({
+  node,
+  onFileSelect,
+  isExpanded,
+}: FileTreeNodeProps) {
   const [isOpen, setIsOpen] = useState(node.isOpen ?? false)
 
   const toggleOpen = useCallback(() => {
@@ -59,7 +64,9 @@ export const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect }: F
             ) : (
               <ChevronRightIcon className="transition-transform w-3.5 h-3.5 mr-1 shrink-0" />
             )}
-            <span className="truncate">{node.name}</span>
+            <span className={isExpanded ? "!whitespace-normal !break-words" : "truncate"}>
+              {node.name}
+            </span>
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
@@ -70,13 +77,14 @@ export const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect }: F
                   key={`${child.name}.${child.extension}`}
                   node={child}
                   onFileSelect={onFileSelect}
+                  isExpanded={isExpanded}
                 />
               ))}
           </SidebarMenuSub>
         </CollapsibleContent>
       </SidebarMenuItem>
     ),
-    [isOpen, toggleOpen, node, onFileSelect],
+    [isOpen, toggleOpen, node, onFileSelect, isExpanded],
   )
 
   const MemoizedSidebarFileItem = useMemo(
@@ -85,10 +93,12 @@ export const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect }: F
         className="data-[active=true]:bg-transparent hover:bg-accent/50 transition-colors flex items-center cursor-pointer w-full text-xs py-1"
         onClick={handleFileClick}
       >
-        <span className="truncate">{node.name}</span>
+        <span className={isExpanded ? "!whitespace-normal !break-words" : "truncate"}>
+          {node.name}
+        </span>
       </SidebarMenuButton>
     ),
-    [handleFileClick, node],
+    [handleFileClick, node, isExpanded],
   )
 
   // Filter out non-markdown files
@@ -221,6 +231,7 @@ export default memo(function Rails({
             type: "spring",
             stiffness: 300,
             damping: 30,
+            duration: 0.3,
           }}
         >
           <div className="flex w-full items-center gap-px px-2">
@@ -235,26 +246,12 @@ export default memo(function Rails({
             >
               <AnimatePresence mode="wait">
                 {isExpanded ? (
-                  <motion.div
-                    key="expanded"
-                    initial={{ opacity: 0, rotate: -10 }}
-                    animate={{ opacity: 1, rotate: 0 }}
-                    exit={{ opacity: 0, rotate: 10 }}
-                    transition={{ duration: 0.2 }}
-                    className="relative"
-                  >
+                  <motion.div key="expanded" className="relative">
                     <PinLeftIcon className="h-4 w-4 absolute opacity-0 group-hover:opacity-100 transition-opacity" />
                     <LayoutIcon className="h-4 w-4 group-hover:opacity-0 transition-opacity" />
                   </motion.div>
                 ) : (
-                  <motion.div
-                    key="collapsed"
-                    initial={{ opacity: 0, rotate: 10 }}
-                    animate={{ opacity: 1, rotate: 0 }}
-                    exit={{ opacity: 0, rotate: -10 }}
-                    transition={{ duration: 0.2 }}
-                    className="relative"
-                  >
+                  <motion.div key="collapsed" className="relative">
                     <PinRightIcon className="h-4 w-4 absolute opacity-0 group-hover:opacity-100 transition-opacity" />
                     <LayoutIcon className="h-4 w-4 group-hover:opacity-0 transition-opacity" />
                   </motion.div>
@@ -284,10 +281,10 @@ export default memo(function Rails({
                           </div>
                         </div>
                         <motion.span
-                          className="truncate text-sm whitespace-nowrap mask-image-text overflow-hidden"
+                          className="text-sm whitespace-nowrap mask-image-text overflow-hidden"
+                          initial={false}
                           animate={{
                             opacity: isExpanded ? 1 : 0,
-                            width: isExpanded ? "auto" : 0,
                           }}
                           transition={{
                             opacity: { duration: 0.2 },
@@ -298,13 +295,13 @@ export default memo(function Rails({
                             },
                           }}
                         >
-                          New file
+                          New
                         </motion.span>
                       </div>
                     </VaultButton>
                   </TooltipTrigger>
                   <TooltipContent side="right" hidden={isExpanded}>
-                    New file
+                    Create new file
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -326,10 +323,10 @@ export default memo(function Rails({
                           <CrumpledPaperIcon className="h-4 w-4 shrink-0 group-hover:-translate-y-[0.5px] transition group-active:translate-y-0" />
                         </div>
                         <motion.span
-                          className="truncate text-sm whitespace-nowrap mask-image-text overflow-hidden"
+                          className="text-sm whitespace-nowrap mask-image-text overflow-hidden"
+                          initial={false}
                           animate={{
                             opacity: isExpanded ? 1 : 0,
-                            width: isExpanded ? "auto" : 0,
                           }}
                           transition={{
                             opacity: { duration: 0.2 },
