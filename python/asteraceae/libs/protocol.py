@@ -3,6 +3,7 @@ from __future__ import annotations
 import enum, typing as t
 import bentoml, pydantic
 
+from openai.types.completion_usage import CompletionUsage
 
 if t.TYPE_CHECKING:
   from _bentoml_sdk.images import Image
@@ -117,7 +118,7 @@ class EmbedTask(pydantic.BaseModel):
 
 class ServiceHealth(pydantic.BaseModel):
   name: str
-  healthy: bool
+  healthy: bool = pydantic.Field(default=False)
   latency_ms: float = pydantic.Field(default=0.0)
   error: str = pydantic.Field(default='')
 
@@ -126,3 +127,13 @@ class HealthStatus(pydantic.BaseModel):
   healthy: bool
   services: list[ServiceHealth]
   timestamp: str
+
+
+class Suggestion(pydantic.BaseModel):
+  suggestion: str
+  reasoning: str = pydantic.Field(default='')
+  usage: t.Optional[CompletionUsage] = None
+
+
+class Suggestions(pydantic.BaseModel):
+  suggestions: list[Suggestion]

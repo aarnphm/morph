@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import logging, argparse, traceback, asyncio, os, contextlib, pathlib, time, datetime, typing as t
-import bentoml, fastapi, pydantic, jinja2, annotated_types as ae
+import bentoml, fastapi, jinja2, annotated_types as ae
 
 with bentoml.importing():
   import hnswlib, openai, transformers
 
   from openai.types.chat import ChatCompletionUserMessageParam
-  from openai.types.completion_usage import CompletionUsage
   from llama_index.core import VectorStoreIndex, StorageContext
   from llama_index.core.node_parser import SemanticSplitterNodeParser, SentenceSplitter
   from llama_index.core.schema import TextNode
@@ -29,6 +28,8 @@ from libs.protocol import (
   DocumentType,
   ServiceHealth,
   HealthStatus,
+  Suggestion,
+  Suggestions,
 )
 
 if t.TYPE_CHECKING:
@@ -124,14 +125,12 @@ def make_labels(task: TaskType) -> dict[str, t.Any]:
   return {'owner': 'aarnphm', 'type': 'engine', 'task': task}
 
 
-class Suggestion(pydantic.BaseModel):
-  suggestion: str
-  reasoning: str = pydantic.Field(default='')
-  usage: t.Optional[CompletionUsage] = None
-
-
-class Suggestions(pydantic.BaseModel):
-  suggestions: list[Suggestion]
+def make_url(task: TaskType) -> str | None:
+  var: dict[TaskType, dict[str, str]] = {
+    'embed': dict(key='EMBED_PORT', value='3002'),
+    'generate': dict(key='LLM_PORT', value='3001'),
+  }
+  return f'http://127.0.0.1:{os.getenv((k := var[task])["key"], k["value"])}' if os.getenv('DEVELOPMENT') else None
 
 
 inference_api = fastapi.FastAPI()
@@ -239,12 +238,8 @@ class Embeddings:
   **SERVICE_CONFIG,
 )
 class API:
-  inference = bentoml.depends(
-    Engine, url=f'http://127.0.0.1:{os.getenv("LLM_PORT", "3001")}' if os.getenv('DEVELOPMENT') else None
-  )
-  embedding = bentoml.depends(
-    Embeddings, url=f'http://127.0.0.1:{os.getenv("EMBED_PORT", "3002")}' if os.getenv('DEVELOPMENT') else None
-  )
+  inference = bentoml.depends(Engine, url=make_url('generate'))
+  embedding = bentoml.depends(Embeddings, url=make_url('embed'))
 
   metapath = WORKING_DIR / 'indexes'
 
@@ -404,8 +399,8 @@ class API:
       ])
 
       return HealthStatus(
-        healthy=all(service.healthy for service in services_health),
         services=services_health,
+        healthy=all(service.healthy for service in services_health),
         timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
       )
 
@@ -416,8 +411,10 @@ class API:
     authors: t.Optional[list[str]] = None,
     tonality: t.Optional[dict[str, t.Any]] = None,
     num_suggestions: t.Annotated[int, ae.Ge(2)] = 3,
+    *,
     temperature: t.Annotated[float, ae.Ge(0), ae.Le(1)] = 0.6,
     max_tokens: t.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
+    usage: bool = False,
   ) -> t.AsyncGenerator[str, None]:
     # TODO: add tonality lookup and steering vector strength for influence the distributions
     # for now, we will just use the features lookup from given SAEs constrasted with the models.
@@ -437,6 +434,7 @@ class API:
         stream=True,
         extra_body={'guided_json': Suggestions.model_json_schema()},
         extra_headers={'Runner-Name': Engine.name},
+        stream_options={'continuous_usage_stats': True, 'include_usage': True} if usage else None,
       )
       async for chunk in completions:
         delta_choice = t.cast('DeltaMessage', chunk.choices[0].delta)
