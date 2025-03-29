@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { memo, useState, useCallback, useMemo, useEffect } from "react"
+import { memo, useState, useCallback, useMemo } from "react"
 import {
   LayoutIcon,
   PlusIcon,
@@ -134,20 +134,7 @@ export default memo(function Rails({
   const { toast } = useToast()
   const { toggleSidebar, state } = useSidebar()
   const isExpanded = state === "expanded"
-  const [showFileTree, setShowFileTree] = useState(false)
   const router = useRouter()
-
-  // Delay showing file tree until animation completes
-  useEffect(() => {
-    if (isExpanded) {
-      const timer = setTimeout(() => {
-        setShowFileTree(true)
-      }, 300) // Match animation duration
-      return () => clearTimeout(timer)
-    } else {
-      setShowFileTree(false)
-    }
-  }, [isExpanded])
 
   const onManageVault = useCallback(() => {
     setTimeout(() => {

@@ -25,7 +25,7 @@ function AuthorsSelector({ value, onChange, className }: AuthorsSelectorProps) {
     if (JSON.stringify(authors) !== JSON.stringify(value)) {
       setAuthors([...value]) // Create a new array
     }
-  }, [value])
+  }, [value, authors])
 
   // Debug log local state changes
   useEffect(() => {}, [authors])

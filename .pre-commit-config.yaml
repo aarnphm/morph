@@ -21,17 +21,19 @@ repos:
         files: ^python/
   - repo: local
     hooks:
-      - id: next-build
-        name: Next.js build
-        entry: bash -c "pnpm run -w morph:build"
-        language: system
-        pass_filenames: false
-        files: ^packages/morph/
-        types: [file]
-      - id: bentoml-build
+      - id: bentoml
         name: BentoML build
-        entry: bash -c "pnpm run -w morph:inference:build"
+        entry: pnpm run -w morph:inference:build
         language: system
         pass_filenames: false
         files: ^python/
         types: [file]
+        verbose: true
+      - id: next
+        name: Next.js build
+        entry: pnpm run -w morph:build
+        language: system
+        pass_filenames: false
+        files: ^packages/morph/
+        types: [file]
+        verbose: true

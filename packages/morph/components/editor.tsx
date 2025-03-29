@@ -1399,7 +1399,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             const suggestionData: Suggestions = JSON.parse(suggestionString.trim())
 
             if (suggestionData.suggestions && Array.isArray(suggestionData.suggestions)) {
-              generatedNotes = suggestionData.suggestions.map((suggestion, index) => ({
+              generatedNotes = suggestionData.suggestions.map((suggestion) => ({
                 content: suggestion.suggestion,
               }))
             }

@@ -1,6 +1,7 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react"
+import * as React from "react"
+import { createContext, useContext, useState, useCallback } from "react"
 
 // Default steering parameters
 export const DEFAULT_AUTHORS = [
@@ -42,7 +43,7 @@ interface SteeringContextType {
 const SteeringContext = createContext<SteeringContextType | null>(null)
 
 interface SteeringProviderProps {
-  children: ReactNode
+  children: React.ReactNode
 }
 
 export function SteeringProvider({ children }: SteeringProviderProps) {
@@ -58,18 +59,18 @@ export function SteeringProvider({ children }: SteeringProviderProps) {
     <K extends keyof SteeringSettings>(key: K, value: SteeringSettings[K]) => {
       setSettings((prev) => {
         // Always create a new object with spread to ensure reference equality changes
-        const newSettings = { ...prev };
+        const newSettings = { ...prev }
 
         // Special handling for object and array types to ensure new references
-        if (key === 'authors' && Array.isArray(value)) {
-          newSettings[key] = [...value] as SteeringSettings[K];
-        } else if (key === 'tonality' && typeof value === 'object') {
-          newSettings[key] = { ...value } as SteeringSettings[K];
+        if (key === "authors" && Array.isArray(value)) {
+          newSettings[key] = [...value] as SteeringSettings[K]
+        } else if (key === "tonality" && typeof value === "object") {
+          newSettings[key] = { ...value } as SteeringSettings[K]
         } else {
-          newSettings[key] = value;
+          newSettings[key] = value
         }
-        return newSettings;
-      });
+        return newSettings
+      })
     },
     [],
   )
