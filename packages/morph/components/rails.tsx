@@ -239,7 +239,6 @@ export default memo(function Rails({
           )}
           animate={{
             width: isExpanded ? "16rem" : "3.05rem",
-            maxWidth: isExpanded ? "18rem" : "3.05rem",
           }}
           transition={{
             type: "spring",

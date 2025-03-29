@@ -46,7 +46,13 @@ import { SteeringProvider, SteeringSettings, useSteeringContext } from "@/contex
 interface StreamingDelta {
   suggestion: string
   reasoning: string
-  usage: string
+  usage: {
+    completion_tokens: number
+    prompt_tokens: number
+    total_tokens: number
+    completion_tokens_details?: any
+    prompt_tokens_details?: any
+  } | null
 }
 
 interface Suggestions {
@@ -68,6 +74,12 @@ interface EditorProps {
 
 interface GeneratedNote {
   content: string
+}
+
+interface ReadinessResponse {
+  healthy: boolean
+  services: { name: string; healthy: boolean; latency_ms: number; error: string }[]
+  timestamp: string
 }
 
 interface DateDisplayProps {
@@ -264,7 +276,7 @@ const DroppedNotesStack = memo(
             isStackExpanded && "max-h-[20vh] overflow-y-auto scrollbar-hidden",
           )}
         >
-          <AnimatePresence mode="sync">
+          <AnimatePresence mode="sync" key={`validate-${droppedNotes.length}`}>
             <AttachedDisplayNotes />
             {hasMoreNotes && !isStackExpanded && (
               <motion.div
@@ -512,35 +524,46 @@ const NotesPanel = memo(function NotesPanel({
     [drop],
   )
 
-  const itemContent = useCallback((_index: number, group: [string, Note[]]) => {
-                      // Add a safety check for when group is undefined or not properly formed
-                      if (!group || !Array.isArray(group) || group.length < 2) {
-                        return memoizedNoteSkeletons
-                      }
+  const itemContent = useCallback(
+    (_index: number, group: [string, Note[]]) => {
+      // Add a safety check for when group is undefined or not properly formed
+      if (!group || !Array.isArray(group) || group.length < 2) {
+        return memoizedNoteSkeletons
+      }
 
-                      const [dateStr, dateNotes] = group
+      const [dateStr, dateNotes] = group
 
-                      // Only handle historical notes now
-                      const dateReasoning = reasoningHistory.find((r) =>
-                        r.noteIds.some((id) => dateNotes.some((note: Note) => note.id === id)),
-                      )
+      // Only handle historical notes now
+      const dateReasoning = reasoningHistory.find((r) =>
+        r.noteIds.some((id) => dateNotes.some((note: Note) => note.id === id)),
+      )
 
-                      return (
-                        <div className="mb-6">
-                          <MemoizedNoteGroup
-                            dateStr={dateStr}
-                            dateNotes={dateNotes}
-                            reasoning={dateReasoning}
-                            currentFile={currentFile}
-                            vaultId={vaultId}
-                            handleNoteDropped={handleNoteDropped}
-                            onNoteRemoved={handleNoteRemoved}
-                            formatDate={formatDate}
-                            isGenerating={false}
-                          />
-                        </div>
-    )
-  }, [memoizedNoteSkeletons, currentFile, vaultId, handleNoteDropped, handleNoteRemoved, formatDate, reasoningHistory])
+      return (
+        <div className="mb-6">
+          <MemoizedNoteGroup
+            dateStr={dateStr}
+            dateNotes={dateNotes}
+            reasoning={dateReasoning}
+            currentFile={currentFile}
+            vaultId={vaultId}
+            handleNoteDropped={handleNoteDropped}
+            onNoteRemoved={handleNoteRemoved}
+            formatDate={formatDate}
+            isGenerating={false}
+          />
+        </div>
+      )
+    },
+    [
+      memoizedNoteSkeletons,
+      currentFile,
+      vaultId,
+      handleNoteDropped,
+      handleNoteRemoved,
+      formatDate,
+      reasoningHistory,
+    ],
+  )
 
   return (
     <div
@@ -792,6 +815,7 @@ interface SuggestionRequest {
   num_suggestions?: number
   temperature?: number
   max_tokens?: number
+  usage?: boolean
 }
 
 interface NewlyGeneratedNotes {
@@ -1050,6 +1074,36 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         if (!readyz.ok) {
           throw new Error("Notes functionality is currently unavailable")
         }
+        const serviceReadiness: ReadinessResponse = await fetch(`${apiEndpoint}/health`, {
+          method: "POST",
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({ timeout: 30 }),
+        }).then((data) => data.json())
+
+        // Validate service health status with detailed information
+        if (!serviceReadiness.healthy) {
+          const unhealthyServices = serviceReadiness.services
+            .filter((service) => !service.healthy)
+            .map((service) => `${service.name} (${service.error || "Unknown error"})`)
+            .join(", ")
+
+          console.error("Service health check failed:", {
+            timestamp: serviceReadiness.timestamp,
+            overallHealth: serviceReadiness.healthy,
+            unhealthyServices,
+            allServices: serviceReadiness.services,
+          })
+
+          throw new Error(`Services unavailable: ${unhealthyServices}`)
+        }
+
+        console.debug("Services ready:", {
+          timestamp: serviceReadiness.timestamp,
+          services: serviceReadiness.services.map((s) => ({
+            name: s.name,
+            latency: s.latency_ms,
+          })),
+        })
 
         // Create a new reasoning ID for this generation
         const reasoningId = createId()
@@ -1068,8 +1122,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         const dateKey = `${now.toDateString()}-${now.getHours()}-${now.getMinutes()}-${interval}`
         setCurrentlyGeneratingDateKey(dateKey)
 
-        const essay = md(content).content
         const max_tokens = 8192
+        const essay = md(content).content
         const request: SuggestionRequest = {
           essay,
           num_suggestions: numSuggestions,
@@ -1077,6 +1131,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           max_tokens,
           ...(steeringOptions?.authors && { authors: steeringOptions.authors }),
           ...(steeringOptions?.tonality && { tonality: steeringOptions.tonality }),
+          usage: true,
         }
 
         // Start timing reasoning phase

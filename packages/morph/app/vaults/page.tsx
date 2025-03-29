@@ -225,6 +225,9 @@ export default function Home() {
                   track your changes locally for data backup.
                 </div>
                 <div>
+                  Currently <code>morph</code> is only available on Desktop.
+                </div>
+                <div>
                   If you have any feedback, please reach out on{" "}
                   <a href="https://x.com/aarnphm_" className="text-blue-500 hover:underline">
                     Twitter
