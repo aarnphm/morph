@@ -41,11 +41,12 @@ import { motion, AnimatePresence } from "motion/react"
 import { VaultButton } from "@/components/ui/button"
 import Rails from "@/components/rails"
 import SteeringPanel from "@/components/steering-panel"
-import type { SteeringSettings } from "@/components/steering-panel"
+import { SteeringProvider, SteeringSettings, useSteeringContext } from "@/context/steering-context"
 
 interface StreamingDelta {
   suggestion: string
   reasoning: string
+  usage: string
 }
 
 interface Suggestions {
@@ -66,7 +67,6 @@ interface EditorProps {
 }
 
 interface GeneratedNote {
-  title: string
   content: string
 }
 
@@ -235,33 +235,14 @@ const DroppedNotesStack = memo(
       () => (
         <>
           {notesToDisplay.map((note, index) => (
-            <motion.div
-              key={note.id}
-              ref={index === notesToDisplay.length - 1 ? lastNoteRef : undefined}
-              initial={{ opacity: 0 }}
-              animate={{
-                opacity: 1,
-                transition: {
-                  delay: index * 0.03,
-                  duration: 0.2,
-                },
-              }}
-              exit={{
-                opacity: 0,
-                transition: {
-                  delay: (notesToDisplay.length - index - 1) * 0.02,
-                  duration: 0.15,
-                },
-              }}
-            >
-              <AttachedNoteCard
-                note={note}
-                index={index}
-                isStackExpanded={isStackExpanded}
-                onDragBackToPanel={onDragBackToPanel}
-                className={className}
-              />
-            </motion.div>
+            <AttachedNoteCard
+              key={index}
+              note={note}
+              index={index}
+              isStackExpanded={isStackExpanded}
+              onDragBackToPanel={onDragBackToPanel}
+              className={className}
+            />
           ))}
         </>
       ),
@@ -272,52 +253,21 @@ const DroppedNotesStack = memo(
     if (!hasNotes) return null
 
     return (
-      <motion.div
+      <div
         ref={containerRef}
         className={cn(
           "absolute top-4 right-4 z-40",
           isStackExpanded && "bg-background/80 backdrop-blur-sm border rounded-md shadow-md p-2",
         )}
-        variants={{
-          collapsed: {
-            width: "auto",
-            height: "auto",
-            transition: {
-              type: "spring",
-              stiffness: 400,
-              damping: 30,
-              when: "afterChildren",
-              staggerChildren: 0.02,
-              staggerDirection: -1,
-            },
-          },
-          expanded: {
-            width: "auto",
-            height: "auto",
-            transition: {
-              type: "spring",
-              stiffness: 300,
-              damping: 25,
-              when: "beforeChildren",
-              staggerChildren: 0.03,
-              delayChildren: 0.05,
-            },
-          },
-        }}
-        initial="collapsed"
-        animate={isStackExpanded ? "expanded" : "collapsed"}
-        layoutId="notes-stack"
-        layoutRoot
       >
-        <AnimatePresence mode="sync">
-          <motion.div
-            ref={scrollContainerRef}
-            className={cn(
-              "flex flex-col items-center gap-1.5",
-              isStackExpanded && "max-h-[20vh] overflow-y-auto scrollbar-hidden",
-            )}
-            layout="position"
-          >
+        <div
+          ref={scrollContainerRef}
+          className={cn(
+            "flex flex-col items-center gap-1.5",
+            isStackExpanded && "max-h-[20vh] overflow-y-auto scrollbar-hidden",
+          )}
+        >
+          <AnimatePresence mode="sync">
             <AttachedDisplayNotes />
             {hasMoreNotes && !isStackExpanded && (
               <motion.div
@@ -340,9 +290,9 @@ const DroppedNotesStack = memo(
                 </motion.div>
               </motion.div>
             )}
-          </motion.div>
-        </AnimatePresence>
-      </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
     )
   },
   (prevProps, nextProps) => {
@@ -391,21 +341,21 @@ const ScrollSeekPlaceholder: Components["ScrollSeekPlaceholder"] = memo(
 
 // Create a memoized driver bar component for the notes panel
 interface DriversBarProps {
-  generateNewSuggestions: () => void
+  handleGenerateNewSuggestions: () => void
   isNotesLoading: boolean
   isNotesRecentlyGenerated: boolean
 }
 
 const DriversBar = memo(
   function DriversBar({
-    generateNewSuggestions,
+    handleGenerateNewSuggestions,
     isNotesLoading,
     isNotesRecentlyGenerated,
   }: DriversBarProps) {
     return (
       <div className="flex items-center justify-end gap-3 p-2 border-t bg-background/95 backdrop-blur-sm shadow-md z-10 relative">
         <VaultButton
-          onClick={generateNewSuggestions}
+          onClick={handleGenerateNewSuggestions}
           disabled={isNotesLoading}
           color="none"
           size="small"
@@ -420,7 +370,11 @@ const DriversBar = memo(
       </div>
     )
   },
-  (prevProps, nextProps) => prevProps.isNotesLoading === nextProps.isNotesLoading,
+  // Include all props in equality check
+  (prevProps, nextProps) =>
+    prevProps.isNotesLoading === nextProps.isNotesLoading &&
+    prevProps.isNotesRecentlyGenerated === nextProps.isNotesRecentlyGenerated &&
+    prevProps.handleGenerateNewSuggestions === nextProps.handleGenerateNewSuggestions,
 )
 
 interface NotesPanelProps {
@@ -449,7 +403,7 @@ interface NotesPanelProps {
   formatDate: (dateStr: string) => React.ReactNode
   isNotesRecentlyGenerated: boolean
   currentReasoningElapsedTime: number
-  generateNewSuggestions: () => void
+  generateNewSuggestions: (steeringSettings: SteeringSettings) => void
   noteGroupsData: [string, Note[]][]
   virtuosoRef: React.RefObject<any>
   notesContainerRef: React.RefObject<HTMLDivElement | null>
@@ -528,6 +482,19 @@ const NotesPanel = memo(function NotesPanel({
   scanAnimationComplete,
 }: NotesPanelProps) {
   const memoizedNoteSkeletons = useMemo(() => <NoteCard variant="skeleton" />, [])
+
+  // Get steering settings from context
+  const { settings } = useSteeringContext()
+
+  // Track settings changes with a ref to detect actual value changes
+  const prevSettingsRef = useRef(settings)
+
+  // Add effect to properly track settings changes
+  useEffect(() => {
+    if (JSON.stringify(prevSettingsRef.current) !== JSON.stringify(settings)) {
+      prevSettingsRef.current = settings
+    }
+  }, [settings])
 
   const [{ isOver }, drop] = useDrop(
     () => ({
@@ -717,7 +684,7 @@ const NotesPanel = memo(function NotesPanel({
         )}
       </div>
       <DriversBar
-        generateNewSuggestions={generateNewSuggestions}
+        handleGenerateNewSuggestions={() => generateNewSuggestions(settings)}
         isNotesLoading={isNotesLoading}
         isNotesRecentlyGenerated={isNotesRecentlyGenerated}
       />
@@ -836,7 +803,7 @@ interface SuggestionRequest {
   max_tokens?: number
 }
 
-interface SuggestionResponse {
+interface NewlyGeneratedNotes {
   generatedNotes: GeneratedNote[]
   reasoningId: string
   reasoningElapsedTime: number
@@ -900,8 +867,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   // Add a state to track current generation notes
   const [currentGenerationNotes, setCurrentGenerationNotes] = useState<Note[]>([])
   const [streamingNotes, setStreamingNotes] = useState<StreamingNote[]>([])
-  const [numSuggestions, setNumSuggestions] = useState(4) // Default number of suggestions
-  const [steeringSettings, setSteeringSettings] = useState<SteeringSettings | null>(null)
 
   const toggleStackExpand = useCallback(() => {
     setIsStackExpanded((prev) => !prev)
@@ -1088,7 +1053,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         tonality?: Record<string, number>
         temperature?: number
       },
-    ): Promise<SuggestionResponse> => {
+    ): Promise<NewlyGeneratedNotes> => {
       try {
         const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:8000"
         const readyz = await fetch(`${apiEndpoint}/readyz`)
@@ -1102,7 +1067,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         // Reset states for new generation
         setStreamingReasoning("")
         setReasoningComplete(false)
-        setNumSuggestions(numSuggestions)
         setCurrentReasoningElapsedTime(0) // Reset elapsed time at the start
         setStreamingNotes([]) // Reset streaming notes
         setScanAnimationComplete(false) // Reset scan animation state
@@ -1121,7 +1085,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           num_suggestions: numSuggestions,
           temperature: steeringOptions?.temperature ?? 0.6,
           max_tokens,
-          // Add steering parameters if they exist
           ...(steeringOptions?.authors && { authors: steeringOptions.authors }),
           ...(steeringOptions?.tonality && { tonality: steeringOptions.tonality }),
         }
@@ -1392,7 +1355,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
             if (suggestionData.suggestions && Array.isArray(suggestionData.suggestions)) {
               generatedNotes = suggestionData.suggestions.map((suggestion, index) => ({
-                title: `suggestion ${index + 1}`,
                 content: suggestion.suggestion,
               }))
             }
@@ -1414,10 +1376,10 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             noteIds: [], // Will be populated after creating notes
             reasoningElapsedTime,
             // Add steering parameters if they exist
-            authors: steeringSettings?.authors,
-            tonality: steeringSettings?.tonalityEnabled ? steeringSettings.tonality : undefined,
-            temperature: steeringSettings?.temperature,
-            numSuggestions: steeringSettings?.numSuggestions || numSuggestions,
+            authors: steeringOptions?.authors,
+            tonality: steeringOptions?.tonality && steeringOptions?.tonality,
+            temperature: steeringOptions?.temperature,
+            numSuggestions: numSuggestions,
           }
           setReasoningHistory((prev) => [...prev, { ...reasoningData }])
           setNotesError(null)
@@ -1436,7 +1398,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         throw error
       }
     },
-    [numSuggestions, streamingNotes.length],
+    [streamingNotes.length],
   )
 
   // Format date for display
@@ -1654,120 +1616,117 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   }, [showNotes, currentFile, vault])
 
   // Function to generate new suggestions
-  const generateNewSuggestions = useCallback(async () => {
-    if (!currentFile || !vault || !markdownContent) return
+  const generateNewSuggestions = useCallback(
+    async (steeringSettings: SteeringSettings) => {
+      if (!currentFile || !vault || !markdownContent) return
 
-    // Clear any previous current generation notes
-    setCurrentGenerationNotes([])
-    setNotesError(null)
-    setIsNotesLoading(true)
-    setStreamingReasoning("")
-    setReasoningComplete(false)
-    setStreamingSuggestionColors([])
-    setScanAnimationComplete(false) // Reset scan animation state
+      // Clear any previous current generation notes
+      setCurrentGenerationNotes([])
+      setNotesError(null)
+      setIsNotesLoading(true)
+      setStreamingReasoning("")
+      setReasoningComplete(false)
+      setStreamingSuggestionColors([])
+      setScanAnimationComplete(false) // Reset scan animation state
 
-    // Update the last notes generation time
-    setLastNotesGeneratedTime(new Date())
+      // Update the last notes generation time
+      setLastNotesGeneratedTime(new Date())
 
-    // Set a current date key for the new notes group with 15-second interval
-    const now = new Date()
-    const seconds = now.getSeconds()
-    const interval = Math.floor(seconds / 15) * 15
-    const dateKey = `${now.toDateString()}-${now.getHours()}-${now.getMinutes()}-${interval}`
-    setCurrentlyGeneratingDateKey(dateKey)
+      // Set a current date key for the new notes group with 15-second interval
+      const now = new Date()
+      const seconds = now.getSeconds()
+      const interval = Math.floor(seconds / 15) * 15
+      const dateKey = `${now.toDateString()}-${now.getHours()}-${now.getMinutes()}-${interval}`
+      setCurrentlyGeneratingDateKey(dateKey)
 
-    try {
-      const { generatedNotes, reasoningId, reasoningElapsedTime, reasoningContent } =
-        await fetchNewNotes(
-          markdownContent,
-          steeringSettings?.numSuggestions || numSuggestions,
-          steeringSettings
-            ? {
-                authors: steeringSettings.authors,
-                tonality: steeringSettings.tonalityEnabled ? steeringSettings.tonality : undefined,
-                temperature: steeringSettings.temperature,
-              }
-            : undefined,
+      try {
+        const { generatedNotes, reasoningId, reasoningElapsedTime, reasoningContent } =
+          await fetchNewNotes(
+            markdownContent,
+            steeringSettings.numSuggestions,
+            steeringSettings
+              ? {
+                  authors: steeringSettings.authors,
+                  tonality: steeringSettings.tonalityEnabled
+                    ? steeringSettings.tonality
+                    : undefined,
+                  temperature: steeringSettings.temperature,
+                }
+              : undefined,
+          )
+        const newNoteIds: string[] = []
+
+        const newNotes: Note[] = generatedNotes.map((note, index) => {
+          const id = createId()
+          newNoteIds.push(id)
+          return {
+            id,
+            content: note.content,
+            // Use preserved color or generate a new one
+            color: streamingSuggestionColors[index] || generatePastelColor(),
+            fileId: currentFile,
+            vaultId: vault.id,
+            isInEditor: false,
+            createdAt: new Date(),
+            lastModified: new Date(),
+            reasoningId: reasoningId,
+            // Add steering parameters if they exist
+            authors: steeringSettings.authors,
+            tonality: steeringSettings.tonalityEnabled ? steeringSettings.tonality : undefined,
+            temperature: steeringSettings.temperature,
+            numSuggestions: steeringSettings.numSuggestions,
+          }
+        })
+
+        // Add the note IDs to the reasoning history
+        setReasoningHistory((prev) =>
+          prev.map((r) => (r.id === reasoningId ? { ...r, noteIds: newNoteIds } : r)),
         )
-      const newNoteIds: string[] = []
 
-      const newNotes: Note[] = generatedNotes.map((note, index) => {
-        const id = createId()
-        newNoteIds.push(id)
-        return {
-          id,
-          content: note.content,
-          // Use preserved color or generate a new one
-          color: streamingSuggestionColors[index] || generatePastelColor(),
+        // Save reasoning to the database with note IDs and elapsed time
+        db.saveReasoning({
+          id: reasoningId,
           fileId: currentFile,
           vaultId: vault.id,
-          isInEditor: false,
+          content: reasoningContent,
+          noteIds: newNoteIds,
           createdAt: new Date(),
-          lastModified: new Date(),
-          reasoningId: reasoningId,
+          duration: reasoningElapsedTime,
           // Add steering parameters if they exist
-          authors: steeringSettings?.authors,
-          tonality: steeringSettings?.tonalityEnabled ? steeringSettings.tonality : undefined,
-          temperature: steeringSettings?.temperature,
-          numSuggestions: steeringSettings?.numSuggestions || numSuggestions,
-        }
-      })
+          authors: steeringSettings.authors,
+          tonality: steeringSettings.tonalityEnabled ? steeringSettings.tonality : undefined,
+          temperature: steeringSettings.temperature,
+          numSuggestions: steeringSettings.numSuggestions,
+        }).catch((err) => {
+          console.error("Failed to save reasoning:", err)
+        })
 
-      // Add the note IDs to the reasoning history
-      setReasoningHistory((prev) =>
-        prev.map((r) => (r.id === reasoningId ? { ...r, noteIds: newNoteIds } : r)),
-      )
+        await Promise.all(newNotes.map((note) => db.notes.add(note)))
 
-      // Save reasoning to the database with note IDs and elapsed time
-      db.saveReasoning({
-        id: reasoningId,
-        fileId: currentFile,
-        vaultId: vault.id,
-        content: reasoningContent,
-        noteIds: newNoteIds,
-        createdAt: new Date(),
-        duration: reasoningElapsedTime,
-        // Add steering parameters if they exist
-        authors: steeringSettings?.authors,
-        tonality: steeringSettings?.tonalityEnabled ? steeringSettings.tonality : undefined,
-        temperature: steeringSettings?.temperature,
-        numSuggestions: steeringSettings?.numSuggestions || numSuggestions,
-      }).catch((err) => {
-        console.error("Failed to save reasoning:", err)
-      })
+        // Set current generation notes
+        setCurrentGenerationNotes(newNotes)
 
-      await Promise.all(newNotes.map((note) => db.notes.add(note)))
-
-      // Set current generation notes
-      setCurrentGenerationNotes(newNotes)
-
-      // Also add the new notes to the notes array for historical view
-      // (they will remain visible in the current generation section first)
-      setNotes((prev) => {
-        const combined = [...newNotes, ...prev]
-        return combined.sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        )
-      })
-    } catch (error) {
-      // Just show error for current generation and don't affect previous notes
-      setNotesError("Notes not available for this generation, try again later")
-      setCurrentlyGeneratingDateKey(null)
-      console.error("Failed to generate notes:", error)
-    } finally {
-      // Still set isNotesLoading to false, but don't clear currentlyGeneratingDateKey
-      // so that the panel stays visible
-      setIsNotesLoading(false)
-    }
-  }, [
-    currentFile,
-    vault,
-    markdownContent,
-    fetchNewNotes,
-    streamingSuggestionColors,
-    steeringSettings,
-    numSuggestions,
-  ])
+        // Also add the new notes to the notes array for historical view
+        // (they will remain visible in the current generation section first)
+        setNotes((prev) => {
+          const combined = [...newNotes, ...prev]
+          return combined.sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          )
+        })
+      } catch (error) {
+        // Just show error for current generation and don't affect previous notes
+        setNotesError("Notes not available for this generation, try again later")
+        setCurrentlyGeneratingDateKey(null)
+        console.error("Failed to generate notes:", error)
+      } finally {
+        // Still set isNotesLoading to false, but don't clear currentlyGeneratingDateKey
+        // so that the panel stays visible
+        setIsNotesLoading(false)
+      }
+    },
+    [currentFile, vault, markdownContent, fetchNewNotes, streamingSuggestionColors],
+  )
 
   const handleCollapseComplete = useCallback(() => {}, [])
 
@@ -1896,44 +1855,25 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [droppedNotes, notes],
   )
 
-  const handleSteeringSettingsChange = useCallback((settings: SteeringSettings) => {
-    setSteeringSettings(settings)
-    setNumSuggestions(settings.numSuggestions)
-  }, [])
-
   return (
     <DndProvider backend={HTML5Backend}>
       <NotesProvider>
-        <CustomDragLayer />
-        <SearchProvider vault={vault!}>
-          <SidebarProvider defaultOpen={false} className="flex min-h-screen">
-            <Rails
-              vault={vault!}
-              editorViewRef={codeMirrorViewRef}
-              onFileSelect={handleFileSelect}
-              onNewFile={onNewFile}
-              onContentUpdate={updatePreview}
-            />
-            <SidebarInset className="flex flex-col h-screen flex-1 overflow-hidden">
-              <Playspace vaultId={vaultId}>
-                <SteeringPanel
-                  fileId={currentFile}
-                  onSettingsChange={handleSteeringSettingsChange}
-                />
-                <EditorDropTarget handleNoteDropped={handleNoteDropped}>
-                  <AnimatePresence>
-                    {memoizedDroppedNotes.length > 0 && (
-                      <motion.div
-                        key="dropped-notes-stack"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 400,
-                          damping: 30,
-                        }}
-                      >
+        <SteeringProvider>
+          <CustomDragLayer />
+          <SearchProvider vault={vault!}>
+            <SidebarProvider defaultOpen={false} className="flex min-h-screen">
+              <Rails
+                vault={vault!}
+                editorViewRef={codeMirrorViewRef}
+                onFileSelect={handleFileSelect}
+                onNewFile={onNewFile}
+                onContentUpdate={updatePreview}
+              />
+              <SidebarInset className="flex flex-col h-screen flex-1 overflow-hidden">
+                <Playspace vaultId={vaultId}>
+                  <EditorDropTarget handleNoteDropped={handleNoteDropped}>
+                    <AnimatePresence>
+                      {memoizedDroppedNotes.length > 0 && (
                         <DroppedNotesStack
                           droppedNotes={memoizedDroppedNotes}
                           isStackExpanded={isStackExpanded}
@@ -1941,137 +1881,138 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                           onDragBackToPanel={handleNoteDragBackToPanel}
                           className="before:mix-blend-multiply before:bg-noise-pattern"
                         />
+                      )}
+                    </AnimatePresence>
+                    {showNotes && <SteeringPanel />}
+                    <div className="flex flex-col items-center space-y-2 absolute bottom-4 right-4 z-20">
+                      {droppedNotes.length > 0 && (
+                        <VaultButton
+                          onClick={toggleStackExpand}
+                          color="orange"
+                          size="small"
+                          title={isStackExpanded ? "Collapse notes stack" : "Expand notes stack"}
+                        >
+                          {isStackExpanded ? (
+                            <Cross2Icon className="w-3 h-3" />
+                          ) : (
+                            <StackIcon className="w-3 h-3" />
+                          )}
+                        </VaultButton>
+                      )}
+                      <VaultButton
+                        onClick={toggleNotes}
+                        disabled={isNotesLoading}
+                        size="small"
+                        title={showNotes ? "Hide Notes" : "Show Notes"}
+                      >
+                        <CopyIcon className="w-3 h-3" />
+                      </VaultButton>
+                    </div>
+                    <div className="absolute top-4 left-4 text-sm/7 z-10 flex items-center gap-2">
+                      {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
+                    </div>
+                    <div
+                      className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
+                    >
+                      <div className="h-full scrollbar-hidden relative">
+                        <CodeMirror
+                          value={markdownContent}
+                          height="100%"
+                          autoFocus
+                          placeholder={"What's on your mind?"}
+                          basicSetup={{
+                            rectangularSelection: true,
+                            indentOnInput: true,
+                            syntaxHighlighting: true,
+                            searchKeymap: true,
+                            highlightActiveLine: false,
+                            highlightSelectionMatches: false,
+                          }}
+                          indentWithTab={false}
+                          extensions={memoizedExtensions}
+                          onChange={onContentChange}
+                          className="overflow-auto h-full mx-8 scrollbar-hidden pt-4"
+                          theme={theme === "dark" ? "dark" : editorTheme}
+                          onCreateEditor={(view) => {
+                            codeMirrorViewRef.current = view
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div
+                      className={`reading-mode absolute inset-0 ${isEditMode ? "hidden" : "block overflow-hidden"}`}
+                      ref={readingModeRef}
+                    >
+                      <div className="prose dark:prose-invert h-full mr-8 overflow-auto scrollbar-hidden">
+                        <article className="@container h-full max-w-5xl mx-auto scrollbar-hidden">
+                          {previewNode && toJsx(previewNode)}
+                        </article>
+                      </div>
+                    </div>
+                  </EditorDropTarget>
+                  <AnimatePresence mode="wait">
+                    {showNotes && (
+                      <motion.div
+                        key="notes-panel"
+                        initial={{ width: 0, opacity: 0, overflow: "hidden" }}
+                        animate={{
+                          width: "22rem",
+                          opacity: 1,
+                          overflow: "visible",
+                        }}
+                        exit={{
+                          width: 0,
+                          opacity: 0,
+                          overflow: "hidden",
+                        }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 300,
+                          damping: 30,
+                          opacity: { duration: 0.2 },
+                        }}
+                        layout
+                      >
+                        <NotesPanel
+                          notes={notes}
+                          isNotesLoading={isNotesLoading}
+                          notesError={notesError}
+                          currentlyGeneratingDateKey={currentlyGeneratingDateKey}
+                          currentGenerationNotes={currentGenerationNotes}
+                          droppedNotes={droppedNotes}
+                          streamingReasoning={streamingReasoning}
+                          reasoningComplete={reasoningComplete}
+                          currentFile={currentFile}
+                          vaultId={vault?.id}
+                          currentReasoningId={currentReasoningId}
+                          reasoningHistory={reasoningHistory}
+                          handleNoteDropped={handleNoteDropped}
+                          handleNoteRemoved={handleNoteRemoved}
+                          handleCurrentGenerationNote={handleCurrentGenerationNote}
+                          handleCollapseComplete={handleCollapseComplete}
+                          formatDate={formatDate}
+                          isNotesRecentlyGenerated={isNotesRecentlyGenerated}
+                          currentReasoningElapsedTime={currentReasoningElapsedTime}
+                          generateNewSuggestions={generateNewSuggestions}
+                          noteGroupsData={noteGroupsData}
+                          virtuosoRef={virtuosoRef}
+                          notesContainerRef={notesContainerRef}
+                          streamingNotes={streamingNotes}
+                          scanAnimationComplete={scanAnimationComplete}
+                        />
                       </motion.div>
                     )}
                   </AnimatePresence>
-                  <div className="flex flex-col items-center space-y-2 absolute bottom-4 right-4 z-20">
-                    {droppedNotes.length > 0 && (
-                      <VaultButton
-                        onClick={toggleStackExpand}
-                        color="orange"
-                        size="small"
-                        title={isStackExpanded ? "Collapse notes stack" : "Expand notes stack"}
-                      >
-                        {isStackExpanded ? (
-                          <Cross2Icon className="w-3 h-3" />
-                        ) : (
-                          <StackIcon className="w-3 h-3" />
-                        )}
-                      </VaultButton>
-                    )}
-                    <VaultButton
-                      onClick={toggleNotes}
-                      disabled={isNotesLoading}
-                      size="small"
-                      title={showNotes ? "Hide Notes" : "Show Notes"}
-                    >
-                      <CopyIcon className="w-3 h-3" />
-                    </VaultButton>
-                  </div>
-                  <div className="absolute top-4 left-4 text-sm/7 z-10 flex items-center gap-2">
-                    {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
-                  </div>
-                  <div
-                    className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
-                  >
-                    <div className="h-full scrollbar-hidden relative">
-                      <CodeMirror
-                        value={markdownContent}
-                        height="100%"
-                        autoFocus
-                        placeholder={"What's on your mind?"}
-                        basicSetup={{
-                          rectangularSelection: true,
-                          indentOnInput: true,
-                          syntaxHighlighting: true,
-                          searchKeymap: true,
-                          highlightActiveLine: false,
-                          highlightSelectionMatches: false,
-                        }}
-                        indentWithTab={false}
-                        extensions={memoizedExtensions}
-                        onChange={onContentChange}
-                        className="overflow-auto h-full mx-8 scrollbar-hidden pt-4"
-                        theme={theme === "dark" ? "dark" : editorTheme}
-                        onCreateEditor={(view) => {
-                          codeMirrorViewRef.current = view
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div
-                    className={`reading-mode absolute inset-0 ${isEditMode ? "hidden" : "block overflow-hidden"}`}
-                    ref={readingModeRef}
-                  >
-                    <div className="prose dark:prose-invert h-full mx-8 overflow-auto scrollbar-hidden">
-                      <article className="@container h-full max-w-5xl mx-auto scrollbar-hidden">
-                        {previewNode && toJsx(previewNode)}
-                      </article>
-                    </div>
-                  </div>
-                </EditorDropTarget>
-                <AnimatePresence mode="wait">
-                  {showNotes && (
-                    <motion.div
-                      key="notes-panel"
-                      initial={{ width: 0, opacity: 0, overflow: "hidden" }}
-                      animate={{
-                        width: "22rem",
-                        opacity: 1,
-                        overflow: "visible",
-                      }}
-                      exit={{
-                        width: 0,
-                        opacity: 0,
-                        overflow: "hidden",
-                      }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 300,
-                        damping: 30,
-                        opacity: { duration: 0.2 },
-                      }}
-                      layout
-                    >
-                      <NotesPanel
-                        notes={notes}
-                        isNotesLoading={isNotesLoading}
-                        notesError={notesError}
-                        currentlyGeneratingDateKey={currentlyGeneratingDateKey}
-                        currentGenerationNotes={currentGenerationNotes}
-                        droppedNotes={droppedNotes}
-                        streamingReasoning={streamingReasoning}
-                        reasoningComplete={reasoningComplete}
-                        currentFile={currentFile}
-                        vaultId={vault?.id}
-                        currentReasoningId={currentReasoningId}
-                        reasoningHistory={reasoningHistory}
-                        handleNoteDropped={handleNoteDropped}
-                        handleNoteRemoved={handleNoteRemoved}
-                        handleCurrentGenerationNote={handleCurrentGenerationNote}
-                        handleCollapseComplete={handleCollapseComplete}
-                        formatDate={formatDate}
-                        isNotesRecentlyGenerated={isNotesRecentlyGenerated}
-                        currentReasoningElapsedTime={currentReasoningElapsedTime}
-                        generateNewSuggestions={generateNewSuggestions}
-                        noteGroupsData={noteGroupsData}
-                        virtuosoRef={virtuosoRef}
-                        notesContainerRef={notesContainerRef}
-                        streamingNotes={streamingNotes}
-                        scanAnimationComplete={scanAnimationComplete}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </Playspace>
-              <SearchCommand
-                maps={flattenedFileIds}
-                vault={vault!}
-                onFileSelect={handleFileSelect}
-              />
-            </SidebarInset>
-          </SidebarProvider>
-        </SearchProvider>
+                </Playspace>
+                <SearchCommand
+                  maps={flattenedFileIds}
+                  vault={vault!}
+                  onFileSelect={handleFileSelect}
+                />
+              </SidebarInset>
+            </SidebarProvider>
+          </SearchProvider>
+        </SteeringProvider>
       </NotesProvider>
     </DndProvider>
   )

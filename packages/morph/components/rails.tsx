@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { memo, useState, useCallback, useMemo } from "react"
+import { memo, useState, useCallback, useMemo, useEffect } from "react"
 import {
   LayoutIcon,
   PlusIcon,
@@ -34,11 +34,12 @@ import { motion, AnimatePresence } from "motion/react"
 interface FileTreeNodeProps {
   node: FileSystemTreeNode
   onFileSelect?: (node: FileSystemTreeNode) => void
+  isExpanded?: boolean
 }
 
 // TODO: reducer and context for states
 // https://react.dev/learn/scaling-up-with-reducer-and-context
-export const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect }: FileTreeNodeProps) {
+export const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect, isExpanded }: FileTreeNodeProps) {
   const [isOpen, setIsOpen] = useState(node.isOpen ?? false)
 
   const toggleOpen = useCallback(() => {
@@ -59,7 +60,7 @@ export const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect }: F
             ) : (
               <ChevronRightIcon className="transition-transform w-3.5 h-3.5 mr-1 shrink-0" />
             )}
-            <span className="truncate">{node.name}</span>
+            <span className={isExpanded ? "!whitespace-normal !break-words" : "truncate"}>{node.name}</span>
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
@@ -70,13 +71,14 @@ export const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect }: F
                   key={`${child.name}.${child.extension}`}
                   node={child}
                   onFileSelect={onFileSelect}
+                  isExpanded={isExpanded}
                 />
               ))}
           </SidebarMenuSub>
         </CollapsibleContent>
       </SidebarMenuItem>
     ),
-    [isOpen, toggleOpen, node, onFileSelect],
+    [isOpen, toggleOpen, node, onFileSelect, isExpanded],
   )
 
   const MemoizedSidebarFileItem = useMemo(
@@ -85,10 +87,10 @@ export const FileTreeNode = memo(function FileTreeNode({ node, onFileSelect }: F
         className="data-[active=true]:bg-transparent hover:bg-accent/50 transition-colors flex items-center cursor-pointer w-full text-xs py-1"
         onClick={handleFileClick}
       >
-        <span className="truncate">{node.name}</span>
+        <span className={isExpanded ? "!whitespace-normal !break-words" : "truncate"}>{node.name}</span>
       </SidebarMenuButton>
     ),
-    [handleFileClick, node],
+    [handleFileClick, node, isExpanded],
   )
 
   // Filter out non-markdown files
@@ -124,7 +126,20 @@ export default memo(function Rails({
   const { toast } = useToast()
   const { toggleSidebar, state } = useSidebar()
   const isExpanded = state === "expanded"
+  const [showFileTree, setShowFileTree] = useState(false)
   const router = useRouter()
+
+  // Delay showing file tree until animation completes
+  useEffect(() => {
+    if (isExpanded) {
+      const timer = setTimeout(() => {
+        setShowFileTree(true)
+      }, 300) // Match animation duration
+      return () => clearTimeout(timer)
+    } else {
+      setShowFileTree(false)
+    }
+  }, [isExpanded])
 
   const onManageVault = useCallback(() => {
     setTimeout(() => {
@@ -207,20 +222,20 @@ export default memo(function Rails({
           type: "spring",
           stiffness: 300,
           damping: 30,
+          duration: 0.2
         }}
       >
         <motion.nav
-          className={cn(
-            "h-screen flex flex-col items-center py-4 gap-3 fixed top-0 left-0 z-20 border-border border-r",
-            "shadow-xl !bg-bg-300 backdrop-blur-sm",
-          )}
+          className="h-screen flex flex-col items-center py-4 gap-3 fixed top-0 left-0 z-20 border-border border-r"
           animate={{
             width: isExpanded ? "16rem" : "3.05rem",
+            maxWidth: isExpanded ? "18rem" : "3.05rem",
           }}
           transition={{
             type: "spring",
             stiffness: 300,
             damping: 30,
+            duration: 0.3
           }}
         >
           <div className="flex w-full items-center gap-px px-2">
@@ -233,36 +248,24 @@ export default memo(function Rails({
               )}
               title={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
             >
-              <AnimatePresence mode="wait">
                 {isExpanded ? (
-                  <motion.div
-                    key="expanded"
-                    initial={{ opacity: 0, rotate: -10 }}
-                    animate={{ opacity: 1, rotate: 0 }}
-                    exit={{ opacity: 0, rotate: 10 }}
-                    transition={{ duration: 0.2 }}
+                  <div
                     className="relative"
                   >
-                    <PinLeftIcon className="h-4 w-4 absolute opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <LayoutIcon className="h-4 w-4 group-hover:opacity-0 transition-opacity" />
-                  </motion.div>
+                    <PinLeftIcon className="h-4 w-4 absolute opacity-0 group-hover:opacity-100" />
+                    <LayoutIcon className="h-4 w-4 group-hover:opacity-0" />
+                  </div>
                 ) : (
-                  <motion.div
-                    key="collapsed"
-                    initial={{ opacity: 0, rotate: 10 }}
-                    animate={{ opacity: 1, rotate: 0 }}
-                    exit={{ opacity: 0, rotate: -10 }}
-                    transition={{ duration: 0.2 }}
+                  <div
                     className="relative"
                   >
-                    <PinRightIcon className="h-4 w-4 absolute opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <LayoutIcon className="h-4 w-4 group-hover:opacity-0 transition-opacity" />
-                  </motion.div>
+                    <PinRightIcon className="h-4 w-4 absolute opacity-0 group-hover:opacity-100" />
+                    <LayoutIcon className="h-4 w-4 group-hover:opacity-0" />
+                  </div>
                 )}
-              </AnimatePresence>
             </VaultButton>
           </div>
-          <div className="flex flex-col align-center h-full w-full overflow-hidden">
+          <div className="flex flex-col align-center h-full w-full">
             <div className="flex flex-col px-2 pt-1 gap-2 mb-6">
               <div className="relative group">
                 <Tooltip>
@@ -284,21 +287,19 @@ export default memo(function Rails({
                           </div>
                         </div>
                         <motion.span
-                          className="truncate text-sm whitespace-nowrap mask-image-text overflow-hidden"
+                          className="text-sm whitespace-normal break-words mask-image-text"
                           animate={{
                             opacity: isExpanded ? 1 : 0,
-                            width: isExpanded ? "auto" : 0,
                           }}
                           transition={{
                             opacity: { duration: 0.2 },
-                            width: {
-                              type: "spring",
-                              stiffness: 300,
-                              damping: 30,
-                            },
+                          }}
+                          style={{
+                            width: isExpanded ? 'calc(100% - 2rem)' : 0,
+                            display: isExpanded ? 'inline-block' : 'none',
                           }}
                         >
-                          New file
+                          New
                         </motion.span>
                       </div>
                     </VaultButton>
@@ -326,18 +327,17 @@ export default memo(function Rails({
                           <CrumpledPaperIcon className="h-4 w-4 shrink-0 group-hover:-translate-y-[0.5px] transition group-active:translate-y-0" />
                         </div>
                         <motion.span
-                          className="truncate text-sm whitespace-nowrap mask-image-text overflow-hidden"
+                          className="text-sm whitespace-normal break-words mask-image-text"
+                          initial={false}
                           animate={{
                             opacity: isExpanded ? 1 : 0,
-                            width: isExpanded ? "auto" : 0,
                           }}
                           transition={{
-                            opacity: { duration: 0.2 },
-                            width: {
-                              type: "spring",
-                              stiffness: 300,
-                              damping: 30,
-                            },
+                            opacity: { duration: 0.1 },
+                          }}
+                          style={{
+                            width: isExpanded ? 'calc(100% - 2rem)' : 0,
+                            display: isExpanded ? 'inline-block' : 'none',
                           }}
                         >
                           Home
@@ -352,7 +352,7 @@ export default memo(function Rails({
               </div>
             </div>
 
-            <AnimatePresence>
+            <AnimatePresence mode="sync">
               {isExpanded && (
                 <motion.div
                   initial={{ opacity: 0, height: 0, overflow: "hidden" }}
@@ -367,9 +367,13 @@ export default memo(function Rails({
                     overflow: "hidden",
                   }}
                   transition={{
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 30,
+                    opacity: { duration: 0.2 },
+                    height: {
+                      type: "spring",
+                      stiffness: 300,
+                      damping: 30,
+                      duration: 0.2
+                    }
                   }}
                   className="flex flex-grow flex-col overflow-y-auto overflow-x-hidden relative px-2 mb-2"
                 >
@@ -380,9 +384,9 @@ export default memo(function Rails({
                     <SidebarGroup className="p-0">
                       <SidebarGroupContent>
                         <SidebarMenu>
-                          {vault &&
+                          {vault && showFileTree &&
                             vault.tree!.children!.map((node, idx) => (
-                              <FileTreeNode key={idx} node={node} onFileSelect={handleFileSelect} />
+                              <FileTreeNode key={idx} node={node} onFileSelect={handleFileSelect} isExpanded={isExpanded} />
                             ))}
                         </SidebarMenu>
                       </SidebarGroupContent>

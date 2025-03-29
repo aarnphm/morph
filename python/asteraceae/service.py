@@ -1,25 +1,38 @@
 from __future__ import annotations
 
-import logging, argparse, enum, traceback, os, contextlib, pathlib, typing as t
+import logging, argparse, traceback, os, contextlib, pathlib, typing as t
 import bentoml, fastapi, pydantic, jinja2, annotated_types as ae
 
 with bentoml.importing():
   import hnswlib, openai
 
   from openai.types.chat import ChatCompletionUserMessageParam
+  from openai.types.completion_usage import CompletionUsage
   from llama_index.core import VectorStoreIndex
   from llama_index.core.node_parser import SemanticSplitterNodeParser, SentenceSplitter
   from llama_index.core.schema import TextNode
   from llama_index.embeddings.openai import OpenAIEmbedding
   from llama_index.vector_stores.hnswlib import HnswlibVectorStore
 
+  from protocol import ServiceOpts
+
+from protocol import (
+  ReasoningModels,
+  EmbeddingModels,
+  SERVICE_CONFIG,
+  EmbedType,
+  ModelType,
+  Essay,
+  Note,
+  EmbedMetadata,
+  EmbedTask,
+  DocumentType,
+)
+
 if t.TYPE_CHECKING:
   from vllm.entrypoints.openai.protocol import DeltaMessage
-  from _bentoml_sdk.service.config import ResourceSchema
-  from _bentoml_sdk.images import Image
-  from _bentoml_sdk.service.config import TrafficSchema, TracingSchema
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('bentoml.service')
 
 
 WORKING_DIR = pathlib.Path(__file__).parent
@@ -27,86 +40,11 @@ IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
 MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 16 * 1024))
 MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 8 * 1024))
 
-ModelType = t.Literal['r1-qwen', 'r1-qwen-small', 'r1-qwen-tiny', 'r1-qwen-fast', 'r1-llama', 'r1-llama-small', 'qwq']
-
-
-class LLMMetadata(t.TypedDict):
-  model_id: str
-  structured_output_backend: str
-  resources: ResourceSchema
-
-
-REASONING_MODELS: dict[ModelType, LLMMetadata] = {
-  'r1-qwen': LLMMetadata(
-    model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-32B',
-    structured_output_backend='xgrammar:disable-any-whitespace',
-    resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
-  ),
-  'r1-qwen-small': LLMMetadata(
-    model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-14B',
-    structured_output_backend='xgrammar:disable-any-whitespace',
-    resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
-  ),
-  'r1-qwen-fast': LLMMetadata(
-    model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B',
-    structured_output_backend='xgrammar:disable-any-whitespace',
-    resources={'gpu': 1, 'gpu_type': 'nvidia-tesla-a100'},
-  ),
-  'r1-qwen-tiny': LLMMetadata(
-    model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B',
-    structured_output_backend='xgrammar:disable-any-whitespace',
-    resources={'gpu': 1, 'gpu_type': 'nvidia-l4'},
-  ),
-  'r1-llama': LLMMetadata(
-    model_id='deepseek-ai/DeepSeek-R1-Distill-Llama-70B',
-    structured_output_backend='xgrammar',
-    resources={'gpu': 2, 'gpu_type': 'nvidia-a100-80gb'},
-  ),
-  'r1-llama-small': LLMMetadata(
-    model_id='deepseek-ai/DeepSeek-R1-Distill-Llama-8B',
-    structured_output_backend='xgrammar',
-    resources={'gpu': 1, 'gpu_type': 'nvidia-tesla-a100'},
-  ),
-  'qwq': LLMMetadata(
-    model_id='Qwen/QwQ-32B', structured_output_backend='xgrammar', resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'}
-  ),
-}
-INFERENCE_ID: str = (llm_ := REASONING_MODELS[t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))])['model_id']
+LLM_ID: str = (llm_ := ReasoningModels[t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))])['model_id']
 STRUCTURED_OUTPUT_BACKEND = llm_['structured_output_backend']
 
-EmbedType = t.Literal['gte-qwen']
-
-
-class EmbeddingModelMetadata(t.TypedDict):
-  model_id: str
-  dimensions: int
-  resources: ResourceSchema
-
-
-EMBEDDING_MODELS: dict[EmbedType, EmbeddingModelMetadata] = {
-  'gte-qwen': EmbeddingModelMetadata(
-    model_id='Alibaba-NLP/gte-Qwen2-7B-instruct', dimensions=3584, resources={'gpu': 1, 'gpu_type': 'nvidia-l4'}
-  )
-}
-EMBEDDING_ID = (embed_ := EMBEDDING_MODELS[t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen'))])['model_id']
+EMBED_ID: str = (embed_ := EmbeddingModels[t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen'))])['model_id']
 DIMENSIONS = embed_['dimensions']
-
-
-class ServiceOpts(t.TypedDict, total=False):
-  name: str
-  image: Image
-  traffic: TrafficSchema
-  tracing: TracingSchema
-  resources: ResourceSchema
-
-
-SERVICE_CONFIG: ServiceOpts = {
-  'tracing': {'sample_rate': 1.0},
-  'traffic': {'timeout': 1000, 'concurrency': 128},
-  'image': bentoml.images.PythonImage(python_version='3.11', lock_python_packages=False)
-  .pyproject_toml('pyproject.toml')
-  .run('uv pip install --compile-bytecode flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.6'),
-}
 
 
 def make_engine_service_config(type_: t.Literal['llm', 'embed'] = 'llm') -> ServiceOpts:
@@ -117,15 +55,18 @@ def make_engine_service_config(type_: t.Literal['llm', 'embed'] = 'llm') -> Serv
   }
 
 
-def make_env(engine_version: t.Literal[0, 1] = 1) -> list[dict[str, str]]:
-  return [
-    {'name': 'HF_TOKEN'},
+def make_env(engine_version: t.Literal[0, 1] = 1, *, skip_hf: bool = False) -> list[dict[str, str]]:
+  results = []
+  if not skip_hf:
+    results.append({'name': 'HF_TOKEN'})
+  results.extend([
     {'name': 'UV_NO_PROGRESS', 'value': '1'},
     {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
     {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
     {'name': 'VLLM_USE_V1', 'value': str(engine_version)},
     {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': (WORKING_DIR / 'logging-config.json').__fspath__()},
-  ]
+  ])
+  return results
 
 
 TaskType = t.Literal['generate', 'embed']
@@ -183,6 +124,7 @@ def make_labels(task: TaskType) -> dict[str, t.Any]:
 class Suggestion(pydantic.BaseModel):
   suggestion: str
   reasoning: str = pydantic.Field(default='')
+  usage: t.Optional[CompletionUsage] = None
 
 
 class Suggestions(pydantic.BaseModel):
@@ -195,7 +137,7 @@ inference_api = fastapi.FastAPI()
 @bentoml.asgi_app(inference_api, path='/v1')
 @bentoml.service(labels=make_labels('generate'), envs=make_env(0), **make_engine_service_config())
 class Engine:
-  model_id = INFERENCE_ID
+  model_id = LLM_ID
   model = bentoml.models.HuggingFaceModel(model_id, exclude=IGNORE_PATTERNS)
 
   def __init__(self):
@@ -226,45 +168,15 @@ class Engine:
     await self.exit_stack.aclose()
 
 
-class Essay(pydantic.BaseModel):
-  vault_id: str
-  file_id: str
-  content: str
-
-
-class Note(pydantic.BaseModel):
-  vault_id: str
-  file_id: str
-  note_id: str
-  content: str
-
-
-class DocumentType(enum.IntEnum):
-  ESSAY = 1
-  NOTE = enum.auto()
-
-
-class EmbedMetadata(pydantic.BaseModel):
-  vault: str
-  file: str
-  type: DocumentType
-  note: t.Optional[str] = pydantic.Field(default=None)
-
-
-class EmbedTask(pydantic.BaseModel):
-  metadata: EmbedMetadata
-  embedding: list[float]
-  error: str = pydantic.Field(default='')
-
-
 embedding_api = fastapi.FastAPI()
 
 
 @bentoml.asgi_app(embedding_api, path='/v1')
 @bentoml.service(labels=make_labels('embed'), envs=make_env(0), **make_engine_service_config('embed'))
 class Embeddings:
-  model_id = EMBEDDING_ID
+  model_id = EMBED_ID
   model = bentoml.models.HuggingFaceModel(model_id, exclude=IGNORE_PATTERNS)
+  metapath = WORKING_DIR / 'indexes'
 
   # vector stores configuration
   dimensions: int = DIMENSIONS
@@ -272,7 +184,6 @@ class Embeddings:
   ef_construction: int = 50
   max_elements: int = 10000
   space: t.Literal['ip', 'l2', 'cosine'] = 'l2'
-  metapath: str = WORKING_DIR / 'indexes'
 
   def __init__(self):
     self.exit_stack = contextlib.AsyncExitStack()
@@ -446,17 +357,16 @@ class Embeddings:
     }
   },
   labels={'owner': 'aarnphm', 'type': 'api'},
-  envs=[
-    {'name': 'UV_NO_PROGRESS', 'value': '1'},
-    {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
-    {'name': 'VLLM_USE_V1', 'value': '0'},
-    {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': (WORKING_DIR / 'logging-config.json').__fspath__()},
-  ],
+  envs=make_env(0, skip_hf=True),
   **SERVICE_CONFIG,
 )
 class API:
-  inference = bentoml.depends(Engine)
-  embedding = bentoml.depends(Embeddings)
+  if os.getenv('YATAI_T_VERSION'):
+    inference = bentoml.depends(Engine)
+    embedding = bentoml.depends(Embeddings)
+  else:
+    inference = bentoml.depends(url=f'http://127.0.0.1:{os.getenv("LLM_PORT", "3001")}', on=Engine)
+    embedding = bentoml.depends(url=f'http://127.0.0.1:{os.getenv("EMBED_PORT", "3002")}', on=Embeddings)
 
   def __init__(self):
     self.inference_client = openai.AsyncOpenAI(base_url=f'{self.inference.client_url}/v1', api_key='dummy')
@@ -473,7 +383,7 @@ class API:
     )
     try:
       results = await self.embedding_client.embeddings.create(
-        input=[content], model=EMBEDDING_ID, extra_headers={'Runner-Name': Embeddings.name}
+        input=[content], model=EMBED_ID, extra_headers={'Runner-Name': Embeddings.name}
       )
       embed_task = EmbedTask(metadata=metadata, embedding=results.data[0].embedding)
 
@@ -488,10 +398,10 @@ class API:
   async def suggests(
     self,
     essay: str,
-    authors: t.Optional[t.Annotated[list[str], ae.Ge(1)]] = None,
+    authors: t.Optional[list[str]] = None,
     tonality: t.Optional[dict[str, t.Any]] = None,
     num_suggestions: t.Annotated[int, ae.Ge(2)] = 3,
-    temperature: t.Annotated[float, ae.Ge(0.5), ae.Le(0.7)] = 0.6,
+    temperature: t.Annotated[float, ae.Ge(0), ae.Le(1)] = 0.6,
     max_tokens: t.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
   ) -> t.AsyncGenerator[str, None]:
     # TODO: add tonality lookup and steering vector strength for influence the distributions
@@ -505,7 +415,7 @@ class API:
 
     try:
       completions = await self.inference_client.chat.completions.create(
-        model=INFERENCE_ID,
+        model=LLM_ID,
         temperature=temperature,
         max_tokens=max_tokens,
         messages=[ChatCompletionUserMessageParam(role='user', content=PROMPT)],
@@ -516,9 +426,11 @@ class API:
       async for chunk in completions:
         delta_choice = t.cast('DeltaMessage', chunk.choices[0].delta)
         if hasattr(delta_choice, 'reasoning_content'):
-          s = Suggestion(suggestion=delta_choice.content or '', reasoning=delta_choice.reasoning_content or '')
+          s = Suggestion(
+            suggestion=delta_choice.content or '', reasoning=delta_choice.reasoning_content or '', usage=chunk.usage
+          )
         else:
-          s = Suggestion(suggestion=delta_choice.content or '')
+          s = Suggestion(suggestion=delta_choice.content or '', usage=chunk.usage)
         if not prefill:
           prefill = True
           yield ''

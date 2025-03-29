@@ -182,7 +182,7 @@ export function ReasoningPanel({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="text-xs text-muted-foreground whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72"
+            className="text-xs text-foreground whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72"
           >
             <span>{reasoning}</span>
           </motion.div>
