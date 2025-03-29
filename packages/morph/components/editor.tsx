@@ -93,7 +93,6 @@ interface NoteGroupProps {
   }
   currentFile: string
   vaultId?: string
-  handleCollapseComplete: () => void
   handleNoteDropped: (note: Note) => void
   onNoteRemoved: (noteId: string) => void
   formatDate: (dateStr: string) => React.ReactNode
@@ -111,7 +110,6 @@ const MemoizedNoteGroup = memo(
     onNoteRemoved,
     formatDate,
     isGenerating = false,
-    handleCollapseComplete,
   }: NoteGroupProps) {
     // Memoize the callbacks to ensure they have stable references
     const stableHandleNoteDropped = useCallback(
@@ -147,12 +145,11 @@ const MemoizedNoteGroup = memo(
             vaultId={vaultId}
             reasoningId={reasoning.id}
             shouldExpand={false}
-            onCollapseComplete={handleCollapseComplete}
             elapsedTime={reasoning.reasoningElapsedTime || 0}
           />
         </div>
       )
-    }, [reasoning, currentFile, vaultId, handleCollapseComplete])
+    }, [reasoning, currentFile, vaultId])
 
     return (
       <div className="space-y-4">
@@ -399,13 +396,11 @@ interface NotesPanelProps {
   handleNoteDropped: (note: Note) => void
   handleNoteRemoved: (noteId: string) => void
   handleCurrentGenerationNote: (note: Note) => void
-  handleCollapseComplete: () => void
   formatDate: (dateStr: string) => React.ReactNode
   isNotesRecentlyGenerated: boolean
   currentReasoningElapsedTime: number
   generateNewSuggestions: (steeringSettings: SteeringSettings) => void
   noteGroupsData: [string, Note[]][]
-  virtuosoRef: React.RefObject<any>
   notesContainerRef: React.RefObject<HTMLDivElement | null>
   streamingNotes?: StreamingNote[]
   scanAnimationComplete?: boolean
@@ -470,13 +465,11 @@ const NotesPanel = memo(function NotesPanel({
   handleNoteDropped,
   handleNoteRemoved,
   handleCurrentGenerationNote,
-  handleCollapseComplete,
   formatDate,
   isNotesRecentlyGenerated,
   currentReasoningElapsedTime,
   generateNewSuggestions,
   noteGroupsData,
-  virtuosoRef,
   notesContainerRef,
   streamingNotes,
   scanAnimationComplete,
@@ -518,6 +511,36 @@ const NotesPanel = memo(function NotesPanel({
     },
     [drop],
   )
+
+  const itemContent = useCallback((_index: number, group: [string, Note[]]) => {
+                      // Add a safety check for when group is undefined or not properly formed
+                      if (!group || !Array.isArray(group) || group.length < 2) {
+                        return memoizedNoteSkeletons
+                      }
+
+                      const [dateStr, dateNotes] = group
+
+                      // Only handle historical notes now
+                      const dateReasoning = reasoningHistory.find((r) =>
+                        r.noteIds.some((id) => dateNotes.some((note: Note) => note.id === id)),
+                      )
+
+                      return (
+                        <div className="mb-6">
+                          <MemoizedNoteGroup
+                            dateStr={dateStr}
+                            dateNotes={dateNotes}
+                            reasoning={dateReasoning}
+                            currentFile={currentFile}
+                            vaultId={vaultId}
+                            handleNoteDropped={handleNoteDropped}
+                            onNoteRemoved={handleNoteRemoved}
+                            formatDate={formatDate}
+                            isGenerating={false}
+                          />
+                        </div>
+    )
+  }, [memoizedNoteSkeletons, currentFile, vaultId, handleNoteDropped, handleNoteRemoved, formatDate, reasoningHistory])
 
   return (
     <div
@@ -566,7 +589,6 @@ const NotesPanel = memo(function NotesPanel({
                           vaultId={vaultId}
                           reasoningId={currentReasoningId}
                           shouldExpand={isNotesLoading || currentGenerationNotes.length > 0}
-                          onCollapseComplete={handleCollapseComplete}
                           elapsedTime={currentReasoningElapsedTime}
                         />
                       </div>
@@ -637,44 +659,13 @@ const NotesPanel = memo(function NotesPanel({
                     data={noteGroupsData}
                     overscan={5}
                     components={{ ScrollSeekPlaceholder }}
-                    itemContent={(index, group) => {
-                      // Add a safety check for when group is undefined or not properly formed
-                      if (!group || !Array.isArray(group) || group.length < 2) {
-                        return memoizedNoteSkeletons
-                      }
-
-                      const [dateStr, dateNotes] = group
-
-                      // Only handle historical notes now
-                      const dateReasoning = reasoningHistory.find((r) =>
-                        r.noteIds.some((id) => dateNotes.some((note: Note) => note.id === id)),
-                      )
-
-                      return (
-                        <div className="mb-6">
-                          <MemoizedNoteGroup
-                            key={index}
-                            dateStr={dateStr}
-                            dateNotes={dateNotes}
-                            reasoning={dateReasoning}
-                            currentFile={currentFile}
-                            vaultId={vaultId}
-                            handleNoteDropped={handleNoteDropped}
-                            onNoteRemoved={handleNoteRemoved}
-                            formatDate={formatDate}
-                            isGenerating={false}
-                            handleCollapseComplete={handleCollapseComplete}
-                          />
-                        </div>
-                      )
-                    }}
-                    initialItemCount={10}
+                    itemContent={itemContent}
+                    initialItemCount={1}
                     increaseViewportBy={{ top: 100, bottom: 100 }}
                     scrollSeekConfiguration={{
                       enter: (velocity) => Math.abs(velocity) > 1000,
                       exit: (velocity) => Math.abs(velocity) < 100,
                     }}
-                    ref={virtuosoRef}
                     customScrollParent={notesContainerRef.current!}
                   />
                 </div>
@@ -857,7 +848,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [reasoningComplete, setReasoningComplete] = useState(false)
   const [currentReasoningElapsedTime, setCurrentReasoningElapsedTime] = useState(0)
   const [lastNotesGeneratedTime, setLastNotesGeneratedTime] = useState<Date | null>(null)
-  const virtuosoRef = useRef<HTMLDivElement>(null)
   const notesContainerRef = useRef<HTMLDivElement>(null)
   const [reasoningHistory, setReasoningHistory] = useState<ReasoningHistory[]>([])
   const [currentReasoningId, setCurrentReasoningId] = useState<string>("")
@@ -1728,8 +1718,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [currentFile, vault, markdownContent, fetchNewNotes, streamingSuggestionColors],
   )
 
-  const handleCollapseComplete = useCallback(() => {}, [])
-
   // Fetch notes and associated reasoning history when the file changes or when notes panel opens
   useEffect(() => {
     if (!currentFile || !vault) return
@@ -1944,7 +1932,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       ref={readingModeRef}
                     >
                       <div className="prose dark:prose-invert h-full mr-8 overflow-auto scrollbar-hidden">
-                        <article className="@container h-full max-w-5xl mx-auto scrollbar-hidden">
+                        <article className="@container h-full max-w-5xl mx-auto scrollbar-hidden mt-4">
                           {previewNode && toJsx(previewNode)}
                         </article>
                       </div>
@@ -1989,13 +1977,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                           handleNoteDropped={handleNoteDropped}
                           handleNoteRemoved={handleNoteRemoved}
                           handleCurrentGenerationNote={handleCurrentGenerationNote}
-                          handleCollapseComplete={handleCollapseComplete}
                           formatDate={formatDate}
                           isNotesRecentlyGenerated={isNotesRecentlyGenerated}
                           currentReasoningElapsedTime={currentReasoningElapsedTime}
                           generateNewSuggestions={generateNewSuggestions}
                           noteGroupsData={noteGroupsData}
-                          virtuosoRef={virtuosoRef}
                           notesContainerRef={notesContainerRef}
                           streamingNotes={streamingNotes}
                           scanAnimationComplete={scanAnimationComplete}

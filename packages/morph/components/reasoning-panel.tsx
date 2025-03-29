@@ -59,7 +59,6 @@ interface ReasoningPanelProps {
   currentFile?: string
   vaultId?: string
   shouldExpand?: boolean
-  onCollapseComplete?: () => void
   elapsedTime: number
 }
 
@@ -72,7 +71,6 @@ export function ReasoningPanel({
   vaultId,
   reasoningId,
   shouldExpand = false,
-  onCollapseComplete,
   elapsedTime,
 }: ReasoningPanelProps) {
   const [isExpanded, setIsExpanded] = useState(shouldExpand)
@@ -91,14 +89,11 @@ export function ReasoningPanel({
       // Add a small delay before collapsing
       const timerId = setTimeout(() => {
         setIsExpanded(false)
-        if (onCollapseComplete) {
-          onCollapseComplete()
-        }
       }, 2000) // 2 seconds after completion
 
       return () => clearTimeout(timerId)
     }
-  }, [isComplete, isStreaming, onCollapseComplete, shouldExpand])
+  }, [isComplete, isStreaming, shouldExpand])
 
   // Start timer when streaming begins
   useEffect(() => {
@@ -135,21 +130,21 @@ export function ReasoningPanel({
   }
 
   return (
-    <div className={cn("w-full border rounded-md", className)}>
+    <div
+      className={cn("w-full border rounded-md transition-colors duration-200", className)}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
       <div
         className={cn(
           "flex items-center justify-between text-xs p-1",
           isExpanded && "shadow-lg transition-shadow duration-300",
+          isHovering ? "text-foreground" : "text-muted-foreground",
         )}
       >
         <button
           onClick={toggleExpand}
-          onMouseEnter={() => setIsHovering(true)}
-          onMouseLeave={() => setIsHovering(false)}
-          className={cn(
-            "flex items-center gap-1 hover:text-foreground transition-colors text-left",
-            !isExpanded || (isStreaming && "text-muted-foreground"),
-          )}
+          className="flex items-center gap-1 transition-colors text-left"
         >
           <motion.div
             animate={{ rotate: isExpanded ? 90 : 0 }}
@@ -169,9 +164,7 @@ export function ReasoningPanel({
           )}
         </button>
 
-        <div className="flex items-center">
-          { isStreaming && <LoadingDots /> }
-        </div>
+        <div className="flex items-center">{isStreaming && <LoadingDots />}</div>
       </div>
 
       <AnimatePresence>
@@ -181,8 +174,11 @@ export function ReasoningPanel({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="text-xs text-foreground whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72"
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className={cn(
+              "text-xs whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72 transition-colors duration-200",
+              isHovering ? "text-foreground" : "text-muted-foreground",
+            )}
           >
             <span>{reasoning}</span>
           </motion.div>

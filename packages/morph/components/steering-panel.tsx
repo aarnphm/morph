@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect, memo } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { ChevronLeftIcon, MixerHorizontalIcon, Cross2Icon, PlusIcon } from "@radix-ui/react-icons"
+import { MixerHorizontalIcon, Cross2Icon, PlusIcon } from "@radix-ui/react-icons"
 import { cn } from "@/lib"
 import { VaultButton } from "@/components/ui/button"
 import { useSteeringContext } from "@/context/steering-context"
@@ -141,19 +141,42 @@ interface TonalityRadarProps {
 function TonalityRadar({ value, onChange, enabled, onToggle, className }: TonalityRadarProps) {
   const isInternalChange = useRef(false)
   const [tonality, setTonality] = useState<Record<string, number>>(value)
+  const previousTonalityRef = useRef<Record<string, number>>(value)
+
+  // Compare two tonality objects for equality
+  const isTonalityEqual = useCallback((a: Record<string, number>, b: Record<string, number>) => {
+    const keysA = Object.keys(a)
+    const keysB = Object.keys(b)
+
+    if (keysA.length !== keysB.length) return false
+
+    return keysA.every((key) => {
+      // Use a small epsilon for floating point comparison
+      const epsilon = 0.00001
+      return Math.abs(a[key] - b[key]) < epsilon
+    })
+  }, [])
 
   useEffect(() => {
     if (!isInternalChange.current && enabled) {
-      setTonality(value)
+      // Only update local state if the values are actually different
+      if (!isTonalityEqual(tonality, value)) {
+        setTonality(value)
+        previousTonalityRef.current = value
+      }
     }
     isInternalChange.current = false
-  }, [enabled, value])
+  }, [enabled, value, tonality, isTonalityEqual])
 
   useEffect(() => {
-    if (enabled) {
-      onChange(tonality)
+    if (enabled && !isInternalChange.current) {
+      // Only call onChange if tonality has actually changed from previous value
+      if (!isTonalityEqual(tonality, previousTonalityRef.current)) {
+        previousTonalityRef.current = tonality
+        onChange(tonality)
+      }
     }
-  }, [enabled, onChange, tonality])
+  }, [enabled, onChange, tonality, isTonalityEqual])
 
   const handleTonalityChange = (key: string, value: number) => {
     isInternalChange.current = true
@@ -175,6 +198,8 @@ function TonalityRadar({ value, onChange, enabled, onToggle, className }: Tonali
     }
 
     setTonality(newTonality)
+    previousTonalityRef.current = newTonality
+
     if (enabled) {
       onChange(newTonality)
     }
@@ -293,7 +318,7 @@ function SuggestionsSlider({ value, onChange, className }: SuggestionsSliderProp
   return (
     <div className={cn("space-y-2", className)}>
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-foreground">Number of Sticky Notes</label>
+        <label className="text-sm font-medium text-foreground">Notes</label>
         <span className="text-xs text-foreground">{value}</span>
       </div>
       <input
@@ -375,31 +400,43 @@ export default memo(function SteeringPanel({ className }: { className?: string }
             exit={{ opacity: 0, y: -20, height: 0 }}
             className="w-52 lg:w-72 rounded-lg border border-border bg-background/95 p-4 shadow-lg backdrop-blur-sm -translate-y-1/2"
           >
-            <div className="mb-4 flex items-center justify-end">
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
+              <h2 className="text-base font-semibold">Interpreter</h2>
               <button
                 onClick={() => setIsExpanded(false)}
-                className="rounded-full p-1 hover:bg-muted hover:text-foreground"
+                className="flex items-center justify-end h-6 w-6"
               >
-                <ChevronLeftIcon className="h-4 w-4" />
+                <Cross2Icon className="h-3 w-3" />
               </button>
             </div>
 
             <div className="space-y-6">
-              <AuthorsSelector value={settings.authors} onChange={handleUpdateAuthors} />
+              <div className="pb-4 border-b border-border">
+                <AuthorsSelector value={settings.authors} onChange={handleUpdateAuthors} />
+              </div>
 
-              <TonalityRadar
-                value={settings.tonality}
-                onChange={handleUpdateTonality}
-                enabled={settings.tonalityEnabled}
-                onToggle={handleToggleTonality}
-              />
+              <div className="pb-4 border-b border-border">
+                <TonalityRadar
+                  value={settings.tonality}
+                  onChange={handleUpdateTonality}
+                  enabled={settings.tonalityEnabled}
+                  onToggle={handleToggleTonality}
+                />
+              </div>
 
-              <TemperatureSlider value={settings.temperature} onChange={handleUpdateTemperature} />
+              <div className="pb-4 border-b border-border">
+                <TemperatureSlider
+                  value={settings.temperature}
+                  onChange={handleUpdateTemperature}
+                />
+              </div>
 
-              <SuggestionsSlider
-                value={settings.numSuggestions}
-                onChange={handleUpdateNumSuggestions}
-              />
+              <div>
+                <SuggestionsSlider
+                  value={settings.numSuggestions}
+                  onChange={handleUpdateNumSuggestions}
+                />
+              </div>
             </div>
           </motion.div>
         ) : (
