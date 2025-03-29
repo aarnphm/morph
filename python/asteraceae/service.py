@@ -238,7 +238,7 @@ class Embeddings:
   **SERVICE_CONFIG,
 )
 class API:
-  inference = bentoml.depends(Engine, url=make_url('generate'))
+  llm = bentoml.depends(Engine, url=make_url('generate'))
   embedding = bentoml.depends(Embeddings, url=make_url('embed'))
 
   metapath = WORKING_DIR / 'indexes'
@@ -251,22 +251,27 @@ class API:
   space: t.Literal['ip', 'l2', 'cosine'] = 'l2'
 
   def __init__(self):
-    self.llm_client = openai.AsyncOpenAI(base_url=f'{self.inference.client_url}/v1', api_key='dummy')
-    self.embed_client = openai.AsyncOpenAI(base_url=f'{self.embedding.client_url}/v1', api_key='dummy')
-
     loader = jinja2.FileSystemLoader(searchpath=WORKING_DIR)
     self.jinja2_env = jinja2.Environment(loader=loader)
 
   @bentoml.on_startup
-  def setup_parsers_tooling(self):
-    self.metapath.mkdir(exist_ok=True)
+  def setup_clients(self):
+    self.bento_llm = self.llm.to_async.client
+    self.bento_embedding = self.embedding.to_async.client
 
-    self.embed_model = OpenAIEmbedding(
-      api_key='dummy',
-      api_base=f'{self.embedding.client_url}/v1',
+    self.openai_llm = openai.AsyncOpenAI(http_client=self.bento_llm)
+    self.openai_embed = openai.AsyncOpenAI(http_client=self.bento_embedding)
+
+    self.wrapper_embed = OpenAIEmbedding(
       dimensions=self.dimensions,
+      http_client=self.embedding.to_sync.client,
+      async_http_client=self.embedding.to_async.client,
       default_headers={'Runner-Name': Embeddings.name},
     )
+
+  @bentoml.on_startup
+  def setup_parsers_tooling(self):
+    self.metapath.mkdir(exist_ok=True)
 
     tokenizer = transformers.AutoTokenizer.from_pretrained(Embeddings.inner.model_id)
     self.sentence_splitter = SentenceSplitter(
@@ -279,14 +284,14 @@ class API:
     self.chunker = SemanticSplitterNodeParser(
       buffer_size=1,
       breakpoint_percentile_threshold=95,
-      embed_model=self.embed_model,
+      embed_model=self.wrapper_embed,
       sentence_splitter=self.sentence_splitter,
     )
 
     hnsw_index = hnswlib.Index(space=self.space, dim=self.dimensions)
     hnsw_index.init_index(max_elements=self.max_elements, ef_construction=self.ef_construction, M=self.M)
     storage_context = StorageContext.from_defaults(vector_store=HnswlibVectorStore(hnsw_index))
-    self.index = VectorStoreIndex.from_documents([], storage_context=storage_context, embed_model=self.embed_model)
+    self.index = VectorStoreIndex.from_documents([], storage_context=storage_context, embed_model=self.wrapper_embed)
 
   @bentoml.task
   async def essays(self, essay: Essay) -> EmbedTask:
@@ -375,34 +380,29 @@ class API:
 
   @bentoml.api
   async def health(self, timeout: int = 30) -> HealthStatus:
-    async with (
-      bentoml.AsyncHTTPClient(self.inference.client_url) as llm_client,
-      bentoml.AsyncHTTPClient(self.embedding.client_url) as embed_client,
-    ):
-      services_health: list[ServiceHealth] = []
+    services_health: list[ServiceHealth] = []
 
-      async def check_service_health(client: bentoml.AsyncHTTPClient, name: str) -> ServiceHealth:
-        service_health = ServiceHealth(name=name)
-        try:
-          start_time = time.time()
-          service_health.healthy = await client.is_ready(timeout)
-          service_health.latency_ms = round((time.time() - start_time) * 1000, 2)
-        except Exception as e:
-          service_health.healthy = False
-          service_health.error = str(e)
-        return service_health
+    async def check_service_health(name: str) -> ServiceHealth:
+      service_health = ServiceHealth(name=name)
+      try:
+        start_time = time.time()
+        service_health.healthy = await getattr(self, f'bento_{name}').is_ready(timeout)
+        service_health.latency_ms = round((time.time() - start_time) * 1000, 2)
+      except Exception as e:
+        service_health.healthy = False
+        service_health.error = str(e)
+      return service_health
 
-      # Wait for all health check tasks to complete
-      services_health = await asyncio.gather(*[
-        asyncio.create_task(check_service_health(client, name))
-        for client, name in zip([llm_client, embed_client], ['inference', 'embeddings'])
-      ])
+    # Wait for all health check tasks to complete
+    services_health = await asyncio.gather(*[
+      asyncio.create_task(check_service_health(name)) for name in ['llm', 'embedding']
+    ])
 
-      return HealthStatus(
-        services=services_health,
-        healthy=all(service.healthy for service in services_health),
-        timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
-      )
+    return HealthStatus(
+      services=services_health,
+      healthy=all(service.healthy for service in services_health),
+      timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    )
 
   @bentoml.api
   async def suggests(
@@ -426,7 +426,7 @@ class API:
     prefill = False
 
     try:
-      completions = await self.llm_client.chat.completions.create(
+      completions = await self.openai_llm.chat.completions.create(
         model=LLM_ID,
         temperature=temperature,
         max_tokens=max_tokens,

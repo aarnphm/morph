@@ -860,6 +860,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [currentFileHandle, setCurrentFileHandle] = useState<FileSystemFileHandle | null>(null)
   const [scanAnimationComplete, setScanAnimationComplete] = useState(false)
+  const [showEphemeralBanner, setShowEphemeralBanner] = useState(false)
 
   const { settings } = usePersistedSettings()
   const codeMirrorViewRef = useRef<EditorView | null>(null)
@@ -1765,6 +1766,16 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
           )
         })
+
+        // Show banner if the file is still untitled
+        if (currentFile === "Untitled") {
+          setShowEphemeralBanner(true)
+          // Auto-dismiss after 7 seconds
+          const timer = setTimeout(() => setShowEphemeralBanner(false), 7000)
+          // TODO: Consider storing timer ID in a ref for cleanup if needed
+        } else {
+          setShowEphemeralBanner(false) // Ensure banner is hidden if file is saved
+        }
       } catch (error) {
         // Just show error for current generation and don't affect previous notes
         setNotesError("Notes not available for this generation, try again later")
@@ -1920,6 +1931,30 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               />
               <SidebarInset className="flex flex-col h-screen flex-1 overflow-hidden">
                 <Playspace vaultId={vaultId}>
+                  <AnimatePresence>
+                    {showEphemeralBanner && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                        className="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-50 bg-yellow-100 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-md shadow-md text-xs flex items-center space-x-2"
+                      >
+                        <span>
+                          📝 Suggestions are ephemeral and will be{" "}
+                          <span className="text-red-400">lost</span> unless the file is saved (
+                          <kbd>⌘ s</kbd>)
+                        </span>
+                        <button
+                          onClick={() => setShowEphemeralBanner(false)}
+                          className="text-yellow-800 hover:text-yellow-900 hover:cursor-pointer"
+                          aria-label="Dismiss notification"
+                        >
+                          <Cross2Icon className="w-3 h-3" />
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                   <EditorDropTarget handleNoteDropped={handleNoteDropped}>
                     <AnimatePresence>
                       {memoizedDroppedNotes.length > 0 && (
