@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import logging, argparse, traceback, asyncio, os, contextlib, pathlib, typing as t
+import logging, argparse, traceback, asyncio, os, contextlib, pathlib, time, datetime, typing as t
 import bentoml, fastapi, pydantic, jinja2, annotated_types as ae
 
 with bentoml.importing():
@@ -27,6 +27,8 @@ from libs.protocol import (
   EmbedMetadata,
   EmbedTask,
   DocumentType,
+  ServiceHealth,
+  HealthStatus,
 )
 
 if t.TYPE_CHECKING:
@@ -377,13 +379,34 @@ class API:
     return results
 
   @bentoml.api
-  async def health(self) -> bool:
+  async def health(self, timeout: int = 30) -> HealthStatus:
     async with (
       bentoml.AsyncHTTPClient(self.inference.client_url) as llm_client,
       bentoml.AsyncHTTPClient(self.embedding.client_url) as embed_client,
     ):
-      return all(
-        await asyncio.gather(*[asyncio.create_task(i) for i in [llm_client.is_ready(30), embed_client.is_ready(30)]])
+      services_health: list[ServiceHealth] = []
+
+      async def check_service_health(client: bentoml.AsyncHTTPClient, name: str) -> ServiceHealth:
+        service_health = ServiceHealth(name=name)
+        try:
+          start_time = time.time()
+          service_health.healthy = await client.is_ready(timeout)
+          service_health.latency_ms = round((time.time() - start_time) * 1000, 2)
+        except Exception as e:
+          service_health.healthy = False
+          service_health.error = str(e)
+        return service_health
+
+      # Wait for all health check tasks to complete
+      services_health = await asyncio.gather(*[
+        asyncio.create_task(check_service_health(client, name))
+        for client, name in zip([llm_client, embed_client], ['inference', 'embeddings'])
+      ])
+
+      return HealthStatus(
+        healthy=all(service.healthy for service in services_health),
+        services=services_health,
+        timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
       )
 
   @bentoml.api

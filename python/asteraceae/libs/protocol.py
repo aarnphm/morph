@@ -113,3 +113,16 @@ class EmbedTask(pydantic.BaseModel):
   metadata: EmbedMetadata
   embedding: list[float]
   error: str = pydantic.Field(default='')
+
+
+class ServiceHealth(pydantic.BaseModel):
+  name: str
+  healthy: bool
+  latency_ms: float = pydantic.Field(default=0.0)
+  error: str = pydantic.Field(default='')
+
+
+class HealthStatus(pydantic.BaseModel):
+  healthy: bool
+  services: list[ServiceHealth]
+  timestamp: str
