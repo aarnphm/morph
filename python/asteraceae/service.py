@@ -140,6 +140,7 @@ def make_env(engine_version: t.Literal[0, 1] = 1, *, skip_hf: bool = False) -> l
     results.append({'name': 'HF_TOKEN'})
   results.extend([
     {'name': 'UV_NO_PROGRESS', 'value': '1'},
+    {'name': 'CXX', 'value': '/usr/bin/c++'},
     {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
     {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
     {'name': 'VLLM_USE_V1', 'value': str(engine_version)},
