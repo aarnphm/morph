@@ -33,6 +33,7 @@ from libs.protocol import (
 )
 
 if t.TYPE_CHECKING:
+  from _bentoml_impl.client import RemoteProxy
   from vllm.entrypoints.openai.protocol import DeltaMessage
 
 logger = logging.getLogger('bentoml.service')
@@ -259,8 +260,8 @@ class API:
     self.bento_llm = self.llm.to_async.client
     self.bento_embedding = self.embedding.to_async.client
 
-    self.openai_llm = openai.AsyncOpenAI(http_client=self.bento_llm)
-    self.openai_embed = openai.AsyncOpenAI(http_client=self.bento_embedding)
+    self.openai_llm = openai.AsyncOpenAI(base_url=f'{self.llm.client_url}/v1', api_key='dummy')
+    self.openai_embed = openai.AsyncOpenAI(base_url=f'{self.embedding.client_url}/v1', api_key='dummy')
 
     self.wrapper_embed = OpenAIEmbedding(
       dimensions=self.dimensions,
@@ -292,6 +293,32 @@ class API:
     hnsw_index.init_index(max_elements=self.max_elements, ef_construction=self.ef_construction, M=self.M)
     storage_context = StorageContext.from_defaults(vector_store=HnswlibVectorStore(hnsw_index))
     self.index = VectorStoreIndex.from_documents([], storage_context=storage_context, embed_model=self.wrapper_embed)
+
+  @bentoml.api
+  async def health(self, timeout: int = 30) -> HealthStatus:
+    services_health: list[ServiceHealth] = []
+
+    async def check_service_health(name: str) -> ServiceHealth:
+      service_health = ServiceHealth(name=name)
+      try:
+        start_time = time.time()
+        service_health.healthy = await t.cast('RemoteProxy', getattr(self, name)).is_ready(timeout)
+        service_health.latency_ms = round((time.time() - start_time) * 1000, 2)
+      except Exception as e:
+        service_health.healthy = False
+        service_health.error = str(e)
+      return service_health
+
+    # Wait for all health check tasks to complete
+    services_health = await asyncio.gather(*[
+      asyncio.create_task(check_service_health(name)) for name in ['llm', 'embedding']
+    ])
+
+    return HealthStatus(
+      services=services_health,
+      healthy=all(service.healthy for service in services_health),
+      timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    )
 
   @bentoml.task
   async def essays(self, essay: Essay) -> EmbedTask:
@@ -377,32 +404,6 @@ class API:
         )
 
     return results
-
-  @bentoml.api
-  async def health(self, timeout: int = 30) -> HealthStatus:
-    services_health: list[ServiceHealth] = []
-
-    async def check_service_health(name: str) -> ServiceHealth:
-      service_health = ServiceHealth(name=name)
-      try:
-        start_time = time.time()
-        service_health.healthy = await getattr(self, f'bento_{name}').is_ready(timeout)
-        service_health.latency_ms = round((time.time() - start_time) * 1000, 2)
-      except Exception as e:
-        service_health.healthy = False
-        service_health.error = str(e)
-      return service_health
-
-    # Wait for all health check tasks to complete
-    services_health = await asyncio.gather(*[
-      asyncio.create_task(check_service_health(name)) for name in ['llm', 'embedding']
-    ])
-
-    return HealthStatus(
-      services=services_health,
-      healthy=all(service.healthy for service in services_health),
-      timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
-    )
 
   @bentoml.api
   async def suggests(
