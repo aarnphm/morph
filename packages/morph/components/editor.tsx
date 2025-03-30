@@ -13,6 +13,7 @@ import {
   Cross2Icon,
   CopyIcon,
   ChevronDownIcon,
+  GlobeIcon,
 } from "@radix-ui/react-icons"
 import usePersistedSettings from "@/hooks/use-persisted-settings"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -42,6 +43,7 @@ import { VaultButton } from "@/components/ui/button"
 import Rails from "@/components/rails"
 import SteeringPanel from "@/components/steering-panel"
 import { SteeringProvider, SteeringSettings, useSteeringContext } from "@/context/steering-context"
+import { useToast } from "@/hooks/use-toast"
 
 interface StreamingDelta {
   suggestion: string
@@ -850,6 +852,7 @@ const sanitizeStreamingContent = (content: string): string => {
 
 export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const { theme } = useTheme()
+  const { toast } = useToast()
 
   // PERF: should not call it here, or figure out a way not to calculate the vault twice
   const { refreshVault, flattenedFileIds } = useVaultContext()
@@ -861,6 +864,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [currentFileHandle, setCurrentFileHandle] = useState<FileSystemFileHandle | null>(null)
   const [scanAnimationComplete, setScanAnimationComplete] = useState(false)
   const [showEphemeralBanner, setShowEphemeralBanner] = useState(false)
+  const [isOnline, setIsOnline] = useState(true)
+  const [isClient, setIsClient] = useState(false)
 
   const { settings } = usePersistedSettings()
   const codeMirrorViewRef = useRef<EditorView | null>(null)
@@ -889,7 +894,47 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     setIsStackExpanded((prev) => !prev)
   }, [])
 
+  // Effect to set isClient to true after component mounts
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  // Effect to track online/offline status
+  useEffect(() => {
+    // Only run this effect on the client after it has mounted
+    if (!isClient) return
+
+    // Set initial state based on navigator now that we are on the client
+    setIsOnline(navigator.onLine)
+
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+
+    window.addEventListener("online", handleOnline)
+    window.addEventListener("offline", handleOffline)
+
+    // Initial check in case the event listeners haven't fired yet
+    // setIsOnline(navigator.onLine);
+
+    return () => {
+      window.removeEventListener("online", handleOnline)
+      window.removeEventListener("offline", handleOffline)
+    }
+    // Rerun specifically when isClient becomes true to set initial state
+  }, [isClient])
+
   const toggleNotes = useCallback(() => {
+    // Check isClient here for safety, though interaction implies client-side
+    if (isClient && !isOnline) {
+      toast({
+        title: "Notes panel requires an internet connection.",
+        description: "Please check your connection and try again.",
+        duration: 5000,
+        variant: "destructive", // Optional: make it more prominent
+      })
+      return // Prevent opening the panel
+    }
+
     setShowNotes((prev) => {
       // Reset reasoning state when hiding notes panel
       if (prev) {
@@ -898,7 +943,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       }
       return !prev
     })
-  }, [])
+  }, [isOnline])
 
   const vault = vaults.find((v) => v.id === vaultId)
 
@@ -1203,6 +1248,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
             try {
               const delta: StreamingDelta = JSON.parse(line)
+              console.log(delta)
 
               // Handle reasoning phase
               if (delta.reasoning) {
@@ -1358,12 +1404,10 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         // Run scan animation after a small delay
         const runScanAnimation = async () => {
           // Wait a moment before starting the animation
-          await new Promise((resolve) => setTimeout(resolve, 400))
+          await new Promise((resolve) => setTimeout(resolve, 300))
 
           const noteCount = streamingNotes.length
           for (let i = 0; i < noteCount; i++) {
-            await new Promise((resolve) => setTimeout(resolve, 150)) // Delay between each note
-
             setStreamingNotes((prevNotes) => {
               const updatedNotes = [...prevNotes]
               if (updatedNotes[i]) {
@@ -1375,9 +1419,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               return updatedNotes
             })
           }
-
-          // Final animation complete - wait a moment before showing final notes
-          await new Promise((resolve) => setTimeout(resolve, 500))
 
           // Set loading to false which will trigger showing the final notes
           setIsNotesLoading(false)
@@ -1984,16 +2025,34 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                         </VaultButton>
                       )}
                       <VaultButton
+                        className={cn(
+                          isClient &&
+                            (isNotesLoading || !isOnline) &&
+                            "opacity-50 cursor-not-allowed",
+                        )} // Conditionally apply style based on isClient
                         onClick={toggleNotes}
-                        disabled={isNotesLoading}
+                        disabled={!isClient || isNotesLoading || !isOnline} // Disable if not client, loading, or offline
                         size="small"
-                        title={showNotes ? "Hide Notes" : "Show Notes"}
+                        // Adjust title based on client state as well
+                        title={
+                          showNotes
+                            ? "Hide Notes"
+                            : isClient && isOnline
+                              ? "Show Notes"
+                              : isClient && !isOnline
+                                ? "Notes unavailable offline"
+                                : "Loading..."
+                        }
                       >
                         <CopyIcon className="w-3 h-3" />
                       </VaultButton>
                     </div>
-                    <div className="absolute top-4 left-4 text-sm/7 z-10 flex items-center gap-2">
+                    <div className="absolute top-4 left-4 text-sm/7 z-10 flex flex-col items-center gap-2">
                       {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
+                      {/* Only render icon when client has mounted and is offline */}
+                      {isClient && !isOnline && (
+                        <GlobeIcon className="w-4 h-4 text-destructive" title="Offline Mode" />
+                      )}
                     </div>
                     <div
                       className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
