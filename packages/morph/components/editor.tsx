@@ -47,27 +47,18 @@ import SteeringPanel from "@/components/steering-panel"
 import { SteeringProvider, SteeringSettings, useSteeringContext } from "@/context/steering-context"
 import { useToast } from "@/hooks/use-toast"
 import {
-  saveNoteEmbedding,
+  useSubmitEmbedding,
+  usePollEmbeddingStatus,
+  EmbedTaskResult,
+  EmbedType,
+} from "@/services/embeddingService" // Added EmbedTaskResult, EmbedType
+import {
   hasNoteEmbedding,
-  saveEssayEmbedding,
+  saveNoteEmbedding,
   hasAnyEssayEmbedding,
+  saveEssayEmbedding,
 } from "@/lib/pglite"
-
-interface StreamingDelta {
-  suggestion: string
-  reasoning: string
-  usage: {
-    completion_tokens: number
-    prompt_tokens: number
-    total_tokens: number
-    completion_tokens_details?: any
-    prompt_tokens_details?: any
-  } | null
-}
-
-interface Suggestions {
-  suggestions: { suggestion: string }[]
-}
+import { useLiveQuery } from "dexie-react-hooks"
 
 interface StreamingNote {
   id: string
@@ -77,19 +68,13 @@ interface StreamingNote {
   isScanComplete?: boolean
 }
 
-interface EditorProps {
-  vaultId: string
-  vaults: Vault[]
-}
-
 interface GeneratedNote {
   content: string
 }
 
-interface ReadinessResponse {
-  healthy: boolean
-  services: { name: string; healthy: boolean; latency_ms: number; error: string }[]
-  timestamp: string
+interface EditorProps {
+  vaultId: string
+  vaults: Vault[]
 }
 
 interface DateDisplayProps {
@@ -829,6 +814,12 @@ interface SuggestionRequest {
   usage?: boolean
 }
 
+interface ReadinessResponse {
+  healthy: boolean
+  services: { name: string; healthy: boolean; latency_ms: number; error: string }[]
+  timestamp: string
+}
+
 interface NewlyGeneratedNotes {
   generatedNotes: GeneratedNote[]
   reasoningId: string
@@ -858,39 +849,11 @@ const sanitizeStreamingContent = (content: string): string => {
   return sanitized
 }
 
-// Add interfaces for API responses based on OpenAPI spec
-interface TaskStatusResponse {
-  task_id: string
-  status: "in_progress" | "success" | "failure" | "cancelled"
-  created_at: string
-  executed_at: string | null
-}
-
-enum EmbedType {
-  ESSAY = 1,
-  NOTE,
-}
-
-interface EmbedMetadata {
-  vault: string
-  file: string
-  type: EmbedType
-  note?: string | null
-  node_ids?: string[] | null
-}
-
-interface EmbedTaskResult {
-  metadata: EmbedMetadata
-  embedding: number[][] // Expecting list of embeddings for chunks
-  error?: string
-}
-
 // Replace the wrapper component with a direct export of EditorComponent
 export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const { theme } = useTheme()
   const { toast } = useToast()
 
-  // PERF: should not call it here, or figure out a way not to calculate the vault twice
   const { refreshVault, flattenedFileIds } = useVaultContext()
 
   const [currentFile, setCurrentFile] = useState<string>("Untitled")
@@ -903,14 +866,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [showEphemeralBanner, setShowEphemeralBanner] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
   const [isClient, setIsClient] = useState(false)
-  const [activeEmbeddingTasks, setActiveEmbeddingTasks] = useState<Record<string, NodeJS.Timeout>>(
-    {},
-  )
-  const pollingIntervalsRef = useRef<Record<string, NodeJS.Timeout>>({})
-  const [activeEssayEmbeddingTasks, setActiveEssayEmbeddingTasks] = useState<
-    Record<string, NodeJS.Timeout>
-  >({})
-  const essayPollingIntervalsRef = useRef<Record<string, NodeJS.Timeout>>({})
 
   const { settings } = usePersistedSettings()
   const codeMirrorViewRef = useRef<EditorView | null>(null)
@@ -937,6 +892,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   // State for embedding indicator
   const [eyeIconState, setEyeIconState] = useState<"open" | "closed">("open")
+
+  // --- NEW: TanStack Query Mutation for Submitting Tasks ---
+  const submitEmbeddingMutation = useSubmitEmbedding()
 
   const toggleStackExpand = useCallback(() => {
     setIsStackExpanded((prev) => !prev)
@@ -1154,6 +1112,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [updatePreview, markdownContent],
   )
 
+  // --- REFACTORED: fetchNewNotes (no embedding logic here) ---
   const fetchNewNotes = useCallback(
     async (
       content: string,
@@ -1287,7 +1246,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             if (!line.trim()) continue
 
             try {
-              const delta: StreamingDelta = JSON.parse(line)
+              // Assuming delta structure based on previous code
+              const delta = JSON.parse(line) as { reasoning?: string; suggestion?: string }
 
               // Handle reasoning phase
               if (delta.reasoning) {
@@ -1311,7 +1271,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 }
 
                 // Handle each delta suggestion chunk for streaming JSON
-                partialJSON += delta.suggestion
+                // Ensure delta.suggestion is not null/undefined before adding
+                const suggestionChunk = delta.suggestion || ""
+                partialJSON += suggestionChunk
 
                 // First note has a different start pattern than subsequent ones
                 if (!inJsonSuggestion) {
@@ -1342,7 +1304,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 }
                 // If we're inside a suggestion object, accumulate content
                 else if (inJsonSuggestion) {
-                  currentSuggestion += delta.suggestion
+                  currentSuggestion += suggestionChunk // Use the checked suggestionChunk
 
                   // For a better streaming experience, update the note's content with each delta
                   setStreamingNotes((prevNotes) => {
@@ -1410,7 +1372,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 }
 
                 // Collect suggestion data for final processing
-                suggestionString += delta.suggestion
+                suggestionString += suggestionChunk // Use the checked suggestionChunk
               }
             } catch (e) {
               console.error("Error parsing line:", e)
@@ -1445,10 +1407,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           // Wait a moment before starting the animation
           await new Promise((resolve) => setTimeout(resolve, 300))
 
-          const noteCount = streamingNotes.length
+          const noteCount = initialStreamingNotes.length // Use initial array length
           for (let i = 0; i < noteCount; i++) {
             setStreamingNotes((prevNotes) => {
-              const updatedNotes = [...prevNotes]
+              // Important: Always work with the *latest* state inside the loop
+              const currentNotes = prevNotes
+              const updatedNotes = [...currentNotes]
               if (updatedNotes[i]) {
                 updatedNotes[i] = {
                   ...updatedNotes[i],
@@ -1457,6 +1421,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               }
               return updatedNotes
             })
+            // Add a small delay between each note's scan animation for effect
+            await new Promise((resolve) => setTimeout(resolve, 50))
           }
 
           // Set loading to false which will trigger showing the final notes
@@ -1479,7 +1445,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
         if (suggestionString.trim()) {
           try {
-            const suggestionData: Suggestions = JSON.parse(suggestionString.trim())
+            // Assuming 'Suggestions' interface was defined elsewhere or inline
+            interface SuggestionsResponse {
+              suggestions: { suggestion: string }[]
+            }
+            const suggestionData: SuggestionsResponse = JSON.parse(suggestionString.trim())
 
             if (suggestionData.suggestions && Array.isArray(suggestionData.suggestions)) {
               generatedNotes = suggestionData.suggestions.map((suggestion) => ({
@@ -1519,14 +1489,15 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           reasoningElapsedTime,
           reasoningContent: collectedReasoning,
         }
-      } catch (error) {
-        setNotesError("Notes not available, try again later")
+      } catch (error: any) {
+        // Catch specific error type
+        setNotesError(`Notes not available: ${error.message || "Unknown error"}`)
         setReasoningComplete(true)
         setCurrentlyGeneratingDateKey(null)
         throw error
       }
     },
-    [streamingNotes.length],
+    [], // Removed streamingNotes dependency as it's managed internally now
   )
 
   // Format date for display
@@ -1555,17 +1526,19 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         if (today.getMinutes() === minute) {
           const secondsDiff = today.getSeconds() - seconds
           if (secondsDiff < 60) {
-            if (secondsDiff === 0) {
+            if (secondsDiff <= 1) {
+              // Consider 0 or 1 second as "just now"
               relativeTime = "just now"
-            } else if (secondsDiff === 1) {
-              relativeTime = "1 second ago"
             } else {
               relativeTime = `${secondsDiff} seconds ago`
             }
+          } else {
+            relativeTime = "this minute" // If secondsDiff >= 60 but minute is same
           }
         } else {
           const minuteDiff = today.getMinutes() - minute
-          if (minuteDiff === 0) {
+          if (minuteDiff === 1 && today.getSeconds() < seconds) {
+            // Less than a full minute ago
             relativeTime = "just now"
           } else if (minuteDiff === 1) {
             relativeTime = "1 minute ago"
@@ -1573,6 +1546,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             relativeTime = `${minuteDiff} minutes ago`
           }
         }
+      } else if (today.getHours() - hour === 1 && 60 - minute + today.getMinutes() < 60) {
+        // Less than an hour ago
+        relativeTime = `${60 - minute + today.getMinutes()} minutes ago`
       } else if (today.getHours() - hour === 1) {
         relativeTime = "1 hour ago"
       } else {
@@ -1639,15 +1615,16 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       fileField.init(() => currentFile),
       EditorView.updateListener.of((update) => {
         if (update.docChanged || update.selectionSet) {
-          const newFilename = update.state.field(fileField)
-          setCurrentFile(newFilename)
+          // We only update the filename if it explicitly changes via the effect
+          // const newFilename = update.state.field(fileField)
+          // setCurrentFile(newFilename)
         }
       }),
       syntaxHighlighting(),
     ]
     if (vimMode) exts.push(vim())
     return exts
-  }, [settings.tabSize, currentFile, vimMode])
+  }, [settings.tabSize, currentFile, vimMode]) // Keep currentFile dependency here for fileField
 
   useEffect(() => {
     if (markdownContent) {
@@ -1659,7 +1636,13 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const onNewFile = useCallback(() => {
     setCurrentFileHandle(null)
     setCurrentFile("Untitled")
+    setMarkdownContent("") // Clear content for new file
     setIsEditMode(true)
+    setPreviewNode(null) // Clear preview
+    setNotes([]) // Clear notes associated with previous file
+    setDroppedNotes([]) // Clear dropped notes
+    setReasoningHistory([]) // Clear reasoning history
+    setHasUnsavedChanges(false) // Reset unsaved changes
   }, [])
 
   const handleKeyDown = useCallback(
@@ -1714,258 +1697,98 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
   }, [showNotes, currentFile, vault])
 
-  // Helper function to get API endpoint (define it here)
-  const getApiEndpoint = useCallback(() => {
-    return process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:8000"
-  }, [])
-
-  // API Helper: Submit a SINGLE note for embedding
-  const submitEmbeddingTask = useCallback(
-    async (noteToEmbed: Note): Promise<string | null> => {
-      const apiEndpoint = getApiEndpoint()
-      // Payload now contains a single 'note' object
-      const payload = {
-        note: {
-          vault_id: noteToEmbed.vaultId,
-          file_id: noteToEmbed.fileId,
-          note_id: noteToEmbed.id,
-          content: noteToEmbed.content,
-        },
-      }
-
-      try {
-        const response = await fetch(`${apiEndpoint}/notes/submit`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify(payload),
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          console.error(
-            `Failed to submit embedding task for note ${noteToEmbed.id}:`,
-            response.status,
-            errorData,
-          )
-          // Don't show toast here, handle failure in the calling function
-          return null // Indicate failure
-        }
-
-        const result: TaskStatusResponse = await response.json()
-        console.debug(`Embedding task submitted for note ${noteToEmbed.id}:`, result)
-        return result.task_id
-      } catch (error) {
-        console.error(`Error submitting embedding task for note ${noteToEmbed.id}:`, error)
-        return null // Indicate failure
-      }
-    },
-    [getApiEndpoint],
-  )
-
-  // API Helper: Get task status (remains the same)
-  const getEmbeddingTaskStatus = useCallback(
-    async (taskId: string): Promise<TaskStatusResponse | null> => {
-      const apiEndpoint = getApiEndpoint()
-      try {
-        const response = await fetch(`${apiEndpoint}/notes/status?task_id=${taskId}`, {
-          headers: { Accept: "application/json" },
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          console.error("Failed to get task status:", response.status, errorData)
-          return null
-        }
-        const result: TaskStatusResponse = await response.json()
-        return result
-      } catch (error) {
-        console.error("Error fetching task status:", error)
-        return null
-      }
-    },
-    [getApiEndpoint],
-  )
-
-  // API Helper: Get embedding result for a SINGLE task
-  const getEmbeddingResult = useCallback(
-    async (taskId: string): Promise<EmbedTaskResult | null> => {
-      const apiEndpoint = getApiEndpoint()
-      try {
-        const response = await fetch(`${apiEndpoint}/notes/get?task_id=${taskId}`, {
-          headers: { Accept: "application/json" },
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          console.error("Failed to get embedding result:", response.status, errorData)
-          throw new Error(`Failed to get embedding result: ${response.status}`)
-        }
-        // Expecting a single object according to the updated schema
-        const result: EmbedTaskResult = await response.json()
-        return result
-      } catch (error) {
-        console.error("Error fetching embedding result:", error)
-        // Don't show toast here, let the poller handle it
-        return null
-      }
-    },
-    [getApiEndpoint],
-  )
-
-  // Function to poll for a SINGLE task status and process result
-  const pollEmbeddingTask = useCallback(
-    async (taskId: string, noteId: string) => {
-      // Ensure we don't start multiple polls for the same task
-      if (pollingIntervalsRef.current[taskId]) {
-        console.debug(`Polling already active for task ${taskId}`)
-        return
-      }
-
-      const intervalId = setInterval(async () => {
-        console.debug(`Polling status for task ${taskId} (note ${noteId})`)
-        const statusResult = await getEmbeddingTaskStatus(taskId)
-
-        let clear = false
-        let finalStatus: Note["embeddingStatus"] | undefined = undefined
-
-        if (statusResult) {
-          switch (statusResult.status) {
-            case "success":
-              console.debug(`Task ${taskId} succeeded. Fetching result...`)
-              clear = true
-              const embeddingResult = await getEmbeddingResult(taskId)
-              // Check if the first embedding exists and is not null
-              if (
-                embeddingResult &&
-                !embeddingResult.error &&
-                embeddingResult.embedding &&
-                embeddingResult.embedding.length > 0 &&
-                embeddingResult.embedding[0]
-              ) {
-                await saveNoteEmbedding(noteId, embeddingResult.embedding[0])
-                finalStatus = "success"
-                console.debug(`Embedding saved and status updated for note ${noteId}`)
-              } else {
-                console.error(
-                  `Embedding failed for note ${noteId}: ${embeddingResult?.error || "Invalid or missing embedding data"}`,
-                )
-                finalStatus = "failure"
-              }
-              break
-            case "failure":
-              console.error(`Task ${taskId} (note ${noteId}) failed.`)
-              clear = true
-              finalStatus = "failure"
-              toast({
-                title: "Embedding Failed",
-                description: `Embedding generation failed for note ${noteId}.`,
-                variant: "destructive",
-              })
-              break
-            case "cancelled":
-              console.warn(`Task ${taskId} (note ${noteId}) was cancelled.`)
-              clear = true
-              finalStatus = "cancelled" // Or 'failure' depending on desired handling
-              break
-            case "in_progress":
-              console.debug(`Task ${taskId} still in progress...`)
-              break
-          }
-        } else {
-          console.warn(`Failed to get status for task ${taskId}, will retry.`)
-        }
-
-        // Cleanup and final DB update if task finished or failed
-        if (clear) {
-          clearInterval(intervalId)
-          delete pollingIntervalsRef.current[taskId]
-          // Remove from active tasks state if you are tracking it separately
-          setActiveEmbeddingTasks((prev) => {
-            const newState = { ...prev }
-            delete newState[taskId]
-            return newState
-          })
-
-          if (finalStatus) {
-            try {
-              await db.notes.update(noteId, { embeddingStatus: finalStatus })
-            } catch (dbError) {
-              console.error(`Failed to update final status for note ${noteId} in Dexie:`, dbError)
-            }
-          }
-        }
-      }, 5000) // Poll every 5 seconds
-
-      pollingIntervalsRef.current[taskId] = intervalId
-      // Track active task if needed
-      setActiveEmbeddingTasks((prev) => ({ ...prev, [taskId]: intervalId }))
-    },
-    [getEmbeddingTaskStatus, getEmbeddingResult, toast],
-  )
-
-  // Function to trigger embedding generation (iterates and calls submit/poll individually)
+  // --- REFACTORED: Trigger Note Embedding Generation ---
   const triggerEmbeddingGeneration = useCallback(
     async (notesToEmbed: Note[]) => {
-      if (!notesToEmbed || notesToEmbed.length === 0) return
+      if (!notesToEmbed || notesToEmbed.length === 0 || !vault) return
 
       console.debug(`Checking embeddings for ${notesToEmbed.length} notes.`)
 
-      // Process each note individually
       for (const note of notesToEmbed) {
         try {
+          // 1. Check PGlite first
           const exists = await hasNoteEmbedding(note.id)
           if (exists) {
-            // Ensure Dexie status is 'success' if embedding exists
-            await db.notes.update(note.id, { embeddingStatus: "success" })
+            // Ensure Dexie status is 'success' if embedding exists and it's not already success
+            if (note.embeddingStatus !== "success") {
+              await db.notes.update(note.id, {
+                embeddingStatus: "success",
+                embeddingTaskId: undefined,
+              })
+            }
             console.debug(`Embedding already exists for note ${note.id}. Status updated.`)
             continue // Skip to next note
           }
 
-          console.debug(`Submitting note ${note.id} for embedding.`)
-          const taskId = await submitEmbeddingTask(note)
-
-          if (taskId) {
-            // Update this specific note in Dexie
-            await db.notes.update(note.id, {
-              embeddingStatus: "in_progress",
-              embeddingTaskId: taskId,
-            })
+          // 2. Check Dexie status - skip if already 'in_progress' or 'success'
+          const currentNoteState = await db.notes.get(note.id)
+          if (
+            currentNoteState?.embeddingStatus === "success" ||
+            currentNoteState?.embeddingStatus === "in_progress"
+          ) {
             console.debug(
-              `Updated note ${note.id} in Dexie with task ID ${taskId} and status 'in_progress'.`,
+              `Note ${note.id} already ${currentNoteState.embeddingStatus}. Skipping submission.`,
             )
-            // Start polling for this specific task/note
-            pollEmbeddingTask(taskId, note.id)
-          } else {
-            // Handle submission failure for this specific note
-            console.error(`Failed to submit embedding task for note ${note.id}.`)
-            await db.notes.update(note.id, { embeddingStatus: "failure" })
-            toast({
-              // Show toast on individual failure
-              title: "Embedding Error",
-              description: `Could not submit note ${note.id} for embedding.`,
-              variant: "destructive",
-            })
+            continue
           }
+
+          console.debug(`Submitting note ${note.id} for embedding.`)
+          // 3. Update Dexie status to 'in_progress' *before* submitting
+          await db.notes.update(note.id, {
+            embeddingStatus: "in_progress",
+            embeddingTaskId: undefined,
+          })
+
+          // 4. Submit using the mutation hook
+          submitEmbeddingMutation.mutate(
+            { type: "note", note },
+            {
+              onSuccess: async (data) => {
+                // Store the task ID in Dexie
+                await db.notes.update(note.id, { embeddingTaskId: data.task_id })
+                console.debug(
+                  `Updated note ${note.id} in Dexie with task ID ${data.task_id}. Polling will start.`,
+                )
+                // Polling is handled by usePollEmbeddingStatus triggered by Dexie state change
+              },
+              onError: async (error) => {
+                // Handle submission failure for this specific note
+                console.error(`Failed to submit embedding task for note ${note.id}:`, error.message)
+                await db.notes.update(note.id, {
+                  embeddingStatus: "failure",
+                  embeddingTaskId: undefined,
+                })
+                toast({
+                  title: "Embedding Error",
+                  description: `Could not submit note ${note.content.substring(0, 20)}... for embedding.`,
+                  variant: "destructive",
+                })
+              },
+            },
+          )
         } catch (error) {
-          // Catch errors during check/update/submit for a single note
           console.error(`Error processing embedding for note ${note.id}:`, error)
           try {
-            await db.notes.update(note.id, { embeddingStatus: "failure" })
+            await db.notes.update(note.id, {
+              embeddingStatus: "failure",
+              embeddingTaskId: undefined,
+            })
           } catch (dbError) {
             console.error(`Failed to mark note ${note.id} as failed in Dexie:`, dbError)
           }
         }
       }
-      console.debug("Finished processing embedding checks/submissions.")
+      console.debug("Finished processing note embedding checks/submissions.")
     },
-    [pollEmbeddingTask, submitEmbeddingTask, toast],
-  )
+    [vault, submitEmbeddingMutation, toast],
+  ) // Added dependencies
 
+  // --- REFACTORED: generateNewSuggestions ---
   const generateNewSuggestions = useCallback(
     async (steeringSettings: SteeringSettings) => {
       if (!currentFile || !vault || !markdownContent) return
 
-      // Clear any previous current generation notes
+      // Reset states for new generation...
       setCurrentGenerationNotes([])
       setNotesError(null)
       setIsNotesLoading(true)
@@ -1973,11 +1796,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       setReasoningComplete(false)
       setStreamingSuggestionColors([])
       setScanAnimationComplete(false) // Reset scan animation state
-
-      // Update the last notes generation time
       setLastNotesGeneratedTime(new Date())
-
-      // Set a current date key for the new notes group with 15-second interval
       const now = new Date()
       const seconds = now.getSeconds()
       const interval = Math.floor(seconds / 15) * 15
@@ -1999,8 +1818,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 }
               : undefined,
           )
-        const newNoteIds: string[] = []
 
+        const newNoteIds: string[] = []
         const newNotes: Note[] = generatedNotes.map((note, index) => {
           const id = createId()
           newNoteIds.push(id)
@@ -2018,19 +1837,20 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             tonality: steeringSettings.tonalityEnabled ? steeringSettings.tonality : undefined,
             temperature: steeringSettings.temperature,
             numSuggestions: steeringSettings.numSuggestions,
-            embeddingStatus: undefined,
+            // Initialize embedding status for new notes
+            embeddingStatus: undefined, // Will be set to 'in_progress' by trigger function if needed
             embeddingTaskId: undefined,
           }
         })
 
-        // Add the note IDs to the reasoning history
+        // Add note IDs to reasoning history
         setReasoningHistory((prev) =>
           prev.map((r) => (r.id === reasoningId ? { ...r, noteIds: newNoteIds } : r)),
         )
 
         // Only save if the file is not "Untitled"
-        if (currentFile !== "Untitled" && vault) {
-          // Save reasoning to the database
+        if (currentFile !== "Untitled") {
+          // Save reasoning
           db.saveReasoning({
             id: reasoningId,
             fileId: currentFile,
@@ -2047,37 +1867,32 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             console.error("Failed to save reasoning:", err)
           })
 
-          await Promise.all(newNotes.map((note) => db.notes.add(note)))
-          triggerEmbeddingGeneration(newNotes)
+          // Save notes to Dexie
+          await db.notes.bulkAdd(newNotes)
+
+          // --- UPDATED: Trigger embedding generation for new notes ---
+          // Pass copies of notes to avoid potential issues with stale state
+          triggerEmbeddingGeneration(newNotes.map((n) => ({ ...n })))
+        } else {
+          setShowEphemeralBanner(true)
+          setTimeout(() => setShowEphemeralBanner(false), 7000)
         }
 
         // Set current generation notes for UI
         setCurrentGenerationNotes(newNotes)
 
-        // Add new notes to the main notes state for historical view
+        // Add new notes to the main notes state
         setNotes((prev) => {
           const combined = [...newNotes, ...prev]
           return combined.sort(
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
           )
         })
-
-        // Show banner if the file is still untitled
-        if (currentFile === "Untitled") {
-          setShowEphemeralBanner(true)
-          setTimeout(() => setShowEphemeralBanner(false), 7000)
-          // TODO: Consider storing timer ID in a ref for cleanup if needed
-        } else {
-          setShowEphemeralBanner(false) // Ensure banner is hidden if file is saved
-        }
       } catch (error) {
-        // Just show error for current generation and don't affect previous notes
         setNotesError("Notes not available for this generation, try again later")
         setCurrentlyGeneratingDateKey(null)
         console.error("Failed to generate notes:", error)
       } finally {
-        // Still set isNotesLoading to false, but don't clear currentlyGeneratingDateKey
-        // so that the panel stays visible
         setIsNotesLoading(false)
       }
     },
@@ -2087,7 +1902,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       markdownContent,
       fetchNewNotes,
       streamingSuggestionColors,
-      triggerEmbeddingGeneration,
+      triggerEmbeddingGeneration, // Ensure this is included
+      // Removed dependencies related to old polling logic
     ],
   )
 
@@ -2100,16 +1916,18 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         const allNotesForFile = await db.notes
           .where({ fileId: currentFile, vaultId: vault.id })
           .toArray()
+
+        // Filter for notes that are not success/in_progress OR are failed/cancelled
         const notesToCheck = allNotesForFile.filter(
-          (note) => note.embeddingStatus !== "success" && note.embeddingStatus !== "in_progress", // Don't retry if already in progress
+          (note) => !["success", "in_progress"].includes(note.embeddingStatus as string),
         )
 
         if (notesToCheck.length > 0) {
           console.debug(
-            `Found ${notesToCheck.length} notes potentially missing embeddings or in failed state for ${currentFile}. Triggering check/generation.`,
+            `Found ${notesToCheck.length} notes potentially needing embedding generation for ${currentFile}. Triggering check/generation.`,
           )
-          // triggerEmbeddingGeneration handles checking PGlite again
-          await triggerEmbeddingGeneration(notesToCheck)
+          // triggerEmbeddingGeneration handles checking PGlite again and submission
+          await triggerEmbeddingGeneration(notesToCheck) // Pass the filtered notes
         }
       } catch (error) {
         console.error("Error checking for missing embeddings:", error)
@@ -2119,7 +1937,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     // Add a small delay to avoid running immediately on rapid file switching
     const timeoutId = setTimeout(checkAndGenerateMissingEmbeddings, 500)
     return () => clearTimeout(timeoutId) // Clear timeout if effect re-runs quickly
-  }, [currentFile, vault, triggerEmbeddingGeneration])
+  }, [currentFile, vault, triggerEmbeddingGeneration]) // triggerEmbeddingGeneration added
 
   // Handle removing a note from the notes array
   const handleNoteRemoved = useCallback((noteId: string) => {
@@ -2185,250 +2003,24 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         })
 
         // Add back to main notes collection if not already there
-        const existingNote = notes.find((n) => n.id === noteId)
-        if (!existingNote) {
-          // Add to the beginning of the notes array to make it appear at the top
-          setNotes((prev) => [undropNote, ...prev])
-        }
+        // Ensure we don't add duplicates if it somehow exists in both states
+        setNotes((prevNotes) => {
+          if (prevNotes.some((n) => n.id === noteId)) {
+            // If it exists, just update its dropped status (though it should be filtered out)
+            return prevNotes.map((n) => (n.id === noteId ? { ...n, dropped: false } : n))
+          } else {
+            // Add to the beginning of the notes array to make it appear at the top
+            return [undropNote, ...prevNotes]
+          }
+        })
       } catch (error) {
         console.error("Failed to update note status:", error)
       }
     },
-    [droppedNotes, notes],
+    [droppedNotes], // removed `notes` dependency as we fetch inside now
   )
 
-  const submitEssayEmbeddingTask = useCallback(
-    async (vaultId: string, fileId: string, content: string): Promise<string | null> => {
-      const apiEndpoint = getApiEndpoint()
-      const payload = {
-        essay: {
-          vault_id: vaultId,
-          file_id: fileId,
-          content: md(content).content,
-        },
-      }
-
-      try {
-        const response = await fetch(`${apiEndpoint}/essays/submit`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify(payload),
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          console.error(
-            `Failed to submit essay embedding task for ${vaultId}/${fileId}:`,
-            response.status,
-            errorData,
-          )
-          return null // Indicate failure
-        }
-
-        const result: TaskStatusResponse = await response.json()
-        console.debug(`Essay embedding task submitted for ${vaultId}/${fileId}:`, result)
-        return result.task_id
-      } catch (error) {
-        console.error(`Error submitting essay embedding task for ${vaultId}/${fileId}:`, error)
-        return null // Indicate failure
-      }
-    },
-    [getApiEndpoint],
-  )
-
-  // Status check reuses the same endpoint structure, just different base path implicitly
-  const getEssayEmbeddingTaskStatus = useCallback(
-    async (taskId: string): Promise<TaskStatusResponse | null> => {
-      const apiEndpoint = getApiEndpoint()
-      try {
-        // NOTE: Uses /essays/status endpoint
-        const response = await fetch(`${apiEndpoint}/essays/status?task_id=${taskId}`, {
-          headers: { Accept: "application/json" },
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          console.error("Failed to get essay task status:", response.status, errorData)
-          return null
-        }
-        const result: TaskStatusResponse = await response.json()
-        return result
-      } catch (error) {
-        console.error("Error fetching essay task status:", error)
-        return null
-      }
-    },
-    [getApiEndpoint],
-  )
-
-  // Result fetching uses the same endpoint structure, just different base path implicitly
-  const getEssayEmbeddingResult = useCallback(
-    async (taskId: string): Promise<EmbedTaskResult | null> => {
-      const apiEndpoint = getApiEndpoint()
-      try {
-        // NOTE: Uses /essays/get endpoint
-        const response = await fetch(`${apiEndpoint}/essays/get?task_id=${taskId}`, {
-          headers: { Accept: "application/json" },
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          console.error("Failed to get essay embedding result:", response.status, errorData)
-          throw new Error(`Failed to get essay embedding result: ${response.status}`)
-        }
-        const result: EmbedTaskResult = await response.json()
-        // We expect only one embedding for the whole essay
-        if (result.embedding && result.embedding.length > 1) {
-          console.warn(
-            `Received multiple embeddings for essay task ${taskId}, using the first one.`,
-          )
-        }
-        return result
-      } catch (error) {
-        console.error("Error fetching essay embedding result:", error)
-        return null
-      }
-    },
-    [getApiEndpoint],
-  )
-
-  // --- Essay Polling Logic ---
-  const pollEssayEmbeddingTask = useCallback(
-    async (taskId: string, vaultId: string, fileId: string) => {
-      // Ensure we don't start multiple polls for the same essay task
-      if (essayPollingIntervalsRef.current[taskId]) {
-        console.debug(`Polling already active for essay task ${taskId}`)
-        return
-      }
-
-      const intervalId = setInterval(async () => {
-        console.debug(`Polling status for essay task ${taskId} (${vaultId}/${fileId})`)
-        const statusResult = await getEssayEmbeddingTaskStatus(taskId)
-
-        let clear = false
-        let finalStatus: Note["embeddingStatus"] | undefined = undefined
-
-        if (statusResult) {
-          switch (statusResult.status) {
-            case "success":
-              console.debug(`Essay task ${taskId} succeeded. Fetching result...`)
-              clear = true
-              finalStatus = "success" // Set final status
-              const embeddingResult = await getEssayEmbeddingResult(taskId)
-
-              // Handle multiple embeddings for chunks
-              if (
-                embeddingResult &&
-                !embeddingResult.error &&
-                embeddingResult.metadata.node_ids && // Check for node_ids
-                embeddingResult.embedding &&
-                embeddingResult.metadata.node_ids.length === embeddingResult.embedding.length // Ensure lengths match
-              ) {
-                let allChunksSaved = true
-                const nodeIds = embeddingResult.metadata.node_ids
-                const embeddings = embeddingResult.embedding
-
-                console.debug(`Saving ${nodeIds.length} essay chunks for ${vaultId}/${fileId}`)
-
-                for (let i = 0; i < nodeIds.length; i++) {
-                  const chunkId = nodeIds[i]
-                  const chunkEmbedding = embeddings[i]
-
-                  // Skip if embedding is null/invalid (adjust as needed based on API)
-                  if (!chunkEmbedding) {
-                    console.warn(`Skipping null/invalid embedding for chunk ${chunkId}`)
-                    continue
-                  }
-
-                  try {
-                    // Call updated save function with chunkId
-                    await saveEssayEmbedding(vaultId, fileId, chunkId, chunkEmbedding)
-                  } catch (saveError) {
-                    console.error(`Failed to save embedding for chunk ${chunkId}:`, saveError)
-                    allChunksSaved = false
-                    // Decide if we should break or continue saving other chunks
-                    // break; // Option: Stop on first error
-                  }
-                }
-
-                if (allChunksSaved) {
-                  console.debug(`All essay chunks saved successfully for ${vaultId}/${fileId}`)
-                  // Update Dexie status with taskId only if all chunks saved
-                  await db.updateFileEmbeddingStatus(vaultId, fileId, "success", taskId)
-                } else {
-                  finalStatus = "failure" // Mark as failure if any chunk failed
-                  console.error(`Failed to save one or more essay chunks for ${vaultId}/${fileId}.`)
-                  await db.updateFileEmbeddingStatus(vaultId, fileId, "failure")
-                }
-              } else {
-                // Handle case where result structure is invalid or missing data
-                finalStatus = "failure"
-                console.error(
-                  `Essay embedding result structure invalid for ${vaultId}/${fileId}: Missing node_ids, embeddings, or length mismatch.`,
-                  embeddingResult, // Log the problematic result
-                )
-                await db.updateFileEmbeddingStatus(vaultId, fileId, "failure")
-              }
-              break
-            case "failure":
-              console.error(`Essay task ${taskId} (${vaultId}/${fileId}) failed.`)
-              clear = true
-              finalStatus = "failure" // Set final status
-              // Update Dexie status to failure
-              await db.updateFileEmbeddingStatus(vaultId, fileId, "failure")
-              toast({
-                // Show toast on failure
-                title: "Essay Embedding Failed",
-                description: `Embedding generation failed for file ${fileId}.`,
-                variant: "destructive",
-              })
-              break
-            case "cancelled":
-              console.warn(`Essay task ${taskId} (${vaultId}/${fileId}) was cancelled.`)
-              clear = true
-              finalStatus = "cancelled" // Set final status
-              // Update Dexie status to cancelled
-              await db.updateFileEmbeddingStatus(vaultId, fileId, "cancelled")
-              break
-            case "in_progress":
-              console.debug(`Essay task ${taskId} still in progress...`)
-              // No status update needed here for Dexie
-              break
-          }
-        } else {
-          console.warn(`Failed to get status for essay task ${taskId}, will retry.`)
-          // Optionally handle persistent status fetch failures (e.g., mark as failed after X retries)
-        }
-
-        // Cleanup
-        if (clear) {
-          clearInterval(intervalId)
-          delete essayPollingIntervalsRef.current[taskId]
-          setActiveEssayEmbeddingTasks((prev) => {
-            const newState = { ...prev }
-            delete newState[taskId]
-            return newState
-          })
-
-          // Redundant Dexie update check (already handled in cases), but safe
-          if (finalStatus) {
-            await db.updateFileEmbeddingStatus(
-              vaultId,
-              fileId,
-              finalStatus,
-              finalStatus === "success" ? taskId : undefined,
-            )
-          }
-        }
-      }, 10000) // Poll every 10 seconds
-
-      essayPollingIntervalsRef.current[taskId] = intervalId
-      setActiveEssayEmbeddingTasks((prev) => ({ ...prev, [taskId]: intervalId }))
-    },
-    [getEssayEmbeddingTaskStatus, getEssayEmbeddingResult, toast],
-  )
-
-  // --- Essay Embedding Trigger ---
+  // --- REFACTORED: Trigger Essay Embedding Generation ---
   const triggerEssayEmbeddingGeneration = useCallback(
     async (vaultId: string, fileId: string, content: string) => {
       if (!vaultId || !fileId || !content) return
@@ -2439,64 +2031,75 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         const fileStatus = await db.fileNames.where({ vaultId, fileId }).first()
         if (fileStatus?.embeddingStatus === "success") {
           console.debug(`Essay embedding status is 'success' in Dexie for ${vaultId}/${fileId}.`)
-          return // Already successfully embedded according to Dexie
+          return
         }
         if (fileStatus?.embeddingStatus === "in_progress") {
           console.debug(
-            `Essay embedding is already 'in_progress' in Dexie for ${vaultId}/${fileId}.`,
+            `Essay embedding is already 'in_progress' in Dexie for ${vaultId}/${fileId}. Checking task ID ${fileStatus.embeddingTaskId}...`,
           )
-          return // Already being processed according to Dexie
+          // If in progress but no task ID somehow, reset to cancelled
+          if (!fileStatus.embeddingTaskId) {
+            await db.updateFileEmbeddingStatus(vaultId, fileId, "cancelled")
+          } else {
+            // Polling hook will handle this based on Dexie state
+            return
+          }
         }
 
         // 2. Check PGlite for any chunks
         const existsInPgLite = await hasAnyEssayEmbedding(vaultId, fileId)
         if (existsInPgLite) {
           console.debug(
-            `Essay has chunks already in PGlite for ${vaultId}/${fileId}. Updating Dexie status.`,
+            `Essay has chunks in PGlite for ${vaultId}/${fileId}. Updating Dexie status.`,
           )
-          // If found in PGlite but not marked as success in Dexie, update Dexie
-          await db.updateFileEmbeddingStatus(vaultId, fileId, "success")
-          return // Don't submit if chunks already exist
+          // Mark success, clear task ID
+          await db.updateFileEmbeddingStatus(vaultId, fileId, "success", undefined)
+          return
         }
 
-        // 3. Submit new task if not success or in_progress, and no chunks found in PGlite
+        // 3. Submit new task
         console.debug(`Submitting essay ${vaultId}/${fileId} for embedding.`)
         // Update Dexie status to in_progress BEFORE submitting
-        await db.updateFileEmbeddingStatus(vaultId, fileId, "in_progress")
+        await db.updateFileEmbeddingStatus(vaultId, fileId, "in_progress", undefined)
 
-        const taskId = await submitEssayEmbeddingTask(vaultId, fileId, content)
-
-        if (taskId) {
-          console.debug(
-            `Essay embedding task ${taskId} submitted for ${vaultId}/${fileId}. Starting polling.`,
-          )
-          // Start polling for this specific essay task
-          pollEssayEmbeddingTask(taskId, vaultId, fileId)
-        } else {
-          // Handle submission failure - Update Dexie status back
-          console.error(`Failed to submit essay embedding task for ${vaultId}/${fileId}.`)
-          await db.updateFileEmbeddingStatus(vaultId, fileId, "failure") // Mark as failure in Dexie
-          toast({
-            // Show toast on submission failure
-            title: "Essay Embedding Error",
-            description: `Could not submit file ${fileId} for embedding.`,
-            variant: "destructive",
-          })
-        }
+        submitEmbeddingMutation.mutate(
+          { type: "essay", vaultId, fileId, content },
+          {
+            onSuccess: async (data) => {
+              await db.updateFileEmbeddingStatus(vaultId, fileId, "in_progress", data.task_id)
+              console.debug(
+                `Essay embedding task ${data.task_id} submitted for ${vaultId}/${fileId}. Polling will start.`,
+              )
+            },
+            onError: async (error) => {
+              console.error(
+                `Failed to submit essay embedding task for ${vaultId}/${fileId}:`,
+                error.message,
+              )
+              // Mark as failure, clear task ID
+              await db.updateFileEmbeddingStatus(vaultId, fileId, "failure", undefined)
+              toast({
+                title: "Essay Embedding Error",
+                description: `Could not submit file ${fileId} for embedding.`,
+                variant: "destructive",
+              })
+            },
+          },
+        )
       } catch (error) {
         console.error(`Error processing embedding for essay ${vaultId}/${fileId}:`, error)
-        // Ensure status is marked as failure in Dexie on unexpected errors
         try {
-          await db.updateFileEmbeddingStatus(vaultId, fileId, "failure")
+          // Mark as failure, clear task ID
+          await db.updateFileEmbeddingStatus(vaultId, fileId, "failure", undefined)
         } catch (dbError) {
           console.error("Failed to update Dexie status to failure after error:", dbError)
         }
       }
     },
-    // Add hasAnyEssayEmbedding to the dependencies
-    [pollEssayEmbeddingTask, submitEssayEmbeddingTask, toast],
+    [submitEmbeddingMutation, toast],
   )
 
+  // --- REFACTORED: handleFileSelect ---
   const handleFileSelect = useCallback(
     async (node: FileSystemTreeNode) => {
       if (!vault || node.kind !== "file" || !codeMirrorViewRef.current) return
@@ -2505,46 +2108,69 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         const file = await node.handle.getFile()
         const content = await file.text()
 
+        // Update CodeMirror
         codeMirrorViewRef.current.dispatch({
-          changes: {
-            from: 0,
-            to: codeMirrorViewRef.current.state.doc.length,
-            insert: content,
-          },
+          changes: { from: 0, to: codeMirrorViewRef.current.state.doc.length, insert: content },
+          // Update the file field using the effect
           effects: setFile.of(file.name),
         })
 
+        // Update component state
         setCurrentFileHandle(node.handle as FileSystemFileHandle)
-        setCurrentFile(file.name)
+        setCurrentFile(file.name) // State update
         setMarkdownContent(content)
         setHasUnsavedChanges(false)
-        setIsEditMode(true)
-        updatePreview(content)
+        setIsEditMode(true) // Reset to edit mode on file change
+        updatePreview(content) // Update preview
 
-        // Trigger essay embedding generation after loading the file
-        if (vault.id && file.name && content) {
+        // Clear states related to previous file's notes/reasoning
+        setNotes([])
+        setDroppedNotes([])
+        setReasoningHistory([])
+        setCurrentGenerationNotes([])
+        setCurrentlyGeneratingDateKey(null)
+        setNotesError(null)
+
+        // --- UPDATED: Trigger essay embedding ---
+        if (vault.id && file.name && content.trim()) {
+          // Check if content is not empty
           triggerEssayEmbeddingGeneration(vault.id, file.name, content)
+        } else {
+          console.debug(
+            "Skipping essay embedding trigger: missing vault, filename, or empty content.",
+          )
         }
-      } catch {
-        //TODO: do something with the error
+      } catch (error) {
+        console.error("Error handling file selection:", error)
+        toast({
+          title: "Error Loading File",
+          description: `Could not load file ${node.name}. Please try again.`,
+          variant: "destructive",
+        })
       }
     },
-    [
-      vault,
-      codeMirrorViewRef,
-      updatePreview,
-      setHasUnsavedChanges,
-      triggerEssayEmbeddingGeneration,
-    ],
+    [vault, updatePreview, triggerEssayEmbeddingGeneration, toast],
+  ) // Added dependencies
+
+  // --- REFACTORED: isEmbeddingInProgress (using useLiveQuery) ---
+  const activeTaskCount = useLiveQuery(
+    async () => {
+      if (!vault) return 0
+      const inProgressNotes = await db.notes
+        .where({ vaultId: vault.id, embeddingStatus: "in_progress" })
+        .count()
+      const currentFileStatus =
+        currentFile !== "Untitled"
+          ? await db.fileNames.where({ vaultId: vault.id, fileId: currentFile }).first()
+          : null
+      const isFileInProgress = currentFileStatus?.embeddingStatus === "in_progress"
+      return inProgressNotes + (isFileInProgress ? 1 : 0)
+    },
+    [vault, currentFile], // Re-run when vault or currentFile changes
+    0, // Default value
   )
 
-  // Derive embedding progress state
-  const isEmbeddingInProgress = useMemo(() => {
-    return (
-      Object.keys(activeEmbeddingTasks).length > 0 ||
-      Object.keys(activeEssayEmbeddingTasks).length > 0
-    )
-  }, [activeEmbeddingTasks, activeEssayEmbeddingTasks])
+  const isEmbeddingInProgress = useMemo(() => activeTaskCount > 0, [activeTaskCount])
 
   // Effect for blinking eye animation
   useEffect(() => {
@@ -2565,10 +2191,245 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
   }, [isEmbeddingInProgress])
 
+  // --- TODO: Implement Polling Component/Logic using usePollEmbeddingStatus ---
+  // This will involve:
+  // 1. Querying Dexie for tasks with status 'in_progress' using useLiveQuery.
+  // 2. Rendering a new component (e.g., <TaskPoller />) for each active task.
+  // 3. Defining success/error callbacks and passing them to TaskPoller.
+
+  const handleNoteEmbeddingSuccess = useCallback(
+    async (result: EmbedTaskResult) => {
+      const noteId = result.metadata.note
+      if (!noteId || result.metadata.type !== EmbedType.NOTE) return
+
+      console.debug(`Note embedding task succeeded for ${noteId}. Saving embedding...`)
+      try {
+        // Check if the first embedding exists and is not null
+        if (result.embedding && result.embedding.length > 0 && result.embedding[0]) {
+          await saveNoteEmbedding(noteId, result.embedding[0])
+          // Mark success, clear task ID
+          await db.notes.update(noteId, { embeddingStatus: "success", embeddingTaskId: undefined })
+          console.debug(`Embedding saved and status updated for note ${noteId}`)
+        } else {
+          throw new Error("Invalid or missing embedding data in result")
+        }
+      } catch (error: any) {
+        console.error(`Error saving embedding or updating status for note ${noteId}:`, error)
+        // Mark failure, clear task ID
+        await db.notes.update(noteId, { embeddingStatus: "failure", embeddingTaskId: undefined })
+        toast({
+          title: "Embedding Save Error",
+          description: `Failed to save embedding for note ${noteId}: ${error.message}`,
+          variant: "destructive",
+        })
+      }
+    },
+    [toast],
+  ) // Added toast dependency
+
+  const handleNoteEmbeddingError = useCallback(
+    async (noteId: string, error: Error) => {
+      console.error(`Polling failed for note ${noteId}:`, error.message)
+      try {
+        // Mark failure, clear task ID
+        await db.notes.update(noteId, { embeddingStatus: "failure", embeddingTaskId: undefined })
+        toast({
+          title: "Embedding Failed",
+          description: `Embedding generation failed polling for note ${noteId}.`,
+          variant: "destructive",
+        })
+      } catch (dbError) {
+        console.error(`Failed to update note ${noteId} status to failure in Dexie:`, dbError)
+      }
+    },
+    [toast],
+  ) // Added toast dependency
+
+  const handleEssayEmbeddingSuccess = useCallback(
+    async (result: EmbedTaskResult) => {
+      const { vault: vaultId, file: fileId, node_ids } = result.metadata
+      const embedding = result.embedding
+      if (
+        result.metadata.type !== EmbedType.ESSAY ||
+        !vaultId ||
+        !fileId ||
+        !node_ids ||
+        !embedding ||
+        node_ids.length !== embedding.length
+      ) {
+        console.error("Invalid essay embedding result data:", result.metadata)
+        if (vaultId && fileId) {
+          // Attempt to mark as failure, clear task ID
+          await db.updateFileEmbeddingStatus(vaultId, fileId, "failure", undefined)
+        }
+        toast({
+          title: "Embedding Error",
+          description: "Received invalid essay embedding data.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      console.debug(
+        `Essay embedding task succeeded for ${vaultId}/${fileId}. Saving ${node_ids.length} chunks...`,
+      )
+      let allChunksSaved = true
+      try {
+        for (let i = 0; i < node_ids.length; i++) {
+          const chunkId = node_ids[i]
+          const chunkEmbedding = embedding[i]
+          if (!chunkEmbedding) {
+            console.warn(`Skipping null/invalid embedding for chunk ${chunkId}`)
+            continue // Or handle as error? For now, skip.
+          }
+          try {
+            await saveEssayEmbedding(vaultId, fileId, chunkId, chunkEmbedding)
+          } catch (saveError: any) {
+            console.error(`Failed to save embedding for chunk ${chunkId}:`, saveError)
+            allChunksSaved = false
+            toast({
+              title: "Chunk Save Error",
+              description: `Failed to save chunk ${chunkId} for ${fileId}: ${saveError.message}`,
+              variant: "destructive",
+            })
+            // Decide whether to break or continue
+            // break;
+          }
+        }
+
+        if (allChunksSaved) {
+          // Mark success, clear task ID
+          await db.updateFileEmbeddingStatus(vaultId, fileId, "success", undefined)
+          console.debug(`All essay chunks saved successfully for ${vaultId}/${fileId}`)
+        } else {
+          // Mark failure, clear task ID
+          await db.updateFileEmbeddingStatus(vaultId, fileId, "failure", undefined)
+          console.error(`Failed to save one or more essay chunks for ${vaultId}/${fileId}.`)
+          // Toast already shown for individual chunk errors
+        }
+      } catch (error: any) {
+        console.error(`Error processing essay embedding chunks for ${vaultId}/${fileId}:`, error)
+        // Mark failure, clear task ID
+        await db.updateFileEmbeddingStatus(vaultId, fileId, "failure", undefined)
+        toast({
+          title: "Embedding Error",
+          description: `Error processing essay chunks: ${error.message}`,
+          variant: "destructive",
+        })
+      }
+    },
+    [toast],
+  ) // Added toast dependency
+
+  const handleEssayEmbeddingError = useCallback(
+    async (vaultId: string, fileId: string, error: Error) => {
+      console.error(`Polling failed for essay ${vaultId}/${fileId}:`, error.message)
+      try {
+        // Mark failure, clear task ID
+        await db.updateFileEmbeddingStatus(vaultId, fileId, "failure", undefined)
+        toast({
+          title: "Essay Embedding Failed",
+          description: `Embedding generation failed polling for file ${fileId}.`,
+          variant: "destructive",
+        })
+      } catch (dbError) {
+        console.error(`Failed to update file ${fileId} status to failure in Dexie:`, dbError)
+      }
+    },
+    [toast],
+  )
+
+  // --- Component to handle polling for a single task ---
+  const TaskPoller = memo(function TaskPoller({
+    taskId,
+    type,
+    noteId,
+    vaultId,
+    fileId,
+  }: {
+    taskId: string
+    type: "note" | "essay"
+    noteId?: string
+    vaultId?: string
+    fileId?: string
+  }) {
+    usePollEmbeddingStatus({
+      taskId,
+      type,
+      noteId,
+      vaultId,
+      fileId,
+      enabled: !!taskId, // Enable polling if taskId exists
+      onSuccessCallback: (result) => {
+        if (type === "note") {
+          handleNoteEmbeddingSuccess(result)
+        } else {
+          handleEssayEmbeddingSuccess(result)
+        }
+      },
+      onErrorCallback: (error) => {
+        if (type === "note" && noteId) {
+          handleNoteEmbeddingError(noteId, error)
+        } else if (type === "essay" && vaultId && fileId) {
+          handleEssayEmbeddingError(vaultId, fileId, error)
+        }
+      },
+    })
+
+    return null // This component doesn't render anything
+  })
+
+  // --- Query Dexie for active tasks and render pollers ---
+  const activeNoteTasks = useLiveQuery(
+    async () => {
+      if (!vault) return []
+      return db.notes
+        .where({ vaultId: vault.id, embeddingStatus: "in_progress" })
+        .filter((note) => !!note.embeddingTaskId)
+        .toArray()
+    },
+    [vault],
+    [],
+  ) // Rerun when vault changes
+
+  const activeEssayTask = useLiveQuery(
+    async () => {
+      if (!vault || currentFile === "Untitled") return null
+      const file = await db.fileNames.where({ vaultId: vault.id, fileId: currentFile }).first()
+      if (file?.embeddingStatus === "in_progress" && file.embeddingTaskId) {
+        return { taskId: file.embeddingTaskId, vaultId: vault.id, fileId: currentFile }
+      }
+      return null
+    },
+    [vault, currentFile],
+    null,
+  )
+
   return (
+    // IMPORTANT: Need to wrap the app in QueryClientProvider
+    // This should be done in your main app layout or _app.tsx
     <DndProvider backend={HTML5Backend}>
       <NotesProvider>
         <SteeringProvider>
+          {/* Render pollers for active tasks */}
+          {activeNoteTasks?.map((note) => (
+            <TaskPoller
+              key={`note-poll-${note.id}`}
+              taskId={note.embeddingTaskId!}
+              type="note"
+              noteId={note.id}
+            />
+          ))}
+          {activeEssayTask && (
+            <TaskPoller
+              key={`essay-poll-${activeEssayTask.fileId}`}
+              taskId={activeEssayTask.taskId}
+              type="essay"
+              vaultId={activeEssayTask.vaultId}
+              fileId={activeEssayTask.fileId}
+            />
+          )}
+
           <CustomDragLayer />
           <SearchProvider vault={vault!}>
             <SidebarProvider defaultOpen={false} className="flex min-h-screen">
@@ -2733,7 +2594,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       >
                         <NotesPanel
                           notes={notes}
-                          isNotesLoading={isNotesLoading}
+                          isNotesLoading={isNotesLoading} // Keep for suggestion loading
                           notesError={notesError}
                           currentlyGeneratingDateKey={currentlyGeneratingDateKey}
                           currentGenerationNotes={currentGenerationNotes}

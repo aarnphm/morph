@@ -6,6 +6,9 @@ import { useVaultContext } from "@/context/vault-context"
 import { useParams } from "next/navigation"
 import mermaid from "mermaid"
 import { motion } from "motion/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+
+const queryClient = new QueryClient()
 
 export default function VaultPage() {
   const params = useParams()
@@ -77,15 +80,17 @@ export default function VaultPage() {
         opacity: 0,
         transition: {
           duration: 0.2,
-          delay: 0.1
-        }
+          delay: 0.1,
+        },
       }}
       transition={{
         duration: 0.3,
-        ease: [0.25, 0.1, 0.25, 1]
+        ease: [0.25, 0.1, 0.25, 1],
       }}
     >
-      <MemoizedEditor />
+      <QueryClientProvider client={queryClient}>
+        <MemoizedEditor />
+      </QueryClientProvider>
     </motion.main>
   )
 }
