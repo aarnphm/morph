@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging, argparse, traceback, asyncio, os, contextlib, pathlib, time, datetime, typing as t
-import bentoml, fastapi, pydantic, jinja2, annotated_types as ae
+import bentoml, fastapi, jinja2, annotated_types as ae
 
 with bentoml.importing():
   import hnswlib, openai
@@ -17,28 +17,28 @@ with bentoml.importing():
   from llama_index.embeddings.openai import OpenAIEmbedding
   from llama_index.llms.openai_like import OpenAILike
   from llama_index.vector_stores.hnswlib import HnswlibVectorStore
-  from llama_index.core.ingestion.pipeline import TransformComponent
-  from llama_index.core.schema import BaseNode
 
-  from libs.protocol import ServiceOpts
-
-from libs.protocol import (
-  ReasoningModels,
-  EmbeddingModels,
-  SERVICE_CONFIG,
-  EmbedType,
-  ModelType,
-  Essay,
-  Note,
-  EmbedMetadata,
-  EmbedTask,
-  DocumentType,
-  ServiceHealth,
-  HealthStatus,
-  Suggestion,
-  Suggestions,
-  TaskType,
-)
+  from libs.helpers import LineNumberMetadataExtractor
+  from libs.protocol import (
+    ReasoningModels,
+    EmbeddingModels,
+    SERVICE_CONFIG,
+    ServiceOpts,
+    EmbedType,
+    ModelType,
+    Essay,
+    Note,
+    EmbedMetadata,
+    EmbedTask,
+    DocumentType,
+    ServiceHealth,
+    HealthStatus,
+    Suggestion,
+    Suggestions,
+    TaskType,
+    RerankRequest,
+    RerankResponse,
+  )
 
 if t.TYPE_CHECKING:
   from _bentoml_impl.client import RemoteProxy
@@ -46,54 +46,6 @@ if t.TYPE_CHECKING:
   from vllm.entrypoints.openai.protocol import DeltaMessage
 
 logger = logging.getLogger('bentoml.service')
-
-
-class LineNumberMetadataExtractor(TransformComponent):
-  """A transformation that adds start_line and end_line metadata to nodes."""
-
-  def __call__(self, nodes: t.List[BaseNode], **kwargs: t.Any) -> t.List[BaseNode]:
-    for node in nodes:
-      # Ensure it's a TextNode derived from a Document and has source info
-      if (
-        isinstance(node, Document)
-        or not hasattr(node, 'source_node')
-        or not node.source_node
-        or not hasattr(node.source_node, 'text')
-      ):
-        continue
-
-      original_text = node.source_node.text
-      chunk_text = node.get_content()  # Use get_content() for robustness
-
-      node.metadata['start_line'] = -1  # Default value indicating failure
-      node.metadata['end_line'] = -1
-
-      try:
-        start_char_index = original_text.find(chunk_text)
-        if start_char_index == -1:
-          # Log a warning if the exact chunk text isn't found
-          logger.warning(
-            'Could not find exact chunk text for node %s in original document %s. Line numbers will not be added.',
-            node.node_id,
-            node.source_node.node_id,
-          )
-          continue
-
-        # Calculate start line (1-based)
-        start_line = original_text.count('\n', 0, start_char_index) + 1
-
-        # Calculate end line (1-based)
-        # Count newlines *within* the chunk itself
-        end_line = start_line + chunk_text.count('\n')
-
-        node.metadata['start_line'] = start_line
-        node.metadata['end_line'] = end_line
-
-      except Exception as e:
-        logger.error('Error extracting line numbers for node %s: %s', node.node_id, e)
-        # Keep default -1 values if an error occurs
-
-    return nodes
 
 
 WORKING_DIR = pathlib.Path(__file__).parent
@@ -109,21 +61,6 @@ STRUCTURED_OUTPUT_BACKEND = llm_['structured_output_backend']
 embed_type_ = t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen-fast'))
 EMBED_ID: str = (embed_ := EmbeddingModels[embed_type_])['model_id']
 DIMENSIONS = embed_['dimensions']
-
-
-class RerankRequest(pydantic.BaseModel):
-  vault_id: str
-  file_id: str
-  notes_text: str
-  similarity_top_k: int = 10
-  rerank_top_n: int = 1
-
-
-class RerankResponse(pydantic.BaseModel):
-  node_id: str
-  text: str
-  score: t.Optional[float] = None
-  error: t.Optional[str] = None
 
 
 def make_engine_service_config(type_: t.Literal['llm', 'embed'] = 'llm') -> ServiceOpts:

@@ -11,7 +11,7 @@ if t.TYPE_CHECKING:
   from _bentoml_sdk.service.config import TrafficSchema, TracingSchema
 
 TaskType = t.Literal['generate', 'embed']
-EmbedType = t.Literal['gte-qwen']
+EmbedType = t.Literal['gte-qwen', 'gte-qwen-fast', 'gte-modernbert']
 ModelType = t.Literal['r1-qwen', 'r1-qwen-small', 'r1-qwen-tiny', 'r1-qwen-fast', 'r1-llama', 'r1-llama-small', 'qwq']
 
 
@@ -96,6 +96,9 @@ EmbeddingModels: dict[EmbedType, EmbeddingModelMetadata] = {
   'gte-qwen-fast': EmbeddingModelMetadata(
     model_id='Alibaba-NLP/gte-Qwen2-1.5B-instruct', dimensions=1536, resources={'gpu': 1, 'gpu_type': 'nvidia-l4'}
   ),
+  'gte-modernbert': EmbeddingModelMetadata(
+    model_id='Alibaba-NLP/gte-modernbert-base', dimensions=786, resources={'gpu': 1, 'gpu_type': 'nvidia-l4'}
+  ),
 }
 
 
@@ -152,3 +155,18 @@ class Suggestion(pydantic.BaseModel):
 
 class Suggestions(pydantic.BaseModel):
   suggestions: list[Suggestion]
+
+
+class RerankRequest(pydantic.BaseModel):
+  vault_id: str
+  file_id: str
+  notes_text: str
+  similarity_top_k: int = 10
+  rerank_top_n: int = 1
+
+
+class RerankResponse(pydantic.BaseModel):
+  node_id: str
+  text: str
+  score: t.Optional[float] = None
+  error: t.Optional[str] = None
