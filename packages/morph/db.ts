@@ -1,6 +1,8 @@
 import Dexie, { type Table } from "dexie"
 import { createId } from "@paralleldrive/cuid2"
 
+export const PGLITE_DB_NAME = "morph-pglite";
+
 // Define interfaces
 export interface Vault {
   id: string
@@ -58,6 +60,8 @@ export interface Note {
   tonality?: { [key: string]: number }
   temperature?: number
   numSuggestions?: number
+  embeddingStatus?: 'in_progress' | 'success' | 'failure' | 'cancelled'
+  embeddingTaskId?: string
 }
 
 export interface Reasoning {
@@ -79,6 +83,8 @@ export interface FileNameIndex {
   fileName: string
   fileId: string
   vaultId: string
+  embeddingStatus?: Note['embeddingStatus']
+  embeddingTaskId?: string
 }
 
 export class DB extends Dexie {
@@ -98,6 +104,27 @@ export class DB extends Dexie {
       reasonings: "id, fileId, vaultId, createdAt",
       fileNames: "id, fileName, fileId, vaultId",
     })
+
+    this.version(2).stores({
+      notes: "id, fileId, vaultId, dropped, embeddingStatus, embeddingTaskId",
+    })
+
+    this.version(3).stores({
+      notes: "id, [fileId+vaultId], fileId, vaultId, dropped, embeddingStatus, embeddingTaskId",
+    })
+
+    this.version(4).stores({
+      fileNames: "id, [fileName+vaultId], [vaultId+fileId], fileId, vaultId, embeddingStatus, embeddingTaskId",
+    }).upgrade(tx => {
+      return tx.table('fileNames').toCollection().modify(file => {
+        if (file.embeddingStatus === undefined) {
+          file.embeddingStatus = undefined;
+        }
+        if (file.embeddingTaskId === undefined) {
+          file.embeddingTaskId = undefined;
+        }
+      });
+    });
   }
 
   async addVaultWithReference(
@@ -145,12 +172,21 @@ export class DB extends Dexie {
 
   async indexFileName(fileName: string, fileId: string, vaultId: string): Promise<string> {
     return this.transaction("rw", this.fileNames, async () => {
+      const existing = await this.fileNames.where({ vaultId, fileId }).first();
+      if (existing) {
+        if (existing.fileName !== fileName) {
+          await this.fileNames.update(existing.id, { fileName });
+        }
+        return existing.id;
+      }
       const id = createId()
       await this.fileNames.add({
         id,
         fileName,
         fileId,
         vaultId,
+        embeddingStatus: undefined,
+        embeddingTaskId: undefined,
       })
       return id
     })
@@ -159,6 +195,26 @@ export class DB extends Dexie {
   async getFileIdByName(fileName: string, vaultId: string): Promise<string | undefined> {
     const result = await this.fileNames.where({ fileName, vaultId }).first()
     return result?.fileId
+  }
+
+  async updateFileEmbeddingStatus(
+    vaultId: string,
+    fileId: string,
+    status: Note['embeddingStatus'],
+    taskId?: string
+  ): Promise<void> {
+    await this.transaction('rw', this.fileNames, async () => {
+      const fileIndex = await this.fileNames.where({ vaultId, fileId }).first();
+      if (fileIndex) {
+        await this.fileNames.update(fileIndex.id, {
+          embeddingStatus: status,
+          embeddingTaskId: status === 'success' ? taskId : undefined
+        });
+        console.debug(`Updated file embedding status for ${vaultId}/${fileId} to ${status}`);
+      } else {
+        console.warn(`Could not find file index for ${vaultId}/${fileId} to update status.`);
+      }
+    });
   }
 }
 

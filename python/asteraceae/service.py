@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import logging, argparse, traceback, asyncio, os, contextlib, pathlib, time, datetime, typing as t
-import bentoml, fastapi, jinja2, annotated_types as ae
-from llama_index.core.storage.docstore import SimpleDocumentStore
+import bentoml, fastapi, pydantic, jinja2, annotated_types as ae
 
 with bentoml.importing():
   import hnswlib, openai
 
   from openai.types.chat import ChatCompletionUserMessageParam
-  from llama_index.core import VectorStoreIndex, StorageContext, Document
+  from llama_index.core.storage.docstore import SimpleDocumentStore
+  from llama_index.core.postprocessor import LLMRerank
+  from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
+  from llama_index.core import VectorStoreIndex, StorageContext, Document, QueryBundle
   from llama_index.core.ingestion import IngestionPipeline
   from llama_index.core.node_parser import SemanticSplitterNodeParser
   from llama_index.core.extractors import TitleExtractor
@@ -57,6 +59,21 @@ STRUCTURED_OUTPUT_BACKEND = llm_['structured_output_backend']
 embed_type_ = t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen-fast'))
 EMBED_ID: str = (embed_ := EmbeddingModels[embed_type_])['model_id']
 DIMENSIONS = embed_['dimensions']
+
+
+class RerankRequest(pydantic.BaseModel):
+  vault_id: str
+  file_id: str
+  notes_text: str
+  similarity_top_k: int = 10
+  rerank_top_n: int = 1
+
+
+class RerankResponse(pydantic.BaseModel):
+  node_id: str
+  text: str
+  score: t.Optional[float] = None
+  error: t.Optional[str] = None
 
 
 def make_engine_service_config(type_: t.Literal['llm', 'embed'] = 'llm') -> ServiceOpts:
@@ -418,6 +435,59 @@ class API:
       healthy=all(service.healthy for service in services_health),
       timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
     )
+
+  @bentoml.api
+  async def rerank(self, request: RerankRequest) -> RerankResponse:
+    """
+    Reranks chunks from a specific essay based on the provided notes text.
+    """
+    try:
+      # 1. Define metadata filters
+      filters = MetadataFilters(
+        filters=[
+          ExactMatchFilter(key='vault', value=request.vault_id),
+          ExactMatchFilter(key='file', value=request.file_id),
+          ExactMatchFilter(key='type', value=DocumentType.ESSAY.value),
+        ]
+      )
+
+      # 2. Get retriever with filters
+      retriever = self.index.as_retriever(similarity_top_k=request.similarity_top_k, filters=filters)
+
+      # 3. Instantiate LLMRerank
+      # Using the LLM already configured in the service
+      reranker = LLMRerank(
+        llm=self.llm_model,
+        top_n=request.rerank_top_n,
+        # choice_batch_size can be adjusted based on model context window and performance needs
+        choice_batch_size=5,
+      )
+
+      # 4. Create RetrieverQueryEngine
+      # Note: We use aquery directly on the retriever + reranker for simplicity,
+      # as we don't need the full synthesis capabilities of the query engine here.
+      # If synthesis were needed later, RetrieverQueryEngine would be appropriate.
+      # query_engine = RetrieverQueryEngine(retriever=retriever, node_postprocessors=[reranker])
+      # response = await query_engine.aquery(request.notes_text)
+
+      # Alternative: Direct retrieval and reranking
+      query_bundle = QueryBundle(request.notes_text)
+      retrieved_nodes = await retriever.aretrieve(query_bundle)
+      reranked_nodes = await reranker.apostprocess_nodes(retrieved_nodes, query_bundle=query_bundle)
+
+      if not reranked_nodes:
+        return RerankResponse(node_id='', text='', error='No relevant chunks found after reranking.')
+
+      # 5. Extract top node
+      top_node = reranked_nodes[0]  # LLMRerank returns sorted nodes
+
+      return RerankResponse(node_id=top_node.node.node_id, text=top_node.node.get_content(), score=top_node.score)
+
+    except Exception:
+      logger.error(
+        'Error during rerank for vault %s, file %s: %s', request.vault_id, request.file_id, traceback.format_exc()
+      )
+      return RerankResponse(node_id='', text='', error='Internal server error check logs for more information')
 
 
 @api_app.get('/metadata')

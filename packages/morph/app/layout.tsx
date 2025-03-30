@@ -3,6 +3,7 @@ import type React from "react"
 import PlausibleProvider from "next-plausible"
 import { ThemeProvider } from "@/context/theme-provider"
 import { VaultProvider } from "@/context/vault-context"
+import { PgLiteProvider } from "@/context/pglite-context"
 import Script from "next/script"
 import { Toaster } from "@/components/ui/toaster"
 import { type Viewport, type Metadata } from "next"
@@ -46,14 +47,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <PlausibleProvider domain="morph-editor.app" trackOutboundLinks trackFileDownloads>
           <VaultProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            >
-              {children}
-            </ThemeProvider>
+            <PgLiteProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="system"
+                enableSystem
+                disableTransitionOnChange
+              >
+                {children}
+              </ThemeProvider>
+            </PgLiteProvider>
           </VaultProvider>
         </PlausibleProvider>
         <Toaster />
