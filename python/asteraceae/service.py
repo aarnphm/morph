@@ -489,7 +489,7 @@ class API:
       timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
     )
 
-  @bentoml.api
+  @bentoml.task
   async def rerank(self, request: RerankRequest) -> RerankResponse:
     """
     Reranks chunks from a specific essay based on the provided notes text.

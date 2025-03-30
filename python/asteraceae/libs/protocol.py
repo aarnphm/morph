@@ -127,7 +127,7 @@ class EmbedMetadata(pydantic.BaseModel):
 
 class EmbedTask(pydantic.BaseModel):
   metadata: EmbedMetadata
-  embedding: list[list[float] | None]
+  embedding: list[t.Optional[list[float]]]
   error: str = pydantic.Field(default='')
 
 
