@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import logging, argparse, traceback, asyncio, os, contextlib, pathlib, time, datetime, typing as t
 import bentoml, fastapi, jinja2, annotated_types as ae
+from llama_index.core.storage.docstore import SimpleDocumentStore
 
 with bentoml.importing():
-  import hnswlib, openai, transformers
+  import hnswlib, openai
 
   from openai.types.chat import ChatCompletionUserMessageParam
-  from llama_index.core import VectorStoreIndex, StorageContext
-  from llama_index.core.node_parser import SemanticSplitterNodeParser, SentenceSplitter
-  from llama_index.core.schema import TextNode
+  from llama_index.core import VectorStoreIndex, StorageContext, Document
+  from llama_index.core.ingestion import IngestionPipeline
+  from llama_index.core.node_parser import SemanticSplitterNodeParser
+  from llama_index.core.extractors import TitleExtractor
   from llama_index.embeddings.openai import OpenAIEmbedding
+  from llama_index.llms.openai_like import OpenAILike
   from llama_index.vector_stores.hnswlib import HnswlibVectorStore
 
   from libs.protocol import ServiceOpts
@@ -30,10 +33,12 @@ from libs.protocol import (
   HealthStatus,
   Suggestion,
   Suggestions,
+  TaskType,
 )
 
 if t.TYPE_CHECKING:
   from _bentoml_impl.client import RemoteProxy
+  from _bentoml_sdk.service.factory import Service
   from vllm.entrypoints.openai.protocol import DeltaMessage
 
 logger = logging.getLogger('bentoml.service')
@@ -44,10 +49,13 @@ IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
 MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 16 * 1024))
 MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 8 * 1024))
 
-LLM_ID: str = (llm_ := ReasoningModels[t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))])['model_id']
+model_type_ = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
+LLM_ID: str = (llm_ := ReasoningModels[model_type_])['model_id']
+TEMPERATURE: float = llm_['temperature']
 STRUCTURED_OUTPUT_BACKEND = llm_['structured_output_backend']
 
-EMBED_ID: str = (embed_ := EmbeddingModels[t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen'))])['model_id']
+embed_type_ = t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen-fast'))
+EMBED_ID: str = (embed_ := EmbeddingModels[embed_type_])['model_id']
 DIMENSIONS = embed_['dimensions']
 
 
@@ -71,9 +79,6 @@ def make_env(engine_version: t.Literal[0, 1] = 1, *, skip_hf: bool = False) -> l
     {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': (WORKING_DIR / 'logging-config.json').__fspath__()},
   ])
   return results
-
-
-TaskType = t.Literal['generate', 'embed']
 
 
 def make_args(
@@ -220,6 +225,10 @@ class Embeddings:
     await self.exit_stack.aclose()
 
 
+api_app = fastapi.FastAPI()
+
+
+@bentoml.asgi_app(api_app)
 @bentoml.service(
   name='asteraceae-inference-api',
   resources={'cpu': 2},
@@ -242,8 +251,6 @@ class API:
   llm = bentoml.depends(Engine, url=make_url('generate'))
   embedding = bentoml.depends(Embeddings, url=make_url('embed'))
 
-  metapath = WORKING_DIR / 'indexes'
-
   # vector stores configuration
   dimensions: int = DIMENSIONS
   M: int = 16
@@ -257,153 +264,82 @@ class API:
 
   @bentoml.on_startup
   def setup_clients(self):
-    self.bento_llm = self.llm.to_async.client
-    self.bento_embedding = self.embedding.to_async.client
+    self.llm_openai_client = openai.AsyncOpenAI(base_url=f'{self.llm.client_url}/v1', api_key='dummy')
+    self.embed_openai_client = openai.AsyncOpenAI(base_url=f'{self.embedding.client_url}/v1', api_key='dummy')
 
-    self.openai_llm = openai.AsyncOpenAI(base_url=f'{self.llm.client_url}/v1', api_key='dummy')
-    self.openai_embed = openai.AsyncOpenAI(base_url=f'{self.embedding.client_url}/v1', api_key='dummy')
-
-    self.wrapper_embed = OpenAIEmbedding(
-      dimensions=self.dimensions,
-      http_client=self.embedding.to_sync.client,
-      async_http_client=self.embedding.to_async.client,
+    self.embed_model = OpenAIEmbedding(
+      api_key='dummy',
+      model_name=Embeddings.inner.model_id,
+      api_base=f'{self.embedding.client_url}/v1',
+      dimensions=None,  # TODO: support dimensions in vLLM
       default_headers={'Runner-Name': Embeddings.name},
+    )
+    self.embed_model._aclient = self.embed_openai_client
+    self.llm_model = OpenAILike(
+      model=Engine.inner.model_id,
+      api_key='dummy',
+      api_base=f'{self.llm.client_url}/v1',
+      is_chat_model=True,
+      max_tokens=MAX_TOKENS,
+      context_window=MAX_MODEL_LEN,
+      temperature=TEMPERATURE,
+      default_headers={'Runner-Name': Engine.name},
     )
 
   @bentoml.on_startup
   def setup_parsers_tooling(self):
-    self.metapath.mkdir(exist_ok=True)
-
-    tokenizer = transformers.AutoTokenizer.from_pretrained(Embeddings.inner.model_id)
-    self.sentence_splitter = SentenceSplitter(
-      # NOTE: that this supports linebreaks in Quartz and Obsidian.
-      paragraph_separator='\n\n',
-      tokenizer=tokenizer,
-      chunk_size=1024,
-      chunk_overlap=20,
-    )
-    self.chunker = SemanticSplitterNodeParser(
-      buffer_size=1,
-      breakpoint_percentile_threshold=95,
-      embed_model=self.wrapper_embed,
-      sentence_splitter=self.sentence_splitter,
-    )
-
     hnsw_index = hnswlib.Index(space=self.space, dim=self.dimensions)
     hnsw_index.init_index(max_elements=self.max_elements, ef_construction=self.ef_construction, M=self.M)
-    storage_context = StorageContext.from_defaults(vector_store=HnswlibVectorStore(hnsw_index))
-    self.index = VectorStoreIndex.from_documents([], storage_context=storage_context, embed_model=self.wrapper_embed)
+    vector_store = HnswlibVectorStore(hnsw_index)
+    docstore = SimpleDocumentStore()
+    storage_context = StorageContext.from_defaults(docstore=docstore, vector_store=vector_store)
+    self.index = VectorStoreIndex.from_documents([], storage_context=storage_context, embed_model=self.embed_model)
 
-  @bentoml.api
-  async def health(self, timeout: int = 30) -> HealthStatus:
-    services_health: list[ServiceHealth] = []
-
-    async def check_service_health(name: str) -> ServiceHealth:
-      service_health = ServiceHealth(name=name)
-      try:
-        start_time = time.time()
-        service_health.healthy = await t.cast('RemoteProxy', getattr(self, name)).is_ready(timeout)
-        service_health.latency_ms = round((time.time() - start_time) * 1000, 2)
-      except Exception as e:
-        service_health.healthy = False
-        service_health.error = str(e)
-      return service_health
-
-    # Wait for all health check tasks to complete
-    services_health = await asyncio.gather(*[
-      asyncio.create_task(check_service_health(name)) for name in ['llm', 'embedding']
-    ])
-
-    return HealthStatus(
-      services=services_health,
-      healthy=all(service.healthy for service in services_health),
-      timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    chunker = SemanticSplitterNodeParser(
+      buffer_size=1, breakpoint_percentile_threshold=95, embed_model=self.embed_model
+    )
+    self.pipeline = IngestionPipeline(
+      transformations=[chunker, TitleExtractor(llm=self.llm_model), self.embed_model],
+      docstore=docstore,
+      vector_store=vector_store,
     )
 
   @bentoml.task
   async def essays(self, essay: Essay) -> EmbedTask:
     metadata = EmbedMetadata(vault=essay.vault_id, file=essay.file_id, type=DocumentType.ESSAY)
 
-    # Create a unique ID for the essay
-    essay_id = f'{essay.vault_id}_{essay.file_id}'
-
     try:
-      # Check if the essay is already in the index
-      existing_nodes = self.vector_store.get_by_metadata({'id': essay_id})
-
-      if existing_nodes:
-        # Essay already exists in index, return the embedding
-        existing_node = existing_nodes[0]
-        return EmbedTask(metadata=metadata, embedding=existing_node.embedding)
-
-      # Essay not found, create embedding
-      result = await self.embed_model.embeddings.create(
-        input=[essay.content], model=self.model_id, extra_headers={'Runner-Name': self.__class__.__name__}
+      result = await self.pipeline.arun(
+        show_progress=True,
+        documents=[
+          Document(text=essay.content, doc_id=essay.file_id, metadata=metadata.model_dump(exclude={'node_ids'}))
+        ],
+        num_workers=2,
       )
-
-      embedding = result.data[0].embedding
-
-      # Create a node and add to vector store
-      node = TextNode(
-        text=essay.content,
-        metadata={'id': essay_id, 'vault_id': essay.vault_id, 'file_id': essay.file_id},
-        embedding=embedding,
+      return EmbedTask(
+        metadata=metadata.model_copy(update={'node_ids': [it.node_id for it in result]}),
+        embedding=[it.embedding for it in result],
       )
-      self.vector_store.add([node])
-
-      return EmbedTask(metadata=metadata, embedding=embedding)
-
     except Exception:
       logger.error(traceback.format_exc())
       return EmbedTask(
         metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information'
       )
 
-  @bentoml.api(batchable=True)
-  async def notes(self, notes: list[Note]) -> list[EmbedTask]:
-    results = []
+  @bentoml.task
+  async def notes(self, note: Note) -> EmbedTask:
+    metadata = EmbedMetadata(vault=note.vault_id, file=note.file_id, type=DocumentType.NOTE, note=note.note_id)
 
-    for note in notes:
-      metadata = EmbedMetadata(vault=note.vault_id, file=note.file_id, type=DocumentType.NOTE, note=note.note_id)
-
-      try:
-        # Create a unique ID for the note
-        note_id = f'{note.vault_id}_{note.file_id}_{note.note_id}'
-
-        # Check if the note is already in the index
-        existing_nodes = self.vector_store.get_by_metadata({'id': note_id})
-
-        if existing_nodes:
-          # Note already exists in index, return the embedding
-          existing_node = existing_nodes[0]
-          results.append(EmbedTask(metadata=metadata, embedding=existing_node.embedding))
-          continue
-
-        # Note not found, create embedding
-        embedding_result = await self.embed_model.embeddings.create(
-          input=[note.content], model=self.model_id, extra_headers={'Runner-Name': self.__class__.__name__}
-        )
-
-        embedding = embedding_result.data[0].embedding
-
-        # Create a node and add to vector store
-        node = TextNode(
-          text=note.content,
-          metadata={'id': note_id, 'vault_id': note.vault_id, 'file_id': note.file_id, 'note_id': note.note_id},
-          embedding=embedding,
-        )
-        self.vector_store.add([node])
-
-        results.append(EmbedTask(metadata=metadata, embedding=embedding))
-      except Exception:
-        logger.error(traceback.format_exc())
-        results.append(
-          EmbedTask(
-            metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information'
-          )
-        )
-
-    return results
+    try:
+      results = await self.embed_openai_client.embeddings.create(
+        input=[note.content], model=Embeddings.inner.model_id, extra_headers={'Runner-Name': Embeddings.name}
+      )
+      return EmbedTask(metadata=metadata, embedding=[results.data[0].embedding])
+    except Exception:
+      logger.error(traceback.format_exc())
+      return EmbedTask(
+        metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information'
+      )
 
   @bentoml.api
   async def suggests(
@@ -413,7 +349,7 @@ class API:
     tonality: t.Optional[dict[str, t.Any]] = None,
     num_suggestions: t.Annotated[int, ae.Ge(2)] = 3,
     *,
-    temperature: t.Annotated[float, ae.Ge(0), ae.Le(1)] = 0.6,
+    temperature: t.Annotated[float, ae.Ge(0), ae.Le(1)] = TEMPERATURE,
     max_tokens: t.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
     usage: bool = False,
   ) -> t.AsyncGenerator[str, None]:
@@ -427,7 +363,7 @@ class API:
     prefill = False
 
     try:
-      completions = await self.openai_llm.chat.completions.create(
+      completions = await self.llm_openai_client.chat.completions.create(
         model=LLM_ID,
         temperature=temperature,
         max_tokens=max_tokens,
@@ -456,3 +392,39 @@ class API:
       logger.error(traceback.format_exc())
       yield f'{Suggestion(suggestion="Internal error found. Check server logs for more information").model_dump_json()}\n'
       return
+
+  @bentoml.api
+  async def health(self, timeout: int = 30) -> HealthStatus:
+    services_health: list[ServiceHealth] = []
+
+    async def check_service_health(name: str) -> ServiceHealth:
+      service_health = ServiceHealth(name=name)
+      try:
+        start_time = time.time()
+        service_health.healthy = await t.cast('RemoteProxy', getattr(self, name)).is_ready(timeout)
+        service_health.latency_ms = round((time.time() - start_time) * 1000, 2)
+      except Exception as e:
+        service_health.healthy = False
+        service_health.error = str(e)
+      return service_health
+
+    # Wait for all health check tasks to complete
+    services_health = await asyncio.gather(*[
+      asyncio.create_task(check_service_health(name)) for name in ['llm', 'embedding']
+    ])
+
+    return HealthStatus(
+      services=services_health,
+      healthy=all(service.healthy for service in services_health),
+      timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    )
+
+
+@api_app.get('/metadata')
+def metadata(api: Service = fastapi.Depends(API)) -> dict[str, t.Any]:
+  return dict(
+    llm=dict(model_type=model_type_, model_id=LLM_ID, structured_outputs=STRUCTURED_OUTPUT_BACKEND),
+    embed=dict(
+      model_id=EMBED_ID, M=api.M, ef_construction=api.ef_construction, embed_type=embed_type_, dimensions=DIMENSIONS
+    ),
+  )

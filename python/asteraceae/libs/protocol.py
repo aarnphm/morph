@@ -10,6 +10,7 @@ if t.TYPE_CHECKING:
   from _bentoml_sdk.service.config import ResourceSchema
   from _bentoml_sdk.service.config import TrafficSchema, TracingSchema
 
+TaskType = t.Literal['generate', 'embed']
 EmbedType = t.Literal['gte-qwen']
 ModelType = t.Literal['r1-qwen', 'r1-qwen-small', 'r1-qwen-tiny', 'r1-qwen-fast', 'r1-llama', 'r1-llama-small', 'qwq']
 
@@ -17,6 +18,7 @@ ModelType = t.Literal['r1-qwen', 'r1-qwen-small', 'r1-qwen-tiny', 'r1-qwen-fast'
 class LLMMetadata(t.TypedDict):
   model_id: str
   structured_output_backend: str
+  temperature: float
   resources: ResourceSchema
 
 
@@ -46,42 +48,54 @@ ReasoningModels: dict[ModelType, LLMMetadata] = {
   'r1-qwen': LLMMetadata(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-32B',
     structured_output_backend='xgrammar:disable-any-whitespace',
+    temperature=0.6,
     resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
   ),
   'r1-qwen-small': LLMMetadata(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-14B',
     structured_output_backend='xgrammar:disable-any-whitespace',
+    temperature=0.6,
     resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
   ),
   'r1-qwen-fast': LLMMetadata(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B',
     structured_output_backend='xgrammar:disable-any-whitespace',
+    temperature=0.6,
     resources={'gpu': 1, 'gpu_type': 'nvidia-tesla-a100'},
   ),
   'r1-qwen-tiny': LLMMetadata(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B',
     structured_output_backend='xgrammar:disable-any-whitespace',
+    temperature=0.6,
     resources={'gpu': 1, 'gpu_type': 'nvidia-l4'},
   ),
   'r1-llama': LLMMetadata(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Llama-70B',
     structured_output_backend='xgrammar',
+    temperature=0.6,
     resources={'gpu': 2, 'gpu_type': 'nvidia-a100-80gb'},
   ),
   'r1-llama-small': LLMMetadata(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Llama-8B',
     structured_output_backend='xgrammar',
+    temperature=0.6,
     resources={'gpu': 1, 'gpu_type': 'nvidia-tesla-a100'},
   ),
   'qwq': LLMMetadata(
-    model_id='Qwen/QwQ-32B', structured_output_backend='xgrammar', resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'}
+    model_id='Qwen/QwQ-32B',
+    structured_output_backend='xgrammar',
+    temperature=0.6,
+    resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
   ),
 }
 
 EmbeddingModels: dict[EmbedType, EmbeddingModelMetadata] = {
   'gte-qwen': EmbeddingModelMetadata(
     model_id='Alibaba-NLP/gte-Qwen2-7B-instruct', dimensions=3584, resources={'gpu': 1, 'gpu_type': 'nvidia-l4'}
-  )
+  ),
+  'gte-qwen-fast': EmbeddingModelMetadata(
+    model_id='Alibaba-NLP/gte-Qwen2-1.5B-instruct', dimensions=1536, resources={'gpu': 1, 'gpu_type': 'nvidia-l4'}
+  ),
 }
 
 
@@ -108,11 +122,12 @@ class EmbedMetadata(pydantic.BaseModel):
   file: str
   type: DocumentType
   note: t.Optional[str] = pydantic.Field(default=None)
+  node_ids: t.Optional[list[str]] = None
 
 
 class EmbedTask(pydantic.BaseModel):
   metadata: EmbedMetadata
-  embedding: list[float]
+  embedding: list[list[float] | None]
   error: str = pydantic.Field(default='')
 
 
