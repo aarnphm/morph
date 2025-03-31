@@ -5,43 +5,29 @@ import logging, traceback, asyncio, os, shutil, contextlib, pathlib, time, datet
 import bentoml, fastapi, jinja2, annotated_types as ae
 
 with bentoml.importing():
-  import hnswlib, openai
+  import openai
 
-  from openai.types.chat import ChatCompletionUserMessageParam
-  from openai.types.embedding import Embedding
-  from llama_index.core.storage.docstore import SimpleDocumentStore
-  from llama_index.core import VectorStoreIndex, StorageContext, Document
-  from llama_index.core.ingestion import IngestionPipeline
-  from llama_index.core.node_parser import SemanticSplitterNodeParser
-  from llama_index.core.extractors import TitleExtractor
-  from llama_index.embeddings.openai import OpenAIEmbedding
-  from llama_index.llms.openai_like import OpenAILike
-  from llama_index.vector_stores.hnswlib import HnswlibVectorStore
+  from openai.types.chat import ChatCompletionChunk
+  from openai.types import CreateEmbeddingResponse
+  from openai.types.chat import ChatCompletionUserMessageParam, ChatCompletionMessageParam
 
-  from libs.helpers import LineNumberMetadataExtractor, make_labels
   from libs.protocol import (
     ReasoningModels,
     EmbeddingModels,
     ServiceOpts,
     EmbedType,
     ModelType,
-    Essay,
-    Note,
-    EmbedMetadata,
-    EmbedTask,
-    DocumentType,
     DependentStatus,
     HealthStatus,
     Suggestion,
     Suggestions,
     TaskType,
     Tonality,
-    SERVICE_CONFIG,
   )
 
 if t.TYPE_CHECKING:
   from _bentoml_impl.client import RemoteProxy
-  from _bentoml_sdk.service.factory import Service
+  from _bentoml_sdk.service.factory import Service, Dependency
   from vllm.entrypoints.openai.protocol import DeltaMessage
 
 logger = logging.getLogger('bentoml.service')
@@ -57,6 +43,34 @@ MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
 LLM_ID: str = (llm_ := ReasoningModels[MODEL_TYPE])['model_id']
 EMBED_TYPE = t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen-fast'))
 EMBED_ID: str = (embed_ := EmbeddingModels[EMBED_TYPE])['model_id']
+
+CORS = dict(
+  allow_origins=['*'],
+  allow_methods=['GET', 'OPTIONS', 'POST', 'HEAD', 'PUT'],
+  allow_credentials=True,
+  allow_headers=['*'],
+  max_age=3600,
+  expose_headers=['Content-Length'],
+)
+
+SERVICE_CONFIG: ServiceOpts = {
+  'tracing': {'sample_rate': 1.0},
+  'traffic': {'timeout': 1000, 'concurrency': 128},
+  'http': {'cors': {'enabled': True, **{f'access_control_{k}': v for k, v in CORS.items()}}},
+  'image': bentoml.images.PythonImage(python_version='3.11')
+  .system_packages('curl', 'git', 'build-essential', 'clang')
+  .pyproject_toml('pyproject.toml')
+  .run('uv pip install --compile-bytecode flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.6'),
+}
+
+
+llm_app = fastapi.FastAPI(title=f'OpenAI Compatible Endpoint for {LLM_ID}')
+embed_app = fastapi.FastAPI(title=f'OpenAI Compatible Endpoint for {EMBED_ID}')
+app = fastapi.FastAPI(title='API Gateway for morph')
+
+
+def make_labels(task: TaskType) -> dict[str, t.Any]:
+  return {'owner': 'aarnphm', 'type': 'engine', 'task': task}
 
 
 def make_engine_service_config(type_: t.Literal['llm', 'embed'] = 'llm') -> ServiceOpts:
@@ -136,9 +150,6 @@ def make_url(task: TaskType) -> str | None:
   return f'http://127.0.0.1:{os.getenv((k := var[task])["key"], k["value"])}' if os.getenv('DEVELOPMENT') else None
 
 
-llm_app = fastapi.FastAPI(title=f'OpenAI Compatible Endpoint for {LLM_ID}')
-
-
 @bentoml.asgi_app(llm_app, path='/v1')
 @bentoml.service(labels=make_labels('generate'), envs=make_env(0), **make_engine_service_config())
 class LLM:
@@ -187,15 +198,18 @@ class LLM:
   ) -> t.AsyncGenerator[str, None]:
     prefill = False
     try:
-      completions = await self.client.chat.completions.create(
-        model=self.model_id,
-        temperature=temperature,
-        top_p=top_p,
-        max_tokens=max_tokens,
-        messages=[ChatCompletionUserMessageParam(role='user', content=prompt)],
-        stream=True,
-        extra_body={'guided_json': Suggestions.model_json_schema()},
-        stream_options={'continuous_usage_stats': True, 'include_usage': True} if usage else None,
+      completions = t.cast(
+        openai.AsyncStream[ChatCompletionChunk],
+        await self.client.chat.completions.create(
+          model=self.model_id,
+          temperature=temperature,
+          top_p=top_p,
+          max_tokens=max_tokens,
+          messages=[ChatCompletionUserMessageParam(role='user', content=prompt)],
+          stream=True,
+          extra_body={'guided_json': Suggestions.model_json_schema()},
+          stream_options={'continuous_usage_stats': True, 'include_usage': True} if usage else None,
+        ),
       )
       async for chunk in completions:
         delta_choice = t.cast('DeltaMessage', chunk.choices[0].delta)
@@ -218,9 +232,6 @@ class LLM:
       return
 
 
-embed_app = fastapi.FastAPI(title=f'OpenAI Compatible Endpoint for {EMBED_ID}')
-
-
 @bentoml.asgi_app(embed_app, path='/v1')
 @bentoml.service(labels=make_labels('embed'), envs=make_env(0), **make_engine_service_config('embed'))
 class Embeddings:
@@ -229,7 +240,6 @@ class Embeddings:
 
   def __init__(self):
     self.exit_stack = contextlib.AsyncExitStack()
-    self.client = openai.AsyncOpenAI(base_url='http://127.0.0.1:3000/v1', api_key='dummy')
 
   @bentoml.on_startup
   async def init_engine(self) -> None:
@@ -267,19 +277,6 @@ class Embeddings:
   async def teardown_engine(self):
     await self.exit_stack.aclose()
 
-  @bentoml.api(batchable=True)
-  async def generate(self, prompt: str) -> list[Embedding]:
-    try:
-      results = await self.client.embeddings.create(input=[prompt], model=self.model_id)
-      print(results)
-      return results.data
-    except Exception:
-      logger.error(traceback.format_exc())
-      raise
-
-
-app = fastapi.FastAPI()
-
 
 @bentoml.asgi_app(app)
 @bentoml.service(
@@ -306,85 +303,48 @@ class API:
 
   @bentoml.on_startup
   def setup_clients(self):
-    self.llm_openai_client = openai.AsyncOpenAI(base_url=f'{self.llm.client_url}/v1', api_key='dummy')
-    self.embed_openai_client = openai.AsyncOpenAI(base_url=f'{self.embedding.client_url}/v1', api_key='dummy')
+    self.llm_client = openai.AsyncOpenAI(base_url=f'{self.llm.client_url}/v1', api_key='dummy')
+    self.embedding_client = openai.AsyncOpenAI(base_url=f'{self.embedding.client_url}/v1', api_key='dummy')
 
-    self.embed_model = OpenAIEmbedding(
-      api_key='dummy',
-      model_name=Embeddings.inner.model_id,
-      api_base=f'{self.embedding.client_url}/v1',
-      dimensions=None,  # TODO: support dimensions in vLLM
-      default_headers={'Runner-Name': Embeddings.name, 'Access-Control-Allow-Origin': '*'},
-    )
-    self.embed_model._aclient = self.embed_openai_client
-    self.llm_model = OpenAILike(
-      model=LLM.inner.model_id,
-      api_key='dummy',
-      api_base=f'{self.llm.client_url}/v1',
-      is_chat_model=True,
-      max_tokens=MAX_TOKENS,
-      context_window=MAX_MODEL_LEN,
-      temperature=llm_['temperature'],
-      default_headers={'Runner-Name': LLM.name, 'Access-Control-Allow-Origin': '*'},
-    )
-
-  @bentoml.on_startup
-  def setup_parsers_tooling(self):
-    hnsw_index = hnswlib.Index(space=self.space, dim=self.dimensions)
-    hnsw_index.init_index(max_elements=self.max_elements, ef_construction=self.ef_construction, M=self.M)
-    vector_store = HnswlibVectorStore(hnsw_index)
-    docstore = SimpleDocumentStore()
-    storage_context = StorageContext.from_defaults(docstore=docstore, vector_store=vector_store)
-    self.index = VectorStoreIndex.from_documents([], storage_context=storage_context, embed_model=self.embed_model)
-
-    chunker = SemanticSplitterNodeParser(
-      buffer_size=1, breakpoint_percentile_threshold=95, embed_model=self.embed_model
-    )
-    line_extractor = LineNumberMetadataExtractor()
-    title_extractor = TitleExtractor(llm=self.llm_model)
-
-    self.pipeline = IngestionPipeline(
-      transformations=[chunker, line_extractor, title_extractor, self.embed_model],
-      docstore=docstore,
-      vector_store=vector_store,
-    )
-
-  @bentoml.task
-  async def essays(self, essay: Essay) -> EmbedTask:
-    metadata = EmbedMetadata(vault=essay.vault_id, file=essay.file_id, type=DocumentType.ESSAY)
-
+  @bentoml.api(route='/v1/embeddings')
+  async def embeddings(
+    self,
+    prompt: str,
+    model: str = Embeddings.inner.model_id,
+    extra_headers: dict[str, t.Any] | None = None,
+    extra_query: dict[str, t.Any] | None = None,
+    extra_body: dict[str, t.Any] | None = None,
+    timeout: float | None = None,
+  ) -> CreateEmbeddingResponse:
     try:
-      result = await self.pipeline.arun(
-        show_progress=True,
-        documents=[
-          Document(text=essay.content, doc_id=essay.file_id, metadata=metadata.model_dump(exclude={'node_ids'}))
-        ],
-        num_workers=2,
-      )
-      return EmbedTask(
-        metadata=metadata.model_copy(update={'node_ids': [it.node_id for it in result]}),
-        embedding=[it.embedding for it in result],
+      # TODO: support dimensions on vLLM
+      return await self.embedding_client.embeddings.create(
+        input=[prompt],
+        model=model,
+        extra_headers=extra_headers,
+        extra_body=extra_body,
+        extra_query=extra_query,
+        timeout=timeout,
       )
     except Exception:
       logger.error(traceback.format_exc())
-      return EmbedTask(
-        metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information'
-      )
+      raise
 
-  @bentoml.task
-  async def notes(self, note: Note) -> EmbedTask:
-    metadata = EmbedMetadata(vault=note.vault_id, file=note.file_id, type=DocumentType.NOTE, note=note.note_id)
-
+  @bentoml.api(route='/v1/chat/completions')
+  async def completions(
+    self, messages: t.Iterable[ChatCompletionMessageParam], model: str = LLM.inner.model_id, **kwargs: t.Any
+  ) -> t.AsyncGenerator[ChatCompletionChunk, None]:
+    """A proxy Chat API with stream=True."""
+    kwargs.pop('stream', None)
     try:
-      results = await self.embed_openai_client.embeddings.create(
-        input=[note.content], model=Embeddings.inner.model_id, extra_headers={'Runner-Name': Embeddings.name}
+      completions = await self.llm_client.chat.completions.create(
+        messages=messages, model=model, stream=True, **kwargs
       )
-      return EmbedTask(metadata=metadata, embedding=[results.data[0].embedding])
+      async for chunk in completions:
+        yield chunk
     except Exception:
       logger.error(traceback.format_exc())
-      return EmbedTask(
-        metadata=metadata, embedding=[], error='Internal error found. Check server logs for more information'
-      )
+      raise
 
   @bentoml.api
   async def suggests(
@@ -412,26 +372,27 @@ class API:
     ):
       yield chunk
 
+  @bentoml.api
+  async def health(self, timeout: int = 30):
+    async def check_service_health(service: Dependency[t.Any]) -> DependentStatus:
+      health = DependentStatus(name=service.name)
+      try:
+        start_time = time.time()
+        health.healthy = await t.cast('RemoteProxy', service).is_ready(timeout)
+        health.latency_ms = round((time.time() - start_time) * 1000, 2)
+      except Exception as e:
+        health.healthy = False
+        health.error = str(e)
+      return health
 
-@app.get('/health')
-async def health(engine: Service = fastapi.Depends(LLM), embed: Service = fastapi.Depends(Embedding)):
-  async def check_service_health(service: Service) -> DependentStatus:
-    health = DependentStatus(name=service.name)
-    try:
-      start_time = time.time()
-      health.healthy = await t.cast('RemoteProxy', service).is_ready(30)
-      health.latency_ms = round((time.time() - start_time) * 1000, 2)
-    except Exception as e:
-      health.healthy = False
-      health.error = str(e)
-    return health
-
-  healthcheck = await asyncio.gather(*[asyncio.create_task(check_service_health(h)) for h in [engine, embed]])
-  return HealthStatus(
-    services=healthcheck,
-    healthy=all(map(lambda x: x.healthy, healthcheck)),
-    timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
-  )
+    healthcheck = await asyncio.gather(*[
+      asyncio.create_task(check_service_health(h)) for h in [self.llm, self.embedding]
+    ])
+    return HealthStatus(
+      services=healthcheck,
+      healthy=all(map(lambda x: x.healthy, healthcheck)),
+      timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    )
 
 
 @app.get('/metadata')

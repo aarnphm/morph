@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import enum, typing as t
-import pydantic, bentoml
+import typing as t
+import pydantic
 
 from openai.types.completion_usage import CompletionUsage
 
 if t.TYPE_CHECKING:
   from _bentoml_sdk.images import Image
-  from _bentoml_sdk.service.config import TrafficSchema, TracingSchema, ResourceSchema, HTTPSchema, HTTPCorsSchema
+  from _bentoml_sdk.service.config import TrafficSchema, TracingSchema, ResourceSchema, HTTPSchema
 
 TaskType = t.Literal['generate', 'embed']
 EmbedType = t.Literal['gte-qwen', 'gte-qwen-fast', 'gte-modernbert']
@@ -37,25 +37,6 @@ class ServiceOpts(t.TypedDict, total=False):
   resources: ResourceSchema
   http: HTTPSchema
 
-
-CORS = dict(
-  allow_origins=['*'],
-  allow_methods=['GET', 'OPTIONS', 'POST', 'HEAD', 'PUT'],
-  allow_credentials=True,
-  allow_headers=['*'],
-  max_age=3600,
-  expose_headers=['Content-Length'],
-)
-
-SERVICE_CONFIG: ServiceOpts = {
-  'tracing': {'sample_rate': 1.0},
-  'traffic': {'timeout': 1000, 'concurrency': 128},
-  'http': {'cors': t.cast('HTTPCorsSchema', {'enabled': True, **{f'access_control_{k}': v for k, v in CORS.items()}})},
-  'image': bentoml.images.PythonImage(python_version='3.11')
-  .system_packages('curl', 'git', 'build-essential', 'clang')
-  .pyproject_toml('pyproject.toml')
-  .run('uv pip install --compile-bytecode flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.6'),
-}
 
 ReasoningModels: dict[ModelType, LLMMetadata] = {
   'r1-qwen': LLMMetadata(
@@ -129,47 +110,6 @@ EmbeddingModels: dict[EmbedType, EmbeddingModelMetadata] = {
     resources={'gpu': 1, 'gpu_type': 'nvidia-l4'},
   ),
 }
-
-
-class Essay(pydantic.BaseModel):
-  vault_id: str
-  file_id: str
-  content: str
-
-
-class Note(pydantic.BaseModel):
-  vault_id: str
-  file_id: str
-  note_id: str
-  content: str
-
-
-class Reasoning(pydantic.BaseModel):
-  reasoning_id: str
-  vault_id: str
-  file_id: str
-  note_ids: list[str]
-  content: str
-
-
-class DocumentType(enum.IntEnum):
-  ESSAY = 1
-  NOTE = enum.auto()
-  REASONING = enum.auto()
-
-
-class EmbedMetadata(pydantic.BaseModel):
-  vault: str
-  file: str
-  type: DocumentType
-  note: t.Optional[str] = pydantic.Field(default=None)
-  node_ids: t.Optional[list[str]] = None
-
-
-class EmbedTask(pydantic.BaseModel):
-  metadata: EmbedMetadata
-  embedding: list[t.Optional[list[float]]]
-  error: str = pydantic.Field(default='')
 
 
 class DependentStatus(pydantic.BaseModel):
