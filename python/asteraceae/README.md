@@ -22,7 +22,7 @@ The following table describes available environment variables to be used with th
 > In one terminal run:
 >
 > ```bash
-> BENTOML_DISABLE_GPU_ALLOCATION=True CUDA_VISIBLE_DEVICES=0 VLLM_PLUGINS= bentoml serve service:Engine --port 3001 --debug
+> BENTOML_DISABLE_GPU_ALLOCATION=True CUDA_VISIBLE_DEVICES=0 VLLM_PLUGINS= bentoml serve service:LLM --port 3001 --debug
 > ```
 >
 > Open a new terminal then run:

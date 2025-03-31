@@ -8,6 +8,7 @@ with bentoml.importing():
   import hnswlib, openai
 
   from openai.types.chat import ChatCompletionUserMessageParam
+  from openai.types.embedding import Embedding
   from llama_index.core.storage.docstore import SimpleDocumentStore
   from llama_index.core import VectorStoreIndex, StorageContext, Document
   from llama_index.core.ingestion import IngestionPipeline
@@ -17,7 +18,7 @@ with bentoml.importing():
   from llama_index.llms.openai_like import OpenAILike
   from llama_index.vector_stores.hnswlib import HnswlibVectorStore
 
-  from libs.helpers import LineNumberMetadataExtractor, make_labels, inference_service
+  from libs.helpers import LineNumberMetadataExtractor, make_labels
   from libs.protocol import (
     ReasoningModels,
     EmbeddingModels,
@@ -135,10 +136,10 @@ def make_url(task: TaskType) -> str | None:
   return f'http://127.0.0.1:{os.getenv((k := var[task])["key"], k["value"])}' if os.getenv('DEVELOPMENT') else None
 
 
-inference_api = fastapi.FastAPI()
+llm_app = fastapi.FastAPI(title=f'OpenAI Compatible Endpoint for {LLM_ID}')
 
 
-@bentoml.asgi_app(inference_api, path='/v1')
+@bentoml.asgi_app(llm_app, path='/v1')
 @bentoml.service(labels=make_labels('generate'), envs=make_env(0), **make_engine_service_config())
 class LLM:
   model_id = LLM_ID
@@ -146,7 +147,7 @@ class LLM:
 
   def __init__(self):
     self.exit_stack = contextlib.AsyncExitStack()
-    self.client = openai.AsyncOpenAI(base_url='{LLM.url}/v1', api_key='dummy')
+    self.client = openai.AsyncOpenAI(base_url='http://127.0.0.1:3000/v1', api_key='dummy')
 
   @bentoml.on_startup
   async def init_engine(self) -> None:
@@ -163,12 +164,12 @@ class LLM:
 
     for route, endpoint, methods in OPENAI_ENDPOINTS:
       router.add_api_route(path=route, endpoint=endpoint, methods=methods, include_in_schema=True)
-    inference_api.include_router(router)
+    llm_app.include_router(router)
 
     self.engine = await self.exit_stack.enter_async_context(vllm_api_server.build_async_engine_client(args))
     self.model_config = await self.engine.get_model_config()
     self.tokenizer = await self.engine.get_tokenizer()
-    await vllm_api_server.init_app_state(self.engine, self.model_config, inference_api.state, args)
+    await vllm_api_server.init_app_state(self.engine, self.model_config, llm_app.state, args)
 
   @bentoml.on_shutdown
   async def teardown_engine(self):
@@ -217,16 +218,24 @@ class LLM:
       return
 
 
-@inference_service(
-  hf_id=EMBED_ID,
-  exclude=IGNORE_PATTERNS,
-  task='embed',
-  envs=make_env(0),
-  service_config=make_engine_service_config('embed'),
-)
-class Embedding:
+embed_app = fastapi.FastAPI(title=f'OpenAI Compatible Endpoint for {EMBED_ID}')
+
+
+@bentoml.asgi_app(embed_app, path='/v1')
+@bentoml.service(labels=make_labels('embed'), envs=make_env(0), **make_engine_service_config('embed'))
+class Embeddings:
+  model_id = EMBED_ID
+  model = bentoml.models.HuggingFaceModel(model_id, exclude=IGNORE_PATTERNS)
+
   def __init__(self):
-    self.args = make_args(
+    self.exit_stack = contextlib.AsyncExitStack()
+    self.client = openai.AsyncOpenAI(base_url='http://127.0.0.1:3000/v1', api_key='dummy')
+
+  @bentoml.on_startup
+  async def init_engine(self) -> None:
+    import torch, vllm.entrypoints.openai.api_server as vllm_api_server
+
+    args = make_args(
       self.model,
       self.model_id,
       task='embed',
@@ -234,8 +243,39 @@ class Embedding:
       reasoning=False,
       trust_remote_code=True,
       prefix_caching=False,
+      dtype=torch.bfloat16,
       hf_overrides={'is_causal': True},
     )
+
+    router = fastapi.APIRouter(lifespan=vllm_api_server.lifespan)
+    OPENAI_ENDPOINTS = [
+      ['/models', vllm_api_server.show_available_models, ['GET']],
+      ['/embeddings', vllm_api_server.create_embedding, ['POST']],
+    ]
+
+    for route, endpoint, methods in OPENAI_ENDPOINTS:
+      router.add_api_route(path=route, endpoint=endpoint, methods=methods, include_in_schema=True)
+    embed_app.include_router(router)
+
+    self.engine = await self.exit_stack.enter_async_context(vllm_api_server.build_async_engine_client(args))
+    self.model_config = await self.engine.get_model_config()
+    self.tokenizer = await self.engine.get_tokenizer()
+
+    await vllm_api_server.init_app_state(self.engine, self.model_config, embed_app.state, args)
+
+  @bentoml.on_shutdown
+  async def teardown_engine(self):
+    await self.exit_stack.aclose()
+
+  @bentoml.api(batchable=True)
+  async def generate(self, prompt: str) -> list[Embedding]:
+    try:
+      results = await self.client.embeddings.create(input=[prompt], model=self.model_id)
+      print(results)
+      return results.data
+    except Exception:
+      logger.error(traceback.format_exc())
+      raise
 
 
 app = fastapi.FastAPI()
@@ -251,7 +291,7 @@ app = fastapi.FastAPI()
 )
 class API:
   llm = bentoml.depends(LLM, url=make_url('generate'))
-  embedding = bentoml.depends(Embedding, url=make_url('embed'))
+  embedding = bentoml.depends(Embeddings, url=make_url('embed'))
 
   # vector stores configuration
   M: int = 16
@@ -271,10 +311,10 @@ class API:
 
     self.embed_model = OpenAIEmbedding(
       api_key='dummy',
-      model_name=Embedding.inner.model_id,
+      model_name=Embeddings.inner.model_id,
       api_base=f'{self.embedding.client_url}/v1',
       dimensions=None,  # TODO: support dimensions in vLLM
-      default_headers={'Runner-Name': Embedding.name, 'Access-Control-Allow-Origin': '*'},
+      default_headers={'Runner-Name': Embeddings.name, 'Access-Control-Allow-Origin': '*'},
     )
     self.embed_model._aclient = self.embed_openai_client
     self.llm_model = OpenAILike(
@@ -337,7 +377,7 @@ class API:
 
     try:
       results = await self.embed_openai_client.embeddings.create(
-        input=[note.content], model=Embedding.inner.model_id, extra_headers={'Runner-Name': Embedding.name}
+        input=[note.content], model=Embeddings.inner.model_id, extra_headers={'Runner-Name': Embeddings.name}
       )
       return EmbedTask(metadata=metadata, embedding=[results.data[0].embedding])
     except Exception:
