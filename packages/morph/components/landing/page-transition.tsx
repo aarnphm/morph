@@ -16,11 +16,11 @@ export function PageTransition({
     // Add event listener to Links with href="/vaults"
     const handleLinkClick = (e: Event) => {
       e.preventDefault();
-      
+
       // Start the transition animation
       if (transitionRef.current) {
         transitionRef.current.classList.add("active");
-        
+
         // Navigate after animation completes
         setTimeout(() => {
           router.push("/vaults");
@@ -44,7 +44,7 @@ export function PageTransition({
   return (
     <>
       {children}
-      <div 
+      <div
         ref={transitionRef}
         className="fixed inset-0 z-50 pointer-events-none transition-transform duration-700 ease-in-out"
         style={{
@@ -59,4 +59,4 @@ export function PageTransition({
       `}</style>
     </>
   );
-} 
+}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import logging, argparse, traceback, asyncio, os, contextlib, pathlib, time, datetime, typing as t
+import argparse
+import logging, traceback, asyncio, os, shutil, contextlib, pathlib, time, datetime, typing as t
 import bentoml, fastapi, jinja2, annotated_types as ae
 
 with bentoml.importing():
@@ -8,9 +9,7 @@ with bentoml.importing():
 
   from openai.types.chat import ChatCompletionUserMessageParam
   from llama_index.core.storage.docstore import SimpleDocumentStore
-  from llama_index.core.postprocessor import LLMRerank
-  from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
-  from llama_index.core import VectorStoreIndex, StorageContext, Document, QueryBundle
+  from llama_index.core import VectorStoreIndex, StorageContext, Document
   from llama_index.core.ingestion import IngestionPipeline
   from llama_index.core.node_parser import SemanticSplitterNodeParser
   from llama_index.core.extractors import TitleExtractor
@@ -18,11 +17,10 @@ with bentoml.importing():
   from llama_index.llms.openai_like import OpenAILike
   from llama_index.vector_stores.hnswlib import HnswlibVectorStore
 
-  from libs.helpers import LineNumberMetadataExtractor
+  from libs.helpers import LineNumberMetadataExtractor, make_labels, inference_service
   from libs.protocol import (
     ReasoningModels,
     EmbeddingModels,
-    SERVICE_CONFIG,
     ServiceOpts,
     EmbedType,
     ModelType,
@@ -31,13 +29,12 @@ with bentoml.importing():
     EmbedMetadata,
     EmbedTask,
     DocumentType,
-    ServiceHealth,
+    DependentStatus,
     HealthStatus,
     Suggestion,
     Suggestions,
     TaskType,
-    RerankRequest,
-    RerankResponse,
+    Tonality,
   )
 
 if t.TYPE_CHECKING:
@@ -52,15 +49,33 @@ WORKING_DIR = pathlib.Path(__file__).parent
 IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
 MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 16 * 1024))
 MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 8 * 1024))
+AUTHORS = ['Raymond Carver', 'Franz Kafka', 'Albert Camus', 'Iain McGilchrist', 'Ian McEwan']
 
-model_type_ = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
-LLM_ID: str = (llm_ := ReasoningModels[model_type_])['model_id']
-TEMPERATURE: float = llm_['temperature']
-STRUCTURED_OUTPUT_BACKEND = llm_['structured_output_backend']
+MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
+LLM_ID: str = (llm_ := ReasoningModels[MODEL_TYPE])['model_id']
+EMBED_TYPE = t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen-fast'))
+EMBED_ID: str = (embed_ := EmbeddingModels[EMBED_TYPE])['model_id']
 
-embed_type_ = t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen-fast'))
-EMBED_ID: str = (embed_ := EmbeddingModels[embed_type_])['model_id']
-DIMENSIONS = embed_['dimensions']
+
+SERVICE_CONFIG: ServiceOpts = {
+  'tracing': {'sample_rate': 1.0},
+  'traffic': {'timeout': 1000, 'concurrency': 128},
+  'http': {
+    'cors': {
+      'enabled': True,
+      'access_control_allow_origins': ['*'],
+      'access_control_allow_methods': ['GET', 'OPTIONS', 'POST', 'HEAD', 'PUT'],
+      'access_control_allow_credentials': True,
+      'access_control_allow_headers': ['*'],
+      'access_control_max_age': 1200,
+      'access_control_expose_headers': ['Content-Length'],
+    }
+  },
+  'image': bentoml.images.PythonImage(python_version='3.11')
+  .system_packages('curl', 'git', 'build-essential', 'clang')
+  .pyproject_toml('pyproject.toml')
+  .run('uv pip install --compile-bytecode flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.6'),
+}
 
 
 def make_engine_service_config(type_: t.Literal['llm', 'embed'] = 'llm') -> ServiceOpts:
@@ -77,7 +92,7 @@ def make_env(engine_version: t.Literal[0, 1] = 1, *, skip_hf: bool = False) -> l
     results.append({'name': 'HF_TOKEN'})
   results.extend([
     {'name': 'UV_NO_PROGRESS', 'value': '1'},
-    {'name': 'CXX', 'value': '/usr/bin/c++'},
+    {'name': 'CXX', 'value': shutil.which('c++')},
     {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
     {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
     {'name': 'VLLM_USE_V1', 'value': str(engine_version)},
@@ -123,17 +138,13 @@ def make_args(
     enable_reasoning=reasoning,
     trust_remote_code=trust_remote_code,
     reasoning_parser=reasoning_parser,
-    guided_decoding_backend=STRUCTURED_OUTPUT_BACKEND,
+    guided_decoding_backend=llm_['structured_output_backend'],
     **kwargs,
   )
   args = make_arg_parser(FlexibleArgumentParser()).parse_args([])
   for k, v in variables.items():
     setattr(args, k, v)
   return args
-
-
-def make_labels(task: TaskType) -> dict[str, t.Any]:
-  return {'owner': 'aarnphm', 'type': 'engine', 'task': task}
 
 
 def make_url(task: TaskType) -> str | None:
@@ -149,20 +160,24 @@ inference_api = fastapi.FastAPI()
 
 @bentoml.asgi_app(inference_api, path='/v1')
 @bentoml.service(labels=make_labels('generate'), envs=make_env(0), **make_engine_service_config())
-class Engine:
+class LLM:
   model_id = LLM_ID
   model = bentoml.models.HuggingFaceModel(model_id, exclude=IGNORE_PATTERNS)
 
   def __init__(self):
     self.exit_stack = contextlib.AsyncExitStack()
+    self.client = openai.AsyncOpenAI(base_url='http://127.0.0.1:3000/v1', api_key='dummy')
 
   @bentoml.on_startup
   async def init_engine(self) -> None:
     import vllm.entrypoints.openai.api_server as vllm_api_server
 
+    args = make_args(self.model, self.model_id, task='generate')
+
     router = fastapi.APIRouter(lifespan=vllm_api_server.lifespan)
     OPENAI_ENDPOINTS = [
       ['/chat/completions', vllm_api_server.create_chat_completion, ['POST']],
+      ['/completions', vllm_api_server.create_completion, ['POST']],
       ['/models', vllm_api_server.show_available_models, ['GET']],
     ]
 
@@ -170,7 +185,6 @@ class Engine:
       router.add_api_route(path=route, endpoint=endpoint, methods=methods, include_in_schema=True)
     inference_api.include_router(router)
 
-    args = make_args(self.model, self.model_id, task='generate')
     self.engine = await self.exit_stack.enter_async_context(vllm_api_server.build_async_engine_client(args))
     self.model_config = await self.engine.get_model_config()
     self.tokenizer = await self.engine.get_tokenizer()
@@ -180,54 +194,69 @@ class Engine:
   async def teardown_engine(self):
     await self.exit_stack.aclose()
 
+  @bentoml.api
+  async def generate(
+    self,
+    prompt: str,
+    *,
+    temperature: t.Annotated[float, ae.Ge(0), ae.Le(1)] = llm_['temperature'],
+    top_p: t.Annotated[float, ae.Ge(0), ae.Le(1)] = llm_['top_p'],
+    max_tokens: t.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
+    usage: bool = False,
+  ) -> t.AsyncGenerator[str, None]:
+    prefill = False
+    try:
+      completions = await self.client.chat.completions.create(
+        model=self.model_id,
+        temperature=temperature,
+        top_p=top_p,
+        max_tokens=max_tokens,
+        messages=[ChatCompletionUserMessageParam(role='user', content=prompt)],
+        stream=True,
+        extra_body={'guided_json': Suggestions.model_json_schema()},
+        stream_options={'continuous_usage_stats': True, 'include_usage': True} if usage else None,
+      )
+      async for chunk in completions:
+        delta_choice = t.cast('DeltaMessage', chunk.choices[0].delta)
+        if hasattr(delta_choice, 'reasoning_content'):
+          s = Suggestion(
+            suggestion=delta_choice.content or '', reasoning=delta_choice.reasoning_content or '', usage=chunk.usage
+          )
+        else:
+          s = Suggestion(suggestion=delta_choice.content or '', usage=chunk.usage)
+        if not prefill:
+          prefill = True
+          yield ''
+        else:
+          if not s.reasoning and not s.suggestion:
+            break
+          yield f'{s.model_dump_json()}\n\n'
+    except Exception:
+      logger.error(traceback.format_exc())
+      yield f'{Suggestion(suggestion="Internal error found. Check server logs for more information").model_dump_json()}\n\n'
+      return
 
-embedding_api = fastapi.FastAPI()
 
-
-@bentoml.asgi_app(embedding_api, path='/v1')
-@bentoml.service(labels=make_labels('embed'), envs=make_env(0), **make_engine_service_config('embed'))
-class Embeddings:
-  model_id = EMBED_ID
-  model = bentoml.models.HuggingFaceModel(model_id, exclude=IGNORE_PATTERNS)
-
+@inference_service(
+  hf_id=EMBED_ID,
+  exclude=IGNORE_PATTERNS,
+  task='embed',
+  envs=make_env(0),
+  service_config=make_engine_service_config('embed'),
+)
+class Embedding:
   def __init__(self):
-    self.exit_stack = contextlib.AsyncExitStack()
-
-  @bentoml.on_startup
-  async def init_engine(self) -> None:
-    import torch, vllm.entrypoints.openai.api_server as vllm_api_server
-
-    args = make_args(
+    super().__init__()
+    self.args = make_args(
       self.model,
       self.model_id,
       task='embed',
-      max_tokens=8192,
+      max_tokens=embed_['max_tokens'],
       reasoning=False,
       trust_remote_code=True,
       prefix_caching=False,
-      dtype=torch.bfloat16,
       hf_overrides={'is_causal': True},
     )
-
-    router = fastapi.APIRouter(lifespan=vllm_api_server.lifespan)
-    OPENAI_ENDPOINTS = [
-      ['/models', vllm_api_server.show_available_models, ['GET']],
-      ['/embeddings', vllm_api_server.create_embedding, ['POST']],
-    ]
-
-    for route, endpoint, methods in OPENAI_ENDPOINTS:
-      router.add_api_route(path=route, endpoint=endpoint, methods=methods, include_in_schema=True)
-    embedding_api.include_router(router)
-
-    self.engine = await self.exit_stack.enter_async_context(vllm_api_server.build_async_engine_client(args))
-    self.model_config = await self.engine.get_model_config()
-    self.tokenizer = await self.engine.get_tokenizer()
-
-    await vllm_api_server.init_app_state(self.engine, self.model_config, embedding_api.state, args)
-
-  @bentoml.on_shutdown
-  async def teardown_engine(self):
-    await self.exit_stack.aclose()
 
 
 api_app = fastapi.FastAPI()
@@ -237,35 +266,24 @@ api_app = fastapi.FastAPI()
 @bentoml.service(
   name='asteraceae-inference-api',
   resources={'cpu': 2},
-  http={
-    'cors': {
-      'enabled': True,
-      'access_control_allow_origins': ['*'],
-      'access_control_allow_methods': ['GET', 'OPTIONS', 'POST', 'HEAD', 'PUT'],
-      'access_control_allow_credentials': True,
-      'access_control_allow_headers': ['*'],
-      'access_control_max_age': 1200,
-      'access_control_expose_headers': ['Content-Length'],
-    }
-  },
   labels={'owner': 'aarnphm', 'type': 'api'},
   envs=make_env(0, skip_hf=True),
   **SERVICE_CONFIG,
 )
 class API:
-  llm = bentoml.depends(Engine, url=make_url('generate'))
-  embedding = bentoml.depends(Embeddings, url=make_url('embed'))
+  llm = bentoml.depends(LLM, url=make_url('generate'))
+  embedding = bentoml.depends(Embedding, url=make_url('embed'))
 
   # vector stores configuration
-  dimensions: int = DIMENSIONS
   M: int = 16
   ef_construction: int = 50
   max_elements: int = 10000
+  dimensions: int = embed_['dimensions']
   space: t.Literal['ip', 'l2', 'cosine'] = 'l2'
 
   def __init__(self):
     loader = jinja2.FileSystemLoader(searchpath=WORKING_DIR)
-    self.jinja2_env = jinja2.Environment(loader=loader)
+    self.templater = jinja2.Environment(loader=loader)
 
   @bentoml.on_startup
   def setup_clients(self):
@@ -274,21 +292,21 @@ class API:
 
     self.embed_model = OpenAIEmbedding(
       api_key='dummy',
-      model_name=Embeddings.inner.model_id,
+      model_name=Embedding.inner.model_id,
       api_base=f'{self.embedding.client_url}/v1',
       dimensions=None,  # TODO: support dimensions in vLLM
-      default_headers={'Runner-Name': Embeddings.name},
+      default_headers={'Runner-Name': Embedding.name, 'Access-Control-Allow-Origin': '*'},
     )
     self.embed_model._aclient = self.embed_openai_client
     self.llm_model = OpenAILike(
-      model=Engine.inner.model_id,
+      model=LLM.inner.model_id,
       api_key='dummy',
       api_base=f'{self.llm.client_url}/v1',
       is_chat_model=True,
       max_tokens=MAX_TOKENS,
       context_window=MAX_MODEL_LEN,
-      temperature=TEMPERATURE,
-      default_headers={'Runner-Name': Engine.name},
+      temperature=llm_['temperature'],
+      default_headers={'Runner-Name': LLM.name, 'Access-Control-Allow-Origin': '*'},
     )
 
   @bentoml.on_startup
@@ -340,7 +358,7 @@ class API:
 
     try:
       results = await self.embed_openai_client.embeddings.create(
-        input=[note.content], model=Embeddings.inner.model_id, extra_headers={'Runner-Name': Embeddings.name}
+        input=[note.content], model=Embedding.inner.model_id, extra_headers={'Runner-Name': Embedding.name}
       )
       return EmbedTask(metadata=metadata, embedding=[results.data[0].embedding])
     except Exception:
@@ -353,139 +371,59 @@ class API:
   async def suggests(
     self,
     essay: str,
-    authors: t.Optional[list[str]] = None,
-    tonality: t.Optional[dict[str, t.Any]] = None,
+    authors: t.Optional[list[str]] = AUTHORS,
+    tonality: t.Optional[Tonality] = None,
     num_suggestions: t.Annotated[int, ae.Ge(2)] = 3,
     *,
-    temperature: t.Annotated[float, ae.Ge(0), ae.Le(1)] = TEMPERATURE,
+    top_p: t.Annotated[float, ae.Ge(0), ae.Le(1)] = llm_['top_p'],
+    temperature: t.Annotated[float, ae.Ge(0), ae.Le(1)] = llm_['temperature'],
     max_tokens: t.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
-    usage: bool = False,
+    usage: bool = True,
   ) -> t.AsyncGenerator[str, None]:
     # TODO: add tonality lookup and steering vector strength for influence the distributions
     # for now, we will just use the features lookup from given SAEs constrasted with the models.
-    if authors is None:
-      authors = ['Raymond Carver', 'Franz Kafka', 'Albert Camus', 'Iain McGilchrist', 'Ian McEwan']
-    PROMPT = self.jinja2_env.get_template('SYSTEM_PROMPT.md').render(
-      num_suggestions=num_suggestions, authors=authors, tonality=tonality, excerpt=essay
-    )
-    prefill = False
+    async for chunk in self.llm.generate(
+      prompt=self.templater.get_template('SYSTEM_PROMPT.md').render(
+        num_suggestions=num_suggestions, authors=authors, tonality=tonality, excerpt=essay
+      ),
+      temperature=temperature,
+      max_tokens=max_tokens,
+      top_p=top_p,
+      usage=usage,
+    ):
+      yield chunk
 
+
+@api_app.get('/health')
+async def health(engine: Service = fastapi.Depends(LLM), embed: Service = fastapi.Depends(Embedding)):
+  async def check_service_health(service: Service) -> DependentStatus:
+    health = DependentStatus(name=service.name)
     try:
-      completions = await self.llm_openai_client.chat.completions.create(
-        model=LLM_ID,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        messages=[ChatCompletionUserMessageParam(role='user', content=PROMPT)],
-        stream=True,
-        extra_body={'guided_json': Suggestions.model_json_schema()},
-        extra_headers={'Runner-Name': Engine.name},
-        stream_options={'continuous_usage_stats': True, 'include_usage': True} if usage else None,
-      )
-      async for chunk in completions:
-        delta_choice = t.cast('DeltaMessage', chunk.choices[0].delta)
-        if hasattr(delta_choice, 'reasoning_content'):
-          s = Suggestion(
-            suggestion=delta_choice.content or '', reasoning=delta_choice.reasoning_content or '', usage=chunk.usage
-          )
-        else:
-          s = Suggestion(suggestion=delta_choice.content or '', usage=chunk.usage)
-        if not prefill:
-          prefill = True
-          yield ''
-        else:
-          if not s.reasoning and not s.suggestion:
-            break
-          yield f'{s.model_dump_json()}\n'
-    except Exception:
-      logger.error(traceback.format_exc())
-      yield f'{Suggestion(suggestion="Internal error found. Check server logs for more information").model_dump_json()}\n'
-      return
+      start_time = time.time()
+      health.healthy = await t.cast('RemoteProxy', service).is_ready(30)
+      health.latency_ms = round((time.time() - start_time) * 1000, 2)
+    except Exception as e:
+      health.healthy = False
+      health.error = str(e)
+    return health
 
-  @bentoml.api
-  async def health(self, timeout: int = 30) -> HealthStatus:
-    services_health: list[ServiceHealth] = []
-
-    async def check_service_health(name: str) -> ServiceHealth:
-      service_health = ServiceHealth(name=name)
-      try:
-        start_time = time.time()
-        service_health.healthy = await t.cast('RemoteProxy', getattr(self, name)).is_ready(timeout)
-        service_health.latency_ms = round((time.time() - start_time) * 1000, 2)
-      except Exception as e:
-        service_health.healthy = False
-        service_health.error = str(e)
-      return service_health
-
-    # Wait for all health check tasks to complete
-    services_health = await asyncio.gather(*[
-      asyncio.create_task(check_service_health(name)) for name in ['llm', 'embedding']
-    ])
-
-    return HealthStatus(
-      services=services_health,
-      healthy=all(service.healthy for service in services_health),
-      timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
-    )
-
-  @bentoml.task
-  async def rerank(self, request: RerankRequest) -> RerankResponse:
-    """
-    Reranks chunks from a specific essay based on the provided notes text.
-    """
-    try:
-      # 1. Define metadata filters
-      filters = MetadataFilters(
-        filters=[
-          ExactMatchFilter(key='vault', value=request.vault_id),
-          ExactMatchFilter(key='file', value=request.file_id),
-          ExactMatchFilter(key='type', value=DocumentType.ESSAY.value),
-        ]
-      )
-
-      # 2. Get retriever with filters
-      retriever = self.index.as_retriever(similarity_top_k=request.similarity_top_k, filters=filters)
-
-      # 3. Instantiate LLMRerank
-      # Using the LLM already configured in the service
-      reranker = LLMRerank(
-        llm=self.llm_model,
-        top_n=request.rerank_top_n,
-        # choice_batch_size can be adjusted based on model context window and performance needs
-        choice_batch_size=5,
-      )
-
-      # 4. Create RetrieverQueryEngine
-      # Note: We use aquery directly on the retriever + reranker for simplicity,
-      # as we don't need the full synthesis capabilities of the query engine here.
-      # If synthesis were needed later, RetrieverQueryEngine would be appropriate.
-      # query_engine = RetrieverQueryEngine(retriever=retriever, node_postprocessors=[reranker])
-      # response = await query_engine.aquery(request.notes_text)
-
-      # Alternative: Direct retrieval and reranking
-      query_bundle = QueryBundle(request.notes_text)
-      retrieved_nodes = await retriever.aretrieve(query_bundle)
-      reranked_nodes = await reranker.apostprocess_nodes(retrieved_nodes, query_bundle=query_bundle)
-
-      if not reranked_nodes:
-        return RerankResponse(node_id='', text='', error='No relevant chunks found after reranking.')
-
-      # 5. Extract top node
-      top_node = reranked_nodes[0]  # LLMRerank returns sorted nodes
-
-      return RerankResponse(node_id=top_node.node.node_id, text=top_node.node.get_content(), score=top_node.score)
-
-    except Exception:
-      logger.error(
-        'Error during rerank for vault %s, file %s: %s', request.vault_id, request.file_id, traceback.format_exc()
-      )
-      return RerankResponse(node_id='', text='', error='Internal server error check logs for more information')
+  healthcheck = await asyncio.gather(*[asyncio.create_task(check_service_health(h)) for h in [engine, embed]])
+  return HealthStatus(
+    services=healthcheck,
+    healthy=all(map(lambda x: x.healthy, healthcheck)),
+    timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+  )
 
 
 @api_app.get('/metadata')
 def metadata(api: Service = fastapi.Depends(API)) -> dict[str, t.Any]:
-  return dict(
-    llm=dict(model_type=model_type_, model_id=LLM_ID, structured_outputs=STRUCTURED_OUTPUT_BACKEND),
-    embed=dict(
-      model_id=EMBED_ID, M=api.M, ef_construction=api.ef_construction, embed_type=embed_type_, dimensions=DIMENSIONS
-    ),
-  )
+  return {
+    'llm': {'model_id': LLM_ID, 'model_type': MODEL_TYPE, 'structured_outputs': llm_['structured_output_backend']},
+    'embed': {
+      'model_id': EMBED_ID,
+      'model_type': EMBED_TYPE,
+      'M': api.M,
+      'ef_construction': api.ef_construction,
+      'dimensions': api.dimensions,
+    },
+  }

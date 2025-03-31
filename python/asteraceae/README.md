@@ -38,3 +38,5 @@ The following table describes available environment variables to be used with th
 > ```
 
 For the LLM engine, if you don't have a large GPUs then you should set `LLM=r1-qwen-tiny` to use smaller models.
+
+You will also need to install `hnswlib` accordingly. This will be setup accordingly for online inference.

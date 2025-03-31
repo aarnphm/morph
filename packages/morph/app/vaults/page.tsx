@@ -1,6 +1,9 @@
 "use client"
 
 import { usePathname, useRouter } from "next/navigation"
+import { useCallback, useMemo, useRef, useState, useEffect, memo } from "react"
+import { motion } from "motion/react"
+import type { ComponentPropsWithoutRef } from "react"
 import { ClockIcon, ArchiveIcon, CardStackPlusIcon, InfoCircledIcon } from "@radix-ui/react-icons"
 import { Button, VaultButton } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card"
@@ -12,12 +15,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { type Vault } from "@/db"
+import { type Vault } from "@/lib/db"
 import { useVaultContext } from "@/context/vault-context"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useCallback, useMemo, useRef, useState, useEffect, memo } from "react"
-import { motion } from "motion/react"
-import type { ComponentPropsWithoutRef } from "react"
 
 // Custom styled DialogContent to center it on the screen
 const CenteredDialogContent = memo(function CenteredDialogContent({
@@ -44,17 +43,13 @@ export default function Home() {
   const [hasAcknowledged, setHasAcknowledged] = useState(false)
   const { setActiveVaultId, vaults, addVault, isLoading } = useVaultContext()
 
-  // Check localStorage on component mount and auto-open dialog if first visit
   useEffect(() => {
-    // Only run on client-side
-    if (typeof window !== "undefined") {
-      const acknowledged = localStorage.getItem("morph-preview-acknowledged") === "true"
-      setHasAcknowledged(acknowledged)
+    const acknowledged = localStorage.getItem("morph-preview-acknowledged") === "true"
+    setHasAcknowledged(acknowledged)
 
-      // Auto-open dialog if user hasn't acknowledged yet
-      if (!acknowledged) {
-        setShowBannerDetails(true)
-      }
+    // Auto-open dialog if user hasn't acknowledged yet
+    if (!acknowledged) {
+      setShowBannerDetails(true)
     }
   }, [])
 
@@ -106,22 +101,6 @@ export default function Home() {
     // Only render on home page and when we have data
     if (pathname !== "/vaults" || !vaults) {
       return null
-    }
-
-    if (isLoading) {
-      return (
-        <Card className="group rounded-md">
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <div className="space-y-2 flex-1">
-                <Skeleton className="h-4 w-[200px]" />
-                <Skeleton className="h-3 w-[160px]" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )
     }
 
     if (Array.isArray(vaults) && vaults.length > 0) {

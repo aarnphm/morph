@@ -1,5 +1,5 @@
 import { PGlite, IdbFs } from "@electric-sql/pglite"
-import { PGLITE_DB_NAME } from "@/db"
+import { PGLITE_DB_NAME } from "@/lib/db"
 import { live } from "@electric-sql/pglite/live"
 import { vector } from "@electric-sql/pglite/vector"
 

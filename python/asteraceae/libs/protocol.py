@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import enum, typing as t
-import bentoml, pydantic
+import pydantic
 
 from openai.types.completion_usage import CompletionUsage
 
@@ -19,12 +19,14 @@ class LLMMetadata(t.TypedDict):
   model_id: str
   structured_output_backend: str
   temperature: float
+  top_p: float
   resources: ResourceSchema
 
 
 class EmbeddingModelMetadata(t.TypedDict):
   model_id: str
   dimensions: int
+  max_tokens: int
   resources: ResourceSchema
 
 
@@ -36,68 +38,76 @@ class ServiceOpts(t.TypedDict, total=False):
   resources: ResourceSchema
 
 
-SERVICE_CONFIG: ServiceOpts = {
-  'tracing': {'sample_rate': 1.0},
-  'traffic': {'timeout': 1000, 'concurrency': 128},
-  'image': bentoml.images.PythonImage(python_version='3.11', lock_python_packages=False)
-  .pyproject_toml('pyproject.toml')
-  .run('uv pip install --compile-bytecode flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.6'),
-}
-
 ReasoningModels: dict[ModelType, LLMMetadata] = {
   'r1-qwen': LLMMetadata(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-32B',
     structured_output_backend='xgrammar:disable-any-whitespace',
     temperature=0.6,
-    resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
+    top_p=0.95,
+    resources={'gpu': 2, 'gpu_type': 'nvidia-a100-80gb'},
   ),
   'r1-qwen-small': LLMMetadata(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-14B',
     structured_output_backend='xgrammar:disable-any-whitespace',
     temperature=0.6,
+    top_p=0.95,
     resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
   ),
   'r1-qwen-fast': LLMMetadata(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B',
     structured_output_backend='xgrammar:disable-any-whitespace',
     temperature=0.6,
+    top_p=0.95,
     resources={'gpu': 1, 'gpu_type': 'nvidia-tesla-a100'},
   ),
   'r1-qwen-tiny': LLMMetadata(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B',
     structured_output_backend='xgrammar:disable-any-whitespace',
     temperature=0.6,
+    top_p=0.95,
     resources={'gpu': 1, 'gpu_type': 'nvidia-l4'},
   ),
   'r1-llama': LLMMetadata(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Llama-70B',
     structured_output_backend='xgrammar',
     temperature=0.6,
+    top_p=0.95,
     resources={'gpu': 2, 'gpu_type': 'nvidia-a100-80gb'},
   ),
   'r1-llama-small': LLMMetadata(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Llama-8B',
     structured_output_backend='xgrammar',
     temperature=0.6,
-    resources={'gpu': 1, 'gpu_type': 'nvidia-tesla-a100'},
+    top_p=0.95,
+    resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
   ),
   'qwq': LLMMetadata(
     model_id='Qwen/QwQ-32B',
     structured_output_backend='xgrammar',
     temperature=0.6,
-    resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
+    top_p=0.95,
+    resources={'gpu': 2, 'gpu_type': 'nvidia-a100-80gb'},
   ),
 }
 
 EmbeddingModels: dict[EmbedType, EmbeddingModelMetadata] = {
   'gte-qwen': EmbeddingModelMetadata(
-    model_id='Alibaba-NLP/gte-Qwen2-7B-instruct', dimensions=3584, resources={'gpu': 1, 'gpu_type': 'nvidia-l4'}
+    model_id='Alibaba-NLP/gte-Qwen2-7B-instruct',
+    dimensions=3584,
+    max_tokens=8192,
+    resources={'gpu': 1, 'gpu_type': 'nvidia-l4'},
   ),
   'gte-qwen-fast': EmbeddingModelMetadata(
-    model_id='Alibaba-NLP/gte-Qwen2-1.5B-instruct', dimensions=1536, resources={'gpu': 1, 'gpu_type': 'nvidia-l4'}
+    model_id='Alibaba-NLP/gte-Qwen2-1.5B-instruct',
+    dimensions=1536,
+    max_tokens=8192,
+    resources={'gpu': 1, 'gpu_type': 'nvidia-l4'},
   ),
   'gte-modernbert': EmbeddingModelMetadata(
-    model_id='Alibaba-NLP/gte-modernbert-base', dimensions=786, resources={'gpu': 1, 'gpu_type': 'nvidia-l4'}
+    model_id='Alibaba-NLP/gte-modernbert-base',
+    dimensions=786,
+    max_tokens=8192,
+    resources={'gpu': 1, 'gpu_type': 'nvidia-l4'},
   ),
 }
 
@@ -115,9 +125,18 @@ class Note(pydantic.BaseModel):
   content: str
 
 
+class Reasoning(pydantic.BaseModel):
+  reasoning_id: str
+  vault_id: str
+  file_id: str
+  note_ids: list[str]
+  content: str
+
+
 class DocumentType(enum.IntEnum):
   ESSAY = 1
   NOTE = enum.auto()
+  REASONING = enum.auto()
 
 
 class EmbedMetadata(pydantic.BaseModel):
@@ -134,7 +153,7 @@ class EmbedTask(pydantic.BaseModel):
   error: str = pydantic.Field(default='')
 
 
-class ServiceHealth(pydantic.BaseModel):
+class DependentStatus(pydantic.BaseModel):
   name: str
   healthy: bool = pydantic.Field(default=False)
   latency_ms: float = pydantic.Field(default=0.0)
@@ -143,7 +162,7 @@ class ServiceHealth(pydantic.BaseModel):
 
 class HealthStatus(pydantic.BaseModel):
   healthy: bool
-  services: list[ServiceHealth]
+  services: list[DependentStatus]
   timestamp: str
 
 
@@ -157,16 +176,12 @@ class Suggestions(pydantic.BaseModel):
   suggestions: list[Suggestion]
 
 
-class RerankRequest(pydantic.BaseModel):
-  vault_id: str
-  file_id: str
-  notes_text: str
-  similarity_top_k: int = 10
-  rerank_top_n: int = 1
+class Tonality(pydantic.BaseModel):
+  formal: float = 0
+  fun: float = 0
+  logical: float = 0
+  soul_cartographer: float = 0
 
-
-class RerankResponse(pydantic.BaseModel):
-  node_id: str
-  text: str
-  score: t.Optional[float] = None
-  error: t.Optional[str] = None
+  model_config = pydantic.ConfigDict(
+    alias_generator=lambda field_name: field_name.replace('_', '-'), populate_by_name=True
+  )

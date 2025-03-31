@@ -1,12 +1,20 @@
 import "./globals.css"
+
 import type React from "react"
+import Script from "next/script"
 import PlausibleProvider from "next-plausible"
+import { type Viewport, type Metadata } from "next"
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { PGlite, IdbFs } from "@electric-sql/pglite"
+import { live } from "@electric-sql/pglite/live"
+import { vector } from "@electric-sql/pglite/vector"
+
 import { ThemeProvider } from "@/context/theme-provider"
 import { VaultProvider } from "@/context/vault-context"
-import { PgLiteProvider } from "@/context/pglite-context"
-import Script from "next/script"
 import { Toaster } from "@/components/ui/toaster"
-import { type Viewport, type Metadata } from "next"
+import { PGliteProvider } from "@/context/db-context"
+import { PGLITE_DB_NAME } from "@/lib/db"
 
 export const metadata: Metadata = {
   title: "morph-editor.app",
@@ -29,6 +37,13 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
+const client = new QueryClient()
+const db = await PGlite.create({
+  fs: new IdbFs(PGLITE_DB_NAME),
+  relaxedDurability: true,
+  extensions: { live, vector },
+})
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -46,18 +61,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <PlausibleProvider domain="morph-editor.app" trackOutboundLinks trackFileDownloads>
-          <VaultProvider>
-            <PgLiteProvider>
-              <ThemeProvider
-                attribute="class"
-                defaultTheme="system"
-                enableSystem
-                disableTransitionOnChange
-              >
-                {children}
-              </ThemeProvider>
-            </PgLiteProvider>
-          </VaultProvider>
+          <PGliteProvider db={db}>
+            <QueryClientProvider client={client}>
+              <VaultProvider>
+                <ThemeProvider
+                  attribute="class"
+                  defaultTheme="system"
+                  enableSystem
+                  disableTransitionOnChange
+                >
+                  {children}
+                </ThemeProvider>
+              </VaultProvider>
+              <ReactQueryDevtools initialIsOpen={false} buttonPosition="top-left" />
+            </QueryClientProvider>
+          </PGliteProvider>
         </PlausibleProvider>
         <Toaster />
         {process.env.NODE_ENV === "production" && (

@@ -1,0 +1,65 @@
+bento: asteraceae-inference-api:latest
+name: asteraceae-inference-api
+access_authorization: true
+secrets:
+  - huggingface
+envs:
+  - name: UV_NO_PROGRESS
+    value: "1"
+  - name: CXX
+    value: /usr/bin/c++
+  - name: HF_HUB_DISABLE_PROGRESS_BARS
+    value: "1"
+  - name: VLLM_ATTENTION_BACKEND
+    value: FLASH_ATTN
+  - name: VLLM_USE_V1
+    value: "0"
+  - name: VLLM_LOGGING_CONFIG_PATH
+    value: /dev_workspace/bentoml/logging-config.json
+services:
+  asteraceae-inference-api:
+    instance_type: cpu.8
+    envs: []
+    scaling:
+      min_replicas: 1
+      max_replicas: 2
+      policy:
+        scale_up_stabilization_window: 0
+        scale_down_stabilization_window: 600
+    config_overrides:
+      traffic:
+        timeout: 1000
+        external_queue: true
+        concurrency: 128
+    deployment_strategy: Recreate
+  asteraceae-embedding-engine:
+    instance_type: gpu.l4.1
+    envs: []
+    scaling:
+      min_replicas: 0
+      max_replicas: 1
+      policy:
+        scale_up_stabilization_window: 0
+        scale_down_stabilization_window: 600
+    config_overrides:
+      traffic:
+        timeout: 1000
+        external_queue: true
+        concurrency: 128
+    deployment_strategy: Recreate
+  asteraceae-inference-engine:
+    instance_type: gpu.a100.2x80
+    envs: []
+    scaling:
+      min_replicas: 0
+      max_replicas: 1
+      policy:
+        scale_up_stabilization_window: 0
+        scale_down_stabilization_window: 600
+    config_overrides:
+      traffic:
+        timeout: 1000
+        external_queue: true
+        concurrency: 128
+    deployment_strategy: Recreate
+cluster: google-cloud-us-central-1

@@ -51,7 +51,7 @@ import {
   usePollEmbeddingStatus,
   EmbedTaskResult,
   EmbedType,
-} from "@/services/embeddingService" // Added EmbedTaskResult, EmbedType
+} from "@/services/embedding" // Added EmbedTaskResult, EmbedType
 import {
   hasNoteEmbedding,
   saveNoteEmbedding,
@@ -1242,7 +1242,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           const chunk = decoder.decode(value, { stream: true })
 
           // Process each line
-          for (const line of chunk.split("\n")) {
+          for (const line of chunk.split("\n\n")) {
             if (!line.trim()) continue
 
             try {
