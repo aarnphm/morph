@@ -76,7 +76,7 @@ def inference_service(
 
 
 class LineNumberMetadataExtractor(TransformComponent):
-  def __call__(self, nodes: list[BaseNode], **kwargs: t.Any) -> list[BaseNode]:
+  def __call__(self, nodes: t.Sequence[BaseNode], **kwargs: t.Any) -> list[BaseNode]:
     for node in nodes:
       # Ensure it's a TextNode derived from a Document and has source info
       if (
