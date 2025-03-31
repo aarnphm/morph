@@ -103,6 +103,7 @@ def inference_service(
         '__qualname__': inner.__qualname__,
         '__name__': inner.__name__,
         'setup_clients': setup_clients,
+        '__doc__': f'Generated BentoVLLM service for {Shared.model_id}. See more at https://github.com/bentoml/BentoVLLM.',
       })
 
     klass: type[T] = types.new_class(inner.__qualname__, exec_body=update_ns)
