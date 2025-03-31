@@ -3,13 +3,13 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: (pnpm-lock.yaml|emojimap.json)
+        exclude: (pnpm-lock.yaml|emojimap.json|migrations/)
       - id: end-of-file-fixer
-        exclude: (pnpm-lock.yaml|emojimap.json)
+        exclude: (pnpm-lock.yaml|emojimap.json|migrations/)
       - id: check-yaml
-        exclude: (pnpm-lock.yaml|emojimap.json)
+        exclude: (pnpm-lock.yaml)
       - id: check-added-large-files
-        exclude: (pnpm-lock.yaml|emojimap.json)
+        exclude: (pnpm-lock.yaml|emojimap.json|migrations/)
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.2
     hooks:

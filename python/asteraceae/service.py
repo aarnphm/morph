@@ -269,7 +269,7 @@ class Embeddings:
       reasoning=False,
       trust_remote_code=True,
       prefix_caching=False,
-      dtype=torch.bfloat16,
+      dtype=torch.float16,
       hf_overrides={'is_causal': True},
     )
 
