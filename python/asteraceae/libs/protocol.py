@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import enum, typing as t
-import pydantic
+import pydantic, bentoml
 
 from openai.types.completion_usage import CompletionUsage
 
 if t.TYPE_CHECKING:
   from _bentoml_sdk.images import Image
-  from _bentoml_sdk.service.config import ResourceSchema
-  from _bentoml_sdk.service.config import TrafficSchema, TracingSchema
+  from _bentoml_sdk.service.config import TrafficSchema, TracingSchema, ResourceSchema, HTTPSchema, HTTPCorsSchema
 
 TaskType = t.Literal['generate', 'embed']
 EmbedType = t.Literal['gte-qwen', 'gte-qwen-fast', 'gte-modernbert']
@@ -36,7 +35,27 @@ class ServiceOpts(t.TypedDict, total=False):
   traffic: TrafficSchema
   tracing: TracingSchema
   resources: ResourceSchema
+  http: HTTPSchema
 
+
+CORS = dict(
+  allow_origins=['*'],
+  allow_methods=['GET', 'OPTIONS', 'POST', 'HEAD', 'PUT'],
+  allow_credentials=True,
+  allow_headers=['*'],
+  max_age=3600,
+  expose_headers=['Content-Length'],
+)
+
+SERVICE_CONFIG: ServiceOpts = {
+  'tracing': {'sample_rate': 1.0},
+  'traffic': {'timeout': 1000, 'concurrency': 128},
+  'http': {'cors': t.cast('HTTPCorsSchema', {'enabled': True, **{f'access_control_{k}': v for k, v in CORS.items()}})},
+  'image': bentoml.images.PythonImage(python_version='3.11')
+  .system_packages('curl', 'git', 'build-essential', 'clang')
+  .pyproject_toml('pyproject.toml')
+  .run('uv pip install --compile-bytecode flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.6'),
+}
 
 ReasoningModels: dict[ModelType, LLMMetadata] = {
   'r1-qwen': LLMMetadata(

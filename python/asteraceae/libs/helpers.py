@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import logging, argparse, contextlib, typing as t
-import fastapi, bentoml
+import logging, types, sys, resource, argparse, contextlib, typing as t
+import fastapi, bentoml, openai
 
 from llama_index.core.schema import TransformComponent
 from llama_index.core import Document
@@ -21,10 +21,34 @@ def make_labels(task: TaskType) -> dict[str, t.Any]:
   return {'owner': 'aarnphm', 'type': 'engine', 'task': task}
 
 
+# Adapted from: https://github.com/sgl-project/sglang/blob/v0.4.1/python/sglang/srt/utils.py#L630
+def set_ulimit(target_soft_limit: int = 65535):
+  if sys.platform.startswith('win'):
+    logger.info('Windows detected, skipping ulimit adjustment.')
+    return
+
+  resource_type = resource.RLIMIT_NOFILE
+  current_soft, current_hard = resource.getrlimit(resource_type)
+
+  if current_soft < target_soft_limit:
+    try:
+      resource.setrlimit(resource_type, (target_soft_limit, current_hard))
+    except ValueError as e:
+      logger.warning(
+        'Found ulimit of %s and failed to automatically increase '
+        'with error %s. This can cause fd limit errors like '
+        '`OSError: [Errno 24] Too many open files`. Consider '
+        'increasing with ulimit -n',
+        current_soft,
+        e,
+      )
+
+
 def inference_service(
   *, hf_id: str, exclude: list[str], task: TaskType, envs: list[dict[str, str]], service_config: ServiceOpts
 ):
-  app = fastapi.FastAPI()
+  app = fastapi.FastAPI(title=f'OpenAI Compatible Endpoint for {service_config.get("name", "vLLM service")}')
+  set_ulimit()
 
   class Shared:
     model_id = hf_id
@@ -62,15 +86,30 @@ def inference_service(
     async def teardown_engine(self):
       await self.exit_stack.aclose()
 
-  def decorator(inner: type[T]) -> Service[t.Any]:
-    @bentoml.asgi_app(app, path='/v1')
-    @bentoml.service(labels=make_labels(task=task), envs=envs, **service_config)
-    class Inner(Shared, inner):
-      pass
+  def decorator(inner: type[T]) -> Service[T]:
+    @bentoml.on_startup
+    def setup_clients(self):
+      self.client = openai.AsyncOpenAI(base_url='{Svc.url}/v1', api_key='dummy')
 
-    Inner.inner.__qualname__ = inner.__qualname__
-    Inner.inner.__name__ = inner.__name__
-    return Inner
+    def update_ns(ns: dict[str, t.Any]) -> None:
+      def _correct_chain_init(self: t.Any):
+        Shared.__init__(self)
+        inner.__init__(self)
+
+      ns.update({
+        **Shared.__dict__,
+        **inner.__dict__,
+        '__init__': _correct_chain_init,
+        '__qualname__': inner.__qualname__,
+        '__name__': inner.__name__,
+        'setup_clients': setup_clients,
+      })
+
+    klass: type[T] = types.new_class(inner.__qualname__, exec_body=update_ns)
+    Svc = bentoml.asgi_app(app, path='/v1')(
+      bentoml.service(labels=make_labels(task=task), envs=envs, **service_config)(klass)
+    )
+    return Svc
 
   return decorator
 

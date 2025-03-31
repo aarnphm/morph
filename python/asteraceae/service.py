@@ -35,6 +35,7 @@ with bentoml.importing():
     Suggestions,
     TaskType,
     Tonality,
+    SERVICE_CONFIG,
   )
 
 if t.TYPE_CHECKING:
@@ -55,27 +56,6 @@ MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
 LLM_ID: str = (llm_ := ReasoningModels[MODEL_TYPE])['model_id']
 EMBED_TYPE = t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen-fast'))
 EMBED_ID: str = (embed_ := EmbeddingModels[EMBED_TYPE])['model_id']
-
-
-SERVICE_CONFIG: ServiceOpts = {
-  'tracing': {'sample_rate': 1.0},
-  'traffic': {'timeout': 1000, 'concurrency': 128},
-  'http': {
-    'cors': {
-      'enabled': True,
-      'access_control_allow_origins': ['*'],
-      'access_control_allow_methods': ['GET', 'OPTIONS', 'POST', 'HEAD', 'PUT'],
-      'access_control_allow_credentials': True,
-      'access_control_allow_headers': ['*'],
-      'access_control_max_age': 1200,
-      'access_control_expose_headers': ['Content-Length'],
-    }
-  },
-  'image': bentoml.images.PythonImage(python_version='3.11')
-  .system_packages('curl', 'git', 'build-essential', 'clang')
-  .pyproject_toml('pyproject.toml')
-  .run('uv pip install --compile-bytecode flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.6'),
-}
 
 
 def make_engine_service_config(type_: t.Literal['llm', 'embed'] = 'llm') -> ServiceOpts:
@@ -166,7 +146,7 @@ class LLM:
 
   def __init__(self):
     self.exit_stack = contextlib.AsyncExitStack()
-    self.client = openai.AsyncOpenAI(base_url='http://127.0.0.1:3000/v1', api_key='dummy')
+    self.client = openai.AsyncOpenAI(base_url='{LLM.url}/v1', api_key='dummy')
 
   @bentoml.on_startup
   async def init_engine(self) -> None:
@@ -246,7 +226,6 @@ class LLM:
 )
 class Embedding:
   def __init__(self):
-    super().__init__()
     self.args = make_args(
       self.model,
       self.model_id,
@@ -259,10 +238,10 @@ class Embedding:
     )
 
 
-api_app = fastapi.FastAPI()
+app = fastapi.FastAPI()
 
 
-@bentoml.asgi_app(api_app)
+@bentoml.asgi_app(app)
 @bentoml.service(
   name='asteraceae-inference-api',
   resources={'cpu': 2},
@@ -394,7 +373,7 @@ class API:
       yield chunk
 
 
-@api_app.get('/health')
+@app.get('/health')
 async def health(engine: Service = fastapi.Depends(LLM), embed: Service = fastapi.Depends(Embedding)):
   async def check_service_health(service: Service) -> DependentStatus:
     health = DependentStatus(name=service.name)
@@ -415,15 +394,15 @@ async def health(engine: Service = fastapi.Depends(LLM), embed: Service = fastap
   )
 
 
-@api_app.get('/metadata')
-def metadata(api: Service = fastapi.Depends(API)) -> dict[str, t.Any]:
+@app.get('/metadata')
+def metadata(api: Service[API] = fastapi.Depends(API)) -> dict[str, t.Any]:
   return {
     'llm': {'model_id': LLM_ID, 'model_type': MODEL_TYPE, 'structured_outputs': llm_['structured_output_backend']},
     'embed': {
       'model_id': EMBED_ID,
       'model_type': EMBED_TYPE,
-      'M': api.M,
-      'ef_construction': api.ef_construction,
-      'dimensions': api.dimensions,
+      'M': api.inner.M,
+      'ef_construction': api.inner.ef_construction,
+      'dimensions': api.inner.dimensions,
     },
   }
