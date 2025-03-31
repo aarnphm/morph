@@ -1,7 +1,7 @@
 {
   "name": "@aarnphm/morph-monorepo",
   "private": true,
-  "homepage": "https://tinymorph.aarnphm.xyz",
+  "homepage": "https://morph-editor.app",
   "scripts": {
     "morph:docs": "pnpm --filter morph-docs run quartz build --serve -v",
     "morph:docs:build": "pnpm --filter morph-docs run quartz build -v",

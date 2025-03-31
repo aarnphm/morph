@@ -2,17 +2,9 @@ import { PGlite, IdbFs } from "@electric-sql/pglite"
 import { live } from "@electric-sql/pglite/live"
 import { vector } from "@electric-sql/pglite/vector"
 import { createId } from "@paralleldrive/cuid2"
-import { createContext, useContext, useEffect, useState } from "react"
+import { useContext } from "react"
 
 export const PGLITE_DB_NAME = "morph-pglite"
-
-export interface Vault {
-  id: string
-  name: string
-  lastOpened: Date
-  tree: FileSystemTreeNode
-  settings: Settings
-}
 
 export interface Settings {
   editor: {
@@ -33,6 +25,35 @@ export interface Settings {
   }
 }
 
+export const DEFAULT_SETTINGS: Settings = {
+  editor: {
+    vim: false,
+    tabSize: 2,
+  },
+  shortcuts: {
+    editMode: "e",
+    toggleNotes: "i",
+  },
+  general: {
+    ignorePatterns: [
+      "**/.*",
+      "**/node_modules/**",
+      ".vercel/**",
+      ".venv/**",
+      "venv/**",
+      "**/dist/**",
+      "__pycache__/**",
+      "*.log",
+      ".DS_Store",
+      ".obsidian",
+    ],
+  },
+  citation: {
+    enabled: false,
+    format: "biblatex",
+  },
+}
+
 type FileSystemHandleType = FileSystemFileHandle | FileSystemDirectoryHandle
 
 export interface FileSystemTreeNode {
@@ -45,6 +66,28 @@ export interface FileSystemTreeNode {
   isOpen?: boolean
   path: string
 }
+
+export interface Vault {
+  id: string
+  name: string
+  lastOpened: Date
+  tree: FileSystemTreeNode
+  settings: Settings
+}
+
+export interface FileIndex {
+  id: string
+  name: string
+  extension: string
+  refs: {
+    vaultId: string
+  }
+  embedding: {
+    status: Note["embedding"]["status"]
+    taskId?: Note["embedding"]["taskId"]
+  }
+}
+
 
 export interface Reference {
   id: string
@@ -95,45 +138,8 @@ export interface Reasoning {
   steering: Steering
 }
 
-export interface FileIndex {
-  id: string
-  fileName: string
-  fileId: string
-  vaultId: string
-  embedding: {
-    status: Note["embedding"]["status"]
-    taskId?: Note["embedding"]["taskId"]
-  }
-}
 
-const DefaultSettings: Settings = {
-  editor: {
-    vim: false,
-    tabSize: 2,
-  },
-  shortcuts: {
-    editMode: "e",
-    toggleNotes: "i",
-  },
-  general: {
-    ignorePatterns: [
-      "**/.*",
-      "**/node_modules/**",
-      ".vercel/**",
-      ".venv/**",
-      "venv/**",
-      "**/dist/**",
-      "__pycache__/**",
-      "*.log",
-      ".DS_Store",
-      ".obsidian",
-    ],
-  },
-  citation: {
-    enabled: false,
-    format: "biblatex",
-  },
-}
+
 
 // Create DB instance singleton
 let pgliteInstance: PGlite | null = null
@@ -424,5 +430,3 @@ export function useDb() {
   }
   return context
 }
-
-export { DefaultSettings as defaultSettings }

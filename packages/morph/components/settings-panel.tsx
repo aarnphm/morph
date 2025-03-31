@@ -10,7 +10,7 @@ import { Cross1Icon, GearIcon } from "@radix-ui/react-icons"
 import usePersistedSettings, { Settings } from "@/hooks/use-persisted-settings"
 import { useTheme } from "next-themes"
 import { Textarea } from "@/components/ui/textarea"
-import { useVaultContext } from "@/context/vault-context"
+import { useVaultContext } from "@/context/vault"
 import { Input } from "@/components/ui/input"
 
 interface SettingsPanelProps {
@@ -102,18 +102,20 @@ function GeneralSettings() {
   return (
     <div className="text-sm">
       <SettingItem name="App" isHeading />
-
       <SettingItem name="GitHub" description="If you wish to contribute or open new issues">
         <SettingsButton onClick={() => window.open("https://github.com/aarnphm/morph", "_blank")}>
           Open
         </SettingsButton>
       </SettingItem>
-
-      <SettingItem
-        name="Documentation"
-        description="For both engineering requirements and user manuals"
-      >
-        <SettingsButton onClick={() => window.open("https://tinymorph.aarnphm.xyz", "_blank")}>
+      <SettingItem name="Documentation" description="User manuals">
+        <SettingsButton onClick={() => window.open("https://docs.morph-editor.app", "_blank")}>
+          Open
+        </SettingsButton>
+      </SettingItem>
+      <SettingItem name="Engineering" description="Engineering manuals">
+        <SettingsButton
+          onClick={() => window.open("https://engineering.morph-editor.app", "_blank")}
+        >
           Open
         </SettingsButton>
       </SettingItem>

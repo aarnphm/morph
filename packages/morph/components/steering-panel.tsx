@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "motion/react"
 import { MixerHorizontalIcon, Cross2Icon, PlusIcon } from "@radix-ui/react-icons"
 import { cn } from "@/lib"
 import { VaultButton } from "@/components/ui/button"
-import { useSteeringContext } from "@/context/steering-context"
+import { useSteeringContext } from "@/context/steering"
 import { Input } from "./ui/input"
 
 interface AuthorsSelectorProps {

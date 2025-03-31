@@ -7,6 +7,7 @@ import bentoml, fastapi, jinja2, annotated_types as ae
 with bentoml.importing():
   import openai
 
+  from openai.types import Embedding
   from openai.types.chat import ChatCompletionChunk
   from openai.types import CreateEmbeddingResponse
   from openai.types.chat import ChatCompletionUserMessageParam, ChatCompletionMessageParam
@@ -43,6 +44,10 @@ MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
 LLM_ID: str = (llm_ := ReasoningModels[MODEL_TYPE])['model_id']
 EMBED_TYPE = t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen-fast'))
 EMBED_ID: str = (embed_ := EmbeddingModels[EMBED_TYPE])['model_id']
+
+SupportedBackend = t.Literal['vllm']
+SUPPORTED_BACKENDS: t.Sequence[SupportedBackend] = ['vllm']
+DEFAULT_BACKEND: SupportedBackend = os.environ.get('DEFAULT_BACKEND', 'vllm')
 
 CORS = dict(
   allow_origins=['*'],
@@ -88,6 +93,7 @@ def make_env(engine_version: t.Literal[0, 1] = 1, *, skip_hf: bool = False) -> l
   results.extend([
     {'name': 'UV_NO_PROGRESS', 'value': '1'},
     {'name': 'CXX', 'value': shutil.which('c++')},
+    {'name': 'DEFAULT_BACKEND', 'value': DEFAULT_BACKEND},
     {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
     {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
     {'name': 'VLLM_USE_V1', 'value': str(engine_version)},
@@ -240,6 +246,7 @@ class Embeddings:
 
   def __init__(self):
     self.exit_stack = contextlib.AsyncExitStack()
+    self.client = openai.AsyncOpenAI(base_url='http://127.0.0.1:3000/v1', api_key='dummy')
 
   @bentoml.on_startup
   async def init_engine(self) -> None:
@@ -277,6 +284,15 @@ class Embeddings:
   async def teardown_engine(self):
     await self.exit_stack.aclose()
 
+  @bentoml.api
+  async def generate(self, content: str) -> list[Embedding]:
+    try:
+      results = await self.client.embeddings.create(input=[content], model=self.model_id)
+      return results.data
+    except Exception:
+      logger.error(traceback.format_exc())
+      raise
+
 
 @bentoml.asgi_app(app)
 @bentoml.service(
@@ -306,6 +322,19 @@ class API:
     self.llm_client = openai.AsyncOpenAI(base_url=f'{self.llm.client_url}/v1', api_key='dummy')
     self.embedding_client = openai.AsyncOpenAI(base_url=f'{self.embedding.client_url}/v1', api_key='dummy')
 
+  def handle_requested_backend(self, extra_body: dict[str, t.Any] | None = None) -> SupportedBackend:
+    backend = DEFAULT_BACKEND
+
+    if backend not in SUPPORTED_BACKENDS:
+      raise ValueError(f"Backend '{backend}' is not yet supported. Current supported backend: {SUPPORTED_BACKENDS}")
+
+    if extra_body:
+      requested_backend = extra_body.pop('backend', None)
+      if requested_backend not in SUPPORTED_BACKENDS:
+        raise ValueError(f"Backend '{backend}' is not yet supported. Current supported backend: {SUPPORTED_BACKENDS}")
+      backend = requested_backend
+    return backend
+
   @bentoml.api(route='/v1/embeddings')
   async def embeddings(
     self,
@@ -316,32 +345,71 @@ class API:
     extra_body: dict[str, t.Any] | None = None,
     timeout: float | None = None,
   ) -> CreateEmbeddingResponse:
+    """Partially complete Embeddings API: https://platform.openai.com/docs/api-reference/embeddings
+
+    This is a router to call internal Embeddings models within the replica.
+    Current supported engines:
+      - vLLM
+
+    To use different backends, pass in `extra_headers={"backend": "different_backend"}`
+    """
+    backend = self.handle_requested_backend(extra_body)
+
     try:
-      # TODO: support dimensions on vLLM
-      return await self.embedding_client.embeddings.create(
-        input=[prompt],
-        model=model,
-        extra_headers=extra_headers,
-        extra_body=extra_body,
-        extra_query=extra_query,
-        timeout=timeout,
-      )
+      if backend == 'vllm':
+        # TODO: support dimensions on vLLM
+        return await self.embedding_client.embeddings.create(
+          input=[prompt],
+          model=model,
+          extra_headers=extra_headers,
+          extra_body=extra_body,
+          extra_query=extra_query,
+          timeout=timeout,
+        )
     except Exception:
       logger.error(traceback.format_exc())
       raise
 
   @bentoml.api(route='/v1/chat/completions')
   async def completions(
-    self, messages: t.Iterable[ChatCompletionMessageParam], model: str = LLM.inner.model_id, **kwargs: t.Any
-  ) -> t.AsyncGenerator[ChatCompletionChunk, None]:
-    """A proxy Chat API with stream=True."""
-    kwargs.pop('stream', None)
+    self,
+    messages: t.Iterable[ChatCompletionMessageParam],
+    model: str = LLM.inner.model_id,
+    frequency_penalty: t.Optional[float] = None,
+    stream: bool = True,
+    top_p: t.Annotated[float, ae.Ge(0), ae.Le(1)] = llm_['top_p'],
+    temperature: t.Annotated[float, ae.Ge(0), ae.Le(1)] = llm_['temperature'],
+    max_tokens: t.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
+    extra_headers: dict[str, t.Any] | None = None,
+    extra_query: dict[str, t.Any] | None = None,
+    extra_body: dict[str, t.Any] | None = None,
+    timeout: float | None = None,
+  ):
+    """Partially complete Chat Completions API: https://platform.openai.com/docs/api-reference/chat
+
+    This is a router to call to internal LLMs within the replica.
+    Current supported engines:
+      - vLLM w/ Goodfire SAEs intervention
+
+    To use different backends, pass in `extra_headers={"backend": "different_backend"}`
+    """
+    backend = self.handle_requested_backend(extra_body)
+
     try:
-      completions = await self.llm_client.chat.completions.create(
-        messages=messages, model=model, stream=True, **kwargs
-      )
-      async for chunk in completions:
-        yield chunk
+      if backend == 'vllm':
+        return await self.llm_client.chat.completions.create(
+          messages=messages,
+          model=model,
+          stream=stream,
+          top_p=top_p,
+          temperature=temperature,
+          frequency_penalty=frequency_penalty,
+          max_tokens=max_tokens,
+          extra_headers=extra_headers,
+          extra_body=extra_body,
+          timeout=timeout,
+          extra_query=extra_query,
+        )
     except Exception:
       logger.error(traceback.format_exc())
       raise
@@ -371,6 +439,11 @@ class API:
       usage=usage,
     ):
       yield chunk
+
+  @bentoml.task
+  async def notes(self, notes: str) -> list[float]:
+    result = await self.embedding.generate(notes)
+    return result[0].embedding
 
   @bentoml.api
   async def health(self, timeout: int = 30):

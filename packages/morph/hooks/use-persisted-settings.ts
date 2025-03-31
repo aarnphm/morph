@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useVaultContext } from "@/context/vault-context"
+import { useVaultContext } from "@/context/vault"
 import { defaultSettings } from "@/db"
 
 export interface Settings {

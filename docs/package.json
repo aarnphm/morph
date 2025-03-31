@@ -6,7 +6,7 @@
   "type": "module",
   "author": "aarnphm <contact@aarnphm.xyz>",
   "license": "Apache-2.0",
-  "homepage": "https://tinymorph.aarnphm.xyz",
+  "homepage": "https://engineering.morph-editor.app",
   "repository": {
     "type": "git",
     "url": "https://github.com/aarnphm/morph.git"

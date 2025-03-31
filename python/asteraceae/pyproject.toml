@@ -17,7 +17,7 @@ dependencies = [
 ]
 [project.urls]
 Website = "https://morph-editor.app"
-Documentation = "https://tinymorph.aarnphm.xyz"
+Documentation = "https://docs.morph-editor.app"
 GitHub = "https://github.com/aarnphm/morph"
 Twitter = "https://twitter.com/aarnphm_"
 Tracker = "https://github.com/aarnphm/morph/issues"

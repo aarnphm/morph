@@ -1,6 +1,8 @@
 > [!NOTE]
 >
-> Documentation source under [docs/content](./docs/content) will be rendered correctly on [website](https://tinymorph.aarnphm.xyz) (through GitHub Pages)
+> Engineering docs can be found at [`engineering.morph-editor.app`](https://engineering.morph-editor.app) ([source](./docs/content))
+>
+> User manuals can be found at [`docs.morph-editor.app`](https://docs.morph-editor.app) ([source](./packages/manuals/content/))
 
 See [structure](./ExceptionGranted.md) for code structure
 

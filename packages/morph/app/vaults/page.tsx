@@ -16,7 +16,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { type Vault } from "@/lib/db"
-import { useVaultContext } from "@/context/vault-context"
+import { useVaultContext } from "@/context/vault"
 
 // Custom styled DialogContent to center it on the screen
 const CenteredDialogContent = memo(function CenteredDialogContent({

@@ -2,7 +2,7 @@
 
 import { useCallback } from "react"
 import Editor from "@/components/editor"
-import { useVaultContext } from "@/context/vault-context"
+import { useVaultContext } from "@/context/vault"
 import { useParams } from "next/navigation"
 import { motion } from "motion/react"
 

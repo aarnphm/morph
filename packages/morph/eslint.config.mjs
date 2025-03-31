@@ -19,5 +19,9 @@ const eslintConfig = [
       "@typescript-eslint/no-explicit-any": "off",
     },
   }),
+  ...compat.config({
+    extends: ["plugin:drizzle/all"],
+    parser: "@typescript-eslint/parser",
+  }),
 ]
 export default eslintConfig

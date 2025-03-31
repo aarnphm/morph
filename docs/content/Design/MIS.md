@@ -4,7 +4,7 @@ tags:
   - design
 author: aarnphm,waleedmalik7,nebrask,lucas-lizhiwei
 date: "2024-09-16"
-modified: 2025-01-17 23:04:08 GMT-05:00
+modified: 2025-03-31 14:56:31 GMT-04:00
 title: Module Interface Specification
 ---
 
@@ -16,11 +16,11 @@ The following data dictionary from [[SRS/SRS]] will be used for the symbols:
 
 ## Introduction
 
-The following document details the [[Design/MIS|Module Interface Specifications]] for `tinymorph`, which aims to explore new interfaces and workflow for auto-regressive model to help writers craft better writing artifacts.
+The following document details the [[Design/MIS|Module Interface Specifications]] for `morph`, which aims to explore new interfaces and workflow for auto-regressive model to help writers craft better writing artifacts.
 
 Complementary documents include the [[SRS/SRS|System Requirement Specifications]] and [[Design/MG|Module Guide]].
 
-See also [[/index|full documentation]] and [github](https://github.com/aarnphm/tinymorph)
+See also [[/index|full documentation]] and [github](https://github.com/aarnphm/morph)
 
 ## Notation
 
@@ -29,7 +29,7 @@ The structure of the MIS for modules comes from [@hoffman1995software], with the
 [@hoffman1995software]. For instance, the symbol := is used for a
 multiple assignment statement and conditional rules follow the form $(c_1 \Rightarrow r_1 \mid c_2 \Rightarrow r_2 \mid \dots \mid c_n \Rightarrow r_n)$.
 
-The following table summarizes the primitive data types used by `tinymorph`.
+The following table summarizes the primitive data types used by `morph`.
 
 | **Data Type**  | **Notation**              | **Description**                                                                               |
 | -------------- | ------------------------- | --------------------------------------------------------------------------------------------- |
@@ -42,12 +42,12 @@ The following table summarizes the primitive data types used by `tinymorph`.
 | JSON           | $\textbf{JSON}(a=1,b=2)$  | a structured data format consisting of key-value pairs and arrays (for example for $a=1,b=2$) |
 | Function       | $f: Q \to F$              | a structure-preserving maps between two category $Q$ and $F$                                  |
 
-The specification of `tinymorph` uses some derived data types: sequences, strings, Tensor, JSON, and tuples.
+The specification of `morph` uses some derived data types: sequences, strings, Tensor, JSON, and tuples.
 
 - Sequences are lists filled with elements of the same data type.
 - Strings are sequences of characters.
 - Tuples contain a list of values, potentially of different types.
-- In addition, `tinymorph` uses functions, which are defined by the data types of their inputs and outputs.
+- In addition, `morph` uses functions, which are defined by the data types of their inputs and outputs.
 - Local functions are described by giving their type signature followed by their specification.
 
 ## Module Decomposition
@@ -549,16 +549,16 @@ None
 #### State Variables
 
 - `currentInferenceTasks`: $\textbf{JSON}(\text{tasks}=[\text{task}_1,\dots,\text{task}_n])$ where $\text{task}_i = \{\text{id}, \text{model}, \text{status}, \text{progress}\}$
-   - Tracks active inference tasks
+  - Tracks active inference tasks
 - `modelStates`: $\textbf{JSON}(\text{models}=[\{\text{name}: \text{String}, \text{SAE}: \mathbb{R}\}])$
-   - Tracks loaded models and their Self-Attention Entropy scores
+  - Tracks loaded models and their Self-Attention Entropy scores
 - `generationStates`: $\textbf{JSON}(\text{intermediates}=[\text{gen}_1,\dots,\text{gen}_k])$ where $\text{gen}_i = \{\text{text}, \text{score}, \text{timestamp}\}$
-   - Stores intermediate generations for each task
+  - Stores intermediate generations for each task
 
 #### Environment Variables
 
 - `CUDA_VISIBLE_DEVICES`
-   - Tracks current available GPUs devices for inference
+  - Tracks current available GPUs devices for inference
 
 #### Assumptions
 
@@ -594,6 +594,7 @@ None
 #### Local Functions
 
 1. `moveToDevice(data: Tensor, device: string): Tensor`
+
    - Transfers input tensors from CPU to specified GPU device with proper memory pinning and CUDA streams
 
 2. `allocateResources(modelConfig: Object): Object`
@@ -666,26 +667,26 @@ User Configuration Module
 #### State Variables
 
 - `userConfigurations: Object`
-   - Tracks current user configurations
+  - Tracks current user configurations
 - `generationParams: Object`
-   - Part of user configuration involving temperature, top_p, and token settings
+  - Part of user configuration involving temperature, top_p, and token settings
 - `styleConfig: Object`
-   - Part of user configuration involving tonality, formality, and creativity parameters
+  - Part of user configuration involving tonality, formality, and creativity parameters
 - `saeSettings: Object`
-   - Part of user configuration involving Self-Attention Entropy tuning configurations
+  - Part of user configuration involving Self-Attention Entropy tuning configurations
 - `configHistory: Array`
-   - Maintains history of configuration changes
+  - Maintains history of configuration changes
 - `stylePresets: Object`
-   - Predefined style combinations
+  - Predefined style combinations
 
 #### Environment Variables
 
 - `localStorage`
-   - Stores user preferences
+  - Stores user preferences
 - `modelConfig`
-   - Current model configuration state
+  - Current model configuration state
 - `inferenceMetrics`
-   - Real-time inference performance metrics
+  - Real-time inference performance metrics
 
 #### Assumptions
 
@@ -784,10 +785,10 @@ Analytics Module
 
 #### Exported Access Programs
 
-| **Name**            | **In**                    | **Out**        | **Exceptions**          |
-| ------------------- | ------------------------- | -------------- | ----------------------- |
+| **Name**          | **In**                  | **Out**        | **Exceptions**          |
+| ----------------- | ----------------------- | -------------- | ----------------------- |
 | saveUserConfig    | Object userSettings     | boolean        | SaveFailed              |
-| getUserConfig     | -                         | Object         | ConfigNotFound          |
+| getUserConfig     | -                       | Object         | ConfigNotFound          |
 | updateStyleConfig | Object styleParams      | boolean        | InvalidStyleParams      |
 | tuneGeneration    | Object generationParams | Object         | InvalidGenerationParams |
 | adjustSAE         | Object saeParams        | Object metrics | SAEAdjustmentFailed     |
@@ -797,26 +798,26 @@ Analytics Module
 #### State Variables
 
 - `userConfigurations: Object`
-   - Tracks current user configurations
+  - Tracks current user configurations
 - `generationParams: Object`
-   - Part of user configuration involving temperature, top_p, and token settings
+  - Part of user configuration involving temperature, top_p, and token settings
 - `styleConfig: Object`
-   - Part of user configuration involving tonality, formality, and creativity parameters
+  - Part of user configuration involving tonality, formality, and creativity parameters
 - `saeSettings: Object`
-   - Part of user configuration involving Self-Attention Entropy tuning configurations
+  - Part of user configuration involving Self-Attention Entropy tuning configurations
 - `configHistory: Array`
-   - Maintains history of configuration changes
+  - Maintains history of configuration changes
 - `stylePresets: Object`
-   - Predefined style combinations
+  - Predefined style combinations
 
 #### Environment Variables
 
 - `localStorage`
-   - Stores user preferences
+  - Stores user preferences
 - `modelConfig`
-   - Current model configuration state
+  - Current model configuration state
 - `inferenceMetrics`
-   - Real-time inference performance metrics
+  - Real-time inference performance metrics
 
 #### Assumptions
 
@@ -972,10 +973,11 @@ Export and Intergration Module
 
 ### Revision
 
-| **Date**      | **Version** | **Notes**          |
-| ------------- | ----------- | ------------------ |
-| Sept. 16 2024 | 0.0         | Initial skafolding |
-| Jan. 12 2025  | 0.1         | Initial Rev        |
+| **Date**      | **Version** | **Notes**                         |
+| ------------- | ----------- | --------------------------------- |
+| Sept. 16 2024 | 0.0         | Initial skafolding                |
+| Jan. 12 2025  | 0.1         | Initial Rev                       |
+| March 31 2025 | 0.2         | Rename to `morph` for consistency |
 
 ### Reflection
 
@@ -990,7 +992,6 @@ Export and Intergration Module
 <!-- 6. Give a brief overview of other design solutions you considered. What are the benefits and tradeoffs of those other designs compared with the chosen design? From all the potential options, why did you select the documented design? (LO_Explores) -->
 
 <br />
-
 
 <div class="reflection-container">
 

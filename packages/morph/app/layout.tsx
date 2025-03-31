@@ -10,10 +10,10 @@ import { PGlite, IdbFs } from "@electric-sql/pglite"
 import { live } from "@electric-sql/pglite/live"
 import { vector } from "@electric-sql/pglite/vector"
 
-import { ThemeProvider } from "@/context/theme-provider"
-import { VaultProvider } from "@/context/vault-context"
+import { ThemeProvider } from "@/context/theme"
+import { VaultProvider } from "@/context/vault"
 import { Toaster } from "@/components/ui/toaster"
-import { PGliteProvider } from "@/context/db-context"
+import { PGliteProvider } from "@/context/db"
 import { PGLITE_DB_NAME } from "@/lib/db"
 
 export const metadata: Metadata = {
@@ -62,19 +62,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <PlausibleProvider domain="morph-editor.app" trackOutboundLinks trackFileDownloads>
           <PGliteProvider db={db}>
-            <QueryClientProvider client={client}>
-              <VaultProvider>
-                <ThemeProvider
+              <QueryClientProvider client={client}>
+                <VaultProvider>
+                  <ThemeProvider
                   attribute="class"
                   defaultTheme="system"
                   enableSystem
                   disableTransitionOnChange
                 >
                   {children}
-                </ThemeProvider>
-              </VaultProvider>
-              <ReactQueryDevtools initialIsOpen={false} buttonPosition="top-left" />
-            </QueryClientProvider>
+                  </ThemeProvider>
+                </VaultProvider>
+                <ReactQueryDevtools initialIsOpen={false} buttonPosition="top-left" />
+              </QueryClientProvider>
           </PGliteProvider>
         </PlausibleProvider>
         <Toaster />
