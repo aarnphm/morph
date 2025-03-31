@@ -21,7 +21,10 @@ export const files = p.pgTable("files", {
   extension: p.text("extension").notNull(),
   vaultId: p.text("vaultId").notNull().references(() => vaults.id, {onDelete: "cascade"}),
   lastModified: p.timestamp("lastModified", { mode: "date" }).notNull().defaultNow(),
-  embeddingStatus
+  embeddingStatus: p.text("embeddingStatus", {
+    enum: ["in_progress", "success", "failure", "cancelled"],
+  }).notNull().default("in_progress"),
+  embeddingTaskId: p.text("embeddingTaskId").references(() => tasks.id),
 })
 
 export const references = p.pgTable("references", {

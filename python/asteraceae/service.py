@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-import argparse
-import logging, traceback, asyncio, os, shutil, contextlib, pathlib, time, datetime, typing as t
+import multiprocessing
+import logging, argparse, traceback, asyncio, os, shutil, contextlib, pathlib, time, datetime, typing as t
 import bentoml, fastapi, jinja2, annotated_types as ae
+
+from libs.protocol import EssayRequest, EssayResponse, HealthRequest, MetadataResponse, NotesResponse
 
 with bentoml.importing():
   import openai
@@ -11,6 +13,12 @@ with bentoml.importing():
   from openai.types.chat import ChatCompletionChunk
   from openai.types import CreateEmbeddingResponse
   from openai.types.chat import ChatCompletionUserMessageParam, ChatCompletionMessageParam
+  from llama_index.core import Document
+  from llama_index.core.ingestion import IngestionPipeline
+  from llama_index.core.node_parser import SemanticSplitterNodeParser
+  from llama_index.core.extractors import TitleExtractor
+  from llama_index.embeddings.openai import OpenAIEmbedding
+  from llama_index.llms.openai_like import OpenAILike
 
   from libs.protocol import (
     ReasoningModels,
@@ -19,7 +27,8 @@ with bentoml.importing():
     EmbedType,
     ModelType,
     DependentStatus,
-    HealthStatus,
+    HealthResponse,
+    LineNumberMetadataExtractor,
     Suggestion,
     Suggestions,
     TaskType,
@@ -297,14 +306,14 @@ class Embeddings:
 @bentoml.asgi_app(app)
 @bentoml.service(
   name='asteraceae-inference-api',
-  resources={'cpu': 2},
+  resources={'cpu': 4},
   labels={'owner': 'aarnphm', 'type': 'api'},
   envs=make_env(0, skip_hf=True),
   **SERVICE_CONFIG,
 )
 class API:
   llm = bentoml.depends(LLM, url=make_url('generate'))
-  embedding = bentoml.depends(Embeddings, url=make_url('embed'))
+  embed = bentoml.depends(Embeddings, url=make_url('embed'))
 
   # vector stores configuration
   M: int = 16
@@ -319,8 +328,39 @@ class API:
 
   @bentoml.on_startup
   def setup_clients(self):
-    self.llm_client = openai.AsyncOpenAI(base_url=f'{self.llm.client_url}/v1', api_key='dummy')
-    self.embedding_client = openai.AsyncOpenAI(base_url=f'{self.embedding.client_url}/v1', api_key='dummy')
+    self.llm_client = openai.AsyncOpenAI(base_url=f'{t.cast("RemoteProxy", self.llm).client_url}/v1', api_key='dummy')
+    self.embed_client = openai.AsyncOpenAI(
+      base_url=f'{t.cast("RemoteProxy", self.embed).client_url}/v1', api_key='dummy'
+    )
+
+    self.embed_model = OpenAIEmbedding(
+      api_key='dummy',
+      model_name=Embeddings.inner.model_id,
+      api_base=f'{t.cast("RemoteProxy", self.embed).client_url}/v1',
+      dimensions=None,
+      default_headers={'Runner-Name': Embeddings.name},
+    )
+    self.llm_model = OpenAILike(
+      model=LLM.inner.model_id,
+      tokenizer=LLM.inner.model_id,
+      api_key='dummy',
+      api_version='',
+      api_base=f'{t.cast("RemoteProxy", self.llm).client_url}/v1',
+      is_chat_model=True,
+      max_tokens=MAX_TOKENS,
+      context_window=MAX_MODEL_LEN,
+      temperature=llm_['temperature'],
+      default_headers={'Runner-Name': LLM.name},
+      strict=True,
+    )
+
+    chunker = SemanticSplitterNodeParser(
+      buffer_size=1, breakpoint_percentile_threshold=95, embed_model=self.embed_model
+    )
+    line_extractor = LineNumberMetadataExtractor()
+    title_extractor = TitleExtractor(llm=self.llm_model)
+
+    self.pipeline = IngestionPipeline(transformations=[chunker, line_extractor, title_extractor, self.embed_model])
 
   def handle_requested_backend(self, extra_body: dict[str, t.Any] | None = None) -> SupportedBackend:
     backend = DEFAULT_BACKEND
@@ -358,7 +398,7 @@ class API:
     try:
       if backend == 'vllm':
         # TODO: support dimensions on vLLM
-        return await self.embedding_client.embeddings.create(
+        return await self.embed_client.embeddings.create(
           input=[prompt],
           model=model,
           extra_headers=extra_headers,
@@ -441,27 +481,48 @@ class API:
       yield chunk
 
   @bentoml.task
-  async def notes(self, notes: str) -> list[float]:
-    result = await self.embedding.generate(notes)
-    return result[0].embedding
+  async def notes(self, notes: str) -> NotesResponse:
+    try:
+      result = await self.embed.generate(notes)
+      return NotesResponse(embedding=result[0].embedding)
+    except Exception as e:
+      logger.error(traceback.print_exc())
+      return NotesResponse(embedding=[], error=str(e))
+
+  @bentoml.task
+  async def essays(self, essay: EssayRequest) -> EssayResponse:
+    try:
+      result = await self.pipeline.arun(
+        show_progress=True,
+        documents=[Document(text=essay.content, doc_id=essay.file_id, metadata=dict(vault_id=essay.vault_id))],
+        num_workers=multiprocessing.cpu_count(),
+      )
+      return EssayResponse(
+        vault_id=essay.vault_id,
+        file_id=essay.file_id,
+        node_ids=[it.node_id for it in result],
+        embeddings=[it.embedding for it in result],
+      )
+    except Exception as e:
+      logger.error(traceback.print_exc())
+      return EssayResponse(vault_id=essay.vault_id, file_id=essay.file_id, node_ids=[], embeddings=[], error=str(e))
 
   @bentoml.api
-  async def health(self, timeout: int = 30):
+  async def health(self, request: HealthRequest) -> HealthResponse:
     async def check_service_health(service: Dependency[t.Any]) -> DependentStatus:
       health = DependentStatus(name=service.name)
       try:
         start_time = time.time()
-        health.healthy = await t.cast('RemoteProxy', service).is_ready(timeout)
+        health.healthy = await t.cast('RemoteProxy', service).is_ready(request.timeout)
         health.latency_ms = round((time.time() - start_time) * 1000, 2)
       except Exception as e:
         health.healthy = False
         health.error = str(e)
       return health
 
-    healthcheck = await asyncio.gather(*[
-      asyncio.create_task(check_service_health(h)) for h in [self.llm, self.embedding]
-    ])
-    return HealthStatus(
+    healthcheck = await asyncio.gather(*[asyncio.create_task(check_service_health(h)) for h in [self.llm, self.embed]])
+
+    return HealthResponse(
       services=healthcheck,
       healthy=all(map(lambda x: x.healthy, healthcheck)),
       timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -469,8 +530,8 @@ class API:
 
 
 @app.get('/metadata')
-def metadata(api: Service[API] = fastapi.Depends(API)) -> dict[str, t.Any]:
-  return {
+def metadata(api: Service[API] = fastapi.Depends(API)) -> MetadataResponse:
+  return MetadataResponse.model_construct(**{
     'llm': {'model_id': LLM_ID, 'model_type': MODEL_TYPE, 'structured_outputs': llm_['structured_output_backend']},
     'embed': {
       'model_id': EMBED_ID,
@@ -479,4 +540,4 @@ def metadata(api: Service[API] = fastapi.Depends(API)) -> dict[str, t.Any]:
       'ef_construction': api.inner.ef_construction,
       'dimensions': api.inner.dimensions,
     },
-  }
+  })
