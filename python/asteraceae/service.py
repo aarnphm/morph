@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import logging, argparse, multiprocessing, json, itertools, traceback, asyncio, os, shutil, contextlib, pathlib, time, datetime, typing as t
-import bentoml, fastapi, pydantic, jinja2, annotated_types as at, typing_extensions as te
+import bentoml, fastapi, pydantic, jinja2, annotated_types as at
 
 from starlette.responses import JSONResponse, StreamingResponse
 from vllm.entrypoints.openai.serving_embedding import OpenAIServingEmbedding
-
-from libs.protocol import EssayNode, EssayRequest, EssayResponse, HealthRequest, MetadataResponse, NotesResponse
 
 with bentoml.importing():
   import openai
@@ -25,12 +23,16 @@ with bentoml.importing():
     ModelCard,
     ModelList,
     ErrorResponse,
-    EmbeddingResponse,
-    ChatCompletionResponse,
     EmbeddingCompletionRequest,
   )
 
   from libs.protocol import (
+    EssayNode,
+    EssayRequest,
+    EssayResponse,
+    HealthRequest,
+    MetadataResponse,
+    NotesResponse,
     ReasoningModels,
     EmbeddingModels,
     ServiceOpts,
@@ -49,7 +51,6 @@ with bentoml.importing():
 if t.TYPE_CHECKING:
   from _bentoml_impl.client import RemoteProxy
   from _bentoml_sdk.service.config import HTTPCorsSchema
-  from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 
 logger = logging.getLogger('bentoml.service')
 
@@ -92,7 +93,7 @@ SERVICE_CONFIG: ServiceOpts = {
 class SuggestRequest(pydantic.BaseModel):
   essay: str
   authors: t.Optional[list[str]] = pydantic.Field(AUTHORS)
-  tonality: t.Optional[Tonality] = pydantic.Field(default_factory=lambda: Tonality(soul_cartographer=0.4, logical=0.6))
+  tonality: t.Optional[Tonality] = None
   num_suggestions: t.Annotated[int, at.Ge(1)] = 3
   top_p: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['top_p']
   temperature: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['temperature']
@@ -224,7 +225,6 @@ class LLM:
     self.model_config = await self.engine.get_model_config()
     self.tokenizer = await self.engine.get_tokenizer()
     await vllm_api_server.init_app_state(self.engine, self.model_config, llm_app.state, args)
-    self.chat_handler: OpenAIServingChat = llm_app.state.openai_serving_chat
 
   @bentoml.on_shutdown
   async def teardown_engine(self):
@@ -274,16 +274,6 @@ class LLM:
       logger.error(traceback.format_exc())
       yield f'{Suggestion(suggestion="Internal error found. Check server logs for more information").model_dump_json()}\n\n'
       return
-
-  @bentoml.api
-  async def chat(self, request: ChatCompletionRequest, /):
-    generator = await self.chat_handler.create_chat_completion(request)
-    if isinstance(generator, ErrorResponse):
-      return JSONResponse(content=generator.model_dump(), status_code=generator.code)
-    elif isinstance(generator, ChatCompletionResponse):
-      return JSONResponse(content=generator.model_dump())
-    else:
-      return StreamingResponse(content=generator, media_type='text/event-stream')
 
 
 @bentoml.asgi_app(embed_app, path='/v1')
@@ -343,15 +333,6 @@ class Embeddings:
     except Exception:
       logger.error(traceback.format_exc())
       raise
-
-  @bentoml.api
-  async def embed(self, request: EmbeddingCompletionRequest, /):
-    generator = await self.embed_handler.create_embedding(request)
-    if isinstance(generator, ErrorResponse):
-      return JSONResponse(content=generator.model_dump(), status_code=generator.code)
-    elif isinstance(generator, EmbeddingResponse):
-      return JSONResponse(content=generator.model_dump())
-    te.assert_never(generator)
 
 
 @bentoml.asgi_app(app)
@@ -420,7 +401,7 @@ class API:
     try:
       # Make a direct request to the embed endpoint
       resp = await self.embed_httpx.post(
-        '/embed',
+        '/v1/embeddings',
         json=request.model_dump(exclude_unset=True),
         headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
       )
@@ -448,7 +429,7 @@ class API:
         async def stream_response():
           async with self.llm_httpx.stream(
             'POST',
-            '/chat',
+            '/v1/chat/completions',
             json=request.model_dump(exclude_unset=True),
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
           ) as resp:
@@ -470,7 +451,7 @@ class API:
       else:
         # For non-streaming responses, continue using post
         resp = await self.llm_httpx.post(
-          '/chat',
+          '/v1/chat/completions',
           json=request.model_dump(exclude_unset=True),
           headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
         )
