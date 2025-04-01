@@ -21,6 +21,7 @@ with bentoml.importing():
   from llama_index.llms.openai_like import OpenAILike
   from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
+    DeltaMessage,
     ModelCard,
     ModelList,
     ErrorResponse,
@@ -48,7 +49,6 @@ with bentoml.importing():
 if t.TYPE_CHECKING:
   from _bentoml_impl.client import RemoteProxy
   from _bentoml_sdk.service.config import HTTPCorsSchema
-  from vllm.entrypoints.openai.protocol import DeltaMessage
   from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 
 logger = logging.getLogger('bentoml.service')
@@ -256,7 +256,7 @@ class LLM:
         ),
       )
       async for chunk in completions:
-        delta_choice = t.cast('DeltaMessage', chunk.choices[0].delta)
+        delta_choice = t.cast(DeltaMessage, chunk.choices[0].delta)
         if hasattr(delta_choice, 'reasoning_content'):
           s = Suggestion(
             suggestion=delta_choice.content or '', reasoning=delta_choice.reasoning_content or '', usage=chunk.usage
@@ -370,38 +370,40 @@ class API:
     loader = jinja2.FileSystemLoader(searchpath=WORKING_DIR)
     self.templater = jinja2.Environment(loader=loader)
 
+  def as_proxy(self, it: t.Any) -> RemoteProxy:
+    return t.cast('RemoteProxy', it)
+
   @bentoml.on_startup
   def setup_clients(self):
+    self.llm_httpx = (tllm := self.as_proxy(self.llm)).to_async.client
+    self.embed_httpx = (tembed := self.as_proxy(self.embed)).to_async.client
+
     self.llm_client = openai.AsyncOpenAI(
-      base_url=f'{t.cast("RemoteProxy", self.llm).client_url}/v1',
-      api_key='dummy',
-      default_headers={'Runner-Name': LLM.name},
+      base_url=f'{tllm.client_url}/v1', api_key='dummy', default_headers={'Runner-Name': LLM.name}
     )
     self.embed_client = openai.AsyncOpenAI(
-      base_url=f'{t.cast("RemoteProxy", self.embed).client_url}/v1',
-      api_key='dummy',
-      default_headers={'Runner-Name': Embeddings.name},
+      base_url=f'{tembed.client_url}/v1', api_key='dummy', default_headers={'Runner-Name': Embeddings.name}
     )
 
-    self.embed_model = OpenAIEmbedding(
-      api_key='dummy',
-      model_name=Embeddings.inner.model_id,
-      api_base=f'{t.cast("RemoteProxy", self.embed).client_url}/v1',
-      dimensions=None,
-      default_headers={'Runner-Name': Embeddings.name},
-    )
     self.llm_model = OpenAILike(
       model=LLM.inner.model_id,
       tokenizer=LLM.inner.model_id,
       api_key='dummy',
       api_version='',
-      api_base=f'{t.cast("RemoteProxy", self.llm).client_url}/v1',
+      api_base=f'{tllm.client_url}/v1',
       is_chat_model=True,
       max_tokens=MAX_TOKENS,
       context_window=MAX_MODEL_LEN,
       temperature=llm_['temperature'],
       default_headers={'Runner-Name': LLM.name},
       strict=True,
+    )
+    self.embed_model = OpenAIEmbedding(
+      api_key='dummy',
+      model_name=Embeddings.inner.model_id,
+      api_base=f'{tembed.client_url}/v1',
+      dimensions=None,
+      default_headers={'Runner-Name': Embeddings.name},
     )
 
     chunker = SemanticSplitterNodeParser(
