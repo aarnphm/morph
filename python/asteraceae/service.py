@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-import multiprocessing
-import logging, argparse, traceback, asyncio, os, shutil, contextlib, pathlib, time, datetime, typing as t
+import logging, argparse, multiprocessing, itertools, traceback, asyncio, os, shutil, contextlib, pathlib, time, datetime, typing as t
 import bentoml, fastapi, pydantic, jinja2, annotated_types as at
 
-from starlette.responses import JSONResponse, StreamingResponse
+from bentoml._internal.utils import dict_filter_none
 from libs.protocol import EssayNode, EssayRequest, EssayResponse, HealthRequest, MetadataResponse, NotesResponse
 
 with bentoml.importing():
   import openai
 
   from openai.types import Embedding, CreateEmbeddingResponse
-  from openai.types.chat import ChatCompletionUserMessageParam, ChatCompletionMessageParam, ChatCompletionChunk
+  from openai.types.chat import ChatCompletionUserMessageParam, ChatCompletionChunk
   from llama_index.core import Document
   from llama_index.core.ingestion import IngestionPipeline
   from llama_index.core.node_parser import SemanticSplitterNodeParser
@@ -37,6 +36,7 @@ with bentoml.importing():
 
 if t.TYPE_CHECKING:
   from _bentoml_impl.client import RemoteProxy
+  from _bentoml_sdk.service.config import HTTPCorsSchema
   from vllm.entrypoints.openai.protocol import DeltaMessage
 
 logger = logging.getLogger('bentoml.service')
@@ -70,7 +70,7 @@ CORS = dict(
 SERVICE_CONFIG: ServiceOpts = {
   'tracing': {'sample_rate': 1.0},
   'traffic': {'timeout': 1000, 'concurrency': 128},
-  'http': {'cors': {'enabled': True, **{f'access_control_{k}': v for k, v in CORS.items()}}},
+  'http': {'cors': t.cast('HTTPCorsSchema', {'enabled': True, **{f'access_control_{k}': v for k, v in CORS.items()}})},
   'image': bentoml.images.PythonImage(python_version='3.11')
   .system_packages('curl', 'git', 'build-essential', 'clang')
   .pyproject_toml('pyproject.toml')
@@ -112,7 +112,7 @@ def make_env(engine_version: t.Literal[0, 1] = 1, *, skip_hf: bool = False) -> l
     results.append({'name': 'HF_TOKEN'})
   results.extend([
     {'name': 'UV_NO_PROGRESS', 'value': '1'},
-    {'name': 'CXX', 'value': shutil.which('c++')},
+    {'name': 'CXX', 'value': t.cast(str, shutil.which('c++'))},
     {'name': 'DEFAULT_BACKEND', 'value': DEFAULT_BACKEND},
     {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
     {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
@@ -129,7 +129,7 @@ def make_args(
   *,
   task: TaskType,
   max_log_len: int = 2000,
-  max_tokens: int = MAX_MODEL_LEN,
+  max_model_len: int = MAX_MODEL_LEN,
   reasoning: bool = True,
   reasoning_parser: str = 'deepseek_r1',
   trust_remote_code: bool = False,
@@ -154,7 +154,7 @@ def make_args(
     enable_prefix_caching=prefix_caching,
     enable_auto_tool_choice=tool,
     tool_call_parser=tool_parser,
-    max_model_len=max_tokens,
+    max_model_len=max_model_len,
     ignore_patterns=IGNORE_PATTERNS,
     enable_reasoning=reasoning,
     trust_remote_code=trust_remote_code,
@@ -284,9 +284,9 @@ class Embeddings:
       self.model,
       self.model_id,
       task='embed',
-      max_tokens=embed_['max_tokens'],
+      max_model_len=embed_['max_model_len'],
       reasoning=False,
-      trust_remote_code=True,
+      trust_remote_code=embed_['trust_remote_code'],
       prefix_caching=False,
       dtype=torch.float16,
       hf_overrides={'is_causal': True},
@@ -322,7 +322,7 @@ class Embeddings:
       raise
 
 
-@bentoml.asgi_app(app, path='/helpers')
+@bentoml.asgi_app(app)
 @bentoml.service(
   name='asteraceae-inference-api',
   resources={'cpu': 4},
@@ -386,8 +386,8 @@ class API:
     if backend not in SUPPORTED_BACKENDS:
       raise ValueError(f"Backend '{backend}' is not yet supported. Current supported backend: {SUPPORTED_BACKENDS}")
 
-    if extra_body:
-      requested_backend = extra_body.pop('backend', None)
+    if extra_body is not None:
+      requested_backend = extra_body.pop('backend', DEFAULT_BACKEND)
       if requested_backend not in SUPPORTED_BACKENDS:
         raise ValueError(f"Backend '{backend}' is not yet supported. Current supported backend: {SUPPORTED_BACKENDS}")
       backend = requested_backend
@@ -396,7 +396,8 @@ class API:
   @bentoml.api(route='/v1/embeddings')
   async def embeddings(
     self,
-    prompt: str,
+    *,
+    input: str | list[str],
     model: str = Embeddings.inner.model_id,
     extra_headers: dict[str, t.Any] | None = None,
     extra_query: dict[str, t.Any] | None = None,
@@ -412,25 +413,24 @@ class API:
     To use different backends, pass in `extra_headers={"backend": "different_backend"}`
     """
     backend = self.handle_requested_backend(extra_body)
-    items = {
-      k: v
-      for k, v in dict(
-        extra_headers=extra_headers, extra_body=extra_body, extra_query=extra_query, timeout=timeout
-      ).items()
-      if v
-    }
 
     try:
       if backend == 'vllm':
         # TODO: support dimensions on vLLM
-        return await self.embed_client.embeddings.create(input=[prompt], model=model, **items)
+        return await self.embed_client.embeddings.create(
+          input=input,
+          model=model,
+          **dict_filter_none(
+            dict(extra_headers=extra_headers, extra_body=extra_body, extra_query=extra_query, timeout=timeout)
+          ),
+        )
       else:
         raise ValueError('Unsupported backend')
     except Exception:
       logger.error(traceback.format_exc())
       raise
 
-  @bentoml.api(route='/v1/models')
+  @app.get('/v1/models')
   async def models(
     self,
     extra_headers: dict[str, t.Any] | None = None,
@@ -438,74 +438,19 @@ class API:
     extra_body: dict[str, t.Any] | None = None,
     timeout: float | None = None,
   ):
-    model_type = 'llm'
-    if extra_body is not None:
-      model_type = extra_body.pop('model_type', 'llm')
-      if model_type not in ['llm', 'embed']:
-        raise ValueError(f'Only accept either "llm" or "embed" model type. Got "{model_type}" instead.')
+    from vllm.entrypoints.openai.protocol import ModelCard, ModelList
 
-    items = {
-      k: v
-      for k, v in dict(
-        extra_headers=extra_headers, extra_body=extra_body, extra_query=extra_query, timeout=timeout
-      ).items()
-      if v
-    }
-    if model_type == 'llm':
-      return await self.llm_client.models.list(**items)
-    else:
-      return await self.embed_client.models.list(**items)
-
-  @bentoml.api(route='/v1/chat/completions')
-  async def completions(
-    self,
-    messages: t.Iterable[ChatCompletionMessageParam],
-    model: str = LLM.inner.model_id,
-    stream: bool = True,
-    top_p: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['top_p'],
-    temperature: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['temperature'],
-    max_tokens: t.Annotated[int, at.Ge(256), at.Le(MAX_TOKENS)] = MAX_TOKENS,
-    frequency_penalty: float | None = None,
-    extra_headers: dict[str, t.Any] | None = None,
-    extra_query: dict[str, t.Any] | None = None,
-    extra_body: dict[str, t.Any] | None = None,
-    timeout: float | None = None,
-  ):
-    """Partially complete Chat Completions API: https://platform.openai.com/docs/api-reference/chat
-
-    This is a router to call to internal LLMs within the replica.
-    Current supported engines:
-      - vLLM w/ Goodfire SAEs intervention
-
-    To use different backends, pass in `extra_headers={"backend": "different_backend"}`
-    """
-    backend = self.handle_requested_backend(extra_body)
-    items = {
-      k: v
-      for k, v in dict(
-        extra_headers=extra_headers, extra_body=extra_body, extra_query=extra_query, timeout=timeout
-      ).items()
-      if v
-    }
-
-    try:
-      if backend == 'vllm':
-        generator = await self.llm_client.chat.completions.create(
-          messages=messages,
-          model=model,
-          stream=stream,
-          top_p=top_p,
-          temperature=temperature,
-          frequency_penalty=frequency_penalty,
-          max_tokens=max_tokens,
-          **items,
+    results = await asyncio.gather(*[
+      caller(
+        **dict_filter_none(
+          dict(extra_headers=extra_headers, extra_body=extra_body, extra_query=extra_query, timeout=timeout)
         )
-        return StreamingResponse(generator) if stream else JSONResponse(generator)
-      else:
-        raise ValueError('Unsupported backend')
-    except Exception:
-      logger.error(traceback.format_exc())
-      raise
+      )
+      for caller in [self.llm_client.models.list, self.embed_client.models.list]
+    ])
+    return ModelList(
+      data=[ModelCard(**d.model_dump()) for d in list(itertools.chain.from_iterable(p.data for p in results))]
+    )
 
   @bentoml.api
   async def suggests(self, request: SuggestRequest, /) -> t.AsyncGenerator[str, None]:
@@ -531,7 +476,7 @@ class API:
       result = await self.embed.generate(note.content)
       return NotesResponse(embedding=result[0].embedding, **note.model_dump(exclude={'content'}))
     except Exception as e:
-      logger.error(traceback.print_exc())
+      traceback.print_exc()
       return NotesResponse(embedding=[], error=str(e), **note.model_dump(exclude={'content'}))
 
   @bentoml.task
@@ -556,7 +501,7 @@ class API:
         **essay.model_dump(exclude={'content'}),
       )
     except Exception as e:
-      logger.error(traceback.print_exc())
+      traceback.print_exc()
       return EssayResponse(nodes=[], error=str(e), **essay.model_dump(exclude={'content'}))
 
   @bentoml.api

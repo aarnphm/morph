@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import logging, typing as t
+import logging, uuid, typing as t
 import pydantic
 
 from openai.types.completion_usage import CompletionUsage
@@ -18,6 +18,10 @@ ModelType = t.Literal['r1-qwen', 'r1-qwen-small', 'r1-qwen-tiny', 'r1-qwen-fast'
 logger = logging.getLogger('bentoml.service')
 
 
+def random_uuid() -> str:
+  return str(uuid.uuid4().hex)
+
+
 class LLMMetadata(t.TypedDict):
   model_id: str
   structured_output_backend: str
@@ -29,7 +33,8 @@ class LLMMetadata(t.TypedDict):
 class EmbeddingModelMetadata(t.TypedDict):
   model_id: str
   dimensions: int
-  max_tokens: int
+  max_model_len: int
+  trust_remote_code: bool
   resources: ResourceSchema
 
 
@@ -99,19 +104,22 @@ EmbeddingModels: dict[EmbedType, EmbeddingModelMetadata] = {
   'gte-qwen': EmbeddingModelMetadata(
     model_id='Alibaba-NLP/gte-Qwen2-7B-instruct',
     dimensions=3584,
-    max_tokens=8192,
+    max_model_len=8192,
+    trust_remote_code=True,
     resources={'gpu': 1, 'gpu_type': 'nvidia-l4'},
   ),
   'gte-qwen-fast': EmbeddingModelMetadata(
     model_id='Alibaba-NLP/gte-Qwen2-1.5B-instruct',
     dimensions=1536,
-    max_tokens=8192,
+    max_model_len=8192,
+    trust_remote_code=True,
     resources={'gpu': 1, 'gpu_type': 'nvidia-l4'},
   ),
   'gte-modernbert': EmbeddingModelMetadata(
     model_id='Alibaba-NLP/gte-modernbert-base',
     dimensions=786,
-    max_tokens=8192,
+    max_model_len=8192,
+    trust_remote_code=False,
     resources={'gpu': 1, 'gpu_type': 'nvidia-l4'},
   ),
 }
