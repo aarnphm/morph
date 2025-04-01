@@ -27,7 +27,7 @@ with bentoml.importing():
     ErrorResponse,
     EmbeddingResponse,
     ChatCompletionResponse,
-    EmbeddingRequest,
+    EmbeddingCompletionRequest,
   )
 
   from libs.protocol import (
@@ -345,7 +345,7 @@ class Embeddings:
       raise
 
   @bentoml.api
-  async def embed(self, request: EmbeddingRequest, /):
+  async def embed(self, request: EmbeddingCompletionRequest, /):
     generator = await self.embed_handler.create_embedding(request)
     if isinstance(generator, ErrorResponse):
       return JSONResponse(content=generator.model_dump(), status_code=generator.code)
@@ -415,31 +415,58 @@ class API:
     self.pipeline = IngestionPipeline(transformations=[chunker, line_extractor, title_extractor, self.embed_model])
 
   @bentoml.api(route='/v1/embeddings')
-  async def create_embeddings(self, *, input: list[str]) -> CreateEmbeddingResponse:
-    """Partially complete Embeddings API: https://platform.openai.com/docs/api-reference/embeddings
-
-    This is a router to call internal Embeddings models within the replica.
-    Current supported engines:
-      - vLLM
-
-    To use different backends, pass in `extra_headers={"backend": "different_backend"}`
-    """
+  async def create_embeddings(self, request: EmbeddingCompletionRequest, /):
+    request.model = Embeddings.inner.model_id
     try:
-      return await self.embed.generate(content=input)
-    except Exception:
+      # Make a direct request to the embed endpoint
+      resp = await self.embed_httpx.post(
+        '/embed',
+        json=request.model_dump(exclude_unset=True),
+        headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
+      )
+
+      if resp.status_code != 200:
+        error_content = resp.json()
+        return JSONResponse(content=error_content, status_code=resp.status_code)
+
+      return resp.json()
+    except Exception as e:
+      logger.error('Error forwarding embedding request: %s', e)
       logger.error(traceback.format_exc())
-      raise
+      return JSONResponse(
+        content=ErrorResponse(
+          message=f'Internal server error: {e!s}', type='InternalServerError', code=500
+        ).model_dump(),
+        status_code=500,
+      )
 
   @bentoml.api(route='/v1/chat/completions')
   async def create_chat_completions(self, request: ChatCompletionRequest, /):
-    generator = await self.llm.chat(request)
-    print(generator)
-    if isinstance(generator, ErrorResponse):
-      return JSONResponse(content=generator.model_dump(), status_code=generator.code)
-    elif isinstance(generator, ChatCompletionResponse):
-      return JSONResponse(content=generator.model_dump())
-    else:
-      return StreamingResponse(content=generator, media_type='text/event-stream')
+    try:
+      resp = await self.llm_httpx.post(
+        '/chat',
+        json=request.model_dump(exclude_unset=True),
+        headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
+      )
+
+      if resp.status_code != 200:
+        error_content = resp.json()
+        return JSONResponse(content=error_content, status_code=resp.status_code)
+
+      # Handle streaming vs non-streaming responses
+      if request.stream:
+        return StreamingResponse(content=resp.aiter_text(), media_type='text/event-stream')
+      else:
+        return JSONResponse(content=resp.json())
+    except Exception as e:
+      logger.error('Error forwarding chat completion request: %s', e)
+      logger.error(traceback.format_exc())
+      return JSONResponse(
+        content=ErrorResponse(
+          message=f'Internal server error: {e!s}', type='InternalServerError', code=500
+        ).model_dump(),
+        status_code=500,
+      )
 
   @app.get('/v1/models')
   async def show_available_models(self) -> ModelList:
