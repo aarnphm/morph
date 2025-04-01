@@ -31,7 +31,16 @@ Tracker = "https://github.com/aarnphm/morph/issues"
 
 [tool.bentoml.build]
 service = "service.py:API"
-include = ["LICENCE", "*.py", "*.yaml", "*.txt", "*.md", "*.json", "*.toml"]
+include = [
+  "LICENCE",
+  "*.py",
+  "*.yaml",
+  "*.txt",
+  "*.md",
+  "*.json",
+  "*.toml",
+  "swarm.sh",
+]
 
 [tool.uv]
 dev-dependencies = [

@@ -59,14 +59,13 @@ IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
 MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 16 * 1024))
 MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 8 * 1024))
 
-MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen-fast'))
+MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
 LLM_ID: str = (llm_ := ReasoningModels[MODEL_TYPE])['model_id']
 EMBED_TYPE = t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen-fast'))
 EMBED_ID: str = (embed_ := EmbeddingModels[EMBED_TYPE])['model_id']
 
 SupportedBackend = t.Literal['vllm']
 SUPPORTED_BACKENDS: t.Sequence[SupportedBackend] = ['vllm']
-DEFAULT_BACKEND = t.cast(SupportedBackend, os.environ.get('DEFAULT_BACKEND', 'vllm'))
 
 AUTHORS = ['Raymond Carver', 'Franz Kafka', 'Albert Camus', 'Iain McGilchrist', 'Ian McEwan']
 
@@ -125,7 +124,6 @@ def make_env(engine_version: t.Literal[0, 1] = 1, *, skip_hf: bool = False) -> l
   results.extend([
     {'name': 'UV_NO_PROGRESS', 'value': '1'},
     {'name': 'CXX', 'value': t.cast(str, shutil.which('c++'))},
-    {'name': 'DEFAULT_BACKEND', 'value': DEFAULT_BACKEND},
     {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
     {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
     {'name': 'VLLM_USE_V1', 'value': str(engine_version)},
@@ -207,7 +205,9 @@ class LLM:
   async def init_engine(self) -> None:
     import vllm.entrypoints.openai.api_server as vllm_api_server
 
-    args = make_args(self.model, self.model_id, task='generate')
+    args = make_args(
+      self.model, self.model_id, task='generate', enable_chunked_prefill=True, gpu_memory_utilization=0.95
+    )
 
     router = fastapi.APIRouter(lifespan=vllm_api_server.lifespan)
     OPENAI_ENDPOINTS = [

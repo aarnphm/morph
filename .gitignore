@@ -172,3 +172,4 @@ docs/public
 docs/quartz/.quartz-cache
 .morph
 indexes
+logs/
