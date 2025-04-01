@@ -1,22 +1,33 @@
 from __future__ import annotations
 
 import logging, argparse, multiprocessing, itertools, traceback, asyncio, os, shutil, contextlib, pathlib, time, datetime, typing as t
-import bentoml, fastapi, pydantic, jinja2, annotated_types as at
+import bentoml, fastapi, pydantic, jinja2, annotated_types as at, typing_extensions as te
 
-from bentoml._internal.utils import dict_filter_none
+from starlette.responses import JSONResponse, StreamingResponse
+from vllm.entrypoints.openai.serving_embedding import OpenAIServingEmbedding
+
 from libs.protocol import EssayNode, EssayRequest, EssayResponse, HealthRequest, MetadataResponse, NotesResponse
 
 with bentoml.importing():
   import openai
 
-  from openai.types import Embedding, CreateEmbeddingResponse
-  from openai.types.chat import ChatCompletionUserMessageParam, ChatCompletionChunk
+  from openai.types import CreateEmbeddingResponse
+  from openai.types.chat import ChatCompletionChunk
   from llama_index.core import Document
   from llama_index.core.ingestion import IngestionPipeline
   from llama_index.core.node_parser import SemanticSplitterNodeParser
   from llama_index.core.extractors import TitleExtractor
   from llama_index.embeddings.openai import OpenAIEmbedding
   from llama_index.llms.openai_like import OpenAILike
+  from vllm.entrypoints.openai.protocol import (
+    ChatCompletionRequest,
+    ModelCard,
+    ModelList,
+    ErrorResponse,
+    EmbeddingResponse,
+    ChatCompletionResponse,
+    EmbeddingRequest,
+  )
 
   from libs.protocol import (
     ReasoningModels,
@@ -31,13 +42,14 @@ with bentoml.importing():
     Suggestions,
     TaskType,
     Tonality,
-    NoteRequest,
+    NotesRequest,
   )
 
 if t.TYPE_CHECKING:
   from _bentoml_impl.client import RemoteProxy
   from _bentoml_sdk.service.config import HTTPCorsSchema
   from vllm.entrypoints.openai.protocol import DeltaMessage
+  from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 
 logger = logging.getLogger('bentoml.service')
 
@@ -47,7 +59,7 @@ IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
 MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 16 * 1024))
 MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 8 * 1024))
 
-MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
+MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen-fast'))
 LLM_ID: str = (llm_ := ReasoningModels[MODEL_TYPE])['model_id']
 EMBED_TYPE = t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen-fast'))
 EMBED_ID: str = (embed_ := EmbeddingModels[EMBED_TYPE])['model_id']
@@ -212,6 +224,7 @@ class LLM:
     self.model_config = await self.engine.get_model_config()
     self.tokenizer = await self.engine.get_tokenizer()
     await vllm_api_server.init_app_state(self.engine, self.model_config, llm_app.state, args)
+    self.chat_handler: OpenAIServingChat = llm_app.state.openai_serving_chat
 
   @bentoml.on_shutdown
   async def teardown_engine(self):
@@ -220,7 +233,7 @@ class LLM:
   @bentoml.api
   async def generate(
     self,
-    prompt: str,
+    messages: list[dict[str, t.Any]],
     *,
     temperature: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['temperature'],
     top_p: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['top_p'],
@@ -236,7 +249,7 @@ class LLM:
           temperature=temperature,
           top_p=top_p,
           max_tokens=max_tokens,
-          messages=[ChatCompletionUserMessageParam(role='user', content=prompt)],
+          messages=messages,
           stream=True,
           extra_body={'guided_json': Suggestions.model_json_schema()},
           stream_options={'continuous_usage_stats': True, 'include_usage': True} if usage else None,
@@ -261,6 +274,16 @@ class LLM:
       logger.error(traceback.format_exc())
       yield f'{Suggestion(suggestion="Internal error found. Check server logs for more information").model_dump_json()}\n\n'
       return
+
+  @bentoml.api
+  async def chat(self, request: ChatCompletionRequest, /):
+    generator = await self.chat_handler.create_chat_completion(request)
+    if isinstance(generator, ErrorResponse):
+      return JSONResponse(content=generator.model_dump(), status_code=generator.code)
+    elif isinstance(generator, ChatCompletionResponse):
+      return JSONResponse(content=generator.model_dump())
+    else:
+      return StreamingResponse(content=generator, media_type='text/event-stream')
 
 
 @bentoml.asgi_app(embed_app, path='/v1')
@@ -307,19 +330,28 @@ class Embeddings:
     self.tokenizer = await self.engine.get_tokenizer()
 
     await vllm_api_server.init_app_state(self.engine, self.model_config, embed_app.state, args)
+    self.embed_handler: OpenAIServingEmbedding = embed_app.state.openai_serving_embedding
 
   @bentoml.on_shutdown
   async def teardown_engine(self):
     await self.exit_stack.aclose()
 
   @bentoml.api
-  async def generate(self, content: str) -> list[Embedding]:
+  async def generate(self, content: list[str]) -> CreateEmbeddingResponse:
     try:
-      results = await self.client.embeddings.create(input=[content], model=self.model_id)
-      return results.data
+      return await self.client.embeddings.create(input=content, model=self.model_id)
     except Exception:
       logger.error(traceback.format_exc())
       raise
+
+  @bentoml.api
+  async def embed(self, request: EmbeddingRequest, /):
+    generator = await self.embed_handler.create_embedding(request)
+    if isinstance(generator, ErrorResponse):
+      return JSONResponse(content=generator.model_dump(), status_code=generator.code)
+    elif isinstance(generator, EmbeddingResponse):
+      return JSONResponse(content=generator.model_dump())
+    te.assert_never(generator)
 
 
 @bentoml.asgi_app(app)
@@ -380,30 +412,8 @@ class API:
 
     self.pipeline = IngestionPipeline(transformations=[chunker, line_extractor, title_extractor, self.embed_model])
 
-  def handle_requested_backend(self, extra_body: dict[str, t.Any] | None = None) -> SupportedBackend:
-    backend = DEFAULT_BACKEND
-
-    if backend not in SUPPORTED_BACKENDS:
-      raise ValueError(f"Backend '{backend}' is not yet supported. Current supported backend: {SUPPORTED_BACKENDS}")
-
-    if extra_body is not None:
-      requested_backend = extra_body.pop('backend', DEFAULT_BACKEND)
-      if requested_backend not in SUPPORTED_BACKENDS:
-        raise ValueError(f"Backend '{backend}' is not yet supported. Current supported backend: {SUPPORTED_BACKENDS}")
-      backend = requested_backend
-    return backend
-
   @bentoml.api(route='/v1/embeddings')
-  async def embeddings(
-    self,
-    *,
-    input: str | list[str],
-    model: str = Embeddings.inner.model_id,
-    extra_headers: dict[str, t.Any] | None = None,
-    extra_query: dict[str, t.Any] | None = None,
-    extra_body: dict[str, t.Any] | None = None,
-    timeout: float | None = None,
-  ) -> CreateEmbeddingResponse:
+  async def create_embeddings(self, *, input: list[str]) -> CreateEmbeddingResponse:
     """Partially complete Embeddings API: https://platform.openai.com/docs/api-reference/embeddings
 
     This is a router to call internal Embeddings models within the replica.
@@ -412,41 +422,27 @@ class API:
 
     To use different backends, pass in `extra_headers={"backend": "different_backend"}`
     """
-    backend = self.handle_requested_backend(extra_body)
-
     try:
-      if backend == 'vllm':
-        # TODO: support dimensions on vLLM
-        return await self.embed_client.embeddings.create(
-          input=input,
-          model=model,
-          **dict_filter_none(
-            dict(extra_headers=extra_headers, extra_body=extra_body, extra_query=extra_query, timeout=timeout)
-          ),
-        )
-      else:
-        raise ValueError('Unsupported backend')
+      return await self.embed.generate(content=input)
     except Exception:
       logger.error(traceback.format_exc())
       raise
 
-  @app.get('/v1/models')
-  async def models(
-    self,
-    extra_headers: dict[str, t.Any] | None = None,
-    extra_query: dict[str, t.Any] | None = None,
-    extra_body: dict[str, t.Any] | None = None,
-    timeout: float | None = None,
-  ):
-    from vllm.entrypoints.openai.protocol import ModelCard, ModelList
+  @bentoml.api(route='/v1/chat/completions')
+  async def create_chat_completions(self, request: ChatCompletionRequest, /):
+    generator = await self.llm.chat(request)
+    print(generator)
+    if isinstance(generator, ErrorResponse):
+      return JSONResponse(content=generator.model_dump(), status_code=generator.code)
+    elif isinstance(generator, ChatCompletionResponse):
+      return JSONResponse(content=generator.model_dump())
+    else:
+      return StreamingResponse(content=generator, media_type='text/event-stream')
 
+  @app.get('/v1/models')
+  async def show_available_models(self) -> ModelList:
     results = await asyncio.gather(*[
-      caller(
-        **dict_filter_none(
-          dict(extra_headers=extra_headers, extra_body=extra_body, extra_query=extra_query, timeout=timeout)
-        )
-      )
-      for caller in [self.llm_client.models.list, self.embed_client.models.list]
+      caller() for caller in [self.llm_client.models.list, self.embed_client.models.list]
     ])
     return ModelList(
       data=[ModelCard(**d.model_dump()) for d in list(itertools.chain.from_iterable(p.data for p in results))]
@@ -456,13 +452,20 @@ class API:
   async def suggests(self, request: SuggestRequest, /) -> t.AsyncGenerator[str, None]:
     # TODO: add tonality lookup and steering vector strength for influence the distributions
     # for now, we will just use the features lookup from given SAEs constrasted with the models.
+    messages = [
+      dict(
+        role='user',
+        content=self.templater.get_template('SYSTEM_PROMPT.md').render(
+          num_suggestions=request.num_suggestions,
+          authors=request.authors,
+          tonality=request.tonality,
+          excerpt=request.essay,
+        ),
+      )
+    ]
+
     async for chunk in self.llm.generate(
-      prompt=self.templater.get_template('SYSTEM_PROMPT.md').render(
-        num_suggestions=request.num_suggestions,
-        authors=request.authors,
-        tonality=request.tonality,
-        excerpt=request.essay,
-      ),
+      messages=messages,
       temperature=request.temperature,
       max_tokens=request.max_tokens,
       top_p=request.top_p,
@@ -471,10 +474,12 @@ class API:
       yield chunk
 
   @bentoml.task
-  async def notes(self, note: NoteRequest, /) -> NotesResponse:
+  async def notes(self, note: NotesRequest, /) -> NotesResponse:
     try:
-      result = await self.embed.generate(note.content)
-      return NotesResponse(embedding=result[0].embedding, **note.model_dump(exclude={'content'}))
+      result = await self.embed.generate(content=[note.content])
+      return NotesResponse(
+        embedding=result.data[0].embedding, usage=result.usage, **note.model_dump(exclude={'content'})
+      )
     except Exception as e:
       traceback.print_exc()
       return NotesResponse(embedding=[], error=str(e), **note.model_dump(exclude={'content'}))
@@ -504,6 +509,19 @@ class API:
       traceback.print_exc()
       return EssayResponse(nodes=[], error=str(e), **essay.model_dump(exclude={'content'}))
 
+  @app.get('/metadata')
+  def metadata(self) -> MetadataResponse:
+    return MetadataResponse.model_construct(
+      llm={'model_id': LLM_ID, 'model_type': MODEL_TYPE, 'structured_outputs': llm_['structured_output_backend']},
+      embed={
+        'model_id': EMBED_ID,
+        'model_type': EMBED_TYPE,
+        'M': 16,
+        'ef_construction': 50,
+        'dimensions': embed_['dimensions'],
+      },
+    )
+
   @bentoml.api
   async def health(self, request: HealthRequest, /) -> HealthResponse:
     async def check_service_health(service: RemoteProxy, name: str) -> DependentStatus:
@@ -527,17 +545,3 @@ class API:
       healthy=all(map(lambda x: x.healthy, healthcheck)),
       timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
     )
-
-
-@app.get('/metadata')
-def metadata() -> MetadataResponse:
-  return MetadataResponse.model_construct(
-    llm={'model_id': LLM_ID, 'model_type': MODEL_TYPE, 'structured_outputs': llm_['structured_output_backend']},
-    embed={
-      'model_id': EMBED_ID,
-      'model_type': EMBED_TYPE,
-      'M': 16,
-      'ef_construction': 50,
-      'dimensions': embed_['dimensions'],
-    },
-  )

@@ -4,6 +4,7 @@ import logging, uuid, typing as t
 import pydantic
 
 from openai.types.completion_usage import CompletionUsage
+from openai.types.create_embedding_response import Usage as EmbeddingUsage
 from llama_index.core.schema import EnumNameSerializer, NodeRelationship, RelatedNodeType, TransformComponent, Document
 
 if t.TYPE_CHECKING:
@@ -125,7 +126,7 @@ EmbeddingModels: dict[EmbedType, EmbeddingModelMetadata] = {
 }
 
 
-class NoteRequest(pydantic.BaseModel):
+class NotesRequest(pydantic.BaseModel):
   vault_id: str
   file_id: str
   note_id: str
@@ -159,6 +160,7 @@ class NotesResponse(pydantic.BaseModel):
   note_id: str
   embedding: list[float]
   error: str = ''
+  usage: EmbeddingUsage = pydantic.Field(default_factory=lambda: EmbeddingUsage(prompt_tokens=0, total_tokens=0))
 
 
 class HealthRequest(pydantic.BaseModel):
