@@ -302,6 +302,7 @@ requires-dist = [
     { name = "huggingface-hub", specifier = ">=0.25.0" },
     { name = "jinja2", specifier = ">=3.1.5" },
     { name = "kantoku", specifier = ">=0.18.1" },
+    { name = "kantoku", specifier = ">=0.18.3" },
     { name = "llama-index", specifier = ">=0.12.27" },
     { name = "llama-index-core", specifier = ">=0.12.27" },
     { name = "llama-index-embeddings-openai", specifier = ">=0.3.1" },

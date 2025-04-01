@@ -1,9 +1,9 @@
-import { tags } from "@lezer/highlight"
-import { createTheme } from "@uiw/codemirror-themes"
 import {
   HighlightStyle,
   syntaxHighlighting as syntaxHighlightingGenerator,
 } from "@codemirror/language"
+import { tags } from "@lezer/highlight"
+import { createTheme } from "@uiw/codemirror-themes"
 
 export const theme = createTheme({
   theme: "light",

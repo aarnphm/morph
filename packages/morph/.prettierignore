@@ -3,3 +3,4 @@ public
 .vercel
 node_modules
 components/ui
+types.d.ts

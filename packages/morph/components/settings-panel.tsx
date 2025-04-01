@@ -1,17 +1,20 @@
+import { cn } from "@/lib/utils"
+import { Cross1Icon, GearIcon } from "@radix-ui/react-icons"
+import { useTheme } from "next-themes"
 import * as React from "react"
-import { useCallback, useState, useEffect } from "react"
+import { useCallback, useEffect, useState } from "react"
+
 import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { cn } from "@/lib/utils"
-import { Cross1Icon, GearIcon } from "@radix-ui/react-icons"
-import usePersistedSettings, { Settings } from "@/hooks/use-persisted-settings"
-import { useTheme } from "next-themes"
+import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
+
 import { useVaultContext } from "@/context/vault"
-import { Input } from "@/components/ui/input"
+
+import usePersistedSettings, { Settings } from "@/hooks/use-persisted-settings"
 
 interface SettingsPanelProps {
   isOpen: boolean

@@ -1,14 +1,15 @@
-import * as React from "react"
-import { useRef, useState, memo, useMemo, useEffect, useCallback } from "react"
-import { Skeleton } from "@/components/ui/skeleton"
-import { DragSourceMonitor, useDrag } from "react-dnd"
+import type { Note } from "@/db"
 import { NOTES_DND_TYPE, generatePastelColor } from "@/lib/notes"
 import { cn } from "@/lib/utils"
-import type { Note } from "@/db"
-import { getEmptyImage } from "react-dnd-html5-backend"
-import { cva, type VariantProps } from "class-variance-authority"
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+import { type VariantProps, cva } from "class-variance-authority"
 import { motion } from "motion/react"
+import * as React from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { DragSourceMonitor, useDrag } from "react-dnd"
+import { getEmptyImage } from "react-dnd-html5-backend"
+
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+import { Skeleton } from "@/components/ui/skeleton"
 
 // Define note card variants using CVA
 const noteCardVariants = cva(

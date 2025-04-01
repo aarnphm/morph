@@ -1,35 +1,37 @@
 "use client"
 
-import * as React from "react"
-import { memo, useState, useCallback, useMemo } from "react"
+import { FileSystemTreeNode, Vault } from "@/db"
+import { cn } from "@/lib/utils"
+import { EditorView } from "@codemirror/view"
 import {
-  LayoutIcon,
-  PlusIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  CrumpledPaperIcon,
+  LayoutIcon,
   PinLeftIcon,
   PinRightIcon,
-  CrumpledPaperIcon,
+  PlusIcon,
 } from "@radix-ui/react-icons"
+import { AnimatePresence, motion } from "motion/react"
+import { useRouter } from "next/navigation"
+import * as React from "react"
+import { memo, useCallback, useMemo, useState } from "react"
+
 import { setFile } from "@/components/markdown-inline"
-import { cn } from "@/lib/utils"
+import { VaultButton } from "@/components/ui/button"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
   Sidebar,
-  SidebarMenu,
-  SidebarGroupContent,
-  SidebarGroup,
   SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { SidebarMenuButton, SidebarMenuItem, SidebarMenuSub } from "@/components/ui/sidebar"
-import { useRouter } from "next/navigation"
-import { FileSystemTreeNode, Vault } from "@/db"
-import { EditorView } from "@codemirror/view"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
 import { useToast } from "@/hooks/use-toast"
-import { VaultButton } from "@/components/ui/button"
-import { motion, AnimatePresence } from "motion/react"
 
 interface FileTreeNodeProps {
   node: FileSystemTreeNode

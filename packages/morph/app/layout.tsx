@@ -1,20 +1,18 @@
-import "./globals.css"
-
-import type React from "react"
-import Script from "next/script"
-import PlausibleProvider from "next-plausible"
-import { type Viewport, type Metadata } from "next"
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
+import { client } from "@/db"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { PGlite, IdbFs } from "@electric-sql/pglite"
-import { live } from "@electric-sql/pglite/live"
-import { vector } from "@electric-sql/pglite/vector"
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
+import { type Metadata, type Viewport } from "next"
+import PlausibleProvider from "next-plausible"
+import Script from "next/script"
+import type React from "react"
 
+import { Toaster } from "@/components/ui/toaster"
+
+import { PGliteProvider } from "@/context/db"
 import { ThemeProvider } from "@/context/theme"
 import { VaultProvider } from "@/context/vault"
-import { Toaster } from "@/components/ui/toaster"
-import { PGliteProvider } from "@/context/db"
-import { PGLITE_DB_NAME } from "@/lib/db"
+
+import "./globals.css"
 
 export const metadata: Metadata = {
   title: "morph-editor.app",
@@ -37,12 +35,7 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
-const client = new QueryClient()
-const db = await PGlite.create({
-  fs: new IdbFs(PGLITE_DB_NAME),
-  relaxedDurability: true,
-  extensions: { live, vector },
-})
+const queryClient = new QueryClient()
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -61,20 +54,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <PlausibleProvider domain="morph-editor.app" trackOutboundLinks trackFileDownloads>
-          <PGliteProvider db={db}>
-              <QueryClientProvider client={client}>
-                <VaultProvider>
-                  <ThemeProvider
+          <PGliteProvider db={client}>
+            <QueryClientProvider client={queryClient}>
+              <VaultProvider>
+                <ThemeProvider
                   attribute="class"
                   defaultTheme="system"
                   enableSystem
                   disableTransitionOnChange
                 >
                   {children}
-                  </ThemeProvider>
-                </VaultProvider>
-                <ReactQueryDevtools initialIsOpen={false} buttonPosition="top-left" />
-              </QueryClientProvider>
+                </ThemeProvider>
+              </VaultProvider>
+              <ReactQueryDevtools initialIsOpen={false} buttonPosition="top-left" />
+            </QueryClientProvider>
           </PGliteProvider>
         </PlausibleProvider>
         <Toaster />

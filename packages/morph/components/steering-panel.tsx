@@ -1,11 +1,14 @@
 "use client"
 
-import { useState, useCallback, useRef, useEffect, memo } from "react"
-import { motion, AnimatePresence } from "motion/react"
-import { MixerHorizontalIcon, Cross2Icon, PlusIcon } from "@radix-ui/react-icons"
 import { cn } from "@/lib"
+import { Cross2Icon, MixerHorizontalIcon, PlusIcon } from "@radix-ui/react-icons"
+import { AnimatePresence, motion } from "motion/react"
+import { memo, useCallback, useEffect, useRef, useState } from "react"
+
 import { VaultButton } from "@/components/ui/button"
+
 import { useSteeringContext } from "@/context/steering"
+
 import { Input } from "./ui/input"
 
 interface AuthorsSelectorProps {

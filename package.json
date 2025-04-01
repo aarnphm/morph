@@ -11,7 +11,8 @@
     "morph:inference:build": "cd ./python/asteraceae/ && make build",
     "morph:dev": "pnpm --filter morph-web run dev",
     "morph:build": "pnpm --filter morph-web run build",
-    "morph:format": "pnpm --filter morph-web run format && pnpm --filter morph-docs run format && pnpm --filter morph-manuals run format && uv run ruff format"
+    "morph:format": "pnpm --filter morph-web run format && pnpm --filter morph-docs run format && pnpm --filter morph-manuals run format",
+    "morph:lint": "pnpm --filter morph-web run lint && pnpm --filter morph-web run format:check"
   },
   "keywords": [
     "sae",

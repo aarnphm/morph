@@ -1,7 +1,8 @@
 import { type Note, db } from "@/db"
-import { md } from "@/components/parser"
+import { saveEssayEmbedding, saveNoteEmbedding } from "@/lib/pglite"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { saveNoteEmbedding, saveEssayEmbedding } from "@/lib/pglite"
+
+import { md } from "@/components/parser"
 
 // --- Constants ---
 const API_ENDPOINT = process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:8000"

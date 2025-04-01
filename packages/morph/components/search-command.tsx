@@ -1,3 +1,9 @@
+import type { FileSystemTreeNode, Vault } from "@/db"
+import { highlight, slugifyFilePath, toJsx } from "@/lib"
+import { CommandGroup } from "cmdk"
+import { fromHtmlIsomorphic } from "hast-util-from-html-isomorphic"
+import { useCallback, useEffect, useMemo, useState } from "react"
+
 import {
   CommandDialog,
   CommandEmpty,
@@ -5,13 +11,10 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
+
 import { type UserDocument, useSearch } from "@/context/search"
-import { useEffect, useState, useCallback, useMemo } from "react"
-import type { Vault, FileSystemTreeNode } from "@/db"
 import { type FlattenedFileMapping } from "@/context/vault"
-import { CommandGroup } from "cmdk"
-import { highlight, slugifyFilePath, toJsx } from "@/lib"
-import { fromHtmlIsomorphic } from "hast-util-from-html-isomorphic"
+
 import { useToast } from "@/hooks/use-toast"
 
 type SearchCommandProps = {

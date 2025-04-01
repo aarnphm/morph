@@ -1,45 +1,45 @@
-"use client";
+"use client"
 
-import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation"
+import { useEffect, useRef } from "react"
 
 export function PageTransition({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
-  const router = useRouter();
-  const transitionRef = useRef<HTMLDivElement>(null);
+  const router = useRouter()
+  const transitionRef = useRef<HTMLDivElement>(null)
 
   // Effect for page transitions
   useEffect(() => {
     // Add event listener to Links with href="/vaults"
     const handleLinkClick = (e: Event) => {
-      e.preventDefault();
+      e.preventDefault()
 
       // Start the transition animation
       if (transitionRef.current) {
-        transitionRef.current.classList.add("active");
+        transitionRef.current.classList.add("active")
 
         // Navigate after animation completes
         setTimeout(() => {
-          router.push("/vaults");
-        }, 600); // Slightly shorter than animation duration
+          router.push("/vaults")
+        }, 600) // Slightly shorter than animation duration
       }
-    };
+    }
 
     // Find all vault links
-    const vaultLinks = document.querySelectorAll('a[href="/vaults"]');
-    vaultLinks.forEach(link => {
-      link.addEventListener("click", handleLinkClick);
-    });
+    const vaultLinks = document.querySelectorAll('a[href="/vaults"]')
+    vaultLinks.forEach((link) => {
+      link.addEventListener("click", handleLinkClick)
+    })
 
     return () => {
-      vaultLinks.forEach(link => {
-        link.removeEventListener("click", handleLinkClick);
-      });
-    };
-  }, [router]);
+      vaultLinks.forEach((link) => {
+        link.removeEventListener("click", handleLinkClick)
+      })
+    }
+  }, [router])
 
   return (
     <>
@@ -49,7 +49,7 @@ export function PageTransition({
         className="fixed inset-0 z-50 pointer-events-none transition-transform duration-700 ease-in-out"
         style={{
           transform: "translateX(-100%)",
-          background: "linear-gradient(90deg, rgba(22,163,74,0.9) 0%, rgba(22,163,74,0.4) 100%)"
+          background: "linear-gradient(90deg, rgba(22,163,74,0.9) 0%, rgba(22,163,74,0.4) 100%)",
         }}
       />
       <style jsx global>{`
@@ -58,5 +58,5 @@ export function PageTransition({
         }
       `}</style>
     </>
-  );
+  )
 }

@@ -1,5 +1,4 @@
 import type { Element } from "hast"
-
 import katex from "katex"
 // @ts-expect-error no provided types
 import Lexer from "pseudocode/src/Lexer.js"

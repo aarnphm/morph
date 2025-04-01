@@ -2,17 +2,16 @@ from __future__ import annotations
 
 import multiprocessing
 import logging, argparse, traceback, asyncio, os, shutil, contextlib, pathlib, time, datetime, typing as t
-import bentoml, fastapi, jinja2, annotated_types as ae
+import bentoml, fastapi, pydantic, jinja2, annotated_types as at
 
-from libs.protocol import EssayRequest, EssayResponse, HealthRequest, MetadataResponse, NotesResponse
+from starlette.responses import JSONResponse, StreamingResponse
+from libs.protocol import EssayNode, EssayRequest, EssayResponse, HealthRequest, MetadataResponse, NotesResponse
 
 with bentoml.importing():
   import openai
 
-  from openai.types import Embedding
-  from openai.types.chat import ChatCompletionChunk
-  from openai.types import CreateEmbeddingResponse
-  from openai.types.chat import ChatCompletionUserMessageParam, ChatCompletionMessageParam
+  from openai.types import Embedding, CreateEmbeddingResponse
+  from openai.types.chat import ChatCompletionUserMessageParam, ChatCompletionMessageParam, ChatCompletionChunk
   from llama_index.core import Document
   from llama_index.core.ingestion import IngestionPipeline
   from llama_index.core.node_parser import SemanticSplitterNodeParser
@@ -33,11 +32,11 @@ with bentoml.importing():
     Suggestions,
     TaskType,
     Tonality,
+    NoteRequest,
   )
 
 if t.TYPE_CHECKING:
   from _bentoml_impl.client import RemoteProxy
-  from _bentoml_sdk.service.factory import Service, Dependency
   from vllm.entrypoints.openai.protocol import DeltaMessage
 
 logger = logging.getLogger('bentoml.service')
@@ -47,7 +46,6 @@ WORKING_DIR = pathlib.Path(__file__).parent
 IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
 MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 16 * 1024))
 MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 8 * 1024))
-AUTHORS = ['Raymond Carver', 'Franz Kafka', 'Albert Camus', 'Iain McGilchrist', 'Ian McEwan']
 
 MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
 LLM_ID: str = (llm_ := ReasoningModels[MODEL_TYPE])['model_id']
@@ -56,7 +54,9 @@ EMBED_ID: str = (embed_ := EmbeddingModels[EMBED_TYPE])['model_id']
 
 SupportedBackend = t.Literal['vllm']
 SUPPORTED_BACKENDS: t.Sequence[SupportedBackend] = ['vllm']
-DEFAULT_BACKEND: SupportedBackend = os.environ.get('DEFAULT_BACKEND', 'vllm')
+DEFAULT_BACKEND = t.cast(SupportedBackend, os.environ.get('DEFAULT_BACKEND', 'vllm'))
+
+AUTHORS = ['Raymond Carver', 'Franz Kafka', 'Albert Camus', 'Iain McGilchrist', 'Ian McEwan']
 
 CORS = dict(
   allow_origins=['*'],
@@ -76,6 +76,17 @@ SERVICE_CONFIG: ServiceOpts = {
   .pyproject_toml('pyproject.toml')
   .run('uv pip install --compile-bytecode flashinfer-python --find-links https://flashinfer.ai/whl/cu124/torch2.6'),
 }
+
+
+class SuggestRequest(pydantic.BaseModel):
+  essay: str
+  authors: t.Optional[list[str]] = pydantic.Field(AUTHORS)
+  tonality: t.Optional[Tonality] = pydantic.Field(default_factory=lambda: Tonality(soul_cartographer=0.4, logical=0.6))
+  num_suggestions: t.Annotated[int, at.Ge(1)] = 3
+  top_p: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['top_p']
+  temperature: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['temperature']
+  max_tokens: t.Annotated[int, at.Ge(256), at.Le(MAX_TOKENS)] = MAX_TOKENS
+  usage: bool = True
 
 
 llm_app = fastapi.FastAPI(title=f'OpenAI Compatible Endpoint for {LLM_ID}')
@@ -151,6 +162,8 @@ def make_args(
     guided_decoding_backend=llm_['structured_output_backend'],
     **kwargs,
   )
+  if task == 'generate' and (tp := llm_.get('resources', {}).get('gpu', 1)) > 1:
+    variables['tensor_parallel_size'] = int(tp)
   args = make_arg_parser(FlexibleArgumentParser()).parse_args([])
   for k, v in variables.items():
     setattr(args, k, v)
@@ -173,7 +186,10 @@ class LLM:
 
   def __init__(self):
     self.exit_stack = contextlib.AsyncExitStack()
-    self.client = openai.AsyncOpenAI(base_url='http://127.0.0.1:3000/v1', api_key='dummy')
+
+  @bentoml.on_startup
+  def setup_client(self):
+    self.client = openai.AsyncOpenAI(base_url=f'{LLM.url}/v1', api_key='dummy')
 
   @bentoml.on_startup
   async def init_engine(self) -> None:
@@ -206,9 +222,9 @@ class LLM:
     self,
     prompt: str,
     *,
-    temperature: t.Annotated[float, ae.Ge(0), ae.Le(1)] = llm_['temperature'],
-    top_p: t.Annotated[float, ae.Ge(0), ae.Le(1)] = llm_['top_p'],
-    max_tokens: t.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
+    temperature: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['temperature'],
+    top_p: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['top_p'],
+    max_tokens: t.Annotated[int, at.Ge(256), at.Le(MAX_TOKENS)] = MAX_TOKENS,
     usage: bool = False,
   ) -> t.AsyncGenerator[str, None]:
     prefill = False
@@ -255,7 +271,10 @@ class Embeddings:
 
   def __init__(self):
     self.exit_stack = contextlib.AsyncExitStack()
-    self.client = openai.AsyncOpenAI(base_url='http://127.0.0.1:3000/v1', api_key='dummy')
+
+  @bentoml.on_startup
+  def setup_client(self):
+    self.client = openai.AsyncOpenAI(base_url=f'{Embeddings.url}/v1', api_key='dummy')
 
   @bentoml.on_startup
   async def init_engine(self) -> None:
@@ -303,7 +322,7 @@ class Embeddings:
       raise
 
 
-@bentoml.asgi_app(app)
+@bentoml.asgi_app(app, path='/helpers')
 @bentoml.service(
   name='asteraceae-inference-api',
   resources={'cpu': 4},
@@ -315,22 +334,21 @@ class API:
   llm = bentoml.depends(LLM, url=make_url('generate'))
   embed = bentoml.depends(Embeddings, url=make_url('embed'))
 
-  # vector stores configuration
-  M: int = 16
-  ef_construction: int = 50
-  max_elements: int = 10000
-  dimensions: int = embed_['dimensions']
-  space: t.Literal['ip', 'l2', 'cosine'] = 'l2'
-
   def __init__(self):
     loader = jinja2.FileSystemLoader(searchpath=WORKING_DIR)
     self.templater = jinja2.Environment(loader=loader)
 
   @bentoml.on_startup
   def setup_clients(self):
-    self.llm_client = openai.AsyncOpenAI(base_url=f'{t.cast("RemoteProxy", self.llm).client_url}/v1', api_key='dummy')
+    self.llm_client = openai.AsyncOpenAI(
+      base_url=f'{t.cast("RemoteProxy", self.llm).client_url}/v1',
+      api_key='dummy',
+      default_headers={'Runner-Name': LLM.name},
+    )
     self.embed_client = openai.AsyncOpenAI(
-      base_url=f'{t.cast("RemoteProxy", self.embed).client_url}/v1', api_key='dummy'
+      base_url=f'{t.cast("RemoteProxy", self.embed).client_url}/v1',
+      api_key='dummy',
+      default_headers={'Runner-Name': Embeddings.name},
     )
 
     self.embed_model = OpenAIEmbedding(
@@ -394,32 +412,60 @@ class API:
     To use different backends, pass in `extra_headers={"backend": "different_backend"}`
     """
     backend = self.handle_requested_backend(extra_body)
+    items = {
+      k: v
+      for k, v in dict(
+        extra_headers=extra_headers, extra_body=extra_body, extra_query=extra_query, timeout=timeout
+      ).items()
+      if v
+    }
 
     try:
       if backend == 'vllm':
         # TODO: support dimensions on vLLM
-        return await self.embed_client.embeddings.create(
-          input=[prompt],
-          model=model,
-          extra_headers=extra_headers,
-          extra_body=extra_body,
-          extra_query=extra_query,
-          timeout=timeout,
-        )
+        return await self.embed_client.embeddings.create(input=[prompt], model=model, **items)
+      else:
+        raise ValueError('Unsupported backend')
     except Exception:
       logger.error(traceback.format_exc())
       raise
+
+  @bentoml.api(route='/v1/models')
+  async def models(
+    self,
+    extra_headers: dict[str, t.Any] | None = None,
+    extra_query: dict[str, t.Any] | None = None,
+    extra_body: dict[str, t.Any] | None = None,
+    timeout: float | None = None,
+  ):
+    model_type = 'llm'
+    if extra_body is not None:
+      model_type = extra_body.pop('model_type', 'llm')
+      if model_type not in ['llm', 'embed']:
+        raise ValueError(f'Only accept either "llm" or "embed" model type. Got "{model_type}" instead.')
+
+    items = {
+      k: v
+      for k, v in dict(
+        extra_headers=extra_headers, extra_body=extra_body, extra_query=extra_query, timeout=timeout
+      ).items()
+      if v
+    }
+    if model_type == 'llm':
+      return await self.llm_client.models.list(**items)
+    else:
+      return await self.embed_client.models.list(**items)
 
   @bentoml.api(route='/v1/chat/completions')
   async def completions(
     self,
     messages: t.Iterable[ChatCompletionMessageParam],
     model: str = LLM.inner.model_id,
-    frequency_penalty: t.Optional[float] = None,
     stream: bool = True,
-    top_p: t.Annotated[float, ae.Ge(0), ae.Le(1)] = llm_['top_p'],
-    temperature: t.Annotated[float, ae.Ge(0), ae.Le(1)] = llm_['temperature'],
-    max_tokens: t.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
+    top_p: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['top_p'],
+    temperature: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['temperature'],
+    max_tokens: t.Annotated[int, at.Ge(256), at.Le(MAX_TOKENS)] = MAX_TOKENS,
+    frequency_penalty: float | None = None,
     extra_headers: dict[str, t.Any] | None = None,
     extra_query: dict[str, t.Any] | None = None,
     extra_body: dict[str, t.Any] | None = None,
@@ -434,10 +480,17 @@ class API:
     To use different backends, pass in `extra_headers={"backend": "different_backend"}`
     """
     backend = self.handle_requested_backend(extra_body)
+    items = {
+      k: v
+      for k, v in dict(
+        extra_headers=extra_headers, extra_body=extra_body, extra_query=extra_query, timeout=timeout
+      ).items()
+      if v
+    }
 
     try:
       if backend == 'vllm':
-        return await self.llm_client.chat.completions.create(
+        generator = await self.llm_client.chat.completions.create(
           messages=messages,
           model=model,
           stream=stream,
@@ -445,52 +498,44 @@ class API:
           temperature=temperature,
           frequency_penalty=frequency_penalty,
           max_tokens=max_tokens,
-          extra_headers=extra_headers,
-          extra_body=extra_body,
-          timeout=timeout,
-          extra_query=extra_query,
+          **items,
         )
+        return StreamingResponse(generator) if stream else JSONResponse(generator)
+      else:
+        raise ValueError('Unsupported backend')
     except Exception:
       logger.error(traceback.format_exc())
       raise
 
   @bentoml.api
-  async def suggests(
-    self,
-    essay: str,
-    authors: t.Optional[list[str]] = AUTHORS,
-    tonality: t.Optional[Tonality] = None,
-    num_suggestions: t.Annotated[int, ae.Ge(2)] = 3,
-    *,
-    top_p: t.Annotated[float, ae.Ge(0), ae.Le(1)] = llm_['top_p'],
-    temperature: t.Annotated[float, ae.Ge(0), ae.Le(1)] = llm_['temperature'],
-    max_tokens: t.Annotated[int, ae.Ge(256), ae.Le(MAX_TOKENS)] = MAX_TOKENS,
-    usage: bool = True,
-  ) -> t.AsyncGenerator[str, None]:
+  async def suggests(self, request: SuggestRequest, /) -> t.AsyncGenerator[str, None]:
     # TODO: add tonality lookup and steering vector strength for influence the distributions
     # for now, we will just use the features lookup from given SAEs constrasted with the models.
     async for chunk in self.llm.generate(
       prompt=self.templater.get_template('SYSTEM_PROMPT.md').render(
-        num_suggestions=num_suggestions, authors=authors, tonality=tonality, excerpt=essay
+        num_suggestions=request.num_suggestions,
+        authors=request.authors,
+        tonality=request.tonality,
+        excerpt=request.essay,
       ),
-      temperature=temperature,
-      max_tokens=max_tokens,
-      top_p=top_p,
-      usage=usage,
+      temperature=request.temperature,
+      max_tokens=request.max_tokens,
+      top_p=request.top_p,
+      usage=request.usage,
     ):
       yield chunk
 
   @bentoml.task
-  async def notes(self, notes: str) -> NotesResponse:
+  async def notes(self, note: NoteRequest, /) -> NotesResponse:
     try:
-      result = await self.embed.generate(notes)
-      return NotesResponse(embedding=result[0].embedding)
+      result = await self.embed.generate(note.content)
+      return NotesResponse(embedding=result[0].embedding, **note.model_dump(exclude={'content'}))
     except Exception as e:
       logger.error(traceback.print_exc())
-      return NotesResponse(embedding=[], error=str(e))
+      return NotesResponse(embedding=[], error=str(e), **note.model_dump(exclude={'content'}))
 
   @bentoml.task
-  async def essays(self, essay: EssayRequest) -> EssayResponse:
+  async def essays(self, essay: EssayRequest, /) -> EssayResponse:
     try:
       result = await self.pipeline.arun(
         show_progress=True,
@@ -498,29 +543,39 @@ class API:
         num_workers=multiprocessing.cpu_count(),
       )
       return EssayResponse(
-        vault_id=essay.vault_id,
-        file_id=essay.file_id,
-        node_ids=[it.node_id for it in result],
-        embeddings=[it.embedding for it in result],
+        nodes=[
+          EssayNode(
+            embedding=it.embedding,
+            node_id=it.node_id,
+            metadata=it.metadata,
+            relationships=it.relationships,
+            metadata_separator=it.metadata_separator,
+          )
+          for it in result
+        ],
+        **essay.model_dump(exclude={'content'}),
       )
     except Exception as e:
       logger.error(traceback.print_exc())
-      return EssayResponse(vault_id=essay.vault_id, file_id=essay.file_id, node_ids=[], embeddings=[], error=str(e))
+      return EssayResponse(nodes=[], error=str(e), **essay.model_dump(exclude={'content'}))
 
   @bentoml.api
-  async def health(self, request: HealthRequest) -> HealthResponse:
-    async def check_service_health(service: Dependency[t.Any]) -> DependentStatus:
-      health = DependentStatus(name=service.name)
+  async def health(self, request: HealthRequest, /) -> HealthResponse:
+    async def check_service_health(service: RemoteProxy, name: str) -> DependentStatus:
+      health = DependentStatus(name=name)
       try:
         start_time = time.time()
-        health.healthy = await t.cast('RemoteProxy', service).is_ready(request.timeout)
+        health.healthy = await service.is_ready(request.timeout)
         health.latency_ms = round((time.time() - start_time) * 1000, 2)
       except Exception as e:
         health.healthy = False
         health.error = str(e)
       return health
 
-    healthcheck = await asyncio.gather(*[asyncio.create_task(check_service_health(h)) for h in [self.llm, self.embed]])
+    healthcheck = await asyncio.gather(*[
+      asyncio.create_task(check_service_health(t.cast('RemoteProxy', h), name))
+      for h, name in zip([self.llm, self.embed], ['llm', 'embed'])
+    ])
 
     return HealthResponse(
       services=healthcheck,
@@ -530,14 +585,14 @@ class API:
 
 
 @app.get('/metadata')
-def metadata(api: Service[API] = fastapi.Depends(API)) -> MetadataResponse:
-  return MetadataResponse.model_construct(**{
-    'llm': {'model_id': LLM_ID, 'model_type': MODEL_TYPE, 'structured_outputs': llm_['structured_output_backend']},
-    'embed': {
+def metadata() -> MetadataResponse:
+  return MetadataResponse.model_construct(
+    llm={'model_id': LLM_ID, 'model_type': MODEL_TYPE, 'structured_outputs': llm_['structured_output_backend']},
+    embed={
       'model_id': EMBED_ID,
       'model_type': EMBED_TYPE,
-      'M': api.inner.M,
-      'ef_construction': api.inner.ef_construction,
-      'dimensions': api.inner.dimensions,
+      'M': 16,
+      'ef_construction': 50,
+      'dimensions': embed_['dimensions'],
     },
-  })
+  )

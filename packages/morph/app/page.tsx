@@ -1,11 +1,12 @@
 "use client"
 
+import { DoubleArrowRightIcon, EnterIcon } from "@radix-ui/react-icons"
 import Link from "next/link"
-import { EnterIcon, DoubleArrowRightIcon } from "@radix-ui/react-icons"
-import { PixelatedScene } from "@/components/landing"
-import { VaultButton } from "@/components/ui/button"
-import { PageTransition } from "@/components/landing/page-transition"
 import { useEffect, useState } from "react"
+
+import { PixelatedScene } from "@/components/landing"
+import { PageTransition } from "@/components/landing/page-transition"
+import { VaultButton } from "@/components/ui/button"
 
 export default function LandingPage() {
   const [showMobilePopup, setShowMobilePopup] = useState(false)
@@ -38,20 +39,20 @@ export default function LandingPage() {
           </div>
         </div>
         {showMobilePopup && (
-            <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/50 p-5">
-              <div className="bg-white p-6 rounded shadow-md text-center">
-                <h2 className="text-lg font-bold mb-2">Mobile Support Coming Soon</h2>
-                <p className="mb-4">
+          <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/50 p-5">
+            <div className="bg-white p-6 rounded shadow-md text-center">
+              <h2 className="text-lg font-bold mb-2">Mobile Support Coming Soon</h2>
+              <p className="mb-4">
                 In the meantime, please access the vault editor using a desktop device.
-                </p>
-                <a
+              </p>
+              <a
                 href="https://github.com/aarnphm/morph"
                 className="bg-green-500 text-white px-4 py-2 rounded"
-                >
+              >
                 Go to GitHub
-                </a>
-              </div>
+              </a>
             </div>
+          </div>
         )}
       </div>
     </PageTransition>

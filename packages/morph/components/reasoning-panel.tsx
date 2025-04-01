@@ -1,9 +1,9 @@
-import * as React from "react"
-import { useState, useRef, useEffect, memo } from "react"
-import { ChevronRightIcon, TransformIcon } from "@radix-ui/react-icons"
-import { cn } from "@/lib/utils"
 import { db } from "@/db"
-import { motion, AnimatePresence } from "motion/react"
+import { cn } from "@/lib/utils"
+import { ChevronRightIcon, TransformIcon } from "@radix-ui/react-icons"
+import { AnimatePresence, motion } from "motion/react"
+import * as React from "react"
+import { memo, useEffect, useRef, useState } from "react"
 
 // Triple dot loading animation component
 const LoadingDots = memo(function LoadingDots() {

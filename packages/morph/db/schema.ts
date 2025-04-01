@@ -1,7 +1,8 @@
+import { createId } from "@paralleldrive/cuid2"
 import { relations } from "drizzle-orm"
 import * as p from "drizzle-orm/pg-core"
-import { createId } from "@paralleldrive/cuid2"
-import { Steering, Settings, FileSystemTreeNode } from "@/lib/db"
+
+import { FileSystemTreeNodeDb, Settings, Steering } from "@/db/interfaces"
 
 export const vaults = p.pgTable("vaults", {
   id: p
@@ -10,12 +11,12 @@ export const vaults = p.pgTable("vaults", {
     .$defaultFn(() => createId()),
   name: p.text("name").notNull(),
   lastOpened: p.timestamp("lastOpened", { mode: "date" }).notNull().defaultNow(),
-  tree: p.jsonb("tree").$type<FileSystemTreeNode>().notNull(),
+  tree: p.jsonb("tree").$type<FileSystemTreeNodeDb>().notNull(),
   settings: p.jsonb("settings").$type<Settings>().notNull(),
 })
 
-export const vaultsRelations = relations(vaults, ({ one, many }) => ({
-  references: one(references),
+export const vaultsRelations = relations(vaults, ({ many }) => ({
+  references: many(references),
   files: many(files),
 }))
 
@@ -51,6 +52,7 @@ export const filesRelations = relations(files, ({ one, many }) => ({
   }),
   notes: many(notes),
   reasonings: many(reasonings),
+  references: many(references),
 }))
 
 export const references = p.pgTable("references", {
@@ -66,12 +68,13 @@ export const references = p.pgTable("references", {
     .text("vaultId")
     .notNull()
     .references(() => vaults.id, { onDelete: "cascade" }),
-  handle: p.jsonb("handle").notNull(),
+  handleId: p.text("handleId").notNull(),
   format: p
     .text("format", {
       enum: ["biblatex", "csl-json"],
     })
     .notNull(),
+  path: p.text("path").notNull(),
   lastModified: p.timestamp("lastModified", { mode: "date" }).notNull().defaultNow(),
 })
 
@@ -184,3 +187,66 @@ export const tasks = p.pgTable("tasks", {
   completedAt: p.timestamp("completedAt", { mode: "date" }),
   error: p.text("error"),
 })
+
+// Vector storage tables for embeddings
+// For M and ef_construction, check service.py#API
+
+export const noteEmbeddings = p.pgTable(
+  "noteEmbeddings",
+  {
+    noteId: p
+      .text("noteId")
+      .primaryKey()
+      .references(() => notes.id, { onDelete: "cascade" }),
+    embedding: p.vector("embedding", { dimensions: 1536 }),
+    createdAt: p.timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    p
+      .index("ipIndex_hnsw")
+      .using("hnsw", table.embedding.op("vector_ip_ops"))
+      .with({ m: 16, ef_construction: 50 }),
+  ],
+)
+
+export const noteEmbeddingsRelations = relations(noteEmbeddings, ({ one }) => ({
+  note: one(notes, {
+    fields: [noteEmbeddings.noteId],
+    references: [notes.id],
+  }),
+}))
+
+export const fileEmbeddings = p.pgTable(
+  "fileEmbeddings",
+  {
+    vaultId: p
+      .text("vaultId")
+      .notNull()
+      .references(() => vaults.id, { onDelete: "cascade" }),
+    fileId: p
+      .text("fileId")
+      .notNull()
+      .references(() => files.id, { onDelete: "cascade" }),
+    chunkId: p.uuid("chunkId").notNull(),
+    embedding: p.vector("embedding", { dimensions: 1536 }),
+    createdAt: p.timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    p.primaryKey({ columns: [table.vaultId, table.fileId, table.chunkId] }),
+    p.index("ipIndex_hnsw").using("hnsw", table.embedding.op("vector_ip_ops")).with({
+      m: 16,
+      ef_construction: 50,
+    }),
+  ],
+)
+
+export const fileEmbeddingsRelations = relations(fileEmbeddings, ({ one }) => ({
+  vault: one(vaults, {
+    fields: [fileEmbeddings.vaultId],
+    references: [vaults.id],
+  }),
+  file: one(files, {
+    fields: [fileEmbeddings.fileId],
+    references: [files.id],
+  }),
+}))

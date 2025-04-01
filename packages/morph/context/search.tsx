@@ -1,11 +1,12 @@
 "use client"
 
-import { createContext, useEffect, useContext, useMemo, useCallback, useState } from "react"
-import { Document } from "flexsearch"
-import type { FileSystemTreeNode, Vault } from "@/db"
 import { db } from "@/db"
 import { encode } from "@/lib"
+import { Document } from "flexsearch"
 import { debounce } from "lodash"
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
+
+import type { FileSystemTreeNode, Vault } from "@/db/interfaces"
 
 export interface UserDocument {
   id: string

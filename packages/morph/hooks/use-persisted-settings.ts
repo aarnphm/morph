@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react"
-import { useVaultContext } from "@/context/vault"
 import { defaultSettings } from "@/db"
+import { useEffect, useState } from "react"
+
+import { useVaultContext } from "@/context/vault"
 
 export interface Settings {
   vimMode: boolean

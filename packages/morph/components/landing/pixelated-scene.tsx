@@ -1,10 +1,10 @@
 "use client"
 
-import { useRef, useLayoutEffect, useEffect, forwardRef, memo } from "react"
-import { Canvas, useThree, useFrame } from "@react-three/fiber"
 import { OrbitControls } from "@react-three/drei"
+import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { useTime } from "motion/react"
 import { degreesToRadians, mix, progress } from "popmotion"
+import { forwardRef, memo, useEffect, useLayoutEffect, useRef } from "react"
 import * as THREE from "three"
 
 const bgColor = "#f2f0e5"
@@ -29,7 +29,7 @@ const Icosahedron = memo(
         <meshBasicMaterial wireframe color={wireframeColor} />
       </mesh>
     )
-  })
+  }),
 )
 
 // Star component

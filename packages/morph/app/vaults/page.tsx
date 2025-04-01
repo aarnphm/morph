@@ -1,22 +1,25 @@
 "use client"
 
-import { usePathname, useRouter } from "next/navigation"
-import { useCallback, useMemo, useRef, useState, useEffect, memo } from "react"
+import { ArchiveIcon, CardStackPlusIcon, ClockIcon, InfoCircledIcon } from "@radix-ui/react-icons"
 import { motion } from "motion/react"
+import { usePathname, useRouter } from "next/navigation"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ComponentPropsWithoutRef } from "react"
-import { ClockIcon, ArchiveIcon, CardStackPlusIcon, InfoCircledIcon } from "@radix-ui/react-icons"
+
 import { Button, VaultButton } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog"
-import { type Vault } from "@/lib/db"
+
 import { useVaultContext } from "@/context/vault"
+
+import type { Vault } from "@/db/interfaces"
 
 // Custom styled DialogContent to center it on the screen
 const CenteredDialogContent = memo(function CenteredDialogContent({

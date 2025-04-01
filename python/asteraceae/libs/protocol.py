@@ -4,9 +4,7 @@ import logging, typing as t
 import pydantic
 
 from openai.types.completion_usage import CompletionUsage
-
-from llama_index.core.schema import TransformComponent
-from llama_index.core import Document
+from llama_index.core.schema import EnumNameSerializer, NodeRelationship, RelatedNodeType, TransformComponent, Document
 
 if t.TYPE_CHECKING:
   from llama_index.core.schema import BaseNode
@@ -50,7 +48,8 @@ ReasoningModels: dict[ModelType, LLMMetadata] = {
     structured_output_backend='xgrammar:disable-any-whitespace',
     temperature=0.6,
     top_p=0.95,
-    resources={'gpu': 2, 'gpu_type': 'nvidia-a100-80gb'},
+    # TODO: switch to 2 for longer context generations
+    resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
   ),
   'r1-qwen-small': LLMMetadata(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-14B',
@@ -118,21 +117,38 @@ EmbeddingModels: dict[EmbedType, EmbeddingModelMetadata] = {
 }
 
 
+class NoteRequest(pydantic.BaseModel):
+  vault_id: str
+  file_id: str
+  note_id: str
+  content: str
+
+
 class EssayRequest(pydantic.BaseModel):
   vault_id: str
   file_id: str
   content: str
 
 
+class EssayNode(pydantic.BaseModel):
+  embedding: list[float] | None
+  node_id: str
+  metadata: dict[str, t.Any]
+  relationships: dict[t.Annotated[NodeRelationship, EnumNameSerializer], RelatedNodeType]
+  metadata_separator: str
+
+
 class EssayResponse(pydantic.BaseModel):
   vault_id: str
   file_id: str
-  node_ids: list[str]
-  embeddings: list[list[float] | None]
+  nodes: list[EssayNode]
   error: str = ''
 
 
 class NotesResponse(pydantic.BaseModel):
+  vault_id: str
+  file_id: str
+  note_id: str
   embedding: list[float]
   error: str = ''
 
@@ -176,7 +192,7 @@ class MetadataResponse(pydantic.BaseModel):
 class Suggestion(pydantic.BaseModel):
   suggestion: str
   reasoning: str = pydantic.Field(default='')
-  usage: t.Optional[CompletionUsage] = None
+  usage: CompletionUsage | None = None
 
 
 class Suggestions(pydantic.BaseModel):
@@ -190,7 +206,7 @@ class Tonality(pydantic.BaseModel):
   soul_cartographer: float = 0
 
   model_config = pydantic.ConfigDict(
-    alias_generator=lambda field_name: field_name.replace('_', '-'), populate_by_name=True
+    alias_generator=lambda field_name: field_name.replace('_', '-'), populate_by_name=True, extra='allow'
   )
 
 

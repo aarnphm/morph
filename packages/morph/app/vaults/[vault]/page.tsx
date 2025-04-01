@@ -1,10 +1,12 @@
 "use client"
 
-import { useCallback } from "react"
-import Editor from "@/components/editor"
-import { useVaultContext } from "@/context/vault"
-import { useParams } from "next/navigation"
 import { motion } from "motion/react"
+import { useParams } from "next/navigation"
+import { useCallback } from "react"
+
+import Editor from "@/components/editor"
+
+import { useVaultContext } from "@/context/vault"
 
 export default function VaultPage() {
   const params = useParams()
