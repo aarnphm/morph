@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import logging, argparse, multiprocessing, itertools, traceback, asyncio, os, shutil, contextlib, pathlib, time, datetime, typing as t
+import logging, argparse, multiprocessing, json, itertools, traceback, asyncio, os, shutil, contextlib, pathlib, time, datetime, typing as t
 import bentoml, fastapi, pydantic, jinja2, annotated_types as at, typing_extensions as te
 
 from starlette.responses import JSONResponse, StreamingResponse
@@ -415,7 +415,7 @@ class API:
     self.pipeline = IngestionPipeline(transformations=[chunker, line_extractor, title_extractor, self.embed_model])
 
   @bentoml.api(route='/v1/embeddings')
-  async def create_embeddings(self, request: EmbeddingCompletionRequest, /):
+  async def create_embedding(self, request: EmbeddingCompletionRequest, /):
     request.model = Embeddings.inner.model_id
     try:
       # Make a direct request to the embed endpoint
@@ -441,22 +441,44 @@ class API:
       )
 
   @bentoml.api(route='/v1/chat/completions')
-  async def create_chat_completions(self, request: ChatCompletionRequest, /):
+  async def create_chat_completion(self, request: ChatCompletionRequest, /):
     try:
-      resp = await self.llm_httpx.post(
-        '/chat',
-        json=request.model_dump(exclude_unset=True),
-        headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
-      )
-
-      if resp.status_code != 200:
-        error_content = resp.json()
-        return JSONResponse(content=error_content, status_code=resp.status_code)
-
-      # Handle streaming vs non-streaming responses
       if request.stream:
-        return StreamingResponse(content=resp.aiter_text(), media_type='text/event-stream')
+        # Use streaming context manager for streaming responses
+        async def stream_response():
+          async with self.llm_httpx.stream(
+            'POST',
+            '/chat',
+            json=request.model_dump(exclude_unset=True),
+            headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
+          ) as resp:
+            if resp.status_code != 200:
+              error_content = await resp.json()
+              yield f'data: {json.dumps(error_content)}\n\n'
+              return
+
+            async for chunk in resp.aiter_text():
+              if chunk.strip():
+                # Pass through the chunk directly if it's already in SSE format
+                if chunk.startswith('data:'):
+                  yield chunk
+                else:
+                  # Wrap it in SSE format if it's not
+                  yield f'data: {chunk}\n\n'
+
+        return StreamingResponse(stream_response(), media_type='text/event-stream')
       else:
+        # For non-streaming responses, continue using post
+        resp = await self.llm_httpx.post(
+          '/chat',
+          json=request.model_dump(exclude_unset=True),
+          headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
+        )
+
+        if resp.status_code != 200:
+          error_content = resp.json()
+          return JSONResponse(content=error_content, status_code=resp.status_code)
+
         return JSONResponse(content=resp.json())
     except Exception as e:
       logger.error('Error forwarding chat completion request: %s', e)
