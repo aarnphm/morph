@@ -476,7 +476,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     // Create a new array to avoid mutating the previous state
                     const updatedNotes = [...prevNotes]
 
-                    // Only update the current note - this fixes the flashing bug
                     updatedNotes[currentNoteIndex] = {
                       ...updatedNotes[currentNoteIndex],
                       content: sanitizeStreamingContent(currentSuggestion),
@@ -499,7 +498,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     const endIndex = match!.index
 
                     // Extract the suggestion content up to the end pattern
-                    const suggestionContent = currentSuggestion.substring(0, endIndex)
+                    let suggestionContent = currentSuggestion.substring(0, endIndex)
 
                     // Update the streaming note with the current content
                     setStreamingNotes((prevNotes) => {
@@ -508,7 +507,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       // Create a new array to avoid mutating the previous state
                       const updatedNotes = [...prevNotes]
 
-                      // Only update the current note - this fixes the flashing bug
                       updatedNotes[currentNoteIndex] = {
                         ...updatedNotes[currentNoteIndex],
                         content: sanitizeStreamingContent(suggestionContent),
@@ -522,10 +520,10 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     // Reset suggestion tracking
                     inJsonSuggestion = false
 
-                    // Set remaining text for next iteration
-                    const remaining = currentSuggestion.substring(endIndex + match![0].length)
-                    partialJSON = remaining
+                    // Important: Clear both variables to prevent flashing
                     currentSuggestion = ""
+                    suggestionContent = ""
+                    partialJSON = ""
 
                     // Move to next note if there's more to process
                     if (endWithCommaMatch) {
@@ -539,6 +537,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               }
             } catch (e) {
               console.error("Error parsing line:", e)
+              // Clean up on error to avoid stuck partial content
+              partialJSON = ""
+              currentSuggestion = ""
             }
           }
         }
@@ -570,7 +571,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           // Wait a moment before starting the animation
           await new Promise((resolve) => setTimeout(resolve, 300))
 
-          const noteCount = initialStreamingNotes.length // Use initial array length
+          const noteCount = initialStreamingNotes.length
+          let currentDelay = 100
           for (let i = 0; i < noteCount; i++) {
             setStreamingNotes((prevNotes) => {
               // Important: Always work with the *latest* state inside the loop
@@ -584,9 +586,16 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               }
               return updatedNotes
             })
-            // Add a small delay between each note's scan animation for effect
-            await new Promise((resolve) => setTimeout(resolve, 50))
+
+            // Gradually reduce the delay for a smooth acceleration effect
+            currentDelay = Math.max(20, currentDelay * 0.85)
+
+            // Add a decreasing delay for a smoother animation
+            await new Promise((resolve) => setTimeout(resolve, currentDelay))
           }
+
+          // Short delay before showing final notes
+          await new Promise((resolve) => setTimeout(resolve, 100))
 
           // Set loading to false which will trigger showing the final notes
           setIsNotesLoading(false)
@@ -652,7 +661,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           reasoningElapsedTime,
           reasoningContent: collectedReasoning,
         }
-      } catch (error) {
+      } catch (error: any) {
         // Catch specific error type
         setNotesError(`Notes not available: ${error.message || "Unknown error"}`)
         setReasoningComplete(true)
@@ -953,9 +962,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         // Only save if the file is not "Untitled" and we have notes to save
         if (currentFile !== "Untitled" && vault && newNotes.length > 0) {
           try {
-            console.debug(`Saving reasoning with file ID: ${dbFile!.id}`)
-
-            // Save reasoning using Drizzle insert
             await db.insert(schema.reasonings).values({
               id: reasoningId,
               fileId: dbFile!.id,

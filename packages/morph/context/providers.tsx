@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { AnimatePresence, motion } from "motion/react"
 import type React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 
 import PixelatedLoading from "@/components/landing/pixelated-loading"
 
@@ -19,7 +19,7 @@ interface ProvidersProps {
 }
 
 export function Providers({ children }: ProvidersProps) {
-  const queryClient = new QueryClient()
+  const queryClient = useMemo(() => new QueryClient(), [])
   const [db, setDb] = useState<MorphPgLite | undefined>()
   const [isDbLoading, setIsDbLoading] = useState(true)
   const [loadingProgress, setLoadingProgress] = useState(0)
@@ -55,9 +55,19 @@ export function Providers({ children }: ProvidersProps) {
     setupDbAndMigrate()
   }, [])
 
-  const handleTransitionComplete = () => {
+  const handleTransitionComplete = useCallback(() => {
     setTransitionComplete(true)
-  }
+  }, [])
+
+  const motionProps = useMemo(
+    () => ({
+      initial: { opacity: 0 },
+      animate: { opacity: 1 },
+      transition: { duration: 0.8 },
+      className: "w-full h-full",
+    }),
+    []
+  )
 
   return (
     <>
@@ -68,12 +78,7 @@ export function Providers({ children }: ProvidersProps) {
       />
       <AnimatePresence>
         {!isDbLoading && db && transitionComplete && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8 }}
-            className="w-full h-full"
-          >
+          <motion.div {...motionProps}>
             <PGliteProvider db={db}>
               <QueryClientProvider client={queryClient}>
                 <VaultProvider>

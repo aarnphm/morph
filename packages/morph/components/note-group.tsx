@@ -281,11 +281,7 @@ export const DroppedNoteGroup = memo(
         key={`dropped-notes-${droppedNotes.length}`}
         initial={{ opacity: 0, scale: 0.95, y: -10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: -10 }}
-        transition={{
-          duration: 0.25,
-          ease: [0.4, 0.0, 0.2, 1],
-        }}
+        exit={{ opacity: 0, scale: 0.95, y: 0 }}
       >
         <motion.div
           ref={scrollContainerRef}
@@ -293,8 +289,7 @@ export const DroppedNoteGroup = memo(
             "flex flex-col items-center gap-1.5",
             isStackExpanded && "max-h-[20vh] overflow-y-auto scrollbar-hidden",
           )}
-          layout="position"
-          layoutDependency={isStackExpanded}
+          layout
         >
           <AnimatePresence mode="sync" initial={false}>
             {notesToDisplay.map((note, index) => (
@@ -318,7 +313,7 @@ export const DroppedNoteGroup = memo(
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
+                transition={{ duration: 0.1 }}
                 title={`${droppedNotes.length - MAX_VISIBLE_NOTES} more notes`}
               >
                 <motion.div

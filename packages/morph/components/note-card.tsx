@@ -313,8 +313,8 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
       },
       hidden: {
         opacity: 0,
-        y: -10,
-        scale: 0.8,
+        y: 0,
+        scale: 1,
         transition: {
           duration: 0.2,
         },
@@ -339,11 +339,8 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
       },
       fileExit: {
         opacity: 0,
-        y: -10,
+        y: 0,
         scale: 0.9,
-        transition: {
-          duration: 0.2,
-        },
       },
     }),
     [index],
@@ -367,7 +364,6 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
             initial="fileEnter"
             animate={isStackExpanded ? "expanded" : "collapsed"}
             exit="fileExit"
-            whileHover={{ scale: 1.05 }}
             layout="position"
             drag="x"
             layoutDependency={isStackExpanded}

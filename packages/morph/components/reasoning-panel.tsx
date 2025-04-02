@@ -237,8 +237,8 @@ export const ReasoningPanel = memo(function ReasoningPanel({
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className={cn(
-              "text-xs whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72 transition-colors duration-200 will-change-transform",
-              isHovering ? "text-foreground" : "text-muted-foreground",
+              "whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72 transition-colors duration-200 will-change-transform",
+              "text-xs text-muted-foreground",
             )}
           >
             {renderReasoningText}
