@@ -43,20 +43,9 @@ the end of the day, are very personal, which means a tool should not dictate how
 
 ## Environment
 
-The following encapsulates both hardware and software environment for `tinymorph`:
+`tinymorph` is designed to operate as a cross-platform web-based text editor that functions reliably across modern desktop operating systems. It supports both online and offline modes, allowing users to interact with language models through local or remote inference. The system prioritizes lightweight deployment with minimal dependencies and an intuitive interface.
 
-### hardware.
-
-- For local [[glossary#inference]], GPUs will be preferred for faster [[glossary#time-to-first-tokens]] over CPUs.
-- For users' own hosted inference server, it will requires to have internet connection for running inference.
-- `tinymorph` is a text editor, therefore it would be able to run on any modern computer regardless of operating system.
-
-### software.
-
-- Cross-platform support
-- A series of [[glossary#sparse autoencoders|SAEs]] will be trained and used for feature steering.
-- Support for offline inference (users can run LLMs locally).
-- Minimal dependencies with intuitive UIs to demonstrate `tinymorph`'s capabilities.
+The environment supports modular experimentation with text generation features, steering mechanisms, and user feedback loops, enabling adaptability to various user contexts and writing workflows.
 
 ## Goals
 
