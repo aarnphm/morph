@@ -16,60 +16,23 @@ See also: [[ProblemStatementAndGoals/ProblemStatement#Revision|this document rev
   <i>To know the world one must construct it.</i> -- Pavese
 </p>
 
-In 1972 Alan Kay [@AlanKay1972, 11] conceptualised the Dynabook, a portable device that empower
-users of all ages to explore and learn. More than just a portable computer, the Dynabook was envisioned as a dynamic, interactive medium for
-learning, creation, and self-expression, that could adapt to users' increasing skills and need.
+With software deeply embedded in everyday life and the rapid advancement of large language models (LLMs), there is a growing need for interfaces that amplify user agency and encourage personalized interaction, rather than mere automation. Existing conversational interfaces (CUIs) often struggle with complex tasks and the structuring of extensive information, especially affecting creative writers like engineers who seek coherent, non-linear thought exploration. To address this challenge, `tinymorph` aims to introduce novel spatial and visual interfaces for text generation to enhance cognitive exploration and creativity in writing.
 
-Fast forward to the $21^{\text{st}}$ century, software has become comoditised and transcend every aspect in our life.
-Simultaneously, we've seen exponential growth in machine learning (ML) systems'[^1] capabilities, largely due to a general push of large language models (LLMs) into the mainstream.
-As these systems exihibit emergent properties of [[DevelopmentPlan/DevelopmentPlan#^intelligence|intelligence]], how should we craft interfaces that amplify
-users' [[glossary#agency|agency]] and encourage a sense of personalisation through interactions, rather than providing a mere tool for automation?
-
-Imagine you are an engineer who pursues creative writing as a hobby. You often curate topics and ideas from discussion on social media,
-then categorise them into themes for your arguments. There are plethora of tools
-out there that you can use to assist you with planning for your writing.
-For those inclined towards more adventurous endeavours, such as running customized
-models to meet specific requirements, you might find yourself in the land of _auto-regressive models_: GPTs and friends.
-
-[[glossary#auto-regressive model|Auto-regressive models]] excels at surfacing machines' internal representation of the world through a simple interface: given
-a blob of text, the model will generate a contiguous piece of text that it predicts as the most probable tokens.
-For example, if you give it a Wikipedia article, the model should produce text consistent with the remainder of said article.
-These models works well given the following assumption: the inputs prompt must be coherent and well-structured
-surrounding a given problem the users want to achieve.
-A writer might provide paragraphs from their favourite authors - let's say Joan Didion, as context to formulate their
-arguments for a certain writing. The model then "suggests" certain ideas that simulate Didion's style of writing. Here
-is a big catch: [garbage in, garbage out](https://en.wikipedia.org/wiki/Garbage_in,_garbage_out). If your prompt are
-disconnected or incoherent, the model will generate text that is equally incoherent.
-
-This heuristic lays the foundation to the proliferation of conversational user interfaces (CUIs), which is obvious
-given that chat is a thin wrapper around text modality. Yet, CUIs often prove frustrating when dealing with tasks that require
-larger sets of information (think of support portals, orders forms, etc.). Additionally,
-for tasks that require frequent information retrieval (research, travel planning, writing, etc.), CUIs are suboptimal as they
-compel users to unecessarily maintain information in their working memory (for no reason).
-For writers, the hardest part of writing or getting over writers block usually relies on how to coherently structure
-their thoughts onto papers. This requires a step beyond pure conversation partners, an interface that induces both
-planning and modelling of ideas.
-
-Given these challenges, `tinymorph` doesn't seek to be a mere tools for rewriting text. `tinymorph` aims to explore
-alternative interfaces for text generations models to extend our cognitive abilities. This means developing spatial and visual
-interfaces that allow for non-linear exploration of information and ideas, through writing.
 
 ## Inputs and Outputs
 
 Inputs from users' perspective:
 
-1. User starts with writing about a topic of their choice (e.g. essay on growth.)
-2. User's personal preferences for tonality and writing styles.
-3. External information sources related to topic at hand.
+1. A writing sample or topic of the user’s choice (e.g., essay on growth)
+2. Personal preferences for tonality and writing style
+3. External information sources related to topic at hand
 4. Context of the topic as well as desired goals.
-5. Optionally a personalized system prompt to setup the model.
 
 Outputs from `tinymorph`:
 
 1. A text-based [[glossary#inlay hints]] suggestions from models
 2. left-to-right (LTR) sequential panel to get users feedback on [[glossary#manual steering]]
-3. An optional panel allowing users to choose certain [[glossary#features]] to play with possible generations of their text
-4. Additional panel for [[glossary#hyperparameter tuning]] for generation intervention
+
 
 ## Stakeholders
 
