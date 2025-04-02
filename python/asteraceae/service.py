@@ -57,8 +57,8 @@ logger = logging.getLogger('bentoml.service')
 
 WORKING_DIR = pathlib.Path(__file__).parent
 IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
-MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 16 * 1024))
-MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 8 * 1024))
+MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 48 * 1024))
+MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 16 * 1024))
 
 MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
 LLM_ID: str = (llm_ := ReasoningModels[MODEL_TYPE])['model_id']

@@ -173,7 +173,7 @@ echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Checking for existing processes..."
 # First check PID files
 if check_pid_file "$API_PID_FILE" || check_pid_file "$LLM_PID_FILE" || check_pid_file "$EMBEDDINGS_PID_FILE"; then
   echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Found running processes from previous session."
-  read -p "Would you like to kill these processes? (y/n): " kill_choice
+  read -p "${SYS_COLOR}[SYS]${RESET_COLOR} Would you like to kill these processes? (y/n): " kill_choice
   if [[ "$kill_choice" == "y" || "$kill_choice" == "Y" ]]; then
     kill_from_pid_files
   else
@@ -185,7 +185,7 @@ fi
 # Then check ports
 if check_port 3000 || check_port 3001 || check_port 3002; then
   echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Some ports (3000, 3001, or 3002) are already in use."
-  read -p "Would you like to kill processes using these ports? (y/n): " kill_choice
+  read -p "${SYS_COLOR}[SYS]${RESET_COLOR} Would you like to kill processes using these ports? (y/n): " kill_choice
   if [[ "$kill_choice" == "y" || "$kill_choice" == "Y" ]]; then
     cleanup_ports
   else
