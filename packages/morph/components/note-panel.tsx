@@ -294,6 +294,8 @@ export const NotesPanel = memo(function NotesPanel({
                                   fileId: currentFile,
                                   vaultId: vaultId || "",
                                   createdAt: new Date(),
+                                  embeddingStatus: null,
+                                  embeddingTaskId: null,
                                 }}
                                 isGenerating={!note.isComplete}
                                 isStreaming={!note.isComplete}
@@ -332,7 +334,7 @@ export const NotesPanel = memo(function NotesPanel({
                   )}
                 <div className="flex-1 min-h-0">
                   <Virtuoso
-                    key={`note-list-${currentFile}`}
+                    key={`note-list-${currentFile}-${noteGroupsData.length}`}
                     style={{ height: "100%", width: "100%" }}
                     totalCount={noteGroupsData.length}
                     data={noteGroupsData}

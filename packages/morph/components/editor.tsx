@@ -840,6 +840,26 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     async (steeringSettings: SteeringSettings) => {
       if (!currentFile || !vault || !markdownContent) return
 
+      // Move current generation notes to history by adding them to notes array without the currentGenerationNotes flag
+      if (currentGenerationNotes.length > 0) {
+        // First ensure the current notes are in the main notes array (if they aren't already)
+        setNotes((prev) => {
+          // Filter out any notes that might already exist in the array
+          const notesToAdd = currentGenerationNotes.filter(
+            (note) => !prev.some((existingNote) => existingNote.id === note.id),
+          )
+
+          if (notesToAdd.length === 0) return prev
+
+          // Add to notes and sort
+          const combined = [...notesToAdd, ...prev]
+          return combined.sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          )
+        })
+      }
+
+      // Clear current generation notes before starting new generation
       setCurrentGenerationNotes([])
       setNotesError(null)
       setIsNotesLoading(true)
@@ -1038,7 +1058,20 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   }, [notes, currentGenerationNotes, droppedNotes])
 
   const handleCurrentGenerationNote = useCallback((note: Note) => {
+    // Remove from current generation notes
     setCurrentGenerationNotes((prev) => prev.filter((n) => n.id !== note.id))
+
+    // Ensure the note is in the main notes array if it's not already
+    setNotes((prev) => {
+      // Check if note already exists in notes array
+      if (prev.some((existingNote) => existingNote.id === note.id)) return prev
+
+      // Add to notes and sort
+      const combined = [...prev, note]
+      return combined.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+    })
   }, [])
 
   // Memoize dropped notes to prevent unnecessary re-renders
