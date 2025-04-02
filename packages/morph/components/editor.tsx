@@ -652,12 +652,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           reasoningElapsedTime,
           reasoningContent: collectedReasoning,
         }
-      } catch (error: any) {
+      } catch (error) {
         // Catch specific error type
         setNotesError(`Notes not available: ${error.message || "Unknown error"}`)
         setReasoningComplete(true)
         setCurrentlyGeneratingDateKey(null)
-        throw error
       }
     },
     [],
@@ -991,8 +990,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 embeddingTaskId: null,
               })
             }
-
-            console.debug(`Saved ${newNotes.length} notes to database`)
 
             // Add the newly created notes to our state
             setNotes((prev) => {

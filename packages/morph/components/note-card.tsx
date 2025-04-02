@@ -370,19 +370,23 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
             whileHover={{ scale: 1.05 }}
             layout="position"
             drag="x"
+            layoutDependency={isStackExpanded}
             dragDirectionLock
             dragConstraints={{ top: 0, right: 0, bottom: 0, left: 0 }}
             dragTransition={{
               bounceStiffness: 450,
               bounceDamping: 20,
               power: 0.2,
+              timeConstant: 0.15,
             }}
-            dragElastic={0.15}
+            dragElastic={0.1}
             whileDrag={{
               cursor: "grabbing",
+              zIndex: 50,
               transition: {
                 type: "tween",
                 ease: "easeOut",
+                duration: 0.1,
               },
             }}
             {...props}

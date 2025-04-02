@@ -258,9 +258,9 @@ export const NotesPanel = memo(function NotesPanel({
                       currentGenerationNotes.length > 0 &&
                       !droppedNotes.some((d) => d.id === currentGenerationNotes[0]?.id))) && (
                     <div className="space-y-4 flex-shrink-0 mb-6">
-                      <DateDisplay dateStr={currentlyGeneratingDateKey!} formatDate={formatDate} />
+                      <div className="px-4 mb-2 space-y-4 bg-background">
+                        <DateDisplay dateStr={currentlyGeneratingDateKey!} formatDate={formatDate} />
 
-                      <div className="px-2 bg-background">
                         <ReasoningPanel
                           reasoning={streamingReasoning}
                           isStreaming={isNotesLoading && !reasoningComplete}

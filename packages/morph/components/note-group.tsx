@@ -206,23 +206,28 @@ export const DroppedNoteGroup = memo(
       [droppedNotes, isStackExpanded],
     )
 
-    // Update the database when a note is reordered
-    const updateNoteOrderInDB = useCallback(
-      async (noteId: string, newIndex: number) => {
+    // Update the database when a note is reordered - use batching for efficiency
+    const updateNotesInDB = useCallback(
+      async (noteIds: string[]) => {
         try {
-          console.debug(`Updating note ${noteId} order to ${newIndex} in database`)
+          if (noteIds.length === 0) return
 
-          // Update the note's order in the database
-          await db
-            .update(schema.notes)
-            .set({
-              accessedAt: new Date(), // Update accessed timestamp
-            })
-            .where(eq(schema.notes.id, noteId))
+          console.debug(`Batch updating ${noteIds.length} notes in database`)
 
-          console.debug("Note order updated in database")
+          // Use Promise.all to batch all updates in parallel
+          const now = new Date()
+          const updatePromises = noteIds.map((noteId) =>
+            db
+              .update(schema.notes)
+              .set({
+                accessedAt: now, // Use the same timestamp for all updates
+              })
+              .where(eq(schema.notes.id, noteId)),
+          )
+
+          await Promise.all(updatePromises)
         } catch (error) {
-          console.error("Failed to update note order in database:", error)
+          console.error("Failed to batch update notes in database:", error)
         }
       },
       [db],
@@ -243,28 +248,25 @@ export const DroppedNoteGroup = memo(
         // Update the database to reflect the new note was viewed
         const lastNoteId = droppedNotes[droppedNotes.length - 1]?.id
         if (lastNoteId) {
-          updateNoteOrderInDB(lastNoteId, droppedNotes.length - 1)
+          updateNotesInDB([lastNoteId])
         }
       }
 
       // Update the reference for next comparison
       prevNotesLengthRef.current = droppedNotes.length
-    }, [droppedNotes.length, isStackExpanded, droppedNotes, updateNoteOrderInDB])
+    }, [droppedNotes.length, isStackExpanded, droppedNotes, updateNotesInDB])
 
-    // When stack expansion state changes, update the database
+    // When stack expansion state changes, update the database - but only once, not per note
     useEffect(() => {
-      // If we expand the stack, update access time for all notes
+      // If we expand the stack, update access time for all notes with a single batch operation
       if (isStackExpanded && droppedNotes.length > 0) {
-        // Batch update the notes' accessedAt timestamp
-        const updatePromises = droppedNotes.map((note, index) =>
-          updateNoteOrderInDB(note.id, index),
-        )
+        // Extract all note IDs for a single batch update
+        const noteIds = droppedNotes.map((note) => note.id)
 
-        Promise.all(updatePromises)
-          .then(() => console.debug(`Updated ${droppedNotes.length} notes in database`))
-          .catch((error) => console.error("Failed to update note batch:", error))
+        // Use our batched update function
+        updateNotesInDB(noteIds)
       }
-    }, [isStackExpanded, droppedNotes, updateNoteOrderInDB])
+    }, [isStackExpanded, droppedNotes, updateNotesInDB])
 
     // Render nothing if there are no notes
     if (!hasNotes) return null
@@ -281,7 +283,7 @@ export const DroppedNoteGroup = memo(
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: -10 }}
         transition={{
-          duration: 0.35,
+          duration: 0.25,
           ease: [0.4, 0.0, 0.2, 1],
         }}
       >
@@ -291,9 +293,10 @@ export const DroppedNoteGroup = memo(
             "flex flex-col items-center gap-1.5",
             isStackExpanded && "max-h-[20vh] overflow-y-auto scrollbar-hidden",
           )}
-          layout
+          layout="position"
+          layoutDependency={isStackExpanded}
         >
-          <AnimatePresence mode="sync">
+          <AnimatePresence mode="sync" initial={false}>
             {notesToDisplay.map((note, index) => (
               <div
                 key={note.id}
@@ -315,6 +318,7 @@ export const DroppedNoteGroup = memo(
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
                 title={`${droppedNotes.length - MAX_VISIBLE_NOTES} more notes`}
               >
                 <motion.div
