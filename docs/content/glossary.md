@@ -6,13 +6,17 @@ author: aarnphm
 comments: false
 date: "2024-09-20"
 description: A glossary of terms used in the documentation.
-modified: "2024-10-08"
+modified: 2025-03-31 14:51:14 GMT-04:00
 title: Glossary
 titleTransclude: false
 ---
 
-The following encapsulates commonly used terms throughout `tinymorph`. By all means it includes
+The following encapsulates commonly used terms throughout `morph`. By all means it includes
 both technical and non-technical definitions that should help with knowing about the system.
+
+> [!tip]
+>
+> You might be also interested in [mechanistic interpretability](https://aarnphm.xyz/thoughts/mechanistic-interpretability)
 
 ## inlay hints
 

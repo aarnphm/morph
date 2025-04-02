@@ -4,13 +4,13 @@ tags:
   - meta
 author: aarnphm,waleedmalik7,nebrask
 date: "2024-09-16"
-modified: 2025-01-17 18:18:44 GMT-05:00
+modified: 2025-03-31 14:55:26 GMT-04:00
 title: Development Plan
 ---
 
 See also: [[DevelopmentPlan/DevelopmentPlan#Revision|this document revision]]
 
-The following includes a brief roadmap of the development plan for `tinymorph` from Team 23 (Hinterland).
+The following includes a brief roadmap of the development plan for `morph` from Team 23 (Hinterland).
 
 ## Confidential Information
 
@@ -22,7 +22,7 @@ There is no IP to protect for this project.
 
 ## Copyright License
 
-`tinymorph` is licensed under the [Apache-2.0](https://github.com/aarnphm/tinymorph/blob/main/LICENSE) license.
+`morph` is licensed under the [Apache-2.0](https://github.com/aarnphm/morph/blob/main/LICENSE) license.
 
 ## Team Meeting Plan
 
@@ -44,7 +44,7 @@ Additional meetings can also be held as needed (knowledge sharing, coworking, et
 
 Hinterland members will use Teams for all asynchronous and synchronous communication.
 
-Additionally, GitHub [issue tracker](https://github.com/aarnphm/tinymorph/issues) should be used for feature
+Additionally, GitHub [issue tracker](https://github.com/aarnphm/morph/issues) should be used for feature
 development. The Sprint [Kaban](https://github.com/users/aarnphm/projects/4?query=sort:updated-desc+is:open) board will
 also be used concurrently for tracking tasks and in-progress work.
 
@@ -56,7 +56,7 @@ methods, Email should be used to communicate with the rest of the team and the i
 
 The following encapsulates member roles for Hinterland.
 
-[Aaron Pham](https://aarnphm.xyz) will take the lead role for the team and acts as [BDFL](https://en.wikipedia.org/wiki/Benevolent_dictator_for_life) for `tinymorph`.
+[Aaron Pham](https://aarnphm.xyz) will take the lead role for the team and acts as [BDFL](https://en.wikipedia.org/wiki/Benevolent_dictator_for_life) for `morph`.
 They will be responsible for overall project management, communication among course instructors, supervisor, as well as providing support to the rest of the team
 
 Notetakers will be responsible for taking notes during meetings, lectures during the working week, and this role will
@@ -70,7 +70,7 @@ A[Aaron Pham] --> B[Waleed Malik] --> C[Nebras Khan] --> D[Lucas Li]
 > [!note] Meeting chair assignment
 > Follow the schedule for notetakers.
 
-Given that `tinymorph` will include two components (web-based editor and ML inference server), the following include
+Given that `morph` will include two components (web-based editor and ML inference server), the following include
 a rough draft of each champion's responsibilities:
 
 - design work: The team will collaborate on general design works for interfaces, lead by [Aaron Pham](https://aarnphm.xyz).
@@ -85,19 +85,19 @@ Reviewers will be assigned automatically based on the project they champion.
 
 ## Workflow Plan
 
-`tinymorph` will follow a conventional git workflow, with `main` acts as "production" branch.
+`morph` will follow a conventional git workflow, with `main` acts as "production" branch.
 This means all changes should be work from a pull requests, and will be squashed into ==one== commit before pushing to
 `main`.
 
 This will ensure linear history.
 
-`tinymorph` will use conventional commits for all commit messages as well as branch naming.
+`morph` will use conventional commits for all commit messages as well as branch naming.
 
 Issues should be created for all bugs, feature requests, and other work items, from predefined templates (blank
 templates are provided, but only use this if any of the previous templates do not apply.) Issue can be optionally add
 labels, add to milestone and Kaban board for progress checking.
 
-GitHub Actions will be used for CI/CD. The following enlists an overview of CI/CD for `tinymorph`:
+GitHub Actions will be used for CI/CD. The following enlists an overview of CI/CD for `morph`:
 
 - Documentation will be built automatically on every push to main as well as PR changes
 - Each component will have its own CI pipeline for styling changes as well as tests (A/B testing)
@@ -114,7 +114,7 @@ See also [[Scratch|brain dump]] for more detailed features development.
 
 ## Proof of Concept Demonstration Plan
 
-The following entails POC plan for `tinymorph` incoming November deadline:
+The following entails POC plan for `morph` incoming November deadline:
 
 - functional web-based text-editor, including feature tuning,
 - Uses [Gemma 2](https://ai.google.dev/gemma?authuser=2) with pretrained [[glossary#sparse autoencoders|SAEs]] (see [GemmaScope](https://ai.google.dev/gemma/docs/gemma_scope)) for initial proof-of-concept steering.
@@ -127,7 +127,7 @@ Certain risks that may arise during the POC include:
 - degradation of the generation quality due to incorrect feature steering.
 - performance rendering with inlay within text buffers
 - Modal editing won't work.
-- e2e testing would be a hassle, given there are multiple components for tinymorph.
+- e2e testing would be a hassle, given there are multiple components for morph.
 - Cold start for inference server.
 - Mismanaging KV cache from vLLM internal block manager given that we are modifying attention activation directly.
 
@@ -138,7 +138,7 @@ To adverse given risks, the following will be implemented:
 
 ## Expected Technology
 
-See also [CONTRIBUTING.md](https://github.com/aarnphm/tinymorph/blob/main/CONTRIBUTING.md) and [[DevelopmentPlan/DevelopmentPlan#Coding Standard|Style]]
+See also [CONTRIBUTING.md](https://github.com/aarnphm/morph/blob/main/CONTRIBUTING.md) and [[DevelopmentPlan/DevelopmentPlan#Coding Standard|Style]]
 
 The following stack will be divided into two parts: web-based editor (morph) and ML inference server (asteraceae)
 
@@ -157,7 +157,7 @@ Design file will be using [Figma](https://figma.com) for high-fidelity prototype
 for low-fidelity prototype.
 
 Citations will use [Chicago Manual of Style](https://www.chicagomanualofstyle.org/tools_citationguide.html) with
-a custom [CSL](https://github.com/aarnphm/tinymorph/blob/main/docs/content/chicago-fullnote-bibliography.csl) for supporting footnotes
+a custom [CSL](https://github.com/aarnphm/morph/blob/main/docs/content/chicago-fullnote-bibliography.csl) for supporting footnotes
 
 ### web-based editor (morph)
 
@@ -185,7 +185,7 @@ Language: Python
 
 Stack:
 
-- online inference: BentoML, vLLM, pydantic
+- online inference: BentoML, vLLM, pydantic, Goodfire
 - offline inference: [llama.cpp](https://github.com/ggerganov/llama.cpp)
 - testing: pytest
 
@@ -209,7 +209,7 @@ All related tools has been setup corespondingly.
 
 A variation of Google style guide for Python will be used.
 
-![[DevelopmentPlan/python style#The coding style|variation]]
+![[DevelopmentPlan/style#The coding style|variation]]
 
 ---
 
@@ -217,10 +217,11 @@ A variation of Google style guide for Python will be used.
 
 ### Revision
 
-| Date          | Developer(s) | Change                           |
-| ------------- | ------------ | -------------------------------- |
-| Sept. 16 2024 | 0.0          | Initial skafolding               |
-| Sept. 22 2024 | 0.1          | Initial POC and Development Plan |
+| Date          | Developer(s) | Change                              |
+| ------------- | ------------ | ----------------------------------- |
+| Sept. 16 2024 | 0.0          | Initial skafolding                  |
+| Sept. 22 2024 | 0.1          | Initial POC and Development Plan    |
+| March 31 2025 | 0.2          | Renaming to `morph` for consistency |
 
 ### Reflection
 
@@ -239,7 +240,7 @@ preventing scope creep by clearly defining goals and objectives to be achieved.
 
 CI/CD, ensures faster development iterations and improve code quality through automated testing. It also
 helps with earlier bug detection and prevent regressions. However, depending on the stage of the project (given that
-tinymorph is relatively new and small), setting CI/CD is a huge hassle as one will have to manage the infrastructure
+morph is relatively new and small), setting CI/CD is a huge hassle as one will have to manage the infrastructure
 as well as complexity of these pipelines. This will actually inversely introduce a lot of technical debt and slow down
 development cycle. This is also known as _premature optimisation_.
 
@@ -262,7 +263,7 @@ borrows from [University of Portland Team Charter](https://engineering.up.edu/in
 
 #### External Goals
 
-Take a step back, our goal for `tinymorph` is to imagine what machine-assisted interfaces for creative writing would look like[^1].
+Take a step back, our goal for `morph` is to imagine what machine-assisted interfaces for creative writing would look like[^1].
 
 [^1]: [[ProblemStatementAndGoals/ProblemStatement#Problem|problem statement.]]
 
@@ -272,9 +273,9 @@ and often disguised these systmems under the term "artificial super intelligence
 companies that build AI systems to amplify our abilities to create and improve efficiency for our work. Companies such
 as [Runway](https://runwayml.com/), [Cohere](https://cohere.com/), etc belongs to this paradigm. ^intelligence
 
-Our interests lie firmly on the second group, where we build tools that amplifies our agency. `tinymorph` is the manifestation of these beliefs.
+Our interests lie firmly on the second group, where we build tools that amplifies our agency. `morph` is the manifestation of these beliefs.
 
-Additionally, during the journey of prototyping `tinymorph`, we hope to use it as a playground to delve into the field of [[glosar#mechanistic interpretability]] as a pure research interests.
+Additionally, during the journey of prototyping `morph`, we hope to use it as a playground to delve into the field of [[glosar#mechanistic interpretability]] as a pure research interests.
 
 #### Attendance
 
@@ -314,7 +315,7 @@ For meeting preparation, we expect everyone to come prepared with questions and 
 
 ##### Attitude
 
-Adhering to [Code of Coduct](https://github.com/aarnphm/tinymorph/blob/main/.github/CODE_OF_CONDUCT.md) adapted from the [Contributor Covenant](https://www.contributor-covenant.org), [version 2.0](https://www.contributor-covenant.org/version/2/0/code_of_conduct.html).
+Adhering to [Code of Coduct](https://github.com/aarnphm/morph/blob/main/.github/CODE_OF_CONDUCT.md) adapted from the [Contributor Covenant](https://www.contributor-covenant.org), [version 2.0](https://www.contributor-covenant.org/version/2/0/code_of_conduct.html).
 
 We encouraged everyone to be open to new ideas and collaborate on features work. We should use constructive critism with regards doing review work.
 
@@ -322,7 +323,7 @@ Should any conflict arise, please discuss your concern and display your reasonin
 
 ##### Stay on Track
 
-We will use standup [notes](https://github.com/aarnphm/tinymorph/issues?q=is:issue+is:closed+meeting+) to keep track of everyone progress.
+We will use standup [notes](https://github.com/aarnphm/morph/issues?q=is:issue+is:closed+meeting+) to keep track of everyone progress.
 
 For metrics, try to show up for meetings, and push your progress through draft PR to show your current progression.
 

@@ -1,15 +1,18 @@
 {
   "name": "@aarnphm/morph-monorepo",
   "private": true,
-  "homepage": "https://tinymorph.aarnphm.xyz",
+  "homepage": "https://morph-editor.app",
   "scripts": {
-    "morph:docs": "pnpm --filter ./docs run quartz build --serve -v",
-    "morph:docs:build": "pnpm --filter ./docs run quartz build -v",
+    "morph:docs": "pnpm --filter morph-docs run quartz build --serve -v",
+    "morph:docs:build": "pnpm --filter morph-docs run quartz build -v",
+    "morph:man": "pnpm --filter morph-manuals run quartz build --serve -v",
+    "morph:man:build": "pnpm --filter morph-manuals run quartz build -v",
     "morph:inference": "cd ./python/asteraceae/ && make stack",
     "morph:inference:build": "cd ./python/asteraceae/ && make build",
-    "morph:dev": "pnpm --filter morph run dev",
-    "morph:build": "pnpm --filter morph run build",
-    "morph:format": "pnpm --filter morph run format && uvx ruff format"
+    "morph:dev": "pnpm --filter morph-web run dev",
+    "morph:build": "pnpm --filter morph-web run build",
+    "morph:format": "pnpm --filter morph-web run format && pnpm --filter morph-docs run format && pnpm --filter morph-manuals run format",
+    "morph:lint": "pnpm --filter morph-web run lint && pnpm --filter morph-web run format:check"
   },
   "keywords": [
     "sae",
@@ -24,7 +27,7 @@
   },
   "engines": {
     "npm": ">=9.3.1",
-    "node": ">=20"
+    "node": ">=22"
   },
-  "packageManager": "pnpm@8.7.1"
+  "packageManager": "pnpm@9.6.0+sha512.38dc6fba8dba35b39340b9700112c2fe1e12f10b17134715a4aa98ccf7bb035e76fd981cf0bb384dfa98f8d6af5481c2bef2f4266a24bfa20c34eb7147ce0b5e"
 }

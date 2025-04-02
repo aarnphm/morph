@@ -10,7 +10,7 @@ export const sharedPageComponents: SharedLayout = {
     Component.Comments({
       provider: "giscus",
       options: {
-        repo: "aarnphm/tinymorph",
+        repo: "aarnphm/morph",
         repoId: "R_kgDOMuBvlg",
         category: "General",
         categoryId: "DIC_kwDOMuBvls4Cihq0",
@@ -19,7 +19,7 @@ export const sharedPageComponents: SharedLayout = {
     }),
     Component.MinimalFooter({
       links: {
-        github: "https://github.com/aarnphm/tinymorph",
+        github: "https://github.com/aarnphm/morph",
         twitter: "https://twitter.com/aarnphm_",
       },
       showInfo: true,

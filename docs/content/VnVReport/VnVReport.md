@@ -3,9 +3,10 @@ id: VnVReport
 tags:
   - meta
 author: aarnphm,waleedmalik7,nebrask,lucas-lizhiwei
-date: "2025-03-10"
-title: Verification and Validation Report
 counter: true
+date: "2025-03-10"
+modified: 2025-03-31 14:56:27 GMT-04:00
+title: Verification and Validation Report
 ---
 
 ## Symbols, Abbreviations and Acronyms
@@ -22,7 +23,7 @@ counter: true
 | PDF        | Portable Document Format                               |
 | R          | Requirement                                            |
 | SRS        | Software Requirements Specification                    |
-| tinymorph  | the text editor that helps you to become better writer |
+| morph      | the text editor that helps you to become better writer |
 | UC         | Unlikely Change                                        |
 | VnV        | Verification and Validation                            |
 
@@ -78,7 +79,7 @@ counter: true
 | Figure 5   | generated_text_suggestions |
 | Figure 6   | plagarism_check            |
 
-This document is intended to provide an overview of the testing that performed throughout the development of the project `tinymorph`, including the obtained results and the relevant discussions. The tests are under the guidance from [[VnVPlan/VnVPlan|VnVplan]].
+This document is intended to provide an overview of the testing that performed throughout the development of the project `morph`, including the obtained results and the relevant discussions. The tests are under the guidance from [[VnVPlan/VnVPlan|VnVplan]].
 
 ## Functional Requirements Evaluation
 
@@ -193,7 +194,7 @@ This test case verifies that the system allows users to switch from the default 
 
 ##### **Predefined UI/UX Checklist:**
 
-10 engineers and UI/UX experts reviewed and followed the criteria below, ensuring a thorough evaluation of `tinymorph` interface:
+10 engineers and UI/UX experts reviewed and followed the criteria below, ensuring a thorough evaluation of `morph` interface:
 
 | **Criterion**              | **Assessment Goal**                                                                 | **Pass/Fail**                                    |
 | -------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------ |
@@ -264,7 +265,7 @@ The team ran manual contrast checks using a WCAG compliance tool to ensure acces
 
 #### **Evaluation of Test-10**
 
-Three users were assigned a creative writing task that required structuring ideas using tinymorph's planning interface. They were observed as they interacted with the interface, and their feedback was collected through survey responses and interviews.
+Three users were assigned a creative writing task that required structuring ideas using morph's planning interface. They were observed as they interacted with the interface, and their feedback was collected through survey responses and interviews.
 
 ##### **Predefined Usability Checklist:**
 
@@ -306,7 +307,7 @@ Participants then answer the ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]
 
 ##### **Testing Setup:**
 
-Three new users with no prior experience with `tinymorph` were given access to the application without instructions. Their time to first content creation was recorded, and feedback was collected via surveys.
+Three new users with no prior experience with `morph` were given access to the application without instructions. Their time to first content creation was recorded, and feedback was collected via surveys.
 
 ##### **Onboarding Time Results:**
 
@@ -351,7 +352,7 @@ Participants then answer the ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]
 
 ##### **Testing Setup:**
 
-The team conducted a manual keyboard accessibility test on the tinymorph editor to assess whether all interactive components could be accessed and used without a mouse. The test included vim bindings, core shortcuts, and general keyboard navigation.
+The team conducted a manual keyboard accessibility test on the morph editor to assess whether all interactive components could be accessed and used without a mouse. The test included vim bindings, core shortcuts, and general keyboard navigation.
 
 ##### **Keyboard Navigation Test Results:**
 
@@ -654,7 +655,7 @@ Automated scripts verified JWT-based session security, ensuring tokens were secu
 
 #### **Security Audit & Maintenance Review**
 
-To ensure `tinymorph` remains secure and updated, a security audit was conducted using `pnpm audit`. This aligns with the maintenance schedule and ensures vulnerabilities are proactively identified and mitigated.
+To ensure `morph` remains secure and updated, a security audit was conducted using `pnpm audit`. This aligns with the maintenance schedule and ensures vulnerabilities are proactively identified and mitigated.
 
 **Audit Results Summary:**
 
@@ -712,17 +713,17 @@ The system generated multiple suggestions, all of which were reviewed for copyri
 
 ## Comparison to Existing Implementation
 
-This section provides some comparisions between the two existing solutions and the current implementation of project `tinymorph`, focusing on funtionality and usability.
+This section provides some comparisions between the two existing solutions and the current implementation of project `morph`, focusing on funtionality and usability.
 
 First solution: OpenAI's Chatgpt
 
-- Functionality: have good performance on prompt-based conversation. Canvas feature make it easier for editing but project `tinymorph` provides suggestions as appliable notes to do selective modification on the content.
-- Usability: the UI from OpenAI's Chatgpt's UI is imformative and organised to support conversation interface, and `tinymorph` put an emphasis on text-editor tailored interface to better support writing purpose
+- Functionality: have good performance on prompt-based conversation. Canvas feature make it easier for editing but project `morph` provides suggestions as appliable notes to do selective modification on the content.
+- Usability: the UI from OpenAI's Chatgpt's UI is imformative and organised to support conversation interface, and `morph` put an emphasis on text-editor tailored interface to better support writing purpose
 
 Second solution: prowritingaid
 
-- Functionality: prowritingaid provides suggestions based on the text input for user as reference to make improvement, but `tinymorph` provides direct modification to the text content.
-- Usability: prowritingaid currently supports more delicate unser interface on webserver compared to `tinymorph` to provide better user experience.
+- Functionality: prowritingaid provides suggestions based on the text input for user as reference to make improvement, but `morph` provides direct modification to the text content.
+- Usability: prowritingaid currently supports more delicate unser interface on webserver compared to `morph` to provide better user experience.
 
 ## Unit Testing
 
@@ -873,22 +874,23 @@ The coverage for `.tsx` files is comparatively lower (average coverage ~86%) due
 
 ## Conclusions
 
-`tinymorph` effectively met most functional, usability, and accessibility requirements, exhibiting strong performance in features such as planning suggestions, personalized style adaptation, tone steering, real-time feedback integration, and theme customization. Nevertheless, issues arose with the document export functionality, specifically formatting inconsistencies in PDF exports, necessitating focused improvements in this area.
+`morph` effectively met most functional, usability, and accessibility requirements, exhibiting strong performance in features such as planning suggestions, personalized style adaptation, tone steering, real-time feedback integration, and theme customization. Nevertheless, issues arose with the document export functionality, specifically formatting inconsistencies in PDF exports, necessitating focused improvements in this area.
 
 Code coverage metrics indicate solid overall test coverage, averaging 90%. Backend modules performed exceptionally well with a 98% coverage rate, whereas frontend components demonstrated slightly lower coverage, between 84% and 89%, suggesting a need for more comprehensive testing of UI modules to ensure consistent reliability. Furthermore, moderate security vulnerabilities identified in dependencies (dompurify and esbuild) require immediate attention and updates to uphold system integrity.
 
 Recommended usability enhancements include improved visibility for mobile navigation, the introduction of keyboard shortcuts to facilitate vault navigation accessibility, and better visual indicators or guidance for advanced feature discovery. Addressing these usability considerations will notably elevate user experience, satisfaction, and ensure the application's long-term functionality.
 
-Overall, the underlying technology of `tinymorph` is robust and scalable, effectively leveraging available hardware resources such as GPUs to support concurrent users. Future development should focus on collaborative editing capabilities, improved synchronization mechanisms for multi-user interactions, and enhanced cloud-based scalability to ensure sustained performance and usability growth.
+Overall, the underlying technology of `morph` is robust and scalable, effectively leveraging available hardware resources such as GPUs to support concurrent users. Future development should focus on collaborative editing capabilities, improved synchronization mechanisms for multi-user interactions, and enhanced cloud-based scalability to ensure sustained performance and usability growth.
 
 ## Appendix
 
 ### Revision
 
-| Date          | Version | Notes              |
-| ------------- | ------- | ------------------ |
-| Sept. 16 2024 | 0.0     | Initial skafolding |
-| Mar. 10 2025  | 0.1     | Rev0               |
+| Date          | Version | Notes                             |
+| ------------- | ------- | --------------------------------- |
+| Sept. 16 2024 | 0.0     | Initial skafolding                |
+| Mar. 10 2025  | 0.1     | Rev0                              |
+| March 31 2025 | 0.2     | Rename to `morph` for consistency |
 
 ### Reflection
 
@@ -909,14 +911,11 @@ The information in this section will be used to evaluate the team members on the
 
 <div class="blob">
 
-1. One of the biggest successes was the structured approach we followed in evaluating both usability and functional requirements. The predefined test cases provided a clear roadmap, making it easier to conduct and document evaluations effectively. The usability tests such as onboarding time and planning interface validation, which offered strong insights into how users interact with `tinymorph`. This allowed us to identify areas for further refinement. Functional tests, including text generation and document export, confirmed that the system met key user expectations. The organized structure of the report also ensured that the verification and validation results were easy to follow.
-   <br/>
+1. One of the biggest successes was the structured approach we followed in evaluating both usability and functional requirements. The predefined test cases provided a clear roadmap, making it easier to conduct and document evaluations effectively. The usability tests such as onboarding time and planning interface validation, which offered strong insights into how users interact with `morph`. This allowed us to identify areas for further refinement. Functional tests, including text generation and document export, confirmed that the system met key user expectations. The organized structure of the report also ensured that the verification and validation results were easy to follow.
 
 2. One of the main challenges was ensuring that all tests were practical and not overly time-consuming. Some tests, especially those related to accessibility and document export took longer than expected due to formatting inconsistencies and edge cases that required additional review. Additionally, ensuring consistency in reporting across different test cases required extra coordination. We resolved this by refining the scope of tests to focus on the most critical aspects and conducting regular team discussions to standardize how results were documented.
-   <br/>
 
 3. The security and performance evaluations were mostly based on predefined system requirements rather than direct client feedback as they involved verifying expected behavior under controlled conditions. However, peer discussions played a role in refining the scope of security testing, particularly regarding access controls and encryption verification. On the other hand, some functional tests such as planning interface validation and feedback integration, were influenced by user feedback, helping us assess usability from a real-world perspective.
-   <br/>
 
 4. The VNV Plan originally included a larger number of test cases, but in practice, we streamlined the scope to focus on the most relevant and impactful evaluations. Some tests such as validating a minimalist design with a monotonic color palette and responsiveness across devices were removed since they overlapped with other usability tests. Accessibility tests were also adapted to be conducted in-house rather than by an external audit team. These modifications allowed us to prioritize key areas without unnecessary duplication. In future projects, anticipating these changes earlier by continuously evaluating test relevance throughout the process would improve efficiency.
 
@@ -934,14 +933,11 @@ The information in this section will be used to evaluate the team members on the
 
 <div class="blob">
 
-1. One of the things that went well in writing this deliverable was the structured approach we took to verifying `tinymorph` usability, accessibility, and design consistency. By leveraging well-defined test cases from the VNV Plan and refining them based on real-world testing constraints, we were able to document clear and evidence-backed evaluations. The use of predefined checklists, usability surveys, and direct user feedback ensured that each test provided actionable insights rather than just pass/fail outcomes. Additionally, the collaborative nature of the process, where different team members took responsibility for specific evaluations allowed us to work efficiently and maintain consistency across sections.
-   <br/>
+1. One of the things that went well in writing this deliverable was the structured approach we took to verifying `morph` usability, accessibility, and design consistency. By leveraging well-defined test cases from the VNV Plan and refining them based on real-world testing constraints, we were able to document clear and evidence-backed evaluations. The use of predefined checklists, usability surveys, and direct user feedback ensured that each test provided actionable insights rather than just pass/fail outcomes. Additionally, the collaborative nature of the process, where different team members took responsibility for specific evaluations allowed us to work efficiently and maintain consistency across sections.
 
 2. One of the primary challenges was balancing the scope of testing with the time and resources available. Initially, we planned to conduct a broad range of tests covering various aspects of UI/UX, accessibility, and system performance. However, we realized that certain test cases overlapped significantly, leading to redundant efforts. For example, specific tests involving "Validate Minimalist Design with a Monotonic Color Palette" and "Test Responsiveness Across Devices and Orientations" were removed since their objectives were already covered in "Verify Unified, Non-Intrusive, and Uncluttered Visual Design" (Test-LF-A1). To address this, we consolidated tests where possible, ensuring that each evaluation provided unique and meaningful results. Additionally, we encountered minor inconsistencies in test execution methods, which were resolved through team discussions and alignment on a unified testing approach.
-   <br/>
 
 3. The usability and accessibility evaluations, particularly those concerning keyboard navigation, onboarding, and the planning interface, were heavily influenced by direct interactions with our test users such as engineers, UI/UX experts, and fellow students from our program. Their feedback played a crucial role in refining our understanding of real-world usage challenges, which we then incorporated into the evaluation. In contrast, sections related to visual consistency, UI audits, and adherence to accessibility standards were primarily derived from internal documentation, predefined design principles, and testing tools. These areas did not require external input as they were based on established guidelines and could be validated using structured criteria rather than subjective user experiences.
-   <br/>
 
 4. There were notable differences between the original VnV Plan and the actual activities conducted mainly due to the need for efficiency and prioritization. Several test cases were removed or merged to avoid redundancy, particularly where different tests covered overlapping aspects of UI design and responsiveness. Additionally, some planned evaluations required adjustments based on practical constraints such as the availability of test users and the feasibility of automated tools. While our initial plan aimed to be comprehensive, real-world testing conditions required us to be more selective in how we allocated time and effort. Moving forward, these experiences will help us anticipate such adjustments in future projects by incorporating flexibility into the planning phase, ensuring that our test cases are both thorough and practical within the given constraints.
 
@@ -980,6 +976,7 @@ The information in this section will be used to evaluate the team members on the
 </div>
 
 <div class="blob">
+
 1. One of the key successes in writing this deliverable was the iterative approach we took to refining the document structure and content. Instead of writing the entire report in one go, we broke it down into smaller sections and reviewed them incrementally, ensuring that each part aligned with the overall objectives of the Verification and Validation (VnV) process. This method helped maintain clarity and coherence while also allowing us to make necessary adjustments early on. Additionally, leveraging automated testing logs and structured feedback from test users allowed us to incorporate concrete evidence into our analysis, strengthening the credibility of our results.
 
 2. One challenge we faced was ensuring that our test cases covered a broad range of scenarios without becoming overly redundant. Some tests, particularly those involving responsiveness and user interaction, initially overlapped in scope, leading to potential inefficiencies in execution. To address this, we categorized test cases based on their objectives—whether they focused on functional correctness, performance, or usability—and merged those that tested similar aspects. Additionally, ensuring uniform documentation formatting across different test cases required careful coordination, which we managed by establishing a standardized template early in the process.
@@ -987,9 +984,6 @@ The information in this section will be used to evaluate the team members on the
 3. The non-founctional requirement relevant testing and following adjustment are largely based on the feedback from clients, for the goal that to make this project better fit into the user expectation with high usability. The unit testing is mainly constructed based the the group members' ideas due to the expertise and knowledge gap between the project developer and user.
 
 4. There are a lot of the testcase deletion and modification haapened comparing to the original VnV plan, together with some more detailed and specific testing improvements due to the better understanding to the project along with the development procedure. The testcases after modification better fit into the purpose of verification and support the testing responsibility.
-
-<p>
-</p>
 
 </div>
 
