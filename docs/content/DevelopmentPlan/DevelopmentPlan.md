@@ -149,27 +149,33 @@ See also [[Scratch|brain dump]] for more detailed features development.
 
 ## Proof of Concept Demonstration Plan
 
-The following entails POC plan for `tinymorph` incoming November deadline:
+The following outlines the proof-of-concept (POC) plan for `tinymorph` leading up to the November deadline:
 
-- functional web-based text-editor, including feature tuning,
-- Uses [Gemma 2](https://ai.google.dev/gemma?authuser=2) with pretrained [[glossary#sparse autoencoders|SAEs]] (see [GemmaScope](https://ai.google.dev/gemma/docs/gemma_scope)) for initial proof-of-concept steering.
-- start training SAEs for Llama 3.1
-- Running a OpenAI-compatible API inference server (remotely first, on BentoCloud).
-- Vim-mode
+- A functional web-based text editor with initial support for feature steering and interactive suggestions  
+- Use of [Gemma 2](https://ai.google.dev/gemma?authuser=2) with pretrained [[glossary#sparse autoencoders|SAEs]] (see [GemmaScope](https://ai.google.dev/gemma/docs/gemma_scope)) to demonstrate early feature-steering capabilities  
+- Begin training custom SAEs for `Llama 3.1` to support future expansion  
+- Run an OpenAI-compatible inference API server, hosted remotely on BentoCloud  
+- Introduce optional Vim-mode for advanced users familiar with modal editing
 
-Certain risks that may arise during the POC include:
+### Risks and Challenges
 
-- degradation of the generation quality due to incorrect feature steering.
-- performance rendering with inlay within text buffers
-- Modal editing won't work.
-- e2e testing would be a hassle, given there are multiple components for tinymorph.
-- Cold start for inference server.
-- Mismanaging KV cache from vLLM internal block manager given that we are modifying attention activation directly.
+The following risks may impact the success or performance of the POC:
 
-To adverse given risks, the following will be implemented:
+- Degradation in generation quality if feature steering is poorly configured, resulting in irrelevant or incoherent suggestions  
+- Performance issues when rendering live inlays directly in the text editor, potentially affecting responsiveness  
+- Incomplete or non-functional modal editing (Vim-mode) by the POC deadline  
+- Complexity of full-system (end-to-end) testing, due to the multiple moving parts in `tinymorph` (frontend, backend, and model control logic)  
+- Slow initial response from the model server (cold starts), especially in remote deployment  
+- Instability from mismanaging KV cache within the `vLLM` block manager when modifying attention activations directly
 
-- Propose a low-fidelty prototype, followed by a design iteration for specific UX consideration.
-- Trained a small sets of [[glossary#low-rank adapters|LoRA]] as backup to merge with Llama 3.1 on inference server, given that LoRA has been hardened by industry practice.
+### Mitigation Strategies
+
+To reduce the impact of the above risks, we plan to:
+
+- Propose and test a low-fidelity prototype early, followed by iterative design improvements to address usability issues  
+- Focus UX efforts on refining critical interactions to ensure stability during the POC demo  
+- Train a small set of [[glossary#low-rank adapters|LoRA]] as a fallback to merge with `Llama 3.1`, using methods proven in industry for reliability  
+- Delay low-level memory tuning until a stable version of the model is running, to avoid interrupting key demo features
 
 ## Expected Technology
 
