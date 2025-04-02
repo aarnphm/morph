@@ -36,10 +36,8 @@ Outputs from `tinymorph`:
 
 ## Stakeholders
 
-`tinymorph` main stakeholders include writers, and engineers whose write. `tinymorph` seeks to help writers to be more
-productive in their writing, getting over their creative block. Additionally, `tinymorph` also aims to encourage
-engineers who write to be more creative and structure with their writing, while stay true to their tone. Writing, at
-the end of the day, are very personal, which means a tool should not dictate how one should write.
+The main stakeholders of `tinymorph` include writers and engineers who write. The tool seeks to help writers become more productive and overcome creative blocks. It also aims to encourage engineers who write to be more creative and structured in their writing, while staying true to their tone. Writing at the end of the day is very personal, which means a tool should not dictate how one should write.
+
 
 ## Environment
 
@@ -49,17 +47,40 @@ The environment supports modular experimentation with text generation features, 
 
 ## Goals
 
-- A [_file-over-app_](https://stephango.com/file-over-app) web-based text editor.
-- User feedback-loop for steering through planning.
-- Efficient activation caching for feature steering.
-- Functional SAEs for guided steering.
-- OpenAI-compatible API for LLM server.
+Tinymorph aims to deliver a web-based text editor that is intuitive, responsive, and grounded in cognitive support for writers. The following goals guide its design and development:
+
+- **[_File-over-app_](https://stephango.com/file-over-app) editing experience**  
+  Prioritizes simplicity and portability by enabling users to treat writing sessions as files rather than bound app sessions, lowering barriers to entry and promoting ease of use.
+
+- **Integrated feedback loop for user-guided planning**  
+  Enables writers to iteratively steer text generation based on evolving goals, helping users overcome writer’s block and stay aligned with their intent throughout the process.
+
+- **Efficient activation caching for responsive feature steering**  
+  Supports real-time responsiveness during editing by reducing unnecessary recomputation, making interaction smooth even during experimentation.
+
+- **Functional SAE (Steered Activation Editing) mechanisms**  
+  Allows users to guide model behavior at a granular level, introducing a new paradigm for interacting with LLMs beyond prompt engineering.
+
+- **OpenAI-compatible API for LLM server integration**  
+  Ensures flexibility in deployment, allowing users to plug in external or local models while maintaining compatibility with known standards.
+
+- **User-centered interface design**  
+  Focuses on clarity, minimalism, and non-intrusiveness to reduce cognitive load and support diverse writing workflows without distractions.
+
+- **Accessibility and cross-platform usability**  
+  Aims for wide accessibility across modern browsers and operating systems, including low-bandwidth or offline scenarios.
+
 
 ## Stretch Goals
 
-- local inference.
-- integrations with different device forms (tablets, e-readers).
-- Cross-platform GUI.
+- **Local inference support**  
+  Gives users full control over their data and usage by running models locally, enhancing privacy and autonomy.
+
+- **Device flexibility (tablets, e-readers, etc.)**  
+  Expands usability across form factors, enabling casual and on-the-go writing experiences.
+
+- **Personalized model behavior via user-tuned settings**  
+  Allows users to adjust generation behavior through persistent style and tone preferences, offering a more tailored and consistent writing experience over time.
 
 ## Challenge Level and Extras
 
