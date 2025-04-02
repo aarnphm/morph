@@ -394,20 +394,30 @@ export default memo(function SteeringPanel({ className }: { className?: string }
 
   return (
     <div className={cn("absolute right-4 top-1/2 z-50", className)}>
+      <VaultButton
+        onClick={handleButtonOnClick}
+        size="small"
+        color="yellow"
+        title="Interpreter Settings"
+      >
+        <MixerHorizontalIcon className="h-3 w-3" />
+      </VaultButton>
+
       <AnimatePresence mode="wait">
-        {isExpanded ? (
+        {isExpanded && (
           <motion.div
             key="expanded-panel"
-            initial={{ opacity: 0, y: -20, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: "auto" }}
-            exit={{ opacity: 0, y: -20, height: 0 }}
-            className="w-52 lg:w-72 rounded-lg border border-border bg-background/95 p-4 shadow-lg backdrop-blur-sm -translate-y-1/2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="absolute top-0 right-8 w-52 lg:w-72 rounded-lg border border-border bg-background p-4 shadow-lg -translate-y-1/2"
           >
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
               <h2 className="text-base font-semibold">Interpreter</h2>
               <button
                 onClick={() => setIsExpanded(false)}
-                className="flex items-center justify-end h-6 w-6"
+                className="flex items-center justify-center h-5 w-5"
               >
                 <Cross2Icon className="h-3 w-3" />
               </button>
@@ -442,16 +452,6 @@ export default memo(function SteeringPanel({ className }: { className?: string }
               </div>
             </div>
           </motion.div>
-        ) : (
-          <VaultButton
-            key="collapsed-button"
-            onClick={handleButtonOnClick}
-            size="small"
-            color="yellow"
-            title="Steering"
-          >
-            <MixerHorizontalIcon className="h-3 w-3" />
-          </VaultButton>
         )}
       </AnimatePresence>
     </div>

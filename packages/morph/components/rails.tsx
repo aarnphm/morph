@@ -6,6 +6,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   CrumpledPaperIcon,
+  KeyboardIcon, Cross2Icon,
   LayoutIcon,
   PinLeftIcon,
   PinRightIcon,
@@ -14,7 +15,7 @@ import {
 import { AnimatePresence, motion } from "motion/react"
 import { useRouter } from "next/navigation"
 import * as React from "react"
-import { memo, useCallback, useMemo, useState } from "react"
+import { memo, useCallback, useMemo, useState, useEffect } from "react"
 
 import { setFile } from "@/components/markdown-inline"
 import { VaultButton } from "@/components/ui/button"
@@ -33,6 +34,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useToast } from "@/hooks/use-toast"
 
 import { FileSystemTreeNode, Vault } from "@/db/interfaces"
+import usePersistedSettings from "@/hooks/use-persisted-settings"
 
 interface FileTreeNodeProps {
   node: FileSystemTreeNode
@@ -138,6 +140,33 @@ export default memo(function Rails({
   const { toggleSidebar, state } = useSidebar()
   const isExpanded = state === "expanded"
   const router = useRouter()
+  const { settings } = usePersistedSettings()
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
+
+  // Helper to display the correct modifier key based on platform
+  const modifierKey = useMemo(() => {
+    if (typeof navigator !== "undefined") {
+      return /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform) ? "⌘" : "Ctrl"
+    }
+    return "⌘/Ctrl"
+  }, [])
+
+  const toggleKeyboardShortcuts = useCallback(() => {
+    // Only allow toggling when the sidebar is expanded
+    if (isExpanded) {
+      setShowKeyboardShortcuts(prev => !prev)
+    } else {
+      // If sidebar is collapsed, just expand it
+      toggleSidebar()
+    }
+  }, [isExpanded, toggleSidebar])
+
+  // Close keyboard shortcuts panel when sidebar is collapsed
+  useEffect(() => {
+    if (!isExpanded && showKeyboardShortcuts) {
+      setShowKeyboardShortcuts(false)
+    }
+  }, [isExpanded, showKeyboardShortcuts])
 
   const onManageVault = useCallback(() => {
     setTimeout(() => {
@@ -388,6 +417,102 @@ export default memo(function Rails({
                       </SidebarGroupContent>
                     </SidebarGroup>
                   </SidebarContent>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Sidebar Footer with Keyboard Shortcuts */}
+          <div className="mt-auto w-full px-2 relative">
+            <div className="relative group mb-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <VaultButton
+                    color="none"
+                    className={cn(
+                      "group w-full text-sm rounded-lg transition ease-in-out active:!scale-100 whitespace-nowrap",
+                      "flex !justify-start !min-w-0 px-4 py-2 h-9",
+                      "hover:bg-purple-100/20 active:!bg-purple-200/30",
+                    )}
+                    onClick={toggleKeyboardShortcuts}
+                    title="Keyboard Shortcuts"
+                  >
+                    <div className="-mx-2 flex flex-row items-center gap-3 text-purple-600">
+                      <div className="size-4 flex items-center justify-center">
+                        <div className="p-1.5 group-active:!scale-[0.98] group-active:!shadow-none group-hover:-rotate-2 group-active:rotate-3 rounded-full transition-all ease-in-out bg-purple-100 group-hover:shadow-md">
+                          <KeyboardIcon className="h-3 w-3 shrink-0" />
+                        </div>
+                      </div>
+                      <motion.span
+                        className="text-sm whitespace-nowrap mask-image-text overflow-hidden"
+                        initial={false}
+                        animate={{
+                          opacity: isExpanded ? 1 : 0,
+                        }}
+                        transition={{
+                          opacity: { duration: 0.2 },
+                          width: {
+                            type: "spring",
+                            stiffness: 300,
+                            damping: 30,
+                          },
+                        }}
+                      >
+                        Keyboard
+                      </motion.span>
+                    </div>
+                  </VaultButton>
+                </TooltipTrigger>
+                <TooltipContent side="right" hidden={isExpanded}>
+                  Keyboard Shortcuts
+                </TooltipContent>
+              </Tooltip>
+            </div>
+
+            <AnimatePresence>
+              {showKeyboardShortcuts && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className={cn(
+                    "absolute w-52 bg-background rounded-lg border border-border p-4 shadow-lg z-50",
+                    isExpanded ? "right-4 bottom-12" : "left-12 bottom-0"
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
+                    <h2 className="text-sm font-semibold">Keyboard Shortcuts</h2>
+                    <button
+                      onClick={toggleKeyboardShortcuts}
+                      className="flex items-center justify-center h-5 w-5"
+                    >
+                      <Cross2Icon className="h-3 w-3" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span>{modifierKey} + {settings.toggleNotes}</span>
+                      <span className="text-muted-foreground">Toggle notes</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>{modifierKey} + {settings.toggleEditMode}</span>
+                      <span className="text-muted-foreground">Toggle preview</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>{modifierKey} + s</span>
+                      <span className="text-muted-foreground">Save</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>{modifierKey} + k</span>
+                      <span className="text-muted-foreground">Search</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>{modifierKey} + b</span>
+                      <span className="text-muted-foreground">Sidebar</span>
+                    </div>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

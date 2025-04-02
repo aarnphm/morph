@@ -235,7 +235,7 @@ export const ReasoningPanel = memo(function ReasoningPanel({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
             className={cn(
               "whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72 transition-colors duration-200 will-change-transform",
               "text-xs text-muted-foreground",
@@ -246,7 +246,7 @@ export const ReasoningPanel = memo(function ReasoningPanel({
               <motion.span
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.3, repeat: Infinity, repeatType: "reverse" }}
+                transition={{ duration: 0.5, repeat: Infinity, repeatType: "reverse" }}
               >
                 █
               </motion.span>
