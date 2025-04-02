@@ -4,6 +4,7 @@ tags:
   - meta
 author: aarnphm
 date: "2024-09-16"
+modified: 2025-03-31 14:56:17 GMT-04:00
 title: Problem Statement and Goals
 titleTransclude: false
 ---
@@ -50,7 +51,7 @@ For writers, the hardest part of writing or getting over writers block usually r
 their thoughts onto papers. This requires a step beyond pure conversation partners, an interface that induces both
 planning and modelling of ideas.
 
-Given these challenges, `tinymorph` doesn't seek to be a mere tools for rewriting text. `tinymorph` aims to explore
+Given these challenges, `morph` doesn't seek to be a mere tools for rewriting text. `morph` aims to explore
 alternative interfaces for text generations models to extend our cognitive abilities. This means developing spatial and visual
 interfaces that allow for non-linear exploration of information and ideas, through writing.
 
@@ -64,7 +65,7 @@ Inputs from users' perspective:
 4. Context of the topic as well as desired goals.
 5. Optionally a personalized system prompt to setup the model.
 
-Outputs from `tinymorph`:
+Outputs from `morph`:
 
 1. A text-based [[glossary#inlay hints]] suggestions from models
 2. left-to-right (LTR) sequential panel to get users feedback on [[glossary#manual steering]]
@@ -73,27 +74,27 @@ Outputs from `tinymorph`:
 
 ## Stakeholders
 
-`tinymorph` main stakeholders include writers, and engineers whose write. `tinymorph` seeks to help writers to be more
-productive in their writing, getting over their creative block. Additionally, `tinymorph` also aims to encourage
+`morph` main stakeholders include writers, and engineers whose write. `morph` seeks to help writers to be more
+productive in their writing, getting over their creative block. Additionally, `morph` also aims to encourage
 engineers who write to be more creative and structure with their writing, while stay true to their tone. Writing, at
 the end of the day, are very personal, which means a tool should not dictate how one should write.
 
 ## Environment
 
-The following encapsulates both hardware and software environment for `tinymorph`:
+The following encapsulates both hardware and software environment for `morph`:
 
 ### hardware.
 
 - For local [[glossary#inference]], GPUs will be preferred for faster [[glossary#time-to-first-tokens]] over CPUs.
 - For users' own hosted inference server, it will requires to have internet connection for running inference.
-- `tinymorph` is a text editor, therefore it would be able to run on any modern computer regardless of operating system.
+- `morph` is a text editor, therefore it would be able to run on any modern computer regardless of operating system.
 
 ### software.
 
 - Cross-platform support
 - A series of [[glossary#sparse autoencoders|SAEs]] will be trained and used for feature steering.
 - Support for offline inference (users can run LLMs locally).
-- Minimal dependencies with intuitive UIs to demonstrate `tinymorph`'s capabilities.
+- Minimal dependencies with intuitive UIs to demonstrate `morph`'s capabilities.
 
 ## Goals
 
@@ -111,7 +112,7 @@ The following encapsulates both hardware and software environment for `tinymorph
 
 ## Challenge Level and Extras
 
-Challenge level for `tinymorph` is advanced, since the project is exploring what is possible to build AI-native
+Challenge level for `morph` is advanced, since the project is exploring what is possible to build AI-native
 interfaces. It involves the field of [[glossary#mechanistic interpretability]], which is a relatively new field in alignment
 research that involves a lot of domain knowledge into the inner working of transformers circuits.
 
@@ -119,7 +120,7 @@ Extras that we wish to pursue: Design Thinking, Research.
 
 Reasoning:
 
-1. Design Thinking: `tinymorph` will explore new interactions for writing, which means design thinking is required for
+1. Design Thinking: `morph` will explore new interactions for writing, which means design thinking is required for
    us to prototype on ideas.
 2. Research: The field of mechanistic interpretability is considered relatively new, in which there are exciting
    research happening. We will explore this to understand how we can utilise manual editing activations rather than driving the model through a system prompt.
@@ -167,6 +168,7 @@ do (which is mechanistic interpretability).
 | Sept. 16 2024 | 0.0      | Initial skafolding                            |
 | Sept. 19 2024 | 0.1      | Problem Statement definitions                 |
 | Oct. 5 2024   | 0.2      | Update problem statement, adjust stakeholders |
+| March 31 2025 | 0.3      | Renaming project for consistency              |
 
 [^1]:
     Historically, the seminar work from Alan Turing laid the foundation for exploring the possibilities of a thinking machine [@10.1093/mind/LIX.236.433].

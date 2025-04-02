@@ -8,7 +8,7 @@ tags:
 author: aarnphm
 comments: false
 date: "2024-09-18"
-modified: 2024-12-23 16:09:16 GMT-05:00
+modified: 2025-03-31 14:45:51 GMT-04:00
 title: Scratchpad
 ---
 
@@ -27,7 +27,7 @@ design UI: everyone P0 (time to do this)
 - training: (research) (quality testing) <- @aarnphm[^3]
 - inference: (infrastructure) (A/B testing, regression testing) @waleed
 
-  - OpenAI-compatible API server: [functional](https://github.com/aarnphm/tinymorph/tree/main/python/asteraceae)
+  - OpenAI-compatible API server: [functional](https://github.com/aarnphm/morph/tree/main/python/asteraceae)
   - Edit logits for inference server (vllm, llama-cpp)
   - local inference
   - UX: TTFT (time to first tokens)
@@ -46,10 +46,6 @@ https://x.com/thesephist/status/1793033871606382748
 Inline-definition
 
 https://x.com/JohnPhamous/status/1841527353270476808
-
-Storage (local):
-
-- `XDG_DATA_HOME/tinymorph` for configuration, state, db
 
 accesibility:
 

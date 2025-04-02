@@ -3,24 +3,41 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: pnpm-lock.yaml
+        exclude: (pnpm-lock.yaml|emojimap.json|generated/)
       - id: end-of-file-fixer
-        exclude: pnpm-lock.yaml
+        exclude: (pnpm-lock.yaml|emojimap.json|generated/)
       - id: check-yaml
-        exclude: pnpm-lock.yaml
+        exclude: (pnpm-lock.yaml)
       - id: check-added-large-files
-        exclude: pnpm-lock.yaml
+        exclude: (pnpm-lock.yaml|emojimap.json|migrations/)
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.2
     hooks:
       - id: ruff
-        args: [--fix, --config=pyproject.toml]
+        args:
+          [--fix, --exit-non-zero-on-fix, --show-fixes, --config=pyproject.toml]
         files: ^python/
       - id: ruff-format
         args: [--config=pyproject.toml]
         files: ^python/
   - repo: local
     hooks:
+      - id: prettier
+        name: Prettier
+        entry: pnpm run -w morph:format
+        language: system
+        pass_filenames: false
+        files: ^packages/morph/
+        types: [file, javascript, jsx, ts, tsx, json, css, markdown, yaml]
+        verbose: true
+      - id: eslint
+        name: ESLint
+        entry: pnpm run -w morph:lint
+        language: system
+        pass_filenames: false
+        files: ^packages/morph/
+        types: [file, javascript, jsx, ts, tsx]
+        verbose: true
       - id: bentoml
         name: BentoML build
         entry: pnpm run -w morph:inference:build

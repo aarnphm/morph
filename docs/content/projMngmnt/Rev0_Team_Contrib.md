@@ -4,6 +4,7 @@ tags:
   - management
 author: waleedmalik7
 date: "2025-01-29"
+modified: 2025-03-31 14:48:03 GMT-04:00
 title: "Team Contributions: Rev 0"
 ---
 
@@ -11,7 +12,7 @@ This document summarizes the contributions of each team member for the Rev 0 Dem
 
 ## Demo Plans
 
-We will be demonstrating the Frontend and Backend implementation of tinymorph, showcasing how the text editor and inference model work together. The demo will highlight how the text editor interacts with the inference model to generate sticky notes containing relevant text suggestions, which can be dragged and dropped into the editor to seamlessly continue the user's writing. While integration is ongoing, we will present both components separately and provide a preview of their combined functionality. By the final demonstration, we aim to have a fully functional system with real-time text generation and interactive writing assistance.
+We will be demonstrating the Frontend and Backend implementation of morph, showcasing how the text editor and inference model work together. The demo will highlight how the text editor interacts with the inference model to generate sticky notes containing relevant text suggestions, which can be dragged and dropped into the editor to seamlessly continue the user's writing. While integration is ongoing, we will present both components separately and provide a preview of their combined functionality. By the final demonstration, we aim to have a fully functional system with real-time text generation and interactive writing assistance.
 
 ## Team Meeting Attendance
 
@@ -94,7 +95,7 @@ For each team member how many issues have they authored (including open and clos
 
 The table records the commits initiated by each seperate team member. Aaron as team leader co-authors **most** group member's commits to make improvements and help to merge to the main branch, along with other commits for independent contributions of document and coding changes. For other group members, there is basically one or two commits for every document deliverable, containing more sub-patches of modification within a single commit with peer-review and modification. Furthermore, Zhiwei and Waleed did alot of the Design Documentation (MG and MIS) while Aaron and Nebras worked on starting the demo development.
 
-## CICD
+## CI/CD
 
-Our CI/CD pipeline for tinymorph is currently focused on the frontend, ensuring that the project builds successfully before deployment using Cloudflare Wrangler. Every push or pull request triggers an automated build validation to confirm the frontend compiles without errors, while Cloudflare Workers handle seamless deployment. As we continue development, we are actively working on integrating inference model testing and deployment into the pipeline. This will include automated model validation, API performance tracking, and Docker-based deployments, ensuring stable and efficient text generation alongside the frontend. These improvements will enhance system reliability and scalability, allowing for a more robust and automated development process.
+Our CI/CD pipeline for morph is currently focused on the frontend, ensuring that the project builds successfully before deployment using Cloudflare Wrangler. Every push or pull request triggers an automated build validation to confirm the frontend compiles without errors, while Cloudflare Workers handle seamless deployment. As we continue development, we are actively working on integrating inference model testing and deployment into the pipeline. This will include automated model validation, API performance tracking, and Docker-based deployments, ensuring stable and efficient text generation alongside the frontend. These improvements will enhance system reliability and scalability, allowing for a more robust and automated development process.
 If your team has additional metrics of productivity, please feel free to add them to this report.

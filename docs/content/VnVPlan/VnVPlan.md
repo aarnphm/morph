@@ -3,14 +3,15 @@ id: VnVPlan
 tags:
   - meta
 author: aarnphm,waleedmalik7,nebrask,lucas-lizhiwei
-date: "2024-09-16"
-title: System Verification and Validation Plan
 counter: true
+date: "2024-09-16"
+modified: 2025-03-31 14:55:21 GMT-04:00
+title: System Verification and Validation Plan
 ---
 
 ## Introduction
 
-This document outlines the comprehensive testing strategy for `tinymorph`, a web-based text editor that explores new interfaces for machine-assisted creative writing. The plan ensures that tinymorph meets its primary objectives: providing spatial interfaces for non-linear exploration of writing, implementing efficient feature steering through sparse autoencoders (SAEs), and maintaining a file-over-app philosophy that preserves user agency.
+This document outlines the comprehensive testing strategy for `morph`, a web-based text editor that explores new interfaces for machine-assisted creative writing. The plan ensures that morph meets its primary objectives: providing spatial interfaces for non-linear exploration of writing, implementing efficient feature steering through sparse autoencoders (SAEs), and maintaining a file-over-app philosophy that preserves user agency.
 The V&V activities described in this document cover both the web-based editor (morph) and the ML inference server (asteraceae). Key areas of validation include:
 
 - Verification of the planning interface and suggestion generation capabilities
@@ -41,7 +42,7 @@ Additionally the following abbreviations will be used:
 ### Purpose
 
 V&V Plan outlines the testing, validation and verification procedures that are to be implemented
-`tinymorph`.
+`morph`.
 
 > [!important] revisions
 >
@@ -49,7 +50,7 @@ V&V Plan outlines the testing, validation and verification procedures that are t
 
 ### Scope
 
-The following entails the scope of the V&V plan for `tinymorph`:
+The following entails the scope of the V&V plan for `morph`:
 
 #### In scope V&V Objectives
 
@@ -374,7 +375,7 @@ Final presentation is also expected to be a part of verification of usability, a
 
 The following include tools and automated tests that will be used for the verification of the system.
 
-The automated testing strategy for `tinymorph` is divided into two main components: the web-based editor (`morph`) and the ML inference server (`asteraceae`). Each component has specific tooling requirements and testing frameworks to ensure comprehensive coverage.
+The automated testing strategy for `morph` is divided into two main components: the web-based editor (`morph`) and the ML inference server (`asteraceae`). Each component has specific tooling requirements and testing frameworks to ensure comprehensive coverage.
 
 #### `morph`
 
@@ -481,7 +482,7 @@ flowchart TD
 
 ### Software Validation Plan
 
-The software validation process ensures that `tinymorph` meets user requirements and functions effectively in its intended environment. This plan outlines the systematic approach to validating the system through user testing, performance analysis, and functionality verification.
+The software validation process ensures that `morph` meets user requirements and functions effectively in its intended environment. This plan outlines the systematic approach to validating the system through user testing, performance analysis, and functionality verification.
 
 #### Validation Approach
 
@@ -576,7 +577,7 @@ The software validation process ensures that `tinymorph` meets user requirements
 | Medium   | 24 hours      | 72 hours        | Developer → Technical lead         |
 | Low      | 48 hours      | 1 week          | Developer → Issue tracking         |
 
-This validation plan ensures that `tinymorph` meets its intended purpose of providing an effective, user-friendly environment for creative writing while maintaining high standards for performance and reliability. The plan will be reviewed and updated based on findings throughout the validation process.
+This validation plan ensures that `morph` meets its intended purpose of providing an effective, user-friendly environment for creative writing while maintaining high standards for performance and reliability. The plan will be reviewed and updated based on findings throughout the validation process.
 
 ## System Tests
 
@@ -585,7 +586,7 @@ meets user expectations and perform reliably.
 
 ### Tests for Functional Requirements
 
-This section outlines test cases for verifying the core functional requirements of tinymorph as specified in the SRS. The tests are organized by major feature areas, with each test designed to validate specific user interactions and system behaviors.
+This section outlines test cases for verifying the core functional requirements of morph as specified in the SRS. The tests are organized by major feature areas, with each test designed to validate specific user interactions and system behaviors.
 
 #### Planning and Suggestion Features
 
@@ -801,7 +802,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 **Test-LF-A1**
 
 - **Type**: Structural, Static, Manual
-- **Initial State**: The fully developed `tinymorph` application is accessible on various devices.
+- **Initial State**: The fully developed `morph` application is accessible on various devices.
 - **Input/Condition**: Access the application UI on different devices and screen sizes.
 - **Output/Result**: Confirmation that the UI is unified, non-intrusive, and uncluttered across all interfaces.
 - **How test will be performed**: Conduct a design review by assembling a team of UI/UX experts who will use a predefined checklist based on design guidelines. Usability testing will be conducted with 10 target users representing primary user personas, followed by survey feedback analysis ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]).
@@ -826,7 +827,6 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Output/Result**: Users can effectively organize and debug their writing using the interface.
 - **How test will be performed**: Provide users with a writing task that requires planning. Observe their navigation and utilization of features. Collect feedback on effectiveness and usability through surveys and interviews ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]).
 
-
 #### Measure Onboarding Time for New Users
 
 **Test-UH-L1**
@@ -835,7 +835,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Initial State**: The application is ready for first-time use.
 - **Input/Condition**: Provide new users with access to the application without prior instruction.
 - **Output/Result**: Users begin creating or editing content within 10 minutes.
-- **How test will be performed**: Recruit participants unfamiliar with `tinymorph`. Time their process from start to content creation. Note obstacles and gather onboarding feedback. This will then be followed by survey feedback analysis ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]).
+- **How test will be performed**: Recruit participants unfamiliar with `morph`. Time their process from start to content creation. Note obstacles and gather onboarding feedback. This will then be followed by survey feedback analysis ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]).
 
 #### Verify Keyboard Navigation Accessibility
 
@@ -954,6 +954,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Output/Result**: Application functions correctly with different models.
 - **How test will be performed**: Automated integration scripts will replace the existing language model with alternative models like Llama 3 and Gemma 2. The full suite of regression tests will be run automatically to ensure that all features operate as expected. Compatibility issues will be identified and addressed, with documentation updated accordingly.
 -->
+
 ### Security
 
 #### Ensure HTTPS Encryption for All Communications
@@ -1020,91 +1021,90 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Output/Result**: No generated content violates Canadian copyright laws.
 - **How test will be performed**: Automated plagiarism detection tools like Quetext will be used to analyze writing suggestions and compare them against existing works to detect potential copyright infringements. The system will be tested with various inputs to ensure that suggestions do not unintentionally reproduce copyrighted phrases or unique expressions from well-known literary works. For example, if a user writes a sentence similar to a passage from a published work such as:
 
-   > *"Someone left this for you," she says, then turns to the next customer.*
+  > _"Someone left this for you," she says, then turns to the next customer._
 
-   The system should not suggest completing or modifying it in a way
-   that reproduces protected content. All findings will be documented, and suggestion filtering mechanisms will be adjusted if necessary to ensure compliance with Canadian copyright laws.
-
+  The system should not suggest completing or modifying it in a way
+  that reproduces protected content. All findings will be documented, and suggestion filtering mechanisms will be adjusted if necessary to ensure compliance with Canadian copyright laws.
 
 ### Traceability Between Test Cases and Requirements
 
-| **Requirement ID**                                                             | **Requirement Description**                                                                                                                                                      | **Test Case ID(s)**                       |
-| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| [[SRS/SRS#9.1 Functional Requirements\|FR1]]                                   | tinymorph shall provide suggestions during the planning phase of creative writing, offering assistance in structuring ideas, topics, or themes based on user input.              | Test-FR-P1, Test-FR-P2, Test-FR-P3        |
-| [[SRS/SRS#9.1 Functional Requirements\|FR2]]                                   | tinymorph shall provide users with manual control over text generation, enabling them to select advanced steering options such as tone, style, or creativity level.              | Test-FR-S1, Test-FR-S2                    |
-| [[SRS/SRS#9.1 Functional Requirements\|FR3]]                                   | Users shall be able to interact with generated text through a left-to-right (LTR) feedback panel, allowing them to provide real-time feedback on model-generated suggestions.    | Test-FR-F1                                |
-| [[SRS/SRS#9.1 Functional Requirements\|FR4]]                                   | Users shall be able to set preferences for tone, style, voice, and formality, which tinymorph will apply to all future generations of text.                                      | Test-FR-TG1                               |
-| [[SRS/SRS#9.1 Functional Requirements\|FR5]]                                   | Users shall be able to save their preferred configurations as profiles, enabling them to switch between different writing styles or goals.                                       | Test-FR-UP1, Test-FR-UP2                  |
-| [[SRS/SRS#9.1 Functional Requirements\|FR6]]                                   | tinymorph shall allow users to navigate through their text non-linearly by providing a visual map or tree view that displays key points, topics, sections, and revision history. | Test-FR-RM1                               |
-| [[SRS/SRS#9.1 Functional Requirements\|FR8]]                                   | tinymorph shall offer version control features that allow users to navigate through previous edits, revert to earlier document versions, and compare different drafts visually.  | Test-FR-VC1, Test-FR-VC2                  |
-| [[SRS/SRS#9.1 Functional Requirements\|FR11]]                                  | Users shall be able to set and track specific writing goals (e.g., word count, tone consistency, argument development) through customizable progress tracking features.          | Test-FR-PT1, Test-FR-PT2                  |
-| [[SRS/SRS#9.1 Functional Requirements\|FR13]]                                  | tinymorph shall allow users to export their documents in .pdf, .md (Markdown), and plain text formats, ensuring compatibility with external platforms.                           | Test-FR-E1, Test-FR-E2                    |
-| [[SRS/SRS#9.1 Functional Requirements\|FR14]]                                  | tinymorph shall allow users to customize the visual appearance of the editor by choosing from different themes, such as dark mode, light mode, and high-contrast options.        | Test-FR-VT1                               |
-| [[SRS/SRS#10.1 Appearance Requirements\|LF-A1]]                                | tinymorph shall adopt a unified, non-intrusive, and uncluttered visual design.                                                                                                   | Test-LF-A1                                |
-| [[SRS/SRS#10.1 Appearance Requirements\|LF-A2]]                                | tinymorph must implement a consistent design system across all user interfaces, involving standardized typography and color palette.                                             | Test-LF-A2                                |
-| [[SRS/SRS#10.2 Style Requirements\|LF-S1]]                                     | The design of the application will be minimalist, utilizing clean lines and a monotonic color palette.                                                                           | Test-LF-S1                                |
-| [[SRS/SRS#10.2 Style Requirements\|LF-S2]]                                     | The application must be responsive, adapting seamlessly to various device screens and orientations.                                                                              | Test-LF-S2                                |
-| [[SRS/SRS#10.2 Style Requirements\|LF-S3]]                                     | Interactive elements such as buttons and links must contrast significantly with the background to ensure visibility and accessibility.                                           | Test-LF-S3                                |
-| [[SRS/SRS#10.2 Style Requirements\|LF-S4]]                                     | The user interface should enable smooth transitions and intuitive animations across various sections and features.                                                               | Test-LF-S4                                |
-| [[SRS/SRS#10.2 Style Requirements\|LF-S5]]                                     | The application should include visual cues and feedback for user interactions to reinforce usability.                                                                            | Test-LF-S5                                |
-| [[SRS/SRS#11.1 Ease of Use Requirements\|UH-EOU1]]                             | tinymorph shall include a session history feature that records and displays the user’s most recent editing activities such as document accesses and text modifications.          | Test-UH-EOU1                              |
-| [[SRS/SRS#11.1 Ease of Use Requirements\|UH-EOU2]]                             | tinymorph must allow users to interactively review and manually accept or reject changes suggested by the system after their inputs are submitted.                               | Test-UH-EOU2                              |
-| [[SRS/SRS#11.1 Ease of Use Requirements\|UH-EOU3]]                             | The application shall include a planning interface to assist users in organizing and debugging their creative writing steps.                                                     | Test-UH-EOU3                              |
-| [[SRS/SRS#11.2 Personalization and Internationalization Requirements\|UH-PI1]] | tinymorph interface must include multilingual support to cater to an international audience.                                                                                     | Test-UH-PI1, Test-CulR-CR1, Test-CulR-CR3 |
-| [[SRS/SRS#11.2 Personalization and Internationalization Requirements\|UH-PI2]] | The application shall provide options for users to select between light or dark mode based on their system settings or preference.                                               | Test-UH-PI2                               |
-| [[SRS/SRS#11.3 Learning Requirements\|UH-L1]]                                  | New users should be able to understand basic functionalities and start creating or editing content within 10 minutes of initial use.                                             | Test-UH-L1                                |
-| [[SRS/SRS#11.4 Understandability and Politeness Requirements\|UH-UP1]]         | The application should utilize clear and concise language for all instructions, feedback, and user interface elements.                                                           | Test-UH-UP1, Test-OER-PR2                 |
-| [[SRS/SRS#11.5 Accessibility Requirements\|UH-A1]]                             | tinymorph should support text resizing without loss of content or functionality.                                                                                                 | Test-UH-A1                                |
-| [[SRS/SRS#11.5 Accessibility Requirements\|UH-A2]]                             | tinymorph should ensure that all user interface components are accessible via keyboard navigation.                                                                               | Test-UH-A2                                |
-| [[SRS/SRS#11.5 Accessibility Requirements\|UH-A3]]                             | Implement ARIA (Accessible Rich Internet Applications) attributes throughout the application.                                                                                    | Test-UH-A3                                |
-| [[SRS/SRS#12.1 Speed and Latency Requirements\|PR-SLR1]]                       | TTFT should be minimum, around 200-500ms                                                                                                                                         | Test-PR-SLR1                              |
-| [[SRS/SRS#12.1 Speed and Latency Requirements\|PR-SLR2]]                       | Throughput should be approximate 300 tokens/sec for a batch size of 4                                                                                                            | Test-PR-SLR2                              |
-| [[SRS/SRS#12.2 Safety-Critical Requirements\|PR-SCR1]]                         | Suggestions must not be harmful                                                                                                                                                  | Test-PR-SCR1                              |
-| [[SRS/SRS#12.2 Safety-Critical Requirements\|PR-SCR2]]                         | The interface must not contain harmful images or NSFW content.                                                                                                                   | Test-PR-SCR2                              |
-| [[SRS/SRS#12.3 Precision or Accuracy Requirements\|PR-PAR1]]                   | The generated text should match users’ steering direction                                                                                                                        | Test-PR-PAR1, Test-CulR-CR2               |
-| [[SRS/SRS#12.4 Robustness or Fault-Tolerance Requirements\|PR-RFR1]]           | A notification toast must be sent to users in case inflight requests fail to complete.                                                                                           | Test-PR-RFR1                              |
-| [[SRS/SRS#12.4 Robustness or Fault-Tolerance Requirements\|PR-RFR2]]           | tinymorph must implement a recreate deployment strategy                                                                                                                          | Test-PR-RFR2                              |
-| [[SRS/SRS#12.5 Capacity Requirements\|PR-CR1]]                                 | Suggestions would be run asynchronously on request.                                                                                                                              | Test-PR-CR1                               |
-| [[SRS/SRS#12.5 Capacity Requirements\|PR-CR2]]                                 | Input should not show any certain delay                                                                                                                                          | Test-PR-CR2, Test-OER-EPE2                |
-| [[SRS/SRS#12.6 Scalability or Extensibility Requirements\|PR-SER1]]            | tinymorph inference server must include scale-to-zero and concurrency-based autoscaling.                                                                                         | Test-PR-SER1, Test-OER-EPE2               |
-| [[SRS/SRS#12.7 Longevity Requirements\|PR-LR1]]                                | Future integration with other language model architecture                                                                                                                        | Test-PR-LR1, Test-OER-RIAS1               |
-| [[SRS/SRS#12.7 Longevity Requirements\|PR-LR2]]                                | Support different distribution platforms.                                                                                                                                        | Test-PR-LR2, Test-OER-AR1                 |
-| [[SRS/SRS#13.1 Expected Physical Environment\|OER-EPE1]]                       | tinymorph will be able to run on different hardware environment, given it can run modern browser.                                                                                | Test-OER-AR1                              |
-| [[SRS/SRS#13.1 Expected Physical Environment\|OER-EPE2]]                       | tinymorph should have minimal increase in power consumption                                                                                                                      | Test-PR-SER1, Test-PR-CR2                 |
-| [[SRS/SRS#13.3 Requirements for Interfacing with Adjacent Systems\|OER-RIAS1]] | tinymorph inference server should provide an OpenAI-compatible endpoints.                                                                                                        | Test-PR-LR1                               |
-| [[SRS/SRS#13.4 Productization Requirements\|OER-PR1]]                          | Secrets must be configured with certain Role-based access control (RBAC) rules                                                                                                   | Test-SR-INT4                              |
-| [[SRS/SRS#13.4 Productization Requirements\|OER-PR2]]                          | Relevant documentation should be accessible by users.                                                                                                                            | Test-UH-UP1, Test-UH-L1                   |
-| [[SRS/SRS#13.4 Productization Requirements\|OER-PR3]]                          | Feedback should also be included within the interface                                                                                                                            | Test-OER-SR1                              |
-| [[SRS/SRS#13.5 Release Requirements\|OER-RR1]]                                 | Release cycle must utilize current GitHub CD workflow.                                                                                                                           | Test-OER-MR2                              |
-| [[SRS/SRS#13.5 Release Requirements\|OER-RR2]]                                 | End-to-end tests should pass before deploying to production.                                                                                                                     | Test-OER-MR2                              |
-| [[SRS/SRS#14.1 Maintenance Requirements\|OER-MR1]]                             | Security updates must be done periodically                                                                                                                                       | Test-OER-MR1, Test-SR-IM1                 |
-| [[SRS/SRS#14.1 Maintenance Requirements\|OER-MR2]]                             | Feature integrations must pass existing tests                                                                                                                                    | Test-OER-MR2                              |
-| [[SRS/SRS#14.2 Supportability Requirements\|OER-SR1]]                          | User feedback loop must be present.                                                                                                                                              | Test-OER-SR1                              |
-| [[SRS/SRS#14.3 Adaptability Requirements\|OER-AR1]]                            | tinymorph must be able to run with existing users’ environment                                                                                                                   | Test-PR-LR2                               |
-| [[SRS/SRS#15.2 Integrity Requirements\|SR-INT1]]                               | All communication between the client UI, backend services, and external APIs must be encrypted using HTTPS.                                                                      | Test-SR-INT1                              |
-| [[SRS/SRS#15.2 Integrity Requirements\|SR-INT2]]                               | Implement DNS security measures to ensure that DNS queries and responses are protected against tampering and spoofing.                                                           | Test-SR-INT2                              |
-| [[SRS/SRS#15.2 Integrity Requirements\|SR-INT3]]                               | The application will use content security policies to mitigate the risk of XSS attacks.                                                                                          | Test-SR-INT3                              |
-| [[SRS/SRS#15.2 Integrity Requirements\|SR-INT4]]                               | Implement JWT and short-lived tokens to secure session communications.                                                                                                           | Test-SR-INT4, Test-OER-PR1                |
-| [[SRS/SRS#15.3 Privacy Requirements\|SR-P1]]                                   | The application must ensure that it does not collect or store personal information, adhering strictly to privacy by design principles.                                           | Test-SR-P1                                |
-| [[SRS/SRS#15.4 Audit Requirements\|SR-AU1]]                                    | Implement monitoring of interactions with external service providers to ensure their use complies with security policies and performance expectations.                           | Test-OER-MR1                              |
-| [[SRS/SRS#15.5 Immunity Requirements\|SR-IM1]]                                 | Employ up to date security measures to protect against known threats and vulnerabilities, including regular updates and patches to the software components.                      | Test-OER-MR1                              |
-| [[SRS/SRS#15.5 Immunity Requirements\|SR-IM2]]                                 | Configure the application to minimize the surface area for attacks by disabling unused services and endpoints.                                                                   | Test-SR-INT4                              |
-| [[SRS/SRS#16.1 Cultural Requirements\|CulR-CR1]]                               | English supports                                                                                                                                                                 | Test-UH-PI1                               |
-| [[SRS/SRS#16.1 Cultural Requirements\|CulR-CR2]]                               | Cultural reference must be factual                                                                                                                                               | Test-PR-PAR1                              |
-| [[SRS/SRS#16.1 Cultural Requirements\|CulR-CR3]]                               | Support left-to-right (LTR) reading flow                                                                                                                                         | Test-UH-PI1                               |
-| [[SRS/SRS#17.1 Legal Requirements\|CompR-LR1]]                                 | Suggestion must follow strict US copyright law.                                                                                                                                  | Test-CompR-LR1                            |
-| [[SRS/SRS#17.1 Legal Requirements\|CompR-LR2]]                                 | SOC2 compliance                                                                                                                                                                  | Test-CompR-LR2                            |
-| [[SRS/SRS#17.1 Legal Requirements\|CompR-LR3]]                                 | Users permission to run inference against their content                                                                                                                          | Test-CompR-LR3                            |
-| [[SRS/SRS#17.1 Legal Requirements\|CompR-LR4]]                                 | Follows standard HTTP protocol for client-server communication                                                                                                                   | Test-CompR-SCR1                           |
+| **Requirement ID**                                                             | **Requirement Description**                                                                                                                                                   | **Test Case ID(s)**                       |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| [[SRS/SRS#9.1 Functional Requirements\|FR1]]                                   | morph shall provide suggestions during the planning phase of creative writing, offering assistance in structuring ideas, topics, or themes based on user input.               | Test-FR-P1, Test-FR-P2, Test-FR-P3        |
+| [[SRS/SRS#9.1 Functional Requirements\|FR2]]                                   | morph shall provide users with manual control over text generation, enabling them to select advanced steering options such as tone, style, or creativity level.               | Test-FR-S1, Test-FR-S2                    |
+| [[SRS/SRS#9.1 Functional Requirements\|FR3]]                                   | Users shall be able to interact with generated text through a left-to-right (LTR) feedback panel, allowing them to provide real-time feedback on model-generated suggestions. | Test-FR-F1                                |
+| [[SRS/SRS#9.1 Functional Requirements\|FR4]]                                   | Users shall be able to set preferences for tone, style, voice, and formality, which morph will apply to all future generations of text.                                       | Test-FR-TG1                               |
+| [[SRS/SRS#9.1 Functional Requirements\|FR5]]                                   | Users shall be able to save their preferred configurations as profiles, enabling them to switch between different writing styles or goals.                                    | Test-FR-UP1, Test-FR-UP2                  |
+| [[SRS/SRS#9.1 Functional Requirements\|FR6]]                                   | morph shall allow users to navigate through their text non-linearly by providing a visual map or tree view that displays key points, topics, sections, and revision history.  | Test-FR-RM1                               |
+| [[SRS/SRS#9.1 Functional Requirements\|FR8]]                                   | morph shall offer version control features that allow users to navigate through previous edits, revert to earlier document versions, and compare different drafts visually.   | Test-FR-VC1, Test-FR-VC2                  |
+| [[SRS/SRS#9.1 Functional Requirements\|FR11]]                                  | Users shall be able to set and track specific writing goals (e.g., word count, tone consistency, argument development) through customizable progress tracking features.       | Test-FR-PT1, Test-FR-PT2                  |
+| [[SRS/SRS#9.1 Functional Requirements\|FR13]]                                  | morph shall allow users to export their documents in .pdf, .md (Markdown), and plain text formats, ensuring compatibility with external platforms.                            | Test-FR-E1, Test-FR-E2                    |
+| [[SRS/SRS#9.1 Functional Requirements\|FR14]]                                  | morph shall allow users to customize the visual appearance of the editor by choosing from different themes, such as dark mode, light mode, and high-contrast options.         | Test-FR-VT1                               |
+| [[SRS/SRS#10.1 Appearance Requirements\|LF-A1]]                                | morph shall adopt a unified, non-intrusive, and uncluttered visual design.                                                                                                    | Test-LF-A1                                |
+| [[SRS/SRS#10.1 Appearance Requirements\|LF-A2]]                                | morph must implement a consistent design system across all user interfaces, involving standardized typography and color palette.                                              | Test-LF-A2                                |
+| [[SRS/SRS#10.2 Style Requirements\|LF-S1]]                                     | The design of the application will be minimalist, utilizing clean lines and a monotonic color palette.                                                                        | Test-LF-S1                                |
+| [[SRS/SRS#10.2 Style Requirements\|LF-S2]]                                     | The application must be responsive, adapting seamlessly to various device screens and orientations.                                                                           | Test-LF-S2                                |
+| [[SRS/SRS#10.2 Style Requirements\|LF-S3]]                                     | Interactive elements such as buttons and links must contrast significantly with the background to ensure visibility and accessibility.                                        | Test-LF-S3                                |
+| [[SRS/SRS#10.2 Style Requirements\|LF-S4]]                                     | The user interface should enable smooth transitions and intuitive animations across various sections and features.                                                            | Test-LF-S4                                |
+| [[SRS/SRS#10.2 Style Requirements\|LF-S5]]                                     | The application should include visual cues and feedback for user interactions to reinforce usability.                                                                         | Test-LF-S5                                |
+| [[SRS/SRS#11.1 Ease of Use Requirements\|UH-EOU1]]                             | morph shall include a session history feature that records and displays the user’s most recent editing activities such as document accesses and text modifications.           | Test-UH-EOU1                              |
+| [[SRS/SRS#11.1 Ease of Use Requirements\|UH-EOU2]]                             | morph must allow users to interactively review and manually accept or reject changes suggested by the system after their inputs are submitted.                                | Test-UH-EOU2                              |
+| [[SRS/SRS#11.1 Ease of Use Requirements\|UH-EOU3]]                             | The application shall include a planning interface to assist users in organizing and debugging their creative writing steps.                                                  | Test-UH-EOU3                              |
+| [[SRS/SRS#11.2 Personalization and Internationalization Requirements\|UH-PI1]] | morph interface must include multilingual support to cater to an international audience.                                                                                      | Test-UH-PI1, Test-CulR-CR1, Test-CulR-CR3 |
+| [[SRS/SRS#11.2 Personalization and Internationalization Requirements\|UH-PI2]] | The application shall provide options for users to select between light or dark mode based on their system settings or preference.                                            | Test-UH-PI2                               |
+| [[SRS/SRS#11.3 Learning Requirements\|UH-L1]]                                  | New users should be able to understand basic functionalities and start creating or editing content within 10 minutes of initial use.                                          | Test-UH-L1                                |
+| [[SRS/SRS#11.4 Understandability and Politeness Requirements\|UH-UP1]]         | The application should utilize clear and concise language for all instructions, feedback, and user interface elements.                                                        | Test-UH-UP1, Test-OER-PR2                 |
+| [[SRS/SRS#11.5 Accessibility Requirements\|UH-A1]]                             | morph should support text resizing without loss of content or functionality.                                                                                                  | Test-UH-A1                                |
+| [[SRS/SRS#11.5 Accessibility Requirements\|UH-A2]]                             | morph should ensure that all user interface components are accessible via keyboard navigation.                                                                                | Test-UH-A2                                |
+| [[SRS/SRS#11.5 Accessibility Requirements\|UH-A3]]                             | Implement ARIA (Accessible Rich Internet Applications) attributes throughout the application.                                                                                 | Test-UH-A3                                |
+| [[SRS/SRS#12.1 Speed and Latency Requirements\|PR-SLR1]]                       | TTFT should be minimum, around 200-500ms                                                                                                                                      | Test-PR-SLR1                              |
+| [[SRS/SRS#12.1 Speed and Latency Requirements\|PR-SLR2]]                       | Throughput should be approximate 300 tokens/sec for a batch size of 4                                                                                                         | Test-PR-SLR2                              |
+| [[SRS/SRS#12.2 Safety-Critical Requirements\|PR-SCR1]]                         | Suggestions must not be harmful                                                                                                                                               | Test-PR-SCR1                              |
+| [[SRS/SRS#12.2 Safety-Critical Requirements\|PR-SCR2]]                         | The interface must not contain harmful images or NSFW content.                                                                                                                | Test-PR-SCR2                              |
+| [[SRS/SRS#12.3 Precision or Accuracy Requirements\|PR-PAR1]]                   | The generated text should match users’ steering direction                                                                                                                     | Test-PR-PAR1, Test-CulR-CR2               |
+| [[SRS/SRS#12.4 Robustness or Fault-Tolerance Requirements\|PR-RFR1]]           | A notification toast must be sent to users in case inflight requests fail to complete.                                                                                        | Test-PR-RFR1                              |
+| [[SRS/SRS#12.4 Robustness or Fault-Tolerance Requirements\|PR-RFR2]]           | morph must implement a recreate deployment strategy                                                                                                                           | Test-PR-RFR2                              |
+| [[SRS/SRS#12.5 Capacity Requirements\|PR-CR1]]                                 | Suggestions would be run asynchronously on request.                                                                                                                           | Test-PR-CR1                               |
+| [[SRS/SRS#12.5 Capacity Requirements\|PR-CR2]]                                 | Input should not show any certain delay                                                                                                                                       | Test-PR-CR2, Test-OER-EPE2                |
+| [[SRS/SRS#12.6 Scalability or Extensibility Requirements\|PR-SER1]]            | morph inference server must include scale-to-zero and concurrency-based autoscaling.                                                                                          | Test-PR-SER1, Test-OER-EPE2               |
+| [[SRS/SRS#12.7 Longevity Requirements\|PR-LR1]]                                | Future integration with other language model architecture                                                                                                                     | Test-PR-LR1, Test-OER-RIAS1               |
+| [[SRS/SRS#12.7 Longevity Requirements\|PR-LR2]]                                | Support different distribution platforms.                                                                                                                                     | Test-PR-LR2, Test-OER-AR1                 |
+| [[SRS/SRS#13.1 Expected Physical Environment\|OER-EPE1]]                       | morph will be able to run on different hardware environment, given it can run modern browser.                                                                                 | Test-OER-AR1                              |
+| [[SRS/SRS#13.1 Expected Physical Environment\|OER-EPE2]]                       | morph should have minimal increase in power consumption                                                                                                                       | Test-PR-SER1, Test-PR-CR2                 |
+| [[SRS/SRS#13.3 Requirements for Interfacing with Adjacent Systems\|OER-RIAS1]] | morph inference server should provide an OpenAI-compatible endpoints.                                                                                                         | Test-PR-LR1                               |
+| [[SRS/SRS#13.4 Productization Requirements\|OER-PR1]]                          | Secrets must be configured with certain Role-based access control (RBAC) rules                                                                                                | Test-SR-INT4                              |
+| [[SRS/SRS#13.4 Productization Requirements\|OER-PR2]]                          | Relevant documentation should be accessible by users.                                                                                                                         | Test-UH-UP1, Test-UH-L1                   |
+| [[SRS/SRS#13.4 Productization Requirements\|OER-PR3]]                          | Feedback should also be included within the interface                                                                                                                         | Test-OER-SR1                              |
+| [[SRS/SRS#13.5 Release Requirements\|OER-RR1]]                                 | Release cycle must utilize current GitHub CD workflow.                                                                                                                        | Test-OER-MR2                              |
+| [[SRS/SRS#13.5 Release Requirements\|OER-RR2]]                                 | End-to-end tests should pass before deploying to production.                                                                                                                  | Test-OER-MR2                              |
+| [[SRS/SRS#14.1 Maintenance Requirements\|OER-MR1]]                             | Security updates must be done periodically                                                                                                                                    | Test-OER-MR1, Test-SR-IM1                 |
+| [[SRS/SRS#14.1 Maintenance Requirements\|OER-MR2]]                             | Feature integrations must pass existing tests                                                                                                                                 | Test-OER-MR2                              |
+| [[SRS/SRS#14.2 Supportability Requirements\|OER-SR1]]                          | User feedback loop must be present.                                                                                                                                           | Test-OER-SR1                              |
+| [[SRS/SRS#14.3 Adaptability Requirements\|OER-AR1]]                            | morph must be able to run with existing users’ environment                                                                                                                    | Test-PR-LR2                               |
+| [[SRS/SRS#15.2 Integrity Requirements\|SR-INT1]]                               | All communication between the client UI, backend services, and external APIs must be encrypted using HTTPS.                                                                   | Test-SR-INT1                              |
+| [[SRS/SRS#15.2 Integrity Requirements\|SR-INT2]]                               | Implement DNS security measures to ensure that DNS queries and responses are protected against tampering and spoofing.                                                        | Test-SR-INT2                              |
+| [[SRS/SRS#15.2 Integrity Requirements\|SR-INT3]]                               | The application will use content security policies to mitigate the risk of XSS attacks.                                                                                       | Test-SR-INT3                              |
+| [[SRS/SRS#15.2 Integrity Requirements\|SR-INT4]]                               | Implement JWT and short-lived tokens to secure session communications.                                                                                                        | Test-SR-INT4, Test-OER-PR1                |
+| [[SRS/SRS#15.3 Privacy Requirements\|SR-P1]]                                   | The application must ensure that it does not collect or store personal information, adhering strictly to privacy by design principles.                                        | Test-SR-P1                                |
+| [[SRS/SRS#15.4 Audit Requirements\|SR-AU1]]                                    | Implement monitoring of interactions with external service providers to ensure their use complies with security policies and performance expectations.                        | Test-OER-MR1                              |
+| [[SRS/SRS#15.5 Immunity Requirements\|SR-IM1]]                                 | Employ up to date security measures to protect against known threats and vulnerabilities, including regular updates and patches to the software components.                   | Test-OER-MR1                              |
+| [[SRS/SRS#15.5 Immunity Requirements\|SR-IM2]]                                 | Configure the application to minimize the surface area for attacks by disabling unused services and endpoints.                                                                | Test-SR-INT4                              |
+| [[SRS/SRS#16.1 Cultural Requirements\|CulR-CR1]]                               | English supports                                                                                                                                                              | Test-UH-PI1                               |
+| [[SRS/SRS#16.1 Cultural Requirements\|CulR-CR2]]                               | Cultural reference must be factual                                                                                                                                            | Test-PR-PAR1                              |
+| [[SRS/SRS#16.1 Cultural Requirements\|CulR-CR3]]                               | Support left-to-right (LTR) reading flow                                                                                                                                      | Test-UH-PI1                               |
+| [[SRS/SRS#17.1 Legal Requirements\|CompR-LR1]]                                 | Suggestion must follow strict US copyright law.                                                                                                                               | Test-CompR-LR1                            |
+| [[SRS/SRS#17.1 Legal Requirements\|CompR-LR2]]                                 | SOC2 compliance                                                                                                                                                               | Test-CompR-LR2                            |
+| [[SRS/SRS#17.1 Legal Requirements\|CompR-LR3]]                                 | Users permission to run inference against their content                                                                                                                       | Test-CompR-LR3                            |
+| [[SRS/SRS#17.1 Legal Requirements\|CompR-LR4]]                                 | Follows standard HTTP protocol for client-server communication                                                                                                                | Test-CompR-SCR1                           |
 
 ## Unit Test Description
 
-This section outlines unit tests for verifying the core modules and components of `tinymorph`.
+This section outlines unit tests for verifying the core modules and components of `morph`.
 The overall philosophy for test case selection is based on achieving maximum coverage of critical functionalities while prioritizing areas of high complexity or risk.
 
 ### Unit Testing Scope
 
-The unit testing scope focuses on core components of `tinymorph` while excluding certain modules due to priority, ownership, or reliability considerations.
+The unit testing scope focuses on core components of `morph` while excluding certain modules due to priority, ownership, or reliability considerations.
 
 #### In-Scope Modules
 
@@ -1352,7 +1352,7 @@ _Omitted for now, refer to [[Design/MG|Module Guide]]_ for more information.
 
 ### Usability Survey Questions
 
-1. On a scale of 1 to 5, how would you rate the overall visual design of `tinymorph`?
+1. On a scale of 1 to 5, how would you rate the overall visual design of `morph`?
 2. Did you find the interface to be uncluttered and non-intrusive? Please explain.
 3. How easy was it to navigate through the application?
 4. Were the animations and transitions smooth and helpful in guiding you?
@@ -1361,7 +1361,7 @@ _Omitted for now, refer to [[Design/MG|Module Guide]]_ for more information.
 7. Were instructions and feedback clear and understandable?
 8. Did you encounter any difficulties when resizing text or using keyboard navigation?
 9. How satisfied are you with the responsiveness of the application?
-10. Do you have any suggestions for improving the usability of `tinymorph`?
+10. Do you have any suggestions for improving the usability of `morph`?
 
 ### Reflection
 
@@ -1448,7 +1448,7 @@ graduate attribute of Lifelong Learning.
 
 <div class="blob">
 
-1. Writing this deliverable a better understanding of the project’s core features and functionality. It was particularly helpful in clarifying how specific requirements, like model steering, and version control, fit within our overall vision for tinymorph. Focusing on functional requirements also allowed me to refine my grasp of the system's design goals and limitations, helping ensure that our planned features align with user needs and our technical scope. I also appreciated that the process provided room for collaboration with the team and supervisor, leading to more well-defined requirements.
+1. Writing this deliverable a better understanding of the project’s core features and functionality. It was particularly helpful in clarifying how specific requirements, like model steering, and version control, fit within our overall vision for morph. Focusing on functional requirements also allowed me to refine my grasp of the system's design goals and limitations, helping ensure that our planned features align with user needs and our technical scope. I also appreciated that the process provided room for collaboration with the team and supervisor, leading to more well-defined requirements.
 
 2. One of the main pain points I encountered was defining the functional scope accurately. There were initial uncertainties about how deeply certain features would be integrated, particularly technical aspects like the extent of model customization and maintaining performance in offline mode. It was challenging to balance the technical ambitions with practical constraints for the project’s first release. To overcome this, I initiated discussions with the team and supervisor to align our understanding and verify our priorities. These conversations clarified the project goals and identified where we could use existing frameworks versus areas that needed custom development.
 
@@ -1461,14 +1461,14 @@ graduate attribute of Lifelong Learning.
 4.  Dynamic Testing Knowledge:
 
 - Approach 1: Enroll in online courses focused on software testing principles and tools.
-- Approach 2: Run dynamic tests on smaller sub-projects or components of tinymorph to gain hands-on experience.
+- Approach 2: Run dynamic tests on smaller sub-projects or components of morph to gain hands-on experience.
   All team members will apply Approach 2 by testing specific features in isolation as we build them.
 
 Static Testing Knowledge:
 
 - Approach 1: Take specialized tutorials on static code analysis tools.
 - Approach 2: Practice static testing techniques on open-source projects or our previous codebases to identify common issues.
-  Aron and Waleed will adopt Approach 1, focusing on tutorials for code analysis. This approach will help build foundational knowledge that can later be applied during tinymorph’s development for continuous quality assurance.
+  Aaron and Waleed will adopt Approach 1, focusing on tutorials for code analysis. This approach will help build foundational knowledge that can later be applied during morph’s development for continuous quality assurance.
 
 Front-End Testing and Accessibility:
 
@@ -1503,7 +1503,8 @@ Front-End Testing and Accessibility:
 
 ### Revision
 
-| Date        | Version | Notes       |
-| ----------- | ------- | ----------- |
-| Nov. 4 2024 | 0.0     | initial VnV |
-| Feb. 3 2024 | 0.1     | Rev0        |
+| Date          | Version | Notes                             |
+| ------------- | ------- | --------------------------------- |
+| Nov. 4 2024   | 0.0     | initial VnV                       |
+| Feb. 3 2024   | 0.1     | Rev0                              |
+| March 31 2025 | 0.2     | Rename to `morph` for consistency |
