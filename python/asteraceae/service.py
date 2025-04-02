@@ -145,6 +145,7 @@ def make_args(
   reasoning_parser: str = 'deepseek_r1',
   trust_remote_code: bool = False,
   prefix_caching: bool = True,
+  chunked_prefill: bool = True,
   tool: bool = True,
   tool_parser: str = 'hermes',
   **kwargs: t.Any,
@@ -163,6 +164,7 @@ def make_args(
     max_num_seqs=max_num_seqs,
     enable_prefix_caching=prefix_caching,
     enable_auto_tool_choice=tool,
+    enable_chunked_prefill=chunked_prefill,
     tool_call_parser=tool_parser,
     max_model_len=max_model_len,
     ignore_patterns=IGNORE_PATTERNS,
@@ -205,9 +207,7 @@ class LLM:
   async def init_engine(self) -> None:
     import vllm.entrypoints.openai.api_server as vllm_api_server
 
-    args = make_args(
-      self.model, self.model_id, task='generate', enable_chunked_prefill=True, gpu_memory_utilization=0.99
-    )
+    args = make_args(self.model, self.model_id, task='generate', gpu_memory_utilization=0.99)
 
     router = fastapi.APIRouter(lifespan=vllm_api_server.lifespan)
     OPENAI_ENDPOINTS = [

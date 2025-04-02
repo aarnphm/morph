@@ -1,3 +1,4 @@
+import type { Note } from "@/db"
 import { NOTES_DND_TYPE, generatePastelColor } from "@/lib/notes"
 import { cn } from "@/lib/utils"
 import { type VariantProps, cva } from "class-variance-authority"
@@ -9,8 +10,6 @@ import { getEmptyImage } from "react-dnd-html5-backend"
 
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { Skeleton } from "@/components/ui/skeleton"
-
-import type { Note } from "@/db/interfaces"
 
 // Define note card variants using CVA
 const noteCardVariants = cva(
@@ -240,21 +239,16 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
 }: AttachedNoteCardProps) {
   const noteRef = useRef<HTMLDivElement>(null)
   const constraintsRef = useRef<HTMLDivElement>(null)
-  const [isDragging, setIsDragging] = useState(false)
 
   // Set up drag functionality similar to DraggableNoteCard but with constraints
   const [, drag, preview] = useDrag(
     () => ({
       type: NOTES_DND_TYPE,
-      item: () => {
-        setIsDragging(true)
-        return { ...note }
-      },
+      item: () => ({ ...note }),
       collect: (monitor) => ({
         isDragging: monitor.isDragging(),
       }),
       end: (item, monitor) => {
-        setIsDragging(false)
         // If not dropped or drop result is undefined, don't attempt any state updates
         if (!monitor.didDrop()) return
 
@@ -334,88 +328,50 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
 
   return (
     <div ref={constraintsRef} className="relative">
-      {!isDragging ? (
-        <HoverCard key={note.id} openDelay={150} closeDelay={100}>
-          <HoverCardTrigger asChild>
-            <div>
-              <motion.div
-                ref={connectDragRef}
-                className={cn(
-                  `shadow-md w-6 h-6 rounded-md cursor-grab mb-1 will-change-transform`,
-                  className,
-                  noteColor,
-                )}
-                variants={variants}
-                initial="hidden"
-                animate={isStackExpanded ? "expanded" : "collapsed"}
-                layout="position"
-                drag="x"
-                dragDirectionLock
-                dragConstraints={{ top: 0, right: 0, bottom: 0, left: 0 }}
-                dragTransition={{
-                  bounceStiffness: 450,
-                  bounceDamping: 20,
-                  power: 0.2,
-                }}
-                dragElastic={0.15}
-                whileDrag={{
-                  cursor: "grabbing",
-                  transition: {
-                    type: "tween",
-                    ease: "easeOut",
-                  },
-                }}
-                {...props}
-              >
-                <div className="relative z-10 text-sm p-1 flex items-center justify-center w-full h-full">
-                  {index + 1}
-                </div>
-              </motion.div>
-            </div>
-          </HoverCardTrigger>
-          <HoverCardContent
-            side="left"
-            sideOffset={6}
-            className="w-64 bg-transparent border-0 shadow-none z-100"
+      <HoverCard key={note.id} openDelay={150} closeDelay={100}>
+        <HoverCardTrigger asChild>
+          <motion.div
+            ref={connectDragRef}
+            className={cn(
+              `shadow-md w-6 h-6 rounded-md cursor-grab mb-1 will-change-transform`,
+              className,
+              noteColor,
+            )}
+            variants={variants}
+            initial="hidden"
+            animate={isStackExpanded ? "expanded" : "collapsed"}
+            layout="position"
+            drag="x"
+            dragDirectionLock
+            dragConstraints={{ top: 0, right: 0, bottom: 0, left: 0 }}
+            dragTransition={{
+              bounceStiffness: 450,
+              bounceDamping: 20,
+              power: 0.2,
+            }}
+            dragElastic={0.15}
+            whileDrag={{
+              cursor: "grabbing",
+              transition: {
+                type: "tween",
+                ease: "easeOut",
+              },
+            }}
+            {...props}
           >
-            <NoteCard note={note} className="z-auto" />
-          </HoverCardContent>
-        </HoverCard>
-      ) : (
-        <motion.div
-          ref={connectDragRef}
-          className={cn(
-            `shadow-md w-6 h-6 rounded-md cursor-grab mb-1 will-change-transform`,
-            className,
-            noteColor,
-          )}
-          variants={variants}
-          initial="hidden"
-          animate={isStackExpanded ? "expanded" : "collapsed"}
-          layout="position"
-          drag="x"
-          dragDirectionLock
-          dragConstraints={{ top: 0, right: 0, bottom: 0, left: 0 }}
-          dragTransition={{
-            bounceStiffness: 450,
-            bounceDamping: 20,
-            power: 0.2,
-          }}
-          dragElastic={0.15}
-          whileDrag={{
-            cursor: "grabbing",
-            transition: {
-              type: "tween",
-              ease: "easeOut",
-            },
-          }}
-          {...props}
+            <div className="relative z-10 text-sm p-1 flex items-center justify-center w-full h-full">
+              {index + 1}
+            </div>
+          </motion.div>
+        </HoverCardTrigger>
+        <HoverCardContent
+          side="left"
+          sideOffset={6}
+          className="w-64 bg-transparent border-0 shadow-none z-100"
         >
-          <div className="relative z-10 text-sm p-1 flex items-center justify-center w-full h-full">
-            {index + 1}
-          </div>
-        </motion.div>
-      )}
+          <NoteCard note={note} className="z-auto" />
+        </HoverCardContent>
+      </HoverCard>
     </div>
   )
 })

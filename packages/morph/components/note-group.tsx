@@ -1,13 +1,18 @@
 import { cn } from "@/lib"
 import { generatePastelColor } from "@/lib/notes"
 import { ChevronDownIcon } from "@radix-ui/react-icons"
+import { eq } from "drizzle-orm"
+import { drizzle } from "drizzle-orm/pglite"
 import { AnimatePresence, motion } from "motion/react"
 import { memo, useCallback, useEffect, useMemo, useRef } from "react"
 
 import { AttachedNoteCard, DraggableNoteCard } from "@/components/note-card"
 import { ReasoningPanel } from "@/components/reasoning-panel"
 
+import { usePGlite } from "@/context/db"
+
 import { Note } from "@/db/interfaces"
+import * as schema from "@/db/schema"
 
 interface DateDisplayProps {
   dateStr: string
@@ -143,10 +148,36 @@ export const DroppedNoteGroup = memo(
     const hasMoreNotes = droppedNotes.length > MAX_VISIBLE_NOTES
     const hasNotes = droppedNotes.length > 0
 
+    // Get database client
+    const client = usePGlite()
+    const db = useMemo(() => drizzle({ client, schema }), [client])
+
     // Get notes to display - either first 5 or all (limited to 20 for performance)
     const notesToDisplay = useMemo(
       () => (isStackExpanded ? droppedNotes : droppedNotes.slice(0, MAX_VISIBLE_NOTES)),
       [droppedNotes, isStackExpanded],
+    )
+
+    // Update the database when a note is reordered
+    const updateNoteOrderInDB = useCallback(
+      async (noteId: string, newIndex: number) => {
+        try {
+          console.debug(`Updating note ${noteId} order to ${newIndex} in database`)
+
+          // Update the note's order in the database
+          await db
+            .update(schema.notes)
+            .set({
+              accessedAt: new Date(), // Update accessed timestamp
+            })
+            .where(eq(schema.notes.id, noteId))
+
+          console.debug("Note order updated in database")
+        } catch (error) {
+          console.error("Failed to update note order in database:", error)
+        }
+      },
+      [db],
     )
 
     // Scroll to the newly added note when in expanded mode
@@ -160,11 +191,32 @@ export const DroppedNoteGroup = memo(
       ) {
         // Scroll to the last note
         lastNoteRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" })
+
+        // Update the database to reflect the new note was viewed
+        const lastNoteId = droppedNotes[droppedNotes.length - 1]?.id
+        if (lastNoteId) {
+          updateNoteOrderInDB(lastNoteId, droppedNotes.length - 1)
+        }
       }
 
       // Update the reference for next comparison
       prevNotesLengthRef.current = droppedNotes.length
-    }, [droppedNotes.length, isStackExpanded])
+    }, [droppedNotes.length, isStackExpanded, droppedNotes, updateNoteOrderInDB])
+
+    // When stack expansion state changes, update the database
+    useEffect(() => {
+      // If we expand the stack, update access time for all notes
+      if (isStackExpanded && droppedNotes.length > 0) {
+        // Batch update the notes' accessedAt timestamp
+        const updatePromises = droppedNotes.map((note, index) =>
+          updateNoteOrderInDB(note.id, index),
+        )
+
+        Promise.all(updatePromises)
+          .then(() => console.debug(`Updated ${droppedNotes.length} notes in database`))
+          .catch((error) => console.error("Failed to update note batch:", error))
+      }
+    }, [isStackExpanded, droppedNotes, updateNoteOrderInDB])
 
     // Render nothing if there are no notes
     if (!hasNotes) return null

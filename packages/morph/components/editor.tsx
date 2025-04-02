@@ -11,7 +11,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { CopyIcon, Cross2Icon, GlobeIcon, StackIcon } from "@radix-ui/react-icons"
 import { Vim, vim } from "@replit/codemirror-vim"
 import CodeMirror from "@uiw/react-codemirror"
-import { eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/pglite"
 import type { Root } from "hast"
 import { AnimatePresence, motion } from "motion/react"
@@ -332,7 +332,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         const dateKey = `${now.toDateString()}-${now.getHours()}-${now.getMinutes()}-${interval}`
         setCurrentlyGeneratingDateKey(dateKey)
 
-        const max_tokens = 8192
+        const max_tokens = 16384
         const essay = md(content).content
         const request: SuggestionRequest = {
           essay,
@@ -855,6 +855,37 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       setCurrentlyGeneratingDateKey(dateKey)
 
       try {
+        // First, find or create the file in the database to ensure proper ID reference
+        let dbFile = await db.query.files.findFirst({
+          where: (files, { and, eq }) =>
+            and(eq(files.name, currentFile), eq(files.vaultId, vault.id)),
+        })
+
+        if (!dbFile) {
+          // Extract extension
+          const extension = currentFile.includes(".") ? currentFile.split(".").pop() || "" : ""
+
+          // Insert file into database
+          await db.insert(schema.files).values({
+            name: currentFile,
+            extension,
+            vaultId: vault.id,
+            lastModified: new Date(),
+            embeddingStatus: "in_progress",
+          })
+
+          // Re-fetch the file to get its ID
+          dbFile = await db.query.files.findFirst({
+            where: (files, { and, eq }) =>
+              and(eq(files.name, currentFile), eq(files.vaultId, vault.id)),
+          })
+
+          if (!dbFile) {
+            throw new Error("Failed to create file in database")
+          }
+        }
+
+        // Now that we have the file, generate the suggestions
         const { generatedNotes, reasoningId, reasoningElapsedTime, reasoningContent } =
           await fetchNewNotes(
             markdownContent,
@@ -878,7 +909,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             id,
             content: note.content,
             color: streamingSuggestionColors[index] || generatePastelColor(),
-            fileId: currentFile,
+            fileId: dbFile!.id, // Use the actual DB file ID here
             vaultId: vault.id,
             isInEditor: false,
             createdAt: new Date(),
@@ -900,43 +931,15 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           prev.map((r) => (r.id === reasoningId ? { ...r, noteIds: newNoteIds } : r)),
         )
 
-        // Only save if the file is not "Untitled"
-        if (currentFile !== "Untitled" && vault) {
-          // First, find or create the file in the database
-          let dbFile = await db.query.files.findFirst({
-            where: (files, { and, eq }) =>
-              and(eq(files.name, currentFile), eq(files.vaultId, vault.id)),
-          })
+        // Only save if the file is not "Untitled" and we have notes to save
+        if (currentFile !== "Untitled" && vault && newNotes.length > 0) {
+          try {
+            console.debug(`Saving reasoning with file ID: ${dbFile!.id}`)
 
-          if (!dbFile) {
-            // Extract extension
-            const extension = currentFile.includes(".") ? currentFile.split(".").pop() || "" : ""
-
-            // Insert file into database
-            await db.insert(schema.files).values({
-              name: currentFile,
-              extension,
-              vaultId: vault.id,
-              lastModified: new Date(),
-              embeddingStatus: "in_progress",
-            })
-
-            // Re-fetch the file to get its ID
-            dbFile = await db.query.files.findFirst({
-              where: (files, { and, eq }) =>
-                and(eq(files.name, currentFile), eq(files.vaultId, vault.id)),
-            })
-
-            if (!dbFile) {
-              throw new Error("Failed to create file in database")
-            }
-          }
-
-          // Save reasoning using Drizzle insert
-          db.insert(schema.reasonings)
-            .values({
+            // Save reasoning using Drizzle insert
+            await db.insert(schema.reasonings).values({
               id: reasoningId,
-              fileId: dbFile.id,
+              fileId: dbFile!.id,
               vaultId: vault.id,
               content: reasoningContent,
               noteIds: newNoteIds,
@@ -950,45 +953,60 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 numSuggestions: steeringSettings.numSuggestions,
               },
             })
-            .catch((err) => {
-              console.error("Failed to save reasoning:", err)
+
+            // Convert to proper database format for insertion
+            for (const note of newNotes) {
+              await db.insert(schema.notes).values({
+                id: note.id,
+                content: note.content,
+                color: note.color,
+                createdAt: note.createdAt,
+                accessedAt: new Date(),
+                dropped: note.dropped ?? false,
+                fileId: dbFile!.id,
+                vaultId: note.vaultId,
+                reasoningId: note.reasoningId!,
+                steering: note.steering!,
+                embeddingStatus: "in_progress",
+                embeddingTaskId: null,
+              })
+            }
+
+            console.debug(`Saved ${newNotes.length} notes to database`)
+
+            // Add the newly created notes to our state
+            setNotes((prev) => {
+              const combined = [...newNotes, ...prev]
+              return combined.sort(
+                (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+              )
             })
 
-          // Map Note interface to schema.notes structure for insertion
-          const notesToInsert = newNotes.map((note) => ({
-            id: note.id,
-            content: note.content,
-            color: note.color,
-            createdAt: note.createdAt,
-            accessedAt: new Date(), // Set accessedAt on creation
-            dropped: note.dropped ?? false, // Ensure dropped has a default
-            fileId: note.fileId,
-            vaultId: note.vaultId,
-            reasoningId: note.reasoningId!,
-            steering: note.steering!,
-            embeddingStatus: note.embeddingStatus ?? "in_progress",
-            embeddingTaskId: note.embeddingTaskId,
-          }))
-
-          // Save notes using Drizzle insert with values
-          db.insert(schema.notes).values(notesToInsert)
-
-          // Pass copies of notes to avoid potential issues with stale state
+            // Set current generation notes for UI
+            setCurrentGenerationNotes(newNotes)
+          } catch (dbError) {
+            console.error("Failed to save notes to database:", dbError)
+            // Still show notes in UI even if DB fails
+            setCurrentGenerationNotes(newNotes)
+            setNotes((prev) => {
+              const combined = [...newNotes, ...prev]
+              return combined.sort(
+                (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+              )
+            })
+          }
         } else {
+          // For unsaved files, just display in UI without saving to DB
           setShowEphemeralBanner(true)
           setTimeout(() => setShowEphemeralBanner(false), 7000)
+          setCurrentGenerationNotes(newNotes)
+          setNotes((prev) => {
+            const combined = [...newNotes, ...prev]
+            return combined.sort(
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+            )
+          })
         }
-
-        // Set current generation notes for UI
-        setCurrentGenerationNotes(newNotes)
-
-        // Add new notes to the main notes state
-        setNotes((prev) => {
-          const combined = [...newNotes, ...prev]
-          return combined.sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-          )
-        })
       } catch (error) {
         setNotesError("Notes not available for this generation, try again later")
         setCurrentlyGeneratingDateKey(null)
@@ -1044,7 +1062,13 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     async (noteId: string) => {
       // Find the note in the droppedNotes
       const note = droppedNotes.find((n) => n.id === noteId)
-      if (!note) return
+      if (!note) {
+        console.error(`Note with ID ${noteId} not found in droppedNotes`)
+        return
+      }
+
+      // Log the action for debugging
+      console.debug(`Dragging note ${noteId} back to panel`)
 
       // Update the note to indicate it's no longer dropped
       const undropNote = {
@@ -1056,22 +1080,35 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       // Remove from droppedNotes state
       setDroppedNotes((prev) => prev.filter((n) => n.id !== noteId))
 
-      // Update the database
       try {
+        // Find the file in the database to make sure we have the right reference
+        const dbFile = await db.query.files.findFirst({
+          where: (files, { and, eq }) =>
+            and(eq(files.name, currentFile), eq(files.vaultId, vault?.id || "")),
+        })
+
+        if (!dbFile) {
+          console.error("Failed to find file in database when undropping note")
+          return
+        }
+
+        // Update the database
         await db
           .update(schema.notes)
           .set({
             dropped: false,
-            accessedAt: new Date(), // Update accessedAt timestamp
-            // lastModified is not in the schema for notes
+            accessedAt: new Date(),
+            fileId: dbFile.id, // Ensure we're using the database file ID
           })
           .where(eq(schema.notes.id, noteId))
 
+        console.debug(`Successfully updated note ${noteId} status to not dropped`)
+
         // Add back to main notes collection if not already there
-        // Ensure we don't add duplicates if it somehow exists in both states
         setNotes((prevNotes) => {
+          // If it exists, just update its dropped status
           if (prevNotes.some((n) => n.id === noteId)) {
-            // If it exists, just update its dropped status (though it should be filtered out)
+            console.debug(`Note ${noteId} already exists in notes, updating dropped status`)
             return prevNotes.map((n) => (n.id === noteId ? { ...n, dropped: false } : n))
           } else {
             // Add to the beginning of the notes array to make it appear at the top
@@ -1082,7 +1119,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         console.error("Failed to update note status:", error)
       }
     },
-    [droppedNotes, db, setNotes], // Added db and setNotes
+    [droppedNotes, db, currentFile, vault, setNotes],
   )
 
   const handleFileSelect = useCallback(
@@ -1100,6 +1137,24 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           // Update the file field using the effect
           effects: setFile.of(fileName),
         })
+
+        // Update component state first to show content
+        setCurrentFileHandle(node.handle as FileSystemFileHandle)
+        setCurrentFile(fileName)
+        setMarkdownContent(content)
+        setHasUnsavedChanges(false)
+        setIsEditMode(true)
+        updatePreview(content)
+
+        // Clear any current generation states
+        setCurrentGenerationNotes([])
+        setCurrentlyGeneratingDateKey(null)
+        setNotesError(null)
+
+        // Reset note states first to prevent stale data
+        setNotes([])
+        setDroppedNotes([])
+        setReasoningHistory([])
 
         // Check if file exists in database
         let dbFile = await db.query.files.findFirst({
@@ -1127,7 +1182,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 and(eq(files.name, fileName), eq(files.vaultId, vault.id)),
             })
 
-            console.log(`Created new file in database: ${fileName}`)
+            console.debug(`Created new file in database: ${fileName}`)
           } catch (dbError) {
             console.error("Error inserting file into database:", dbError)
           }
@@ -1136,30 +1191,51 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         // Fetch notes associated with this file from the database
         if (dbFile) {
           try {
-            // Query all notes for this file
-            const fileNotes = await db.query.notes.findMany({
-              where: (notes, { and, eq }) =>
-                and(eq(notes.fileId, dbFile.id), eq(notes.vaultId, vault.id)),
-              orderBy: (notes, { desc }) => [desc(notes.createdAt)],
-            })
+            console.debug(`Loading notes for file ID: ${dbFile.id}`)
 
-            if (fileNotes.length > 0) {
+            // Query all notes for this file using the proper Drizzle syntax
+            const fileNotes = await db
+              .select()
+              .from(schema.notes)
+              .where(and(eq(schema.notes.fileId, dbFile.id), eq(schema.notes.vaultId, vault.id)))
+
+            if (fileNotes && fileNotes.length > 0) {
+              console.debug(`Found ${fileNotes.length} notes for file ${fileName}`)
+
               // Separate notes into regular and dropped notes
               const regularNotes = fileNotes.filter((note) => !note.dropped)
               const droppedNotesList = fileNotes.filter((note) => note.dropped)
 
+              console.debug(
+                `Regular notes: ${regularNotes.length}, Dropped notes: ${droppedNotesList.length}`,
+              )
+
+              // Properly prepare notes for the UI by adding display properties
+              const uiReadyRegularNotes = regularNotes.map((note) => ({
+                ...note,
+                color: note.color || generatePastelColor(),
+                lastModified: new Date(note.accessedAt),
+              }))
+
+              const uiReadyDroppedNotes = droppedNotesList.map((note) => ({
+                ...note,
+                color: note.color || generatePastelColor(),
+                lastModified: new Date(note.accessedAt),
+              }))
+
               // Update the state with fetched notes
-              setNotes(regularNotes)
-              setDroppedNotes(droppedNotesList)
+              setNotes(uiReadyRegularNotes)
+              setDroppedNotes(uiReadyDroppedNotes)
 
               // Fetch related reasonings if needed
               const reasoningIds = [...new Set(fileNotes.map((note) => note.reasoningId))]
               if (reasoningIds.length > 0) {
-                const reasonings = await db.query.reasonings.findMany({
-                  where: (reasonings, { inArray }) => inArray(reasonings.id, reasoningIds),
-                })
+                const reasonings = await db
+                  .select()
+                  .from(schema.reasonings)
+                  .where(inArray(schema.reasonings.id, reasoningIds))
 
-                if (reasonings.length > 0) {
+                if (reasonings && reasonings.length > 0) {
                   // Convert to ReasoningHistory format and update state
                   const reasoningHistory = reasonings.map((r) => ({
                     id: r.id,
@@ -1177,32 +1253,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 }
               }
             } else {
-              // No notes found for this file
-              setNotes([])
-              setDroppedNotes([])
-              setReasoningHistory([])
+              console.debug(`No notes found for file ${fileName}`)
             }
           } catch (error) {
             console.error("Error fetching notes for file:", error)
-            // Reset note states on error
-            setNotes([])
-            setDroppedNotes([])
-            setReasoningHistory([])
           }
         }
-
-        // Update component state
-        setCurrentFileHandle(node.handle as FileSystemFileHandle)
-        setCurrentFile(fileName) // State update
-        setMarkdownContent(content)
-        setHasUnsavedChanges(false)
-        setIsEditMode(true) // Reset to edit mode on file change
-        updatePreview(content) // Update preview
-
-        // Clear states related to current generation
-        setCurrentGenerationNotes([])
-        setCurrentlyGeneratingDateKey(null)
-        setNotesError(null)
       } catch (error) {
         console.error("Error handling file selection:", error)
         toast({
@@ -1382,7 +1438,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     >
                       <NotesPanel
                         notes={notes}
-                        isNotesLoading={isNotesLoading} // Keep for suggestion loading
+                        isNotesLoading={isNotesLoading}
                         notesError={notesError}
                         currentlyGeneratingDateKey={currentlyGeneratingDateKey}
                         currentGenerationNotes={currentGenerationNotes}

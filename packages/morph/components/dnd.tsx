@@ -104,6 +104,7 @@ export const EditorDropTarget = memo(function EditorDropTarget({
     </div>
   )
 })
+
 interface PlayspaceProps {
   children: React.ReactNode
   vaultId: string
