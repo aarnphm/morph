@@ -562,7 +562,7 @@ The business event list is presented in a tabular format. Each event includes:
 - **Event Name**: Describes the nature of the action or scenario.
 - **Input and Output**: Specifies whether the interaction is an input or an output.
 - **Summary of the Business Event (BUC)**: Provides a description of the expected result of the business event.
-
+![[SRS/BUC.png]]
 | Event Number | Event Name                   | Input/Output | Summary of BUC                                                                                                                                                                      |
 | ------------ | ---------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1            | User Uploads Document        | Input        | User uploads or begins editing a document. The file is processed locally and formatted into a request to the inference server for suggestions, but no data is stored on the server. |
