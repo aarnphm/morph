@@ -97,7 +97,7 @@ ReasoningModels: dict[ModelType, LLMMetadata] = {
     structured_output_backend='xgrammar',
     temperature=0.6,
     top_p=0.95,
-    resources={'gpu': 2, 'gpu_type': 'nvidia-a100-80gb'},
+    resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
   ),
 }
 

@@ -236,23 +236,23 @@ echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} - API: $API_LOG"
 echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} - LLM: $LLM_LOG"
 echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} - Embeddings: $EMBEDDINGS_LOG"
 
-# Start API service
-echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Starting API service on port 3000..."
-DEVELOPMENT=1 VLLM_PLUGINS= bentoml serve service:API --port 3000 $API_DEBUG_FLAG $API_RELOAD_FLAG > >(tee -a $API_LOG | while read line; do echo -e "${API_COLOR}[API]${RESET_COLOR} $line"; done) 2>&1 &
-API_PID=$!
-echo $API_PID >$API_PID_FILE
-
 # Start LLM service
 echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Starting LLM service on port 3001..."
-BENTOML_DISABLE_GPU_ALLOCATION=True CUDA_VISIBLE_DEVICES=1 VLLM_PLUGINS= bentoml serve service:LLM --port 3001 $LLM_DEBUG_FLAG > >(tee -a $LLM_LOG | while read line; do echo -e "${LLM_COLOR}[LLM]${RESET_COLOR} $line"; done) 2>&1 &
+DEBUG=${DEBUG} BENTOML_DISABLE_GPU_ALLOCATION=True CUDA_VISIBLE_DEVICES=1 VLLM_PLUGINS= bentoml serve service:LLM --port 3001 $LLM_DEBUG_FLAG > >(tee -a $LLM_LOG | while read line; do echo -e "${LLM_COLOR}[LLM]${RESET_COLOR} $line"; done) 2>&1 &
 LLM_PID=$!
 echo $LLM_PID >$LLM_PID_FILE
 
 # Start Embeddings service
 echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Starting Embeddings service on port 3002..."
-BENTOML_DISABLE_GPU_ALLOCATION=True CUDA_VISIBLE_DEVICES=0 VLLM_PLUGINS= bentoml serve service:Embeddings --port 3002 $EMBEDDINGS_DEBUG_FLAG > >(tee -a $EMBEDDINGS_LOG | while read line; do echo -e "${EMBEDDINGS_COLOR}[EMB]${RESET_COLOR} $line"; done) 2>&1 &
+DEBUG=${DEBUG} BENTOML_DISABLE_GPU_ALLOCATION=True CUDA_VISIBLE_DEVICES=0 VLLM_PLUGINS= bentoml serve service:Embeddings --port 3002 $EMBEDDINGS_DEBUG_FLAG > >(tee -a $EMBEDDINGS_LOG | while read line; do echo -e "${EMBEDDINGS_COLOR}[EMB]${RESET_COLOR} $line"; done) 2>&1 &
 EMBEDDINGS_PID=$!
 echo $EMBEDDINGS_PID >$EMBEDDINGS_PID_FILE
+
+# Start API service
+echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Starting API service on port 3000..."
+DEBUG=${DEBUG} DEVELOPMENT=1 VLLM_PLUGINS= bentoml serve service:API --port 3000 $API_DEBUG_FLAG $API_RELOAD_FLAG > >(tee -a $API_LOG | while read line; do echo -e "${API_COLOR}[API]${RESET_COLOR} $line"; done) 2>&1 &
+API_PID=$!
+echo $API_PID >$API_PID_FILE
 
 # Check if processes are running
 echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Checking if processes started correctly..."

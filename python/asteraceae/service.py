@@ -128,7 +128,6 @@ def make_env(engine_version: t.Literal[0, 1] = 1, *, skip_hf: bool = False) -> l
     {'name': 'HF_HUB_DISABLE_PROGRESS_BARS', 'value': '1'},
     {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
     {'name': 'VLLM_USE_V1', 'value': str(engine_version)},
-    {'name': 'VLLM_LOGGING_CONFIG_PATH', 'value': (WORKING_DIR / 'logging-config.json').__fspath__()},
   ])
   return results
 
@@ -140,6 +139,7 @@ def make_args(
   *,
   task: TaskType,
   max_log_len: int = 2000,
+  max_num_seqs: int = 512,
   max_model_len: int = MAX_MODEL_LEN,
   reasoning: bool = True,
   reasoning_parser: str = 'deepseek_r1',
@@ -155,13 +155,12 @@ def make_args(
   variables = dict(
     task=task,
     model=model,
-    disable_log_requests=True,
-    disable_uvicorn_access_log=True,
     max_log_len=max_log_len,
     served_model_name=[model_id],
-    request_logger=None,
-    disable_log_stats=True,
+    disable_log_requests=int(os.getenv('DEBUG', '0')) == 0,
+    disable_log_stats=int(os.getenv('DEBUG', '0')) == 0,
     use_tqdm_on_load=False,
+    max_num_seqs=max_num_seqs,
     enable_prefix_caching=prefix_caching,
     enable_auto_tool_choice=tool,
     tool_call_parser=tool_parser,
@@ -207,7 +206,7 @@ class LLM:
     import vllm.entrypoints.openai.api_server as vllm_api_server
 
     args = make_args(
-      self.model, self.model_id, task='generate', enable_chunked_prefill=True, gpu_memory_utilization=0.95
+      self.model, self.model_id, task='generate', enable_chunked_prefill=True, gpu_memory_utilization=0.99
     )
 
     router = fastapi.APIRouter(lifespan=vllm_api_server.lifespan)
@@ -302,6 +301,7 @@ class Embeddings:
       trust_remote_code=embed_['trust_remote_code'],
       prefix_caching=False,
       dtype=torch.float16,
+      max_num_seqs=256,
       hf_overrides={'is_causal': True},
     )
 
