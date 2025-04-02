@@ -153,13 +153,14 @@ def make_args(
   from vllm.utils import FlexibleArgumentParser
   from vllm.entrypoints.openai.cli_args import make_arg_parser
 
+  disable_logs = str(os.getenv('DEBUG', '0')).lower() in ['0', 'n', 'no', 'false', 'f']
   variables = dict(
     task=task,
     model=model,
     max_log_len=max_log_len,
     served_model_name=[model_id],
-    disable_log_requests=int(os.getenv('DEBUG', '0')) == 0,
-    disable_log_stats=int(os.getenv('DEBUG', '0')) == 0,
+    disable_log_requests=disable_logs,
+    disable_log_stats=disable_logs,
     use_tqdm_on_load=False,
     max_num_seqs=max_num_seqs,
     enable_prefix_caching=prefix_caching,

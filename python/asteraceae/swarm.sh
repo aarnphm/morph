@@ -173,7 +173,8 @@ echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Checking for existing processes..."
 # First check PID files
 if check_pid_file "$API_PID_FILE" || check_pid_file "$LLM_PID_FILE" || check_pid_file "$EMBEDDINGS_PID_FILE"; then
   echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Found running processes from previous session."
-  read -p "${SYS_COLOR}[SYS]${RESET_COLOR} Would you like to kill these processes? (y/n): " kill_choice
+  echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Would you like to kill these processes? (y/n): "
+  read -p "" kill_choice
   if [[ "$kill_choice" == "y" || "$kill_choice" == "Y" ]]; then
     kill_from_pid_files
   else
@@ -185,7 +186,8 @@ fi
 # Then check ports
 if check_port 3000 || check_port 3001 || check_port 3002; then
   echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Some ports (3000, 3001, or 3002) are already in use."
-  read -p "${SYS_COLOR}[SYS]${RESET_COLOR} Would you like to kill processes using these ports? (y/n): " kill_choice
+  echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Would you like to kill processes using these ports? (y/n): "
+  read -p "" kill_choice
   if [[ "$kill_choice" == "y" || "$kill_choice" == "Y" ]]; then
     cleanup_ports
   else
@@ -238,19 +240,19 @@ echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} - Embeddings: $EMBEDDINGS_LOG"
 
 # Start LLM service
 echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Starting LLM service on port 3001..."
-DEBUG=${DEBUG} BENTOML_DISABLE_GPU_ALLOCATION=True CUDA_VISIBLE_DEVICES=1 VLLM_PLUGINS= bentoml serve service:LLM --port 3001 $LLM_DEBUG_FLAG > >(tee -a $LLM_LOG | while read line; do echo -e "${LLM_COLOR}[LLM]${RESET_COLOR} $line"; done) 2>&1 &
+DEBUG=${DEBUG:=0} BENTOML_DISABLE_GPU_ALLOCATION=True CUDA_VISIBLE_DEVICES=1 VLLM_PLUGINS= bentoml serve service:LLM --port 3001 $LLM_DEBUG_FLAG > >(tee -a $LLM_LOG | while read line; do echo -e "${LLM_COLOR}[LLM]${RESET_COLOR} $line"; done) 2>&1 &
 LLM_PID=$!
 echo $LLM_PID >$LLM_PID_FILE
 
 # Start Embeddings service
 echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Starting Embeddings service on port 3002..."
-DEBUG=${DEBUG} BENTOML_DISABLE_GPU_ALLOCATION=True CUDA_VISIBLE_DEVICES=0 VLLM_PLUGINS= bentoml serve service:Embeddings --port 3002 $EMBEDDINGS_DEBUG_FLAG > >(tee -a $EMBEDDINGS_LOG | while read line; do echo -e "${EMBEDDINGS_COLOR}[EMB]${RESET_COLOR} $line"; done) 2>&1 &
+DEBUG=${DEBUG:=0} BENTOML_DISABLE_GPU_ALLOCATION=True CUDA_VISIBLE_DEVICES=0 VLLM_PLUGINS= bentoml serve service:Embeddings --port 3002 $EMBEDDINGS_DEBUG_FLAG > >(tee -a $EMBEDDINGS_LOG | while read line; do echo -e "${EMBEDDINGS_COLOR}[EMB]${RESET_COLOR} $line"; done) 2>&1 &
 EMBEDDINGS_PID=$!
 echo $EMBEDDINGS_PID >$EMBEDDINGS_PID_FILE
 
 # Start API service
 echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Starting API service on port 3000..."
-DEBUG=${DEBUG} DEVELOPMENT=1 VLLM_PLUGINS= bentoml serve service:API --port 3000 $API_DEBUG_FLAG $API_RELOAD_FLAG > >(tee -a $API_LOG | while read line; do echo -e "${API_COLOR}[API]${RESET_COLOR} $line"; done) 2>&1 &
+DEBUG=${DEBUG:=0} DEVELOPMENT=1 VLLM_PLUGINS= bentoml serve service:API --port 3000 $API_DEBUG_FLAG $API_RELOAD_FLAG > >(tee -a $API_LOG | while read line; do echo -e "${API_COLOR}[API]${RESET_COLOR} $line"; done) 2>&1 &
 API_PID=$!
 echo $API_PID >$API_PID_FILE
 
