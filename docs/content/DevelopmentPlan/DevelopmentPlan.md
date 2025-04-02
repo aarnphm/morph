@@ -2,7 +2,7 @@
 id: DevelopmentPlan
 tags:
   - meta
-author: aarnphm,waleedmalik7,nebrask
+author: aarnphm,nebrask,waleedmalik7,lucas-lizhiwei
 date: "2024-09-16"
 modified: 2025-01-17 18:18:44 GMT-05:00
 title: Development Plan
@@ -262,8 +262,13 @@ A variation of Google style guide for Python will be used.
 | ------------- | ------------ | -------------------------------- |
 | Sept. 16 2024 | 0.0          | Initial skafolding               |
 | Sept. 22 2024 | 0.1          | Initial POC and Development Plan |
+| Apr. 3 2025   | 0.3      | Full document revision and restructuring |
 
 ### Reflection
+1. Why is it important to create a development plan prior to starting the project?
+2. In your opinion, what are the advantages and disadvantages of using CI/CD?
+3. What disagreements did your group have in this deliverable, if any, and how did you resolve them?
+
 
 <div class="reflection-container">
 
@@ -273,12 +278,12 @@ A variation of Google style guide for Python will be used.
 
 <div class="blob">
 
-It is important to create a development plan prior to starting the project to ensure goal alignment, timelines,
+1. It is important to create a development plan prior to starting the project to ensure goal alignment, timelines,
 required resources and potential risks are evaluated accordingly. It enables better team coordination and planning on
 feature development, as well as providing a baseline to measure progress against. Additionally, it also helps with
 preventing scope creep by clearly defining goals and objectives to be achieved.
 
-CI/CD, ensures faster development iterations and improve code quality through automated testing. It also
+2. CI/CD, ensures faster development iterations and improve code quality through automated testing. It also
 helps with earlier bug detection and prevent regressions. However, depending on the stage of the project (given that
 tinymorph is relatively new and small), setting CI/CD is a huge hassle as one will have to manage the infrastructure
 as well as complexity of these pipelines. This will actually inversely introduce a lot of technical debt and slow down
@@ -286,8 +291,69 @@ development cycle. This is also known as _premature optimisation_.
 
 > CI/CD is the case of "pick your poison"
 
-We don't have any disagreements with regards to this deliverable, given that I asked for everyone preferences and let
-the technology stack to be made by project champion.
+3. We had a bit of disagreement around certain parts of the tech stack early on, particularly when choosing between different model-serving options. To resolve it, I made sure to ask for everyone’s input and facilitate a group discussion. In the end, we let the project champion for that component make the final call, which helped move things forward. Once the reasoning was clear, everyone supported the final decision, and it helped us shift focus toward building rather than debating.
+
+</div>
+
+</div>
+
+<br/>
+
+<div class="reflection-container">
+
+<div class="users">
+  <a class="name" href="https://github.com/nebrask">Nebras</a>
+</div>
+
+<div class="blob">
+
+1. Creating a development plan was crucial for us because it gave the project direction and helped us identify unknowns early on. We were able to break down a pretty ambitious idea like tinymorph into manageable parts, each with clear owners. It also helped the team align on expectations around responsibilities and workflows. Without this step, we could’ve easily drifted or miscommunicated, especially with a project that combines frontend UX and backend ML infrastructure. Having it all written down gave us similar to a shared guidebook.
+
+2. CI/CD brings a lot of structure and confidence to our workflow. Every time we push, we get immediate feedback through automated tests and formatting checks, which is especially important with a project as modular as tinymorph. It also makes merging and deploying smoother since we’re never sitting on untested code. The downside is the initial time investment. Setting up the pipelines to work across the editor and ML inference layers wasn’t trivial. Also when the pipelines break, it can block progress temporarily until we debug them.
+
+3. We had a bit of debate around how to define roles in the document. At first, we used the term “BDFL” to describe project leadership, but not everyone felt that term was appropriate for a formal academic deliverable. Some saw it as potentially off-putting or unclear to non-technical readers. After discussing it together, we switched to clearer language like “project lead” and emphasized shared ownership across components. That small change made the roles more understandable and professional without changing the actual structure of the team.
+
+</div>
+
+</div>
+
+<br/>
+
+<div class="reflection-container">
+
+<div class="users">
+  <a class="name" href="https://github.com/waleedmalik7">Waleed</a>
+</div>
+
+<div class="blob">
+
+1. A development plan sets the foundation for everything that follows. For tinymorph, we have both technical depth and user-facing complexity, and without planning ahead we might’ve prioritized the wrong things. Writing it all down forced us to clarify who is doing what, how our components talk to each other, and where potential risks lie. It also helped us have discussions early about scope, feasibility, and user expectations. I think having this plan will make future collaboration smoother and help when we check back in during project milestones.
+
+2. CI/CD is amazing for speeding up collaboration. It lets us validate work continuously, rather than relying on big manual testing rounds. For example, documentation gets built automatically, and model-related checks run on every pull request. It gives us trust in our changes. That said, it takes work to maintain. We had to split the pipelines for different components and set guardrails so nothing breaks unexpectedly. It’s also easy to underestimate how much debugging CI issues can slow us down, especially if you're trying to fix a flaky test or inconsistent runtime.
+
+3. We had different ideas on how much technical detail to include in certain sections, like the Proof of Concept plan. Some of us preferred shorthand to keep it concise, but others argued for more explanation. We ended up rewriting those sections with clarity in mind so that non-technical readers could follow along too.
+
+
+</div>
+
+</div>
+
+<br/>
+
+<div class="reflection-container">
+
+<div class="users">
+  <a class="name" href="https://github.com/lucas-lizhiwei">Lucas</a>
+</div>
+
+<div class="blob">
+
+1. Without a plan, a project like tinymorph would be way harder to manage. We have machine learning components, real-time UI interactions, and infrastructure decisions all happening in parallel. The plan helped us map out how everything fits together and what needs to happen first. It also helped reduce misunderstandings, especially around responsibilities. For instance, once we wrote out who was handling the editor vs. the ML inference server, it helped people focus on their parts while still being able to contribute to other areas.
+
+2. The main advantage is that it catches problems early and keeps the team from stepping on each other’s toes. If a change breaks the build or causes formatting issues, we find out right away. That’s huge when you're working across frontend and backend. On the downside, CI/CD systems can be a bit opaque when they fail. It sometimes takes longer than expected to track down the root cause of a failing pipeline, especially if it’s something that works locally but not in the cloud environment. Still, the benefits outweigh the setup cost in the long run.
+
+3. We had some small disagreements about how strict we wanted our Git workflow to be. Some people preferred a looser, more informal style while others wanted structure with squash merges, labels, and issue linking. In the end, we agreed to use structured naming and squash merging to keep our history clean but allowed for flexibility with how issues are created. It was a good compromise that let us be productive without overengineering the process.
+
 
 </div>
 
