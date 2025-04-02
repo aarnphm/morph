@@ -83,22 +83,59 @@ Code reviewers will be assigned based on ownership of the component in question.
 
 ## Workflow Plan
 
-`tinymorph` will follow a conventional git workflow, with `main` acts as "production" branch.
-This means all changes should be work from a pull requests, and will be squashed into ==one== commit before pushing to
-`main`.
+Tinymorph follows a conventional Git workflow. The `main` branch acts as the production-ready branch. All changes must be submitted via pull requests, and PRs will be squash-merged into a single commit to maintain a clean, linear history.
 
-This will ensure linear history.
+### Commit and Branch Naming
 
-`tinymorph` will use conventional commits for all commit messages as well as branch naming.
+Commit messages and branch names will use short, descriptive prefixes based on the type of work. Common tags include:
+- `feat:` for new features
+- `docs:` for documentation changes
+- `infra:` for infrastructure or CI updates
+- `chore:` for cleanup, config, or non-functional changes
 
-Issues should be created for all bugs, feature requests, and other work items, from predefined templates (blank
-templates are provided, but only use this if any of the previous templates do not apply.) Issue can be optionally add
-labels, add to milestone and Kaban board for progress checking.
+### Issue Tracking
 
-GitHub Actions will be used for CI/CD. The following enlists an overview of CI/CD for `tinymorph`:
+We use GitHub Issues for all tasks, bugs, planning items, and meetings. The following templates are available to guide issue creation:
 
-- Documentation will be built automatically on every push to main as well as PR changes
-- Each component will have its own CI pipeline for styling changes as well as tests (A/B testing)
+- **Bug Report**: For reporting issues and unexpected behavior  
+- **Feature Request**: For proposing and discussing new features  
+- **Lecture**: To track course lecture-related notes  
+- **Peer Review**: To manage external reviews of deliverables  
+- **Supervisor Meeting**: To prepare and document supervisor meetings  
+- **TA Meeting**: For tracking TA check-ins or sync-ups  
+- **Team Meeting**: For internal team meetings and agendas  
+- **Blank**: For anything that doesn’t fit the above categories
+
+Issues will be labeled appropriately (`feat`, `docs`, `infra`, `lecture`, `meeting`, etc.) and assigned to team members as needed. Milestones may be used to track key deliverables.
+
+### Project Board Workflow
+
+Each issue is tracked on the GitHub project board using the following status columns:
+
+- **Backlog**: Task not yet started  
+- **Ready**: Task ready to be picked up  
+- **In progress**: Task currently being worked on  
+- **In review**: Task is under code or design review  
+- **Done**: Task is completed
+
+This helps visualize team progress and maintain async alignment.
+
+### Pull Request Process
+
+- All PRs must reference a related issue when applicable  
+- Code reviews are required before merging  
+- PRs must pass CI checks (tests and formatting)  
+- Small, focused changes are preferred
+
+### CI/CD via GitHub Actions
+
+CI/CD is automated using GitHub Actions. The setup includes:
+- **Docs Deployment**: Automatically triggered on pushes to `main` and pull requests  
+- **Component CI Pipelines**: Each main module (editor, inference server) has a dedicated workflow for testing and formatting  
+- **Support for A/B Testing**: Will be used for evaluating model variants or steering interventions
+
+This setup ensures transparency, quality, and efficient iteration throughout development.
+
 
 ## Project Decomposition and Scheduling
 
