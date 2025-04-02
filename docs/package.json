@@ -1,20 +1,20 @@
 {
   "name": "@aarnphm/morph-docs",
-  "description": "Documentation for tinymorph",
+  "description": "⚙️engineering documents for morph",
   "private": true,
   "version": "4.4.0",
   "type": "module",
   "author": "aarnphm <contact@aarnphm.xyz>",
   "license": "Apache-2.0",
-  "homepage": "https://tinymorph.aarnphm.xyz",
+  "homepage": "https://engineering.morph-editor.app",
   "repository": {
     "type": "git",
-    "url": "https://github.com/aarnphm/tinymorph.git"
+    "url": "https://github.com/aarnphm/morph.git"
   },
   "scripts": {
     "quartz": "./quartz/bootstrap-cli.mjs",
     "check": "tsc --noEmit && npx prettier . --check",
-    "format": "npx prettier . --write",
+    "format": "pnpx prettier . --write",
     "test": "tsx ./quartz/util/path.test.ts && tsx ./quartz/depgraph.test.ts",
     "profile": "0x -D prof ./quartz/bootstrap-cli.mjs build --concurrency=1"
   },

@@ -3,15 +3,16 @@ id: HazardAnalysis
 tags:
   - meta
 author: aarnphm,waleedmalik7,nebrask,lucas-lizhiwei
-date: "2024-09-16"
-description: "Hazard Analysis for tinymorph: LLM-steering text editor"
-title: Hazard Analysis
 counter: true
+date: "2024-09-16"
+description: "Hazard Analysis for morph: LLM-steering text editor"
+modified: 2025-03-31 14:47:02 GMT-04:00
+title: Hazard Analysis
 ---
 
 ## Introduction
 
-The following entails the Hazard Analysis of `tinymorph`
+The following entails the Hazard Analysis of `morph`
 
 ![[SRS/SRS#^introduction|intro]]
 
@@ -19,19 +20,19 @@ The following entails the Hazard Analysis of `tinymorph`
 
 The purpose of this hazard analysis is to:
 
-- Identify potential hazards in `tinymorph`'s operation
+- Identify potential hazards in `morph`'s operation
 - Analyze failure modes and their effects
 - Define safety requirements and mitigation strategies
 - Guide development priorities for risk reduction
 
 This analysis covers the web-based text editor, its LLM inference system, user interactions, and data handling within
-`tinymorph`.
+`morph`.
 
 By examining these hazards, the analysis seeks to outline preventive measures to avoid and minimize these losses, ensuring that the system operates reliably and securely while protecting user content and experience.
 
 ## System Boundaries
 
-The following defines system boundaries for `tinymorph`:
+The following defines system boundaries for `morph`:
 
 ### Core Functionalities
 
@@ -68,14 +69,14 @@ The following defines system boundaries for `tinymorph`:
 
 #### File system operations
 
-- File system operations are critical for `tinymorph` to function properly, where it allows users to include files as
+- File system operations are critical for `morph` to function properly, where it allows users to include files as
   context or saving their progress.
 
 ### Components outside the boundary
 
 #### User devices and platforms
 
-- `tinymorph` aims to provide support on cross platforms, and supports running on modern browsers.
+- `morph` aims to provide support on cross platforms, and supports running on modern browsers.
 
 #### Networking connections
 
@@ -87,9 +88,9 @@ The definition of a hazard in this document is adapted from Nancy Leveson's work
 
 > [!important] Definition
 >
-> Any attribute of `tinymorph` that when combined with specific external conditions, could result in a negative impact on system operations or user experience.
+> Any attribute of `morph` that when combined with specific external conditions, could result in a negative impact on system operations or user experience.
 
-In the context of `tinymorph`, hazard is related to:
+In the context of `morph`, hazard is related to:
 
 - Loss or corruption of user data
 - Breach of user privacy
@@ -102,7 +103,7 @@ In the context of `tinymorph`, hazard is related to:
 
 ## Critical Assumptions
 
-Except for the assumption that the team has no control over the user's hardware, no critical assumptions are being made for `tinymorph` that would limit the scope of mitigating or eliminating potential hazards.
+Except for the assumption that the team has no control over the user's hardware, no critical assumptions are being made for `morph` that would limit the scope of mitigating or eliminating potential hazards.
 
 ## Failure Mode and Effect Analysis
 
@@ -146,7 +147,7 @@ control over the service's availability.
 | User devices support | Unpredictable system behavior or crashes caused by device-level vulnerabilities | Crashes users system                                            | a. out-dated browsers                                                                                                                                                                                   | a. Recommend users to regularly update their browsers and device firmware<br>b. Same as H1.1                                      | [[SRS/SRS#15.5 Immunity Requirements\|SR-IM1]]                                                                                                                                                                  | H6.1 |
 | Infrastructure       | Downtime                                                                        | Interruption in users' workflow                                 | a. SLO and third-party service downtime                                                                                                                                                                 | a. Same as H2.1<br>b. Add rollback and scaling for backup region                                                                  | [[SRS/SRS#15.4 Audit Requirements\|SR-AU1]]                                                                                                                                                                     | H7.1 |
 
-_Table 1: FEMA Table of `tinymorph`_
+_Table 1: FEMA Table of `morph`_
 
 ## Safety and Security Requirements
 
@@ -237,13 +238,13 @@ _NOTE_: Each of dependent risks/requirements will also be prioritized. For examp
 
 <div class="blob">
 
-The hazard analysis process went well in terms of identifying potential risks within the `tinymorph` project. The structured approach allowed us to effectively define the system boundaries, assess the components involved, and categorize hazards by focusing on different aspects such as system integrity, security, and user experience. Collaborating as a team to discuss and refine these hazards helped ensure a better understanding of possible system vulnerabilities. Breaking down the analysis into well defined sections allowed for greater organization and helped us consider multiple perspectives on the potential risks to both users and the system.
+The hazard analysis process went well in terms of identifying potential risks within the `morph` project. The structured approach allowed us to effectively define the system boundaries, assess the components involved, and categorize hazards by focusing on different aspects such as system integrity, security, and user experience. Collaborating as a team to discuss and refine these hazards helped ensure a better understanding of possible system vulnerabilities. Breaking down the analysis into well defined sections allowed for greater organization and helped us consider multiple perspectives on the potential risks to both users and the system.
 
 One of the pain points we experienced was determining the level of detail required for defining hazards and the justifications for the safety and security requirements. It was challenging to decide how specific each hazard needed to be without overcomplicating the document. To resolve this we opted for a balance between general definitions and more detailed justifications, making sure each hazard's implications were understood without overwhelming the document with unnecessary technical details. Another issue was the integration of third-party API related hazards. Understanding the exact scope of our control over these external components was difficult, so we spent time clarifying system boundaries and ensuring that our analysis accurately reflected the control we had over each component.
 
 Before starting this deliverable, we had already identified risks related to data privacy, data integrity, and maintaining a consistent user experience. However, during the hazard analysis process new risks emerged such as incorrect or harmful outputs from the model steering controls and the risks associated with steering the LLM beyond normal parameters. These risks came about when we examined the system from a more user-centered perspective and considered potential unintended outcomes from users tweaking model parameters excessively. Additionally, hazards associated with third party API downtime or rate limiting became more apparent as we started detailing the components outside our system boundary and recognizing our reliance on those external systems.
 
-Two other significant risks in software products include data privacy risks and user experience risks. Data privacy risks involve improper handling of sensitive user information, which can lead to security breaches and legal consequences. It's crucial to minimize privacy risks to protect user trust and comply with data protection laws. User experience risks can arise from confusing or inconsistent interfaces, poor system performance, or model-generated content that misaligns with user expectations. Poor user experience can result in reduced adoption of the product and overall dissatisfaction, directly impacting the success of the project. Both of these risks are important to consider because they affect how users perceive and trust the software, which is critical for the long term viability of the `tinymorph` project.
+Two other significant risks in software products include data privacy risks and user experience risks. Data privacy risks involve improper handling of sensitive user information, which can lead to security breaches and legal consequences. It's crucial to minimize privacy risks to protect user trust and comply with data protection laws. User experience risks can arise from confusing or inconsistent interfaces, poor system performance, or model-generated content that misaligns with user expectations. Poor user experience can result in reduced adoption of the product and overall dissatisfaction, directly impacting the success of the project. Both of these risks are important to consider because they affect how users perceive and trust the software, which is critical for the long term viability of the `morph` project.
 
 </div>
 
@@ -297,12 +298,13 @@ Two other significant risks in software products include data privacy risks and 
 
 ### Revision
 
-| Date          | Revisions | Change                                                |
-| ------------- | --------- | ----------------------------------------------------- |
-| Sept. 16 2024 | 0.0       | Initial skafolding                                    |
-| Oct. 21 2024  | 0.1       | Assumption, Safety and Security Requirements, Roadmap |
-| Oct. 21 2024  | 0.2       | Intro, scope                                          |
-| Oct. 21 2024  | 0.3       | System boundaries                                     |
-| Oct. 24 2024  | 0.4       | Table, Revisions                                      |
-| Oct. 24 2024  | 0.5       | Reflection                                            |
-| Jan. 30 2025  | 0.6       | Rev0 modification                                     |
+| Date           | Revisions | Change                                                |
+| -------------- | --------- | ----------------------------------------------------- |
+| Sept. 16 2024  | 0.0       | Initial skafolding                                    |
+| Oct. 21 2024   | 0.1       | Assumption, Safety and Security Requirements, Roadmap |
+| Oct. 21 2024   | 0.2       | Intro, scope                                          |
+| Oct. 21 2024   | 0.3       | System boundaries                                     |
+| Oct. 24 2024   | 0.4       | Table, Revisions                                      |
+| Oct. 24 2024   | 0.5       | Reflection                                            |
+| Jan. 30 2025   | 0.6       | Rev0 modification                                     |
+| March. 31 2025 | 0.7       | renaming to morph                                     |

@@ -1,7 +1,7 @@
-# tinymorph docs
+# morph engineering docs
 
-Include both API references as well docs for tinymorph
+Include most API references and Engineering-related to building docs.
 
-Most references should be editted under [`contents`](./content)
+Most references should be modified under [`contents`](./content)
 
 🔗 Based on [Quartz v4](https://quartz.jzhao.xyz/)

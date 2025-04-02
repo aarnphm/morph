@@ -4,13 +4,13 @@ tags:
   - meta
 author: aarnphm,nebrask,waleedmalik7,lucas-lizhiwei
 date: "2024-09-16"
-modified: 2025-01-17 18:18:44 GMT-05:00
+modified: 2025-03-31 14:55:26 GMT-04:00
 title: Development Plan
 ---
 
 See also: [[DevelopmentPlan/DevelopmentPlan#Revision|this document revision]]
 
-The following includes a brief roadmap of the development plan for `tinymorph` from Team 23 (Hinterland).
+The following includes a brief roadmap of the development plan for `morph` from Team 23 (Hinterland).
 
 ## Confidential Information
 
@@ -22,7 +22,7 @@ There is no IP to protect for this project.
 
 ## Copyright License
 
-`tinymorph` is licensed under the [Apache-2.0](https://github.com/aarnphm/tinymorph/blob/main/LICENSE) license.
+`morph` is licensed under the [Apache-2.0](https://github.com/aarnphm/morph/blob/main/LICENSE) license.
 
 ## Team Meeting Plan
 
@@ -44,7 +44,7 @@ Additional meetings can also be held as needed (knowledge sharing, coworking, et
 
 Hinterland members will use Teams for all asynchronous and synchronous communication.
 
-Additionally, GitHub [issue tracker](https://github.com/aarnphm/tinymorph/issues) should be used for feature
+Additionally, GitHub [issue tracker](https://github.com/aarnphm/morph/issues) should be used for feature
 development. The Sprint [Kaban](https://github.com/users/aarnphm/projects/4?query=sort:updated-desc+is:open) board will
 also be used concurrently for tracking tasks and in-progress work.
 
@@ -168,6 +168,7 @@ The following risks may impact the success or performance of the POC:
 - Slow initial response from the model server (cold starts), especially in remote deployment  
 - Instability from mismanaging KV cache within the `vLLM` block manager when modifying attention activations directly
 
+
 ### Mitigation Strategies
 
 To reduce the impact of the above risks, we plan to:
@@ -179,7 +180,7 @@ To reduce the impact of the above risks, we plan to:
 
 ## Expected Technology
 
-See also [CONTRIBUTING.md](https://github.com/aarnphm/tinymorph/blob/main/CONTRIBUTING.md) and [[DevelopmentPlan/DevelopmentPlan#Coding Standard|Style]]
+See also [CONTRIBUTING.md](https://github.com/aarnphm/morph/blob/main/CONTRIBUTING.md) and [[DevelopmentPlan/DevelopmentPlan#Coding Standard|Style]]
 
 The following stack will be divided into two parts: web-based editor (morph) and ML inference server (asteraceae)
 
@@ -198,7 +199,7 @@ Design file will be using [Figma](https://figma.com) for high-fidelity prototype
 for low-fidelity prototype.
 
 Citations will use [Chicago Manual of Style](https://www.chicagomanualofstyle.org/tools_citationguide.html) with
-a custom [CSL](https://github.com/aarnphm/tinymorph/blob/main/docs/content/chicago-fullnote-bibliography.csl) for supporting footnotes
+a custom [CSL](https://github.com/aarnphm/morph/blob/main/docs/content/chicago-fullnote-bibliography.csl) for supporting footnotes
 
 ### web-based editor (morph)
 
@@ -226,7 +227,7 @@ Language: Python
 
 Stack:
 
-- online inference: BentoML, vLLM, pydantic
+- online inference: BentoML, vLLM, pydantic, Goodfire
 - offline inference: [llama.cpp](https://github.com/ggerganov/llama.cpp)
 - testing: pytest
 
@@ -250,7 +251,7 @@ All related tools has been setup corespondingly.
 
 A variation of Google style guide for Python will be used.
 
-![[DevelopmentPlan/python style#The coding style|variation]]
+![[DevelopmentPlan/style#The coding style|variation]]
 
 ---
 
@@ -262,7 +263,9 @@ A variation of Google style guide for Python will be used.
 | ------------- | ------------ | -------------------------------- |
 | Sept. 16 2024 | 0.0          | Initial skafolding               |
 | Sept. 22 2024 | 0.1          | Initial POC and Development Plan |
-| Apr. 3 2025   | 0.3      | Full document revision and restructuring |
+| March 31 2025 | 0.2          | Renaming to `morph` for consistency |
+| Apr. 1 2025   | 0.3      | Full document revision and restructuring |
+
 
 ### Reflection
 1. Why is it important to create a development plan prior to starting the project?
@@ -285,7 +288,7 @@ preventing scope creep by clearly defining goals and objectives to be achieved.
 
 2. CI/CD, ensures faster development iterations and improve code quality through automated testing. It also
 helps with earlier bug detection and prevent regressions. However, depending on the stage of the project (given that
-tinymorph is relatively new and small), setting CI/CD is a huge hassle as one will have to manage the infrastructure
+morph is relatively new and small), setting CI/CD is a huge hassle as one will have to manage the infrastructure
 as well as complexity of these pipelines. This will actually inversely introduce a lot of technical debt and slow down
 development cycle. This is also known as _premature optimisation_.
 
@@ -369,7 +372,7 @@ borrows from [University of Portland Team Charter](https://engineering.up.edu/in
 
 #### External Goals
 
-Take a step back, our goal for `tinymorph` is to imagine what machine-assisted interfaces for creative writing would look like[^1].
+Take a step back, our goal for `morph` is to imagine what machine-assisted interfaces for creative writing would look like[^1].
 
 [^1]: [[ProblemStatementAndGoals/ProblemStatement#Problem|problem statement.]]
 
@@ -379,9 +382,9 @@ and often disguised these systmems under the term "artificial super intelligence
 companies that build AI systems to amplify our abilities to create and improve efficiency for our work. Companies such
 as [Runway](https://runwayml.com/), [Cohere](https://cohere.com/), etc belongs to this paradigm. ^intelligence
 
-Our interests lie firmly on the second group, where we build tools that amplifies our agency. `tinymorph` is the manifestation of these beliefs.
+Our interests lie firmly on the second group, where we build tools that amplifies our agency. `morph` is the manifestation of these beliefs.
 
-Additionally, during the journey of prototyping `tinymorph`, we hope to use it as a playground to delve into the field of [[glosar#mechanistic interpretability]] as a pure research interests.
+Additionally, during the journey of prototyping `morph`, we hope to use it as a playground to delve into the field of [[glosar#mechanistic interpretability]] as a pure research interests.
 
 #### Attendance
 
@@ -421,7 +424,7 @@ For meeting preparation, we expect everyone to come prepared with questions and 
 
 ##### Attitude
 
-Adhering to [Code of Coduct](https://github.com/aarnphm/tinymorph/blob/main/.github/CODE_OF_CONDUCT.md) adapted from the [Contributor Covenant](https://www.contributor-covenant.org), [version 2.0](https://www.contributor-covenant.org/version/2/0/code_of_conduct.html).
+Adhering to [Code of Coduct](https://github.com/aarnphm/morph/blob/main/.github/CODE_OF_CONDUCT.md) adapted from the [Contributor Covenant](https://www.contributor-covenant.org), [version 2.0](https://www.contributor-covenant.org/version/2/0/code_of_conduct.html).
 
 We encouraged everyone to be open to new ideas and collaborate on features work. We should use constructive critism with regards doing review work.
 
@@ -429,7 +432,7 @@ Should any conflict arise, please discuss your concern and display your reasonin
 
 ##### Stay on Track
 
-We will use standup [notes](https://github.com/aarnphm/tinymorph/issues?q=is:issue+is:closed+meeting+) to keep track of everyone progress.
+We will use standup [notes](https://github.com/aarnphm/morph/issues?q=is:issue+is:closed+meeting+) to keep track of everyone progress.
 
 For metrics, try to show up for meetings, and push your progress through draft PR to show your current progression.
 

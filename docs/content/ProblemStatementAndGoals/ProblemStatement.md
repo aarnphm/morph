@@ -4,6 +4,7 @@ tags:
   - meta
 author: aarnphm,nebrask,waleedmalik7,lucas-lizhiwei
 date: "2024-09-16"
+modified: 2025-03-31 14:56:17 GMT-04:00
 title: Problem Statement and Goals
 titleTransclude: false
 ---
@@ -19,7 +20,6 @@ See also: [[ProblemStatementAndGoals/ProblemStatement#Revision|this document rev
 
 With software deeply embedded in everyday life and the rapid advancement of large language models (LLMs), there is a growing need for interfaces that amplify user agency and encourage personalized interaction, rather than mere automation. Existing conversational interfaces (CUIs) often struggle with complex tasks and the structuring of extensive information, especially affecting creative writers like engineers who seek coherent, non-linear thought exploration. To address this challenge, `tinymorph` aims to introduce novel spatial and visual interfaces for text generation to enhance cognitive exploration and creativity in writing.
 
-
 ## Inputs and Outputs
 
 Inputs from users' perspective:
@@ -29,7 +29,7 @@ Inputs from users' perspective:
 3. External information sources related to topic at hand
 4. Context of the topic as well as desired goals.
 
-Outputs from `tinymorph`:
+Outputs from `morph`:
 
 1. A text-based [[glossary#inlay hints]] suggestions from models
 2. left-to-right (LTR) sequential panel to get users feedback on [[glossary#manual steering]]
@@ -38,7 +38,6 @@ Outputs from `tinymorph`:
 ## Stakeholders
 
 The main stakeholders of `tinymorph` include writers and engineers who write. The tool seeks to help writers become more productive and overcome creative blocks. It also aims to encourage engineers who write to be more creative and structured in their writing, while staying true to their tone. Writing at the end of the day is very personal, which means a tool should not dictate how one should write.
-
 
 ## Environment
 
@@ -93,7 +92,6 @@ Extras that we wish to pursue: User Manual, Usability Testing.
 Reasoning:
 
 1. User Manual: We plan to document the functionality and usage of `tinymorph` to ensure that users can effectively understand and navigate the tool. This includes clear instructions, visual examples, and troubleshooting tips to make the tool more accessible.
-
 2. Usability Testing: As `tinymorph` aims to explore new interactions for writing, it is important to validate our design and interaction patterns through user testing. Gathering feedback from real users will help refine our interface and ensure it supports a smooth and intuitive experience.
 
 ## Appendix
@@ -203,7 +201,9 @@ do (which is mechanistic interpretability).
 | Sept. 16 2024 | 0.0      | Initial skafolding                            |
 | Sept. 19 2024 | 0.1      | Problem Statement definitions                 |
 | Oct. 5 2024   | 0.2      | Update problem statement, adjust stakeholders |
-| Apr. 2 2025   | 0.3      | Full document revision and restructuring |
+| March 31 2025 | 0.3      | Renaming project for consistency              |
+| Apr. 1 2025   | 0.4      | Full document revision and restructuring |
+
 
 [^1]:
     Historically, the seminar work from Alan Turing laid the foundation for exploring the possibilities of a thinking machine [@10.1093/mind/LIX.236.433].

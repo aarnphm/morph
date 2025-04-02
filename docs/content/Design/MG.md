@@ -4,7 +4,7 @@ tags:
   - design
 author: aarnphm,waleedmalik7,nebrask,lucas-lizhiwei
 date: "2024-09-16"
-modified: 2025-01-17 21:05:01 GMT-05:00
+modified: 2025-03-31 14:56:34 GMT-04:00
 title: Module Guide
 ---
 
@@ -26,14 +26,14 @@ This section records information for easy reference.
 | PDF        | Portable Document Format                               |
 | R          | Requirement                                            |
 | SRS        | Software Requirements Specification                    |
-| tinymorph  | the text editor that helps you to become better writer |
+| morph      | the text editor that helps you to become better writer |
 | UC         | Unlikely Change                                        |
 
 ![[SRS/SRS#7.2 Data Dictionary|Data Dictionary]]
 
 ## Purpose
 
-The following encapsulates both system and document purposes for [[/index|tinymorph]]
+The following encapsulates both system and document purposes for [[/index|morph]]
 
 ### System Purpose
 
@@ -43,7 +43,7 @@ Whether you are working on creative writing or structured documents, the system 
 
 ### Document Purpose
 
-The purpose of this document is to illustrate and justify the decomposition of the tinymorph system into its core components and provide a Modular Guide for each module.
+The purpose of this document is to illustrate and justify the decomposition of the morph system into its core components and provide a Modular Guide for each module.
 This document will serve as a guide for the implementation of the system, ensuring all components are designed to achieve the system's goals effectively and maintain scalability, modularity, and user-friendliness.
 This document will also serve as a basis for the implementation work scheduled to be completed in the coming months.
 
@@ -84,7 +84,6 @@ Anticipated changes are the source of the information that is to be hidden insid
 - **AC9**: Use A100 GPU for rendering visualizations and running text generation faster.
 - **AC10**: May not integrate application with Notion and Obsidian.
 - **AC11**: Add tools to compare progress across multiple documents.
-
 
 ### Unlikely Changes
 
@@ -177,7 +176,7 @@ This section documents the primary design decisions made to satisfy the requirem
 
 ## Module Decomposition
 
-Modules are decomposed according to the principle of "information hiding" proposed by [@10.5555/800054.801999]. The _Secrets_ field in a module decomposition is a brief statement of the design decision hidden by the module. The _Services_ field specifies _what_ the module will do without documenting _how_ to do it. For each module, a suggestion for the implementing software is given under the _Implemented By_ title. If the entry is _OS_, this means that the module is provided by the operating system or by standard programming language libraries. [/index|Tinymorph] means the module will be implemented by the [/index|tinymorph] software. Only the leaf modules in the hierarchy have to be implemented. If a dash (_--_) is shown, this means that the module is not a leaf and will not have to be implemented.
+Modules are decomposed according to the principle of "information hiding" proposed by [@10.5555/800054.801999]. The _Secrets_ field in a module decomposition is a brief statement of the design decision hidden by the module. The _Services_ field specifies _what_ the module will do without documenting _how_ to do it. For each module, a suggestion for the implementing software is given under the _Implemented By_ title. If the entry is _OS_, this means that the module is provided by the operating system or by standard programming language libraries. [/index|morph] means the module will be implemented by the [/index|morph] software. Only the leaf modules in the hierarchy have to be implemented. If a dash (_--_) is shown, this means that the module is not a leaf and will not have to be implemented.
 
 ### Hardware-Hiding
 
@@ -266,39 +265,38 @@ Modules are decomposed according to the principle of "information hiding" propos
 
 This section shows two traceability matrices: between the modules and the requirements and between the modules and the anticipated changes.
 
-| **Requirement**      | **Modules**                                 |
-|----------------------|---------------------------------------------|
-| FR-1                 | M2, M3, M4, M8                              |
-| FR-2                 | M8, M9, M3, M5                              |
-| FR-3                 | M2, M6, M8                                  |
-| FR-4                 | M8, M9, M5                                  |
-| FR-5                 | M9, M7, M3                                  |
-| FR-6                 | M4, M7, M3, M10                             |
-| FR-7                 | M3, M8, M9                                  |
-| FR-8                 | M7, M4, M6, M9, M10                         |
-| FR-9                 | M7, M6, M5                                  |
-| FR-10                | M7, M6, M11                                 |
-| FR-11                | M10, M9, M5, M4                             |
-| FR-12                | M4, M9, M3, M8                              |
-| FR-13                | M11, M6, M9                                 |
-| FR-14                | M5, M2, M6                                  |
+| **Requirement** | **Modules**         |
+| --------------- | ------------------- |
+| FR-1            | M2, M3, M4, M8      |
+| FR-2            | M8, M9, M3, M5      |
+| FR-3            | M2, M6, M8          |
+| FR-4            | M8, M9, M5          |
+| FR-5            | M9, M7, M3          |
+| FR-6            | M4, M7, M3, M10     |
+| FR-7            | M3, M8, M9          |
+| FR-8            | M7, M4, M6, M9, M10 |
+| FR-9            | M7, M6, M5          |
+| FR-10           | M7, M6, M11         |
+| FR-11           | M10, M9, M5, M4     |
+| FR-12           | M4, M9, M3, M8      |
+| FR-13           | M11, M6, M9         |
+| FR-14           | M5, M2, M6          |
 
 _Table 2: Trace Between Requirements and Modules_
 
-| **AC** | **Modules**       |
-|--------|-------------------|
-| AC1    | M8                |
-| AC2    | M1                |
-| AC3    | M5                |
-| AC4    | M10, M4           |
-| AC5    | M2, M3            |
-| AC6    | M6, M10           |
-| AC7    | M7, M11           |
-| AC8    | M10, M11          |
-| AC9    | M1, M8            |
-| AC10   | M11               |
-| AC11   | M10, M11          |
-
+| **AC** | **Modules** |
+| ------ | ----------- |
+| AC1    | M8          |
+| AC2    | M1          |
+| AC3    | M5          |
+| AC4    | M10, M4     |
+| AC5    | M2, M3      |
+| AC6    | M6, M10     |
+| AC7    | M7, M11     |
+| AC8    | M10, M11    |
+| AC9    | M1, M8      |
+| AC10   | M11         |
+| AC11   | M10, M11    |
 
 _Table 3: Trace Between Anticipated Changes and Modules_
 
@@ -314,9 +312,7 @@ _Figure 1: Use Hierarchy Between Modules_
 
 ![[images/POC.pdf|POC]]
 
-
 ![[images/modules.drawio.png]]
-
 
 ## Timeline
 
@@ -330,11 +326,12 @@ See also [Projects](https://github.com/users/aarnphm/projects/4?query=sort:updat
 
 ### Revision
 
-| **Date**     | **Version** | **Notes**                               |
-| ------------ | ----------- | --------------------------------------- |
-| Jan. 05 2025 | 0.0         | Created rough sketches for architecture |
-| Jan. 10 2024 | 0.1         | Purpose                                 |
-| Jan. 12 2024 | 0.2         | Project Overview/Diagrams               |
-| Jan. 13 2024 | 0.3         | Updated Module Hierarchy and Table      |
-| Jan. 16 2024 | 0.4         | Finished Module Decomposition           |
-| Jan. 17 2024 | 0.4         | Completed Document                      |
+| **Date**      | **Version** | **Notes**                               |
+| ------------- | ----------- | --------------------------------------- |
+| Jan. 05 2025  | 0.0         | Created rough sketches for architecture |
+| Jan. 10 2024  | 0.1         | Purpose                                 |
+| Jan. 12 2024  | 0.2         | Project Overview/Diagrams               |
+| Jan. 13 2024  | 0.3         | Updated Module Hierarchy and Table      |
+| Jan. 16 2024  | 0.4         | Finished Module Decomposition           |
+| Jan. 17 2024  | 0.4         | Completed Document                      |
+| March 31 2025 | 0.5         | Rename to `morph` for consistency       |

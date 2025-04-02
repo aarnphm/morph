@@ -1,6 +1,8 @@
 * text=auto eol=lf
 docs/content/** linguist-documentation
+packages/manuals/content/** linguist-documentation
 docs/ linguist-detectable
+packages/manuals/ linguist-documentation
 packages/ linguist-detectable
 python/ linguist-detectable
 *.md linguist-detectable=true
@@ -9,4 +11,3 @@ python/ linguist-detectable
 *.markdown linguist-detectable=true
 *.markdown linguist-documentation=false
 *.markdown linguist-language=Markdown
-*.ipynb linguist-detectable=false

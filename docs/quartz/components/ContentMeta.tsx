@@ -126,7 +126,7 @@ export default ((opts?: Partial<ContentMetaOptions>) => {
                   <li>
                     <a
                       class="ref-source"
-                      href={`https://github.com/aarnphm/tinymorph/blob/main/docs/content/${fileData.slug!}.md`}
+                      href={`https://github.com/aarnphm/morph/blob/main/docs/content/${fileData.slug!}.md`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -138,7 +138,7 @@ export default ((opts?: Partial<ContentMetaOptions>) => {
                   <li>
                     <a
                       class="ref-source"
-                      href={`https://github.com/aarnphm/tinymorph/blame/main/docs/content/${fileData.slug!}.md`}
+                      href={`https://github.com/aarnphm/morph/blame/main/docs/content/${fileData.slug!}.md`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
