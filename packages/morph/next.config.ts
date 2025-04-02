@@ -15,7 +15,6 @@ export default MillionLint.next({
     transpilePackages: [
       "next-plausible",
       "katex",
-      "mermaid",
       "flexsearch",
       "@electric-sql/pglite-react",
       "@electric-sql/pglite",

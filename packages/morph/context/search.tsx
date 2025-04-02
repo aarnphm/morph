@@ -1,12 +1,16 @@
 "use client"
 
-import { db } from "@/db"
 import { encode } from "@/lib"
+import { and, eq } from "drizzle-orm"
+import { drizzle } from "drizzle-orm/pglite"
 import { Document } from "flexsearch"
 import { debounce } from "lodash"
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
 
+import { usePGlite } from "@/context/db"
+
 import type { FileSystemTreeNode, Vault } from "@/db/interfaces"
+import * as schema from "@/db/schema"
 
 export interface UserDocument {
   id: string
@@ -22,20 +26,22 @@ export type SearchResultItem = {
 
 type SearchContextType = {
   index: Document | null
-  getFileByName: (fileName: string) => Promise<string | undefined>
+  getFileIdByName: (fileName: string) => Promise<string | undefined>
   isIndexReady: boolean
   searchDocuments: (query: string, options?: any) => Promise<Array<SearchResultItem>>
 }
 
 const SearchContext = createContext<SearchContextType>({
   index: null,
-  getFileByName: async () => undefined,
+  getFileIdByName: async () => undefined,
   isIndexReady: false,
   searchDocuments: async () => [],
 })
 
 export function SearchProvider({ children, vault }: { children: React.ReactNode; vault: Vault }) {
   const [isIndexReady, setIsIndexReady] = useState(false)
+  const client = usePGlite()
+  const db = drizzle({ client, schema })
 
   // Memoize the FlexSearch index
   const index = useMemo(() => {
@@ -67,12 +73,20 @@ export function SearchProvider({ children, vault }: { children: React.ReactNode;
     initializeIndex()
   }, [index])
 
-  const getFileByName = useCallback(
+  const getFileIdByName = useCallback(
     async (fileName: string): Promise<string | undefined> => {
       if (!vault || !vault.id) return undefined
-      return db.getFileIdByName(fileName, vault.id)
+      try {
+        const result = await db.query.files.findFirst({
+          where: and(eq(schema.files.vaultId, vault.id), eq(schema.files.name, fileName)),
+        })
+        return result?.id
+      } catch (error) {
+        console.error("Error fetching file ID by name:", error)
+        return undefined
+      }
     },
-    [vault],
+    [vault, db],
   )
 
   // Create a wrapper search function to avoid TypeScript errors
@@ -105,7 +119,7 @@ export function SearchProvider({ children, vault }: { children: React.ReactNode;
 
   const indexNode = useCallback(
     async (node: FileSystemTreeNode) => {
-      if (!isIndexReady) return
+      if (!index || !isIndexReady) return
 
       if (node.kind === "file" && node.extension === "md") {
         await index.add({
@@ -114,10 +128,7 @@ export function SearchProvider({ children, vault }: { children: React.ReactNode;
           path: node.path,
         })
 
-        // Add to fileName → fileId mapping in our Dexie database
-        if (vault && vault.id) {
-          await db.indexFileName(node.name, node.id, vault.id)
-        }
+        // Removed db.indexFileName - FlexSearch handles in-memory indexing
       }
       if (node.children) {
         for (const child of node.children) {
@@ -125,20 +136,29 @@ export function SearchProvider({ children, vault }: { children: React.ReactNode;
         }
       }
     },
-    [index, vault, isIndexReady],
+    [index, isIndexReady],
   )
 
   // Debounce the indexing to prevent frequent re-executions
   const debouncedIndexNodes = useMemo(
     () =>
       debounce(async (nodes: FileSystemTreeNode[]) => {
-        if (!isIndexReady) return
+        if (!isIndexReady || !index) return
 
+        // Clear existing index before re-indexing
+        // This might need adjustment based on desired behavior (incremental vs full re-index)
+        // For simplicity, we clear and re-add here.
+        // Consider using index.remove or index.update for more granular control if needed.
+        // Note: FlexSearch Document doesn't have a clear() method. Re-instantiating might be needed for full clear.
+        // For now, we will just add, assuming duplicates won't cause major issues or are handled.
+
+        console.log("Indexing vault content...")
         for (const node of nodes) {
           await indexNode(node)
         }
-      }, 300),
-    [indexNode, isIndexReady],
+        console.log("Indexing complete.")
+      }, 500), // Increased debounce time slightly
+    [indexNode, isIndexReady, index],
   )
 
   // Initialize indexing when vault.tree changes
@@ -156,11 +176,11 @@ export function SearchProvider({ children, vault }: { children: React.ReactNode;
   const value = useMemo(
     () => ({
       index,
-      getFileByName,
+      getFileIdByName,
       isIndexReady,
       searchDocuments,
     }),
-    [index, getFileByName, isIndexReady, searchDocuments],
+    [index, getFileIdByName, isIndexReady, searchDocuments],
   )
 
   return useMemo(

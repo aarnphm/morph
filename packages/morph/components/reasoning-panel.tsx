@@ -1,9 +1,14 @@
-import { db } from "@/db"
 import { cn } from "@/lib/utils"
 import { ChevronRightIcon, TransformIcon } from "@radix-ui/react-icons"
+import { drizzle } from "drizzle-orm/pglite"
+import { eq } from "drizzle-orm"
 import { AnimatePresence, motion } from "motion/react"
 import * as React from "react"
 import { memo, useEffect, useRef, useState } from "react"
+
+import { usePGlite } from "@/context/db"
+
+import * as schema from "@/db/schema"
 
 // Triple dot loading animation component
 const LoadingDots = memo(function LoadingDots() {
@@ -78,6 +83,9 @@ export function ReasoningPanel({
   const reasoningRef = useRef<HTMLDivElement>(null)
   const startTimeRef = useRef<number | null>(null)
 
+  const client = usePGlite()
+  const db = drizzle({ client, schema })
+
   // Control expansion state from parent
   useEffect(() => {
     setIsExpanded(shouldExpand || isStreaming)
@@ -105,9 +113,12 @@ export function ReasoningPanel({
   // Save reasoning to database when complete
   useEffect(() => {
     if (isStreaming && reasoning && currentFile && vaultId) {
-      db.reasonings.update(reasoningId, { content: reasoning })
+      db.update(schema.reasonings)
+        .set({ content: reasoning })
+        .where(eq(schema.reasonings.id, reasoningId))
+        .execute()
     }
-  }, [isStreaming, reasoning, currentFile, vaultId, reasoningId])
+  }, [isStreaming, reasoning, currentFile, vaultId, reasoningId, db])
 
   // Auto-scroll to bottom when content changes and panel is expanded
   useEffect(() => {

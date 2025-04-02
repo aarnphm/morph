@@ -90,13 +90,9 @@ export interface FileIndex {
   id: string
   name: string
   extension: string
-  refs: {
-    vaultId: string
-  }
-  embedding: {
-    status: Note["embedding"]["status"]
-    taskId?: Note["embedding"]["taskId"]
-  }
+  vaultId: string
+  embeddingStatus: Note["embeddingStatus"]
+  embeddingtaskId?: Note["embeddingTaskId"]
 }
 
 // DB version of reference
@@ -126,29 +122,23 @@ export interface Note {
   id: string
   content: string
   color: string
+  fileId: string
+  vaultId: string
+  reasoningId?: string
   createdAt: Date
-  accessedAt: Date
-  dropped: boolean
-  refs: {
-    fileId: string
-    vaultId: string
-    reasoningId: string
-  }
-  steering: Steering
-  embedding: {
-    status: "in_progress" | "success" | "failure" | "cancelled"
-    taskId?: string
-  }
+  accessedAt?: Date
+  dropped?: boolean
+  steering?: Steering
+  embeddingStatus?: "in_progress" | "success" | "failure" | "cancelled"
+  embeddingTaskId?: string
 }
 
 export interface Reasoning {
   id: string
   content: string
-  refs: {
-    fileId: string
-    vaultId: string
-    noteIds: string[]
-  }
+  fileId: string
+  vaultId: string
+  noteIds: string[]
   createdAt: Date
   accessedAt: Date
   duration: number

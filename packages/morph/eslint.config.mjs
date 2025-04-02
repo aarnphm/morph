@@ -20,7 +20,7 @@ const eslintConfig = [
     },
   }),
   ...compat.config({
-    extends: ["plugin:drizzle/all"],
+    extends: ["plugin:drizzle/recommended"],
     parser: "@typescript-eslint/parser",
   }),
 ]

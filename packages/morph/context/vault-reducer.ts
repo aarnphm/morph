@@ -167,13 +167,12 @@ export async function processDirectory(
   return currentNode
 }
 
-// Convert runtime tree to DB tree by removing handles but preserving handleIds
+// Convert runtime tree to DB tree by removing handles
 export function treeToDbTree(tree: FileSystemTreeNode): FileSystemTreeNodeDb {
-  const { handle, children, ...rest } = tree
+  const { children, ...rest } = tree
+  delete rest.handle
   const dbTree: FileSystemTreeNodeDb = {
     ...rest,
-    // Explicitly preserve handleId to ensure it's not lost in transformation
-    handleId: tree.handleId,
     children: children?.map(treeToDbTree),
   }
   return dbTree

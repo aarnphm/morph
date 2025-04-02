@@ -1,6 +1,5 @@
 "use client"
 
-import { FileSystemTreeNode, Vault } from "@/db"
 import { cn } from "@/lib/utils"
 import { EditorView } from "@codemirror/view"
 import {
@@ -32,6 +31,8 @@ import { SidebarMenuButton, SidebarMenuItem, SidebarMenuSub } from "@/components
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 import { useToast } from "@/hooks/use-toast"
+
+import { FileSystemTreeNode, Vault } from "@/db/interfaces"
 
 interface FileTreeNodeProps {
   node: FileSystemTreeNode
@@ -183,7 +184,7 @@ export default memo(function Rails({
       }
 
       try {
-        const file = await node.handle.getFile()
+        const file = await node.handle!.getFile()
         const content = await file.text()
 
         if (onFileSelect) onFileSelect(node)

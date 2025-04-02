@@ -1,23 +1,11 @@
-import { defaultSettings } from "@/db"
 import { useEffect, useState } from "react"
 
 import { useVaultContext } from "@/context/vault"
 
-export interface Settings {
-  vimMode: boolean
-  tabSize: number
-  ignorePatterns: string[]
-  editModeShortcut: string
-  notePanelShortcut: string
-  citation: {
-    enabled: boolean
-    format: "biblatex" | "csl-json"
-    databasePath?: string
-  }
-}
+import { DEFAULT_SETTINGS, Settings } from "@/db/interfaces"
 
 export default function usePersistedSettings() {
-  const [settings, setSettings] = useState<Settings>(defaultSettings)
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [isLoaded, setIsLoaded] = useState(false)
   const { getActiveVault } = useVaultContext()
 
@@ -38,7 +26,7 @@ export default function usePersistedSettings() {
         const text = await file.text()
 
         if (text) {
-          const parsedSettings = { ...defaultSettings, ...JSON.parse(text) }
+          const parsedSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(text) }
           setSettings(parsedSettings)
         }
       } catch (error) {
@@ -75,6 +63,5 @@ export default function usePersistedSettings() {
     settings,
     updateSettings,
     isLoaded,
-    defaultSettings,
   }
 }

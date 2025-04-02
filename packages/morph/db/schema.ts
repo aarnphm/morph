@@ -190,7 +190,6 @@ export const tasks = p.pgTable("tasks", {
 
 // Vector storage tables for embeddings
 // For M and ef_construction, check service.py#API
-
 export const noteEmbeddings = p.pgTable(
   "noteEmbeddings",
   {
@@ -203,7 +202,7 @@ export const noteEmbeddings = p.pgTable(
   },
   (table) => [
     p
-      .index("ipIndex_hnsw")
+      .index("note_ipIndex_hnsw")
       .using("hnsw", table.embedding.op("vector_ip_ops"))
       .with({ m: 16, ef_construction: 50 }),
   ],
@@ -233,7 +232,7 @@ export const fileEmbeddings = p.pgTable(
   },
   (table) => [
     p.primaryKey({ columns: [table.vaultId, table.fileId, table.chunkId] }),
-    p.index("ipIndex_hnsw").using("hnsw", table.embedding.op("vector_ip_ops")).with({
+    p.index("file_ipIndex_hnsw").using("hnsw", table.embedding.op("vector_ip_ops")).with({
       m: 16,
       ef_construction: 50,
     }),

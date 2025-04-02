@@ -3,7 +3,7 @@ import { makePGliteProvider } from "@electric-sql/pglite-react"
 import { live } from "@electric-sql/pglite/live"
 import { vector } from "@electric-sql/pglite/vector"
 
-type MorphPgLite = PGlite &
+export type MorphPgLite = PGlite &
   PGliteInterfaceExtensions<{
     live: typeof live
     vector: typeof vector

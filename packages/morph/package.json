@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "migrate": "tsx compile-migrations.ts"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.3.2",

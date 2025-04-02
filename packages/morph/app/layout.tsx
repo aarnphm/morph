@@ -1,6 +1,3 @@
-import { client } from "@/db"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { type Metadata, type Viewport } from "next"
 import PlausibleProvider from "next-plausible"
 import Script from "next/script"
@@ -8,9 +5,7 @@ import type React from "react"
 
 import { Toaster } from "@/components/ui/toaster"
 
-import { PGliteProvider } from "@/context/db"
-import { ThemeProvider } from "@/context/theme"
-import { VaultProvider } from "@/context/vault"
+import { Providers } from "@/context/providers"
 
 import "./globals.css"
 
@@ -35,9 +30,7 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
-const queryClient = new QueryClient()
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
@@ -54,21 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <PlausibleProvider domain="morph-editor.app" trackOutboundLinks trackFileDownloads>
-          <PGliteProvider db={client}>
-            <QueryClientProvider client={queryClient}>
-              <VaultProvider>
-                <ThemeProvider
-                  attribute="class"
-                  defaultTheme="system"
-                  enableSystem
-                  disableTransitionOnChange
-                >
-                  {children}
-                </ThemeProvider>
-              </VaultProvider>
-              <ReactQueryDevtools initialIsOpen={false} buttonPosition="top-left" />
-            </QueryClientProvider>
-          </PGliteProvider>
+          <Providers>{children}</Providers>
         </PlausibleProvider>
         <Toaster />
         {process.env.NODE_ENV === "production" && (

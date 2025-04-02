@@ -15,7 +15,7 @@ import remarkRehype from "remark-rehype"
 import { unified } from "unified"
 import { VFile } from "vfile"
 
-import { Settings } from "@/hooks/use-persisted-settings"
+import type { Settings } from "@/db/interfaces"
 
 import { htmlPlugins, markdownPlugins } from "./parser"
 

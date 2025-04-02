@@ -1,4 +1,3 @@
-import type { Note } from "@/db"
 import { NOTES_DND_TYPE, generatePastelColor } from "@/lib/notes"
 import { cn } from "@/lib/utils"
 import { type VariantProps, cva } from "class-variance-authority"
@@ -10,6 +9,8 @@ import { getEmptyImage } from "react-dnd-html5-backend"
 
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { Skeleton } from "@/components/ui/skeleton"
+
+import type { Note } from "@/db/interfaces"
 
 // Define note card variants using CVA
 const noteCardVariants = cva(

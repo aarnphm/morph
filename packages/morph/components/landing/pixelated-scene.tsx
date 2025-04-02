@@ -63,6 +63,27 @@ function Scene({ numStars = 100 }) {
     scene.background = new THREE.Color(bgColor)
   }, [gl, scene])
 
+  useEffect(() => {
+    return () => {
+      // Traverse the scene and dispose of geometries and materials
+      scene.traverse((object) => {
+        if (object instanceof THREE.Mesh) {
+          if (object.geometry) {
+            object.geometry.dispose()
+          }
+          if (object.material) {
+            // If material is an array, dispose each element
+            if (Array.isArray(object.material)) {
+              object.material.forEach((material) => material.dispose())
+            } else {
+              object.material.dispose()
+            }
+          }
+        }
+      })
+    }
+  }, [scene, gl])
+
   useFrame(({ camera }) => {
     camera.position.setFromSphericalCoords(8, degreesToRadians(75), time.get() * 0.0002)
     camera.lookAt(0, 0, 0)

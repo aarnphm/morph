@@ -2,9 +2,9 @@ import { useCallback } from "react"
 
 import { processDirectory } from "@/context/vault-reducer"
 
-import { type Reference, type ReferenceDb, type Vault, type VaultDb } from "@/db/interfaces"
+import useFsHandles from "@/hooks/use-fs-handles"
 
-import useFsHandles from "./use-fs-handles"
+import { type Reference, type ReferenceDb, type Vault, type VaultDb } from "@/db/interfaces"
 
 /**
  * Hook for converting between database models and runtime models with file handles

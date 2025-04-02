@@ -14,7 +14,9 @@ import { Textarea } from "@/components/ui/textarea"
 
 import { useVaultContext } from "@/context/vault"
 
-import usePersistedSettings, { Settings } from "@/hooks/use-persisted-settings"
+import usePersistedSettings from "@/hooks/use-persisted-settings"
+
+import { Settings } from "@/db/interfaces"
 
 interface SettingsPanelProps {
   isOpen: boolean

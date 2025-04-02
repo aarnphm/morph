@@ -1,4 +1,4 @@
-import { db } from "@/db"
+import { eq } from "drizzle-orm"
 import matter, { type GrayMatterFile } from "gray-matter"
 import type { Element, Root as HtmlRoot, Text } from "hast"
 import { fromHtmlIsomorphic } from "hast-util-from-html-isomorphic"
@@ -31,7 +31,6 @@ import { Data } from "vfile"
 
 import {
   SvgOptions,
-  checkMermaidCode,
   coalesceAliases,
   coerceDate,
   coerceToArray,
@@ -47,7 +46,9 @@ import {
   unescapeHTML,
 } from "@/components/parser/utils"
 
-import { type Settings } from "@/hooks/use-persisted-settings"
+import { dbHandle } from "@/hooks/use-fs-handles"
+
+import { type Settings } from "@/db/interfaces"
 
 export type MorphPluginData = Data
 export type MorphParser = {
@@ -582,89 +583,6 @@ const Markup = {
   ],
 } satisfies MorphParser
 
-const Mermaid = {
-  name: "Mermaid",
-  markdownPlugins: () => [
-    () => {
-      return (tree) => {
-        visit(tree, "code", (node: Code) => {
-          if (node.lang === "mermaid") {
-            node.data = {
-              hProperties: {
-                className: ["mermaid"],
-                "data-clipboard": mdastToString(node),
-              },
-            }
-          }
-        })
-      }
-    },
-  ],
-  htmlPlugins: () => [
-    () => {
-      return (tree) => {
-        visit(
-          tree,
-          (node) => checkMermaidCode(node as Element),
-          (node: Element, _, parent: Element) => {
-            const className = Array.isArray(parent.properties.className)
-              ? parent.properties.className
-              : (parent.properties.className = [])
-            if (!new Set(className).has("min-h-fit")) className.push("min-h-fit")
-
-            parent.children = [
-              h("button.expand-button", { ariaLabel: "Expand mermaid diagram", tabindex: -1 }, [
-                s("svg", { ...SvgOptions, viewbox: "0 -8 24 24", tabindex: -1 }, [
-                  s("use", { href: "#expand-e-w" }),
-                ]),
-              ]),
-              h("button.clipboard-button", { ariaLabel: "copy source", tabindex: -1 }, [
-                s("svg", { ...SvgOptions, viewbox: "0 -8 24 24", class: "copy-icon" }, [
-                  s("use", { href: "#github-copy" }),
-                ]),
-                s("svg", { ...SvgOptions, viewbox: "0 -8 24 24", class: "check-icon" }, [
-                  s("use", { href: "#github-check" }),
-                ]),
-              ]),
-              node,
-              h(
-                ".mermaid-viewer",
-                h(".mermaid-backdrop"),
-                h(
-                  "#mermaid-space",
-                  h(
-                    ".mermaid-header",
-                    h(
-                      "button.close-button",
-                      { ariaLabel: "close button", title: "close button", type: "button" },
-                      [
-                        s(
-                          "svg",
-                          {
-                            ...SvgOptions,
-                            ariaHidden: true,
-                            width: 24,
-                            height: 24,
-                            fill: "none",
-                            stroke: "currentColor",
-                            strokewidth: 2,
-                          },
-                          [s("use", { href: "#close-button" })],
-                        ),
-                      ],
-                    ),
-                  ),
-                  h(".mermaid-content"),
-                ),
-              ),
-            ]
-          },
-        )
-      }
-    },
-  ],
-} satisfies MorphParser
-
 const URL_PATTERN = /https?:\/\/[^\s<>)"]+/g
 
 interface LinkType {
@@ -801,6 +719,7 @@ export const citationRE: RegExp =
   /(?:\[([^[\]]*@[^[\]]+)\])|(?<=\s|^|(-))(?:@([\p{L}\d_][^\s]*[\p{L}\d_]|\{.+\})(?:\s+\[(.*?)\])?)/u
 const permittedTags = ["div", "p", "span", "li", "td", "th"]
 const idRoot = "CITATION"
+
 const Citations = {
   name: "Citations",
   htmlPlugins: (_, vaultId) => {
@@ -813,21 +732,42 @@ const Citations = {
           csl: "apa",
           lang: "en-US",
         }
-        const files = await db.references.where("vaultId").equals(vaultId).toArray()
-        // Skip citation processing if no valid files are found
-        if (!files.length) return
 
-        // TODO: add more format support
+        // --- Updated Logic ---
+        // Fetch reference file entries directly from Dexie 'referenceFiles' table
+        let referenceFileEntries: { handle: FileSystemFileHandle }[] = [] // Initialize empty array
+        try {
+          referenceFileEntries = await dbHandle.referenceFiles
+            .where("vaultId")
+            .equals(vaultId)
+            .toArray()
+        } catch (error) {
+          console.error(`Error fetching reference files for vault ${vaultId} from Dexie:`, error)
+          // Handle error appropriately, maybe return or show a message
+          return // Exit processing if we can't get reference files
+        }
+
+        // Skip citation processing if no reference files are found for this vault
+        if (referenceFileEntries.length === 0) {
+          console.debug(
+            `No reference file handles found in Dexie for vault ${vaultId}. Skipping citation processing.`,
+          )
+          return
+        }
+
+        // Get valid handles directly from the fetched entries
+        const validHandles = referenceFileEntries.map((entry) => entry.handle)
+
+        // --- End of Updated Logic ---
+
+        // --- Remaining citation processing logic (mostly unchanged) ---
         const config = (Cite.plugins as { config: any }).config.get("@csl")
 
-        // Process only files with valid handles
-        const validFiles = files.filter((el) => el.handle !== null && el.handle !== undefined)
-        if (!validFiles.length) return
-
         const bibliography: string[] = await Promise.all(
-          validFiles.map(async (el) => {
+          validHandles.map(async (handle) => {
+            // Use the handles fetched from Dexie
             try {
-              const file = await el.handle.getFile()
+              const file = await handle.getFile()
               return await file.text()
             } catch (error) {
               console.error("Error reading citation file:", error)
@@ -838,7 +778,12 @@ const Citations = {
 
         // Filter out empty strings
         const validBibliography = bibliography.filter((text) => text.trim() !== "")
-        if (validBibliography.length === 0) return
+        if (validBibliography.length === 0) {
+          console.debug(
+            "Bibliography files are empty or could not be read. Skipping citation processing.",
+          )
+          return
+        }
 
         const citations = new Cite(validBibliography, { generateGraph: false })
         const citationIds = citations.data.map((x) => x.id)
@@ -1039,7 +984,6 @@ const Order = [
   Pseudocode,
   SyntaxHighlighting,
   Citations,
-  Mermaid,
   Gfm,
   Description,
   Latex,

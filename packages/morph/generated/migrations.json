@@ -1,0 +1,36 @@
+[
+  {
+    "sql": [
+      "CREATE EXTENSION IF NOT EXISTS vector;\n\nCREATE TABLE IF NOT EXISTS \"fileEmbeddings\" (\n\t\"vaultId\" text NOT NULL,\n\t\"fileId\" text NOT NULL,\n\t\"chunkId\" uuid NOT NULL,\n\t\"embedding\" vector(1536),\n\t\"createdAt\" timestamp DEFAULT now() NOT NULL,\n\tCONSTRAINT \"fileEmbeddings_vaultId_fileId_chunkId_pk\" PRIMARY KEY(\"vaultId\",\"fileId\",\"chunkId\")\n);\n",
+      "\nCREATE TABLE IF NOT EXISTS \"files\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"name\" text NOT NULL,\n\t\"extension\" text NOT NULL,\n\t\"vaultId\" text NOT NULL,\n\t\"lastModified\" timestamp DEFAULT now() NOT NULL,\n\t\"embeddingStatus\" text DEFAULT 'in_progress' NOT NULL,\n\t\"embeddingTaskId\" text\n);\n",
+      "\nCREATE TABLE IF NOT EXISTS \"noteEmbeddings\" (\n\t\"noteId\" text PRIMARY KEY NOT NULL,\n\t\"embedding\" vector(1536),\n\t\"createdAt\" timestamp DEFAULT now() NOT NULL\n);\n",
+      "\nCREATE TABLE IF NOT EXISTS \"notes\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"content\" text NOT NULL,\n\t\"color\" text NOT NULL,\n\t\"createdAt\" timestamp NOT NULL,\n\t\"accessedAt\" timestamp NOT NULL,\n\t\"dropped\" boolean DEFAULT false NOT NULL,\n\t\"fileId\" text NOT NULL,\n\t\"vaultId\" text NOT NULL,\n\t\"reasoningId\" text NOT NULL,\n\t\"steering\" jsonb NOT NULL,\n\t\"embeddingStatus\" text DEFAULT 'in_progress' NOT NULL,\n\t\"embeddingTaskId\" text\n);\n",
+      "\nCREATE TABLE IF NOT EXISTS \"reasonings\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"content\" text NOT NULL,\n\t\"fileId\" text NOT NULL,\n\t\"vaultId\" text NOT NULL,\n\t\"noteIds\" text[] NOT NULL,\n\t\"createdAt\" timestamp NOT NULL,\n\t\"accessedAt\" timestamp NOT NULL,\n\t\"duration\" integer NOT NULL,\n\t\"steering\" jsonb NOT NULL\n);\n",
+      "\nCREATE TABLE IF NOT EXISTS \"references\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"fileId\" text NOT NULL,\n\t\"vaultId\" text NOT NULL,\n\t\"handleId\" text NOT NULL,\n\t\"format\" text NOT NULL,\n\t\"path\" text NOT NULL,\n\t\"lastModified\" timestamp DEFAULT now() NOT NULL\n);\n",
+      "\nCREATE TABLE IF NOT EXISTS \"tasks\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"status\" text DEFAULT 'in_progress' NOT NULL,\n\t\"createdAt\" timestamp NOT NULL,\n\t\"completedAt\" timestamp,\n\t\"error\" text\n);\n",
+      "\nCREATE TABLE IF NOT EXISTS \"vaults\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"name\" text NOT NULL,\n\t\"lastOpened\" timestamp DEFAULT now() NOT NULL,\n\t\"tree\" jsonb NOT NULL,\n\t\"settings\" jsonb NOT NULL\n);\n",
+      "\nALTER TABLE \"fileEmbeddings\" ADD CONSTRAINT \"fileEmbeddings_vaultId_vaults_id_fk\" FOREIGN KEY (\"vaultId\") REFERENCES \"public\".\"vaults\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+      "\nALTER TABLE \"fileEmbeddings\" ADD CONSTRAINT \"fileEmbeddings_fileId_files_id_fk\" FOREIGN KEY (\"fileId\") REFERENCES \"public\".\"files\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+      "\nALTER TABLE \"files\" ADD CONSTRAINT \"files_vaultId_vaults_id_fk\" FOREIGN KEY (\"vaultId\") REFERENCES \"public\".\"vaults\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+      "\nALTER TABLE \"files\" ADD CONSTRAINT \"files_embeddingTaskId_tasks_id_fk\" FOREIGN KEY (\"embeddingTaskId\") REFERENCES \"public\".\"tasks\"(\"id\") ON DELETE no action ON UPDATE no action;",
+      "\nALTER TABLE \"noteEmbeddings\" ADD CONSTRAINT \"noteEmbeddings_noteId_notes_id_fk\" FOREIGN KEY (\"noteId\") REFERENCES \"public\".\"notes\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+      "\nALTER TABLE \"notes\" ADD CONSTRAINT \"notes_fileId_files_id_fk\" FOREIGN KEY (\"fileId\") REFERENCES \"public\".\"files\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+      "\nALTER TABLE \"notes\" ADD CONSTRAINT \"notes_vaultId_vaults_id_fk\" FOREIGN KEY (\"vaultId\") REFERENCES \"public\".\"vaults\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+      "\nALTER TABLE \"notes\" ADD CONSTRAINT \"notes_reasoningId_reasonings_id_fk\" FOREIGN KEY (\"reasoningId\") REFERENCES \"public\".\"reasonings\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+      "\nALTER TABLE \"notes\" ADD CONSTRAINT \"notes_embeddingTaskId_tasks_id_fk\" FOREIGN KEY (\"embeddingTaskId\") REFERENCES \"public\".\"tasks\"(\"id\") ON DELETE no action ON UPDATE no action;",
+      "\nALTER TABLE \"reasonings\" ADD CONSTRAINT \"reasonings_fileId_files_id_fk\" FOREIGN KEY (\"fileId\") REFERENCES \"public\".\"files\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+      "\nALTER TABLE \"reasonings\" ADD CONSTRAINT \"reasonings_vaultId_vaults_id_fk\" FOREIGN KEY (\"vaultId\") REFERENCES \"public\".\"vaults\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+      "\nALTER TABLE \"references\" ADD CONSTRAINT \"references_fileId_files_id_fk\" FOREIGN KEY (\"fileId\") REFERENCES \"public\".\"files\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+      "\nALTER TABLE \"references\" ADD CONSTRAINT \"references_vaultId_vaults_id_fk\" FOREIGN KEY (\"vaultId\") REFERENCES \"public\".\"vaults\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+      "\nCREATE INDEX \"file_ipIndex_hnsw\" ON \"fileEmbeddings\" USING hnsw (\"embedding\" vector_ip_ops) WITH (m=16,ef_construction=50);",
+      "\nCREATE INDEX \"idx_files_vault_filename\" ON \"files\" USING btree (\"vaultId\",\"name\");",
+      "\nCREATE INDEX \"note_ipIndex_hnsw\" ON \"noteEmbeddings\" USING hnsw (\"embedding\" vector_ip_ops) WITH (m=16,ef_construction=50);",
+      "\nCREATE INDEX \"idx_notes_vault_filename\" ON \"notes\" USING btree (\"vaultId\",\"fileId\");",
+      "\nCREATE INDEX \"idx_notes_reasoning\" ON \"notes\" USING btree (\"reasoningId\");",
+      "\nCREATE INDEX \"idx_reasonings_vault_filename\" ON \"reasonings\" USING btree (\"vaultId\",\"fileId\");\n"
+    ],
+    "bps": true,
+    "folderMillis": 1743559701894,
+    "hash": "a6cedfdc336abcdb774400d40c4b799a78bc2ed9f214855e9e48fc79f1760fe9"
+  }
+]

@@ -1,0 +1,253 @@
+import { cn } from "@/lib"
+import { generatePastelColor } from "@/lib/notes"
+import { ChevronDownIcon } from "@radix-ui/react-icons"
+import { AnimatePresence, motion } from "motion/react"
+import { memo, useCallback, useEffect, useMemo, useRef } from "react"
+
+import { AttachedNoteCard, DraggableNoteCard } from "@/components/note-card"
+import { ReasoningPanel } from "@/components/reasoning-panel"
+
+import { Note } from "@/db/interfaces"
+
+interface DateDisplayProps {
+  dateStr: string
+  formatDate: (dateStr: string) => React.ReactNode
+}
+
+export const DateDisplay = memo(function DateDisplay({ dateStr, formatDate }: DateDisplayProps) {
+  return (
+    <div className="bg-muted px-3 py-1.5 text-xs text-muted-foreground font-medium border rounded-md border-border">
+      {formatDate(dateStr)}
+    </div>
+  )
+})
+
+interface NoteGroupProps {
+  dateStr: string
+  dateNotes: Note[]
+  reasoning?: {
+    id: string
+    content: string
+    reasoningElapsedTime: number
+  }
+  currentFile: string
+  vaultId?: string
+  handleNoteDropped: (note: Note) => void
+  onNoteRemoved: (noteId: string) => void
+  formatDate: (dateStr: string) => React.ReactNode
+  isGenerating?: boolean
+}
+
+export const NoteGroup = memo(
+  function NoteGroup({
+    dateStr,
+    dateNotes,
+    reasoning,
+    currentFile,
+    vaultId,
+    handleNoteDropped,
+    onNoteRemoved,
+    formatDate,
+    isGenerating = false,
+  }: NoteGroupProps) {
+    // Memoize the callbacks to ensure they have stable references
+    const stableHandleNoteDropped = useCallback(
+      (note: Note) => {
+        handleNoteDropped(note)
+      },
+      [handleNoteDropped],
+    )
+
+    const stableOnNoteRemoved = useCallback(
+      (noteId: string) => {
+        onNoteRemoved(noteId)
+      },
+      [onNoteRemoved],
+    )
+
+    const MemoizedNotes = useMemo(() => {
+      return dateNotes.map((note) => ({
+        ...note,
+        color: note.color ?? generatePastelColor(),
+      }))
+    }, [dateNotes])
+
+    const MemoizedReasoningPanel = useMemo(() => {
+      if (!reasoning) return null
+      return (
+        <div className="px-2 bg-background">
+          <ReasoningPanel
+            reasoning={reasoning.content}
+            isStreaming={false}
+            isComplete={true}
+            currentFile={currentFile}
+            vaultId={vaultId}
+            reasoningId={reasoning.id}
+            shouldExpand={false}
+            elapsedTime={reasoning.reasoningElapsedTime || 0}
+          />
+        </div>
+      )
+    }, [reasoning, currentFile, vaultId])
+
+    return (
+      <div className="space-y-4">
+        <DateDisplay dateStr={dateStr} formatDate={formatDate} />
+        {MemoizedReasoningPanel}
+        <div className="grid gap-4">
+          {MemoizedNotes.map((note) => (
+            <DraggableNoteCard
+              key={note.id}
+              note={note}
+              handleNoteDropped={stableHandleNoteDropped}
+              onNoteRemoved={stableOnNoteRemoved}
+              isGenerating={isGenerating}
+            />
+          ))}
+        </div>
+      </div>
+    )
+  },
+  (prevProps, nextProps) => {
+    return (
+      prevProps.dateStr === nextProps.dateStr &&
+      prevProps.dateNotes === nextProps.dateNotes &&
+      prevProps.reasoning === nextProps.reasoning &&
+      prevProps.currentFile === nextProps.currentFile &&
+      prevProps.isGenerating === nextProps.isGenerating
+    )
+  },
+)
+
+interface DroppedNoteGroupProps {
+  droppedNotes: Note[]
+  isStackExpanded: boolean
+  onExpandStack: () => void
+  onDragBackToPanel: (noteId: string) => void
+  className?: string
+}
+
+export const DroppedNoteGroup = memo(
+  function DroppedNoteGroup({
+    droppedNotes,
+    isStackExpanded,
+    onExpandStack,
+    onDragBackToPanel,
+    className,
+  }: DroppedNoteGroupProps) {
+    const containerRef = useRef<HTMLDivElement>(null)
+    const scrollContainerRef = useRef<HTMLDivElement>(null)
+    const lastNoteRef = useRef<HTMLDivElement>(null)
+    const prevNotesLengthRef = useRef(droppedNotes.length)
+    const MAX_VISIBLE_NOTES = 5
+    const hasMoreNotes = droppedNotes.length > MAX_VISIBLE_NOTES
+    const hasNotes = droppedNotes.length > 0
+
+    // Get notes to display - either first 5 or all (limited to 20 for performance)
+    const notesToDisplay = useMemo(
+      () => (isStackExpanded ? droppedNotes : droppedNotes.slice(0, MAX_VISIBLE_NOTES)),
+      [droppedNotes, isStackExpanded],
+    )
+
+    // Scroll to the newly added note when in expanded mode
+    useEffect(() => {
+      // Check if a new note was added
+      if (
+        droppedNotes.length > prevNotesLengthRef.current &&
+        isStackExpanded &&
+        lastNoteRef.current &&
+        scrollContainerRef.current
+      ) {
+        // Scroll to the last note
+        lastNoteRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" })
+      }
+
+      // Update the reference for next comparison
+      prevNotesLengthRef.current = droppedNotes.length
+    }, [droppedNotes.length, isStackExpanded])
+
+    // Modified to provide a ref to the last note and pass the onDragBackToPanel handler
+    const AttachedDisplayNotes = useCallback(
+      () => (
+        <>
+          {notesToDisplay.map((note, index) => (
+            <AttachedNoteCard
+              key={index}
+              note={note}
+              index={index}
+              isStackExpanded={isStackExpanded}
+              onDragBackToPanel={onDragBackToPanel}
+              className={className}
+            />
+          ))}
+        </>
+      ),
+      [isStackExpanded, notesToDisplay, onDragBackToPanel, className],
+    )
+
+    // Render nothing if there are no notes
+    if (!hasNotes) return null
+
+    return (
+      <div
+        ref={containerRef}
+        className={cn(
+          "absolute top-4 right-4 z-40",
+          isStackExpanded && "bg-background/80 backdrop-blur-sm border rounded-md shadow-md p-2",
+        )}
+      >
+        <div
+          ref={scrollContainerRef}
+          className={cn(
+            "flex flex-col items-center gap-1.5",
+            isStackExpanded && "max-h-[20vh] overflow-y-auto scrollbar-hidden",
+          )}
+        >
+          <AnimatePresence mode="sync">
+            <AttachedDisplayNotes key="attached-notes" />
+            {hasMoreNotes && !isStackExpanded && (
+              <motion.div
+                key="more-notes-indicator"
+                className="text-primary/50 cursor-pointer"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                title={`${droppedNotes.length - MAX_VISIBLE_NOTES} more notes`}
+              >
+                <motion.div
+                  animate={{ y: [0, 4, 0] }}
+                  transition={{
+                    duration: 2,
+                    ease: "easeInOut",
+                    repeat: Infinity,
+                  }}
+                  onClick={onExpandStack}
+                >
+                  <ChevronDownIcon className="w-4 h-4" />
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    )
+  },
+  (prevProps, nextProps) => {
+    // Only re-render if the notes array has changed in length or content
+    if (prevProps.droppedNotes.length !== nextProps.droppedNotes.length) {
+      return false // Re-render if number of notes changed
+    }
+    if (prevProps.isStackExpanded !== nextProps.isStackExpanded) {
+      return false // Re-render if expansion state changed
+    }
+    if (prevProps.onDragBackToPanel !== nextProps.onDragBackToPanel) {
+      return false // Re-render if the handler changed
+    }
+
+    // Check if any note content or IDs have changed
+    return prevProps.droppedNotes.every((prevNote, index) => {
+      const nextNote = nextProps.droppedNotes[index]
+      return prevNote.id === nextNote.id && prevNote.color === nextNote.color
+    })
+  },
+)

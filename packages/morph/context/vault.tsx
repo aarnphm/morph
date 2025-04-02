@@ -1,10 +1,10 @@
 "use client"
 
-import { client } from "@/db"
 import { createId } from "@paralleldrive/cuid2"
 import { and, eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/pglite"
 import {
+  Dispatch,
   ReactNode,
   createContext,
   useCallback,
@@ -14,6 +14,7 @@ import {
   useReducer,
 } from "react"
 
+import { usePGlite } from "@/context/db"
 import {
   initialVaultState,
   processDirectory,
@@ -24,10 +25,10 @@ import type { FlattenedFileMapping, VaultAction, VaultState } from "@/context/va
 
 import useDatabaseModels from "@/hooks/use-database-models"
 import useFsHandles from "@/hooks/use-fs-handles"
+import { scanAndStoreReferenceFiles } from "@/hooks/use-fs-handles"
 
 import type { FileSystemTreeNode, Vault, VaultDb } from "@/db/interfaces"
 import { DEFAULT_SETTINGS } from "@/db/interfaces"
-import { files, references, vaults } from "@/db/schema"
 import * as schema from "@/db/schema"
 
 const VAULT_IDS_KEY = "morph:vault-ids"
@@ -43,10 +44,8 @@ type VaultContextType = VaultState & {
     format: "biblatex" | "csl-json",
     path: string,
   ) => Promise<void>
-  dispatch: (action: VaultAction) => void
 }
 
-// Create context with default values
 const VaultContext = createContext<VaultContextType>({
   ...initialVaultState,
   setActiveVaultId: () => {},
@@ -54,15 +53,16 @@ const VaultContext = createContext<VaultContextType>({
   refreshVault: async () => {},
   addVault: async () => null,
   updateReference: async () => {},
-  dispatch: () => {},
 })
-
-const db = drizzle({ client, schema })
+const VaultDispatchContext = createContext<Dispatch<VaultAction> | null>(null)
 
 export function VaultProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(vaultReducer, initialVaultState)
   const { storeHandle, getHandle } = useFsHandles()
   const { dbVaultToRuntimeVault } = useDatabaseModels()
+
+  const client = usePGlite()
+  const db = useMemo(() => drizzle({ client, schema }), [client])
 
   // Get all vaults from the database
   const getAllVaults = useCallback(async () => {
@@ -72,7 +72,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       console.error("Error fetching all vaults:", error)
       return []
     }
-  }, [])
+  }, [db])
 
   // Set active vault ID
   const setActiveVaultId = useCallback((id: string | null) => {
@@ -93,7 +93,10 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         if (existing) {
           const updatedVault = { ...existing, lastOpened: new Date() }
 
-          await db.update(vaults).set({ lastOpened: new Date() }).where(eq(vaults.id, existing.id))
+          await db
+            .update(schema.vaults)
+            .set({ lastOpened: new Date() })
+            .where(eq(schema.vaults.id, existing.id))
 
           dispatch({ type: "UPDATE_VAULT", vault: updatedVault })
           return updatedVault
@@ -102,13 +105,15 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         // Process directory to build the tree
         const tree = await processDirectory(handle, DEFAULT_SETTINGS.general.ignorePatterns)
 
-        // Store the directory handle in IndexedDB
+        // Store the directory handle in IndexedDB for the *generic handles* table
         const treeHandleId = createId()
-        await storeHandle(treeHandleId, treeHandleId, "root", handle)
+        // Use storeHandle from the hook for the generic handles table
+        await storeHandle(treeHandleId, treeHandleId, "root", handle) // Pass "root" as id prefix
 
         const addHandleIds = (node: FileSystemTreeNode) => {
           if (node.handle) {
             const nodeHandleId = createId()
+            // Store individual file/dir handles in the generic handles table
             storeHandle(nodeHandleId, treeHandleId, node.id, node.handle).catch((err: any) =>
               console.error("Error storing node handle:", err),
             )
@@ -127,7 +132,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         // Insert the new vault into database
         const newVaultId = createId()
 
-        await db.insert(vaults).values({
+        await db.insert(schema.vaults).values({
           id: newVaultId,
           name: handle.name,
           lastOpened: new Date(),
@@ -141,7 +146,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         try {
           referencesHandle = await handle.getFileHandle("References.bib")
           referencesPath = "References.bib"
-        } catch (error) {
+        } catch {
           console.debug("No References.bib found in vault root")
         }
 
@@ -149,7 +154,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         if (referencesHandle) {
           // Create a file record first
           const fileId = createId()
-          await db.insert(files).values({
+          await db.insert(schema.files).values({
             id: fileId,
             name: "References",
             extension: "bib",
@@ -163,7 +168,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
           await storeHandle(refHandleId, newVaultId, fileId, referencesHandle)
 
           // Add the reference to the database
-          await db.insert(references).values({
+          await db.insert(schema.references).values({
             id: createId(),
             fileId,
             vaultId: newVaultId,
@@ -173,6 +178,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
             lastModified: new Date(),
           })
         }
+        // Scan for and store reference files in the dedicated Dexie table
+        await scanAndStoreReferenceFiles(newVaultId, handle);
 
         // The vault for state needs the actual handle
         const newVault: Vault = {
@@ -195,7 +202,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         return null
       }
     },
-    [state.vaults, storeHandle],
+    [state.vaults, storeHandle, db],
   )
 
   // Refresh a vault's content
@@ -251,7 +258,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         dbTree.handleId = rootHandleId
 
         // Update the database
-        await db.update(vaults).set({ tree: dbTree }).where(eq(vaults.id, vaultId))
+        await db.update(schema.vaults).set({ tree: dbTree }).where(eq(schema.vaults.id, vaultId))
 
         // Update the state with the full tree including handles
         const updatedVault = { ...vault, tree }
@@ -274,14 +281,14 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       try {
         // Check if this format already exists
         const existingRefs = await db.query.references.findMany({
-          where: and(eq(references.vaultId, vault.id), eq(references.format, format)),
+          where: and(eq(schema.references.vaultId, vault.id), eq(schema.references.format, format)),
         })
 
         if (existingRefs.length > 0) return
 
         // Create a file record first
         const fileId = createId()
-        await db.insert(files).values({
+        await db.insert(schema.files).values({
           id: fileId,
           name: path.split(".")[0], // Get name without extension
           extension: path.split(".").pop() || "",
@@ -295,7 +302,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         await storeHandle(handleId, vault.id, fileId, handle)
 
         // Add the reference to the database with the handle ID
-        await db.insert(references).values({
+        await db.insert(schema.references).values({
           id: createId(),
           fileId,
           vaultId: vault.id,
@@ -353,7 +360,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   }, [getAllVaults, dbVaultToRuntimeVault, state.vaults.length])
 
   // Create a memoized value for the context
-  const contextValue = useMemo(
+  const vaultState = useMemo(
     () => ({
       ...state,
       setActiveVaultId,
@@ -363,17 +370,14 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       updateReference,
       dispatch,
     }),
-    [
-      state,
-      setActiveVaultId,
-      getActiveVault,
-      refreshVault,
-      addVault,
-      updateReference,
-    ],
+    [state, setActiveVaultId, getActiveVault, refreshVault, addVault, updateReference],
   )
 
-  return <VaultContext.Provider value={contextValue}>{children}</VaultContext.Provider>
+  return (
+    <VaultContext.Provider value={vaultState}>
+      <VaultDispatchContext.Provider value={dispatch}>{children}</VaultDispatchContext.Provider>
+    </VaultContext.Provider>
+  )
 }
 
 export const useVaultContext = () => useContext(VaultContext)
