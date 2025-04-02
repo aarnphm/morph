@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/pglite"
 import { eq } from "drizzle-orm"
 import { AnimatePresence, motion } from "motion/react"
 import * as React from "react"
-import { memo, useEffect, useRef, useState } from "react"
+import { memo, useEffect, useRef, useState, useCallback } from "react"
 
 import { usePGlite } from "@/context/db"
 
@@ -63,20 +63,22 @@ interface ReasoningPanelProps {
   reasoningId: string
   currentFile?: string
   vaultId?: string
-  shouldExpand?: boolean
-  elapsedTime: number
+  shouldExpand: boolean
+  elapsedTime?: number
+  onExpandChange?: (isExpanded: boolean) => void
 }
 
-export function ReasoningPanel({
+export const ReasoningPanel = memo(function ReasoningPanel({
   reasoning,
   className,
   isStreaming,
   isComplete,
+  reasoningId,
   currentFile,
   vaultId,
-  reasoningId,
   shouldExpand = false,
-  elapsedTime,
+  elapsedTime = 0,
+  onExpandChange,
 }: ReasoningPanelProps) {
   const [isExpanded, setIsExpanded] = useState(shouldExpand)
   const [isHovering, setIsHovering] = useState(false)
@@ -88,8 +90,8 @@ export function ReasoningPanel({
 
   // Control expansion state from parent
   useEffect(() => {
-    setIsExpanded(shouldExpand || isStreaming)
-  }, [shouldExpand, isStreaming])
+    setIsExpanded(shouldExpand)
+  }, [shouldExpand])
 
   // Auto-collapse after completion
   useEffect(() => {
@@ -127,7 +129,12 @@ export function ReasoningPanel({
     }
   }, [reasoning, isExpanded, isStreaming])
 
-  const toggleExpand = () => setIsExpanded((prev) => !prev)
+  // Notify parent component about expand state changes via callback
+  const toggleExpand = useCallback(() => {
+    const newExpandState = !isExpanded
+    setIsExpanded(newExpandState)
+    onExpandChange?.(newExpandState)
+  }, [isExpanded, onExpandChange])
 
   // Format the duration nicely
   const formattedDuration = (seconds: number) => {
@@ -197,4 +204,4 @@ export function ReasoningPanel({
       </AnimatePresence>
     </div>
   )
-}
+})

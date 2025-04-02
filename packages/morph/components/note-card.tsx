@@ -319,8 +319,34 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
           duration: 0.2,
         },
       },
+      // Add file transition animation variants
+      fileEnter: {
+        opacity: 0,
+        y: 20,
+        scale: 0.9,
+      },
+      fileVisible: {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        transition: {
+          type: "spring",
+          stiffness: 300,
+          damping: 25,
+          mass: 0.5,
+          delay: index * 0.05, // Staggered animation based on index
+        },
+      },
+      fileExit: {
+        opacity: 0,
+        y: -10,
+        scale: 0.9,
+        transition: {
+          duration: 0.2,
+        },
+      },
     }),
-    [],
+    [index],
   )
 
   // Ensure we have a color
@@ -338,8 +364,10 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
               noteColor,
             )}
             variants={variants}
-            initial="hidden"
+            initial="fileEnter"
             animate={isStackExpanded ? "expanded" : "collapsed"}
+            exit="fileExit"
+            whileHover={{ scale: 1.05 }}
             layout="position"
             drag="x"
             dragDirectionLock

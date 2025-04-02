@@ -4,7 +4,7 @@ import { ChevronDownIcon } from "@radix-ui/react-icons"
 import { eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/pglite"
 import { AnimatePresence, motion } from "motion/react"
-import { memo, useCallback, useEffect, useMemo, useRef } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { AttachedNoteCard, DraggableNoteCard } from "@/components/note-card"
 import { ReasoningPanel } from "@/components/reasoning-panel"
@@ -55,6 +55,45 @@ export const NoteGroup = memo(
     formatDate,
     isGenerating = false,
   }: NoteGroupProps) {
+    const [isExpanded, setIsExpanded] = useState<boolean>(false)
+
+    // Define staggered animation variants
+    const containerVariants = {
+      hidden: { opacity: 0 },
+      visible: {
+        opacity: 1,
+        transition: {
+          staggerChildren: 0.07,
+          delayChildren: 0.05,
+        },
+      },
+      exit: {
+        opacity: 0,
+        transition: {
+          staggerChildren: 0.03,
+          staggerDirection: -1,
+        },
+      },
+    }
+
+    const itemVariants = {
+      hidden: { opacity: 0, y: 15 },
+      visible: {
+        opacity: 1,
+        y: 0,
+        transition: {
+          type: "spring",
+          stiffness: 350,
+          damping: 30,
+        },
+      },
+      exit: {
+        opacity: 0,
+        y: -10,
+        transition: { duration: 0.2 },
+      },
+    }
+
     // Memoize the callbacks to ensure they have stable references
     const stableHandleNoteDropped = useCallback(
       (note: Note) => {
@@ -80,36 +119,45 @@ export const NoteGroup = memo(
     const MemoizedReasoningPanel = useMemo(() => {
       if (!reasoning) return null
       return (
-        <div className="px-2 bg-background">
-          <ReasoningPanel
-            reasoning={reasoning.content}
-            isStreaming={false}
-            isComplete={true}
-            currentFile={currentFile}
-            vaultId={vaultId}
-            reasoningId={reasoning.id}
-            shouldExpand={false}
-            elapsedTime={reasoning.reasoningElapsedTime || 0}
-          />
-        </div>
+        <ReasoningPanel
+          reasoning={reasoning.content}
+          isStreaming={false}
+          isComplete={true}
+          currentFile={currentFile}
+          vaultId={vaultId}
+          reasoningId={reasoning.id}
+          shouldExpand={isExpanded}
+          elapsedTime={reasoning.reasoningElapsedTime || 0}
+          onExpandChange={setIsExpanded}
+        />
       )
-    }, [reasoning, currentFile, vaultId])
+    }, [reasoning, currentFile, vaultId, isExpanded])
 
     return (
-      <div className="space-y-4">
-        <DateDisplay dateStr={dateStr} formatDate={formatDate} />
-        {MemoizedReasoningPanel}
-        <div className="grid gap-4">
-          {MemoizedNotes.map((note) => (
-            <DraggableNoteCard
-              key={note.id}
-              note={note}
-              handleNoteDropped={stableHandleNoteDropped}
-              onNoteRemoved={stableOnNoteRemoved}
-              isGenerating={isGenerating}
-            />
-          ))}
+      <div className="mb-3">
+        <div className="px-4 mb-2 space-y-4 bg-background">
+          <DateDisplay dateStr={dateStr} formatDate={formatDate} />
+          {MemoizedReasoningPanel}
         </div>
+
+        <motion.div
+          className="space-y-3 px-2"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+        >
+          {MemoizedNotes.map((note) => (
+            <motion.div key={note.id} variants={itemVariants}>
+              <DraggableNoteCard
+                note={note}
+                handleNoteDropped={stableHandleNoteDropped}
+                onNoteRemoved={stableOnNoteRemoved}
+                isGenerating={isGenerating}
+              />
+            </motion.div>
+          ))}
+        </motion.div>
       </div>
     )
   },
@@ -222,19 +270,28 @@ export const DroppedNoteGroup = memo(
     if (!hasNotes) return null
 
     return (
-      <div
+      <motion.div
         ref={containerRef}
         className={cn(
           "absolute top-4 right-4 z-40",
           isStackExpanded && "bg-background/80 backdrop-blur-sm border rounded-md shadow-md p-2",
         )}
+        key={`dropped-notes-${droppedNotes.length}`}
+        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+        transition={{
+          duration: 0.35,
+          ease: [0.4, 0.0, 0.2, 1],
+        }}
       >
-        <div
+        <motion.div
           ref={scrollContainerRef}
           className={cn(
             "flex flex-col items-center gap-1.5",
             isStackExpanded && "max-h-[20vh] overflow-y-auto scrollbar-hidden",
           )}
+          layout
         >
           <AnimatePresence mode="sync">
             {notesToDisplay.map((note, index) => (
@@ -274,8 +331,8 @@ export const DroppedNoteGroup = memo(
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     )
   },
   (prevProps, nextProps) => {
