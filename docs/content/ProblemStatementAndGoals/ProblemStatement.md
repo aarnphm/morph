@@ -85,17 +85,15 @@ Tinymorph aims to deliver a web-based text editor that is intuitive, responsive,
 ## Challenge Level and Extras
 
 Challenge level for `tinymorph` is advanced, since the project is exploring what is possible to build AI-native
-interfaces. It involves the field of [[glossary#mechanistic interpretability]], which is a relatively new field in alignment
-research that involves a lot of domain knowledge into the inner working of transformers circuits.
+interfaces. It involves the field of [[glossary#mechanistic interpretability]], which is a relatively new field in alignment research that involves a lot of domain knowledge into the inner workings of transformer circuits.
 
-Extras that we wish to pursue: Design Thinking, Research.
+Extras that we wish to pursue: User Manual, Usability Testing.
 
 Reasoning:
 
-1. Design Thinking: `tinymorph` will explore new interactions for writing, which means design thinking is required for
-   us to prototype on ideas.
-2. Research: The field of mechanistic interpretability is considered relatively new, in which there are exciting
-   research happening. We will explore this to understand how we can utilise manual editing activations rather than driving the model through a system prompt.
+1. User Manual: We plan to document the functionality and usage of `tinymorph` to ensure that users can effectively understand and navigate the tool. This includes clear instructions, visual examples, and troubleshooting tips to make the tool more accessible.
+
+2. Usability Testing: As `tinymorph` aims to explore new interactions for writing, it is important to validate our design and interaction patterns through user testing. Gathering feedback from real users will help refine our interface and ensure it supports a smooth and intuitive experience.
 
 ## Appendix
 
