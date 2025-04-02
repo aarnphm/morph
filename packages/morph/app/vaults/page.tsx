@@ -44,7 +44,7 @@ export default function Home() {
   const searchRef = useRef<SVGSVGElement>(null)
   const [showBannerDetails, setShowBannerDetails] = useState(false)
   const [hasAcknowledged, setHasAcknowledged] = useState(false)
-  const { setActiveVaultId, vaults, addVault, isLoading } = useVaultContext()
+  const { setActiveVaultId, vaults, addVault } = useVaultContext()
 
   useEffect(() => {
     const acknowledged = localStorage.getItem("morph-preview-acknowledged") === "true"
@@ -157,7 +157,7 @@ export default function Home() {
         </Card>
       </motion.div>
     )
-  }, [isLoading, vaults, handleVaultSelect, pathname])
+  }, [vaults, handleVaultSelect, pathname])
 
   return (
     <motion.main
@@ -171,8 +171,8 @@ export default function Home() {
         <CenteredDialogContent>
           <DialogHeader>
             <DialogTitle>Research Preview</DialogTitle>
-            <DialogDescription asChild>
-              <div className="space-y-3 mt-2 flex flex-col gap-2 text-foreground">
+            <DialogDescription asChild className="text-foreground/70">
+              <div className="space-y-3 mt-2 flex flex-col gap-2">
                 <div>
                   <code className="bg-amber-100/50 px-1 py-0.5 rounded">morph</code> is currently in
                   research preview and uses experimental Chrome{" "}

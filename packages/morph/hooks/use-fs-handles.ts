@@ -1,49 +1,31 @@
-import Dexie, { type Table } from "dexie"
+import Dexie from "dexie"
 import { useCallback } from "react"
 
-import { FileSystemHandleType, FileSystemFileHandle } from "@/db/interfaces"
-
-// Define the structure for the reference file table entry
-interface ReferenceFile {
-  id: string
-  vaultId: string
-  name: string
-  handle: FileSystemFileHandle
-}
+import { FileSystemHandleType } from "@/db/interfaces"
 
 // Define the database schema
 class HandleDatabase extends Dexie {
   // Define tables
-  handles!: Table<
+  handles!: Dexie.Table<
     {
       id: string
       vaultId: string
-      kind: "file" | "directory"
+      fileId: string
       handle: FileSystemHandleType
     },
     string
   >
-  referenceFiles!: Table<ReferenceFile, string>
 
   constructor() {
     super("morph-fs-handles")
 
-    // Define schema version 2
-    this.version(2).stores({
-      handles: "&id, vaultId, kind",
-      referenceFiles: "&id, vaultId, name",
-    }).upgrade(tx => {
-      console.log("Upgrading morph-fs-handles DB to version 2")
-    })
-
-    // Define schema version 1 (for backward compatibility during upgrade)
+    // Define schema
     this.version(1).stores({
-      handles: "&id, vaultId, fileId, [vaultId+fileId]",
+      handles: "&id, vaultId, fileId, [vaultId+fileId]", // Primary key and indexed properties
     })
 
     // Define types for tables
     this.handles = this.table("handles")
-    this.referenceFiles = this.table("referenceFiles")
   }
 }
 
@@ -57,13 +39,14 @@ export default function useFsHandles() {
     async (
       id: string,
       vaultId: string,
+      fileId: string,
       handle: FileSystemHandleType,
     ): Promise<void> => {
       try {
         await dbHandle.handles.put({
-          id: `${vaultId}/${id}`,
+          id,
           vaultId,
-          kind: handle.kind,
+          fileId,
           handle,
         })
       } catch (error) {
@@ -89,10 +72,10 @@ export default function useFsHandles() {
   const getVaultHandles = useCallback(
     async (
       vaultId: string,
-    ): Promise<Array<{ id: string; kind: "file" | "directory"; handle: FileSystemHandleType }>> => {
+    ): Promise<Array<{ id: string; fileId: string; handle: FileSystemHandle }>> => {
       try {
         const records = await dbHandle.handles.where("vaultId").equals(vaultId).toArray()
-        return records.map(({ id, kind, handle }) => ({ id, kind, handle }))
+        return records.map(({ id, fileId, handle }) => ({ id, fileId, handle }))
       } catch (error) {
         console.error("Error retrieving vault handles from IndexedDB:", error)
         return []
@@ -119,83 +102,11 @@ export default function useFsHandles() {
     }
   }, [])
 
-  // Store a reference file in the database
-  const storeReferenceFile = useCallback(
-    async (vaultId: string, name: string, handle: FileSystemFileHandle): Promise<void> => {
-      try {
-        const id = `${vaultId}/${name}`
-        await dbHandle.referenceFiles.put({
-          id,
-          vaultId,
-          name,
-          handle,
-        })
-        console.log(`Stored reference file handle: ${name} for vault ${vaultId}`)
-      } catch (error) {
-        console.error("Error storing reference file handle:", error)
-        throw error
-      }
-    },
-    [],
-  )
-
-  // Retrieve reference files for a vault
-  const getReferenceFilesByVault = useCallback(
-    async (vaultId: string): Promise<ReferenceFile[]> => {
-      try {
-        return await dbHandle.referenceFiles.where("vaultId").equals(vaultId).toArray()
-      } catch (error) {
-        console.error("Error retrieving reference files by vault:", error)
-        return []
-      }
-    },
-    [],
-  )
-
-  // Delete reference files for a vault
-  const deleteReferenceFilesByVault = useCallback(async (vaultId: string): Promise<void> => {
-    try {
-      await dbHandle.referenceFiles.where("vaultId").equals(vaultId).delete()
-      console.log(`Deleted reference files for vault ${vaultId}`)
-    } catch (error) {
-      console.error("Error deleting reference files for vault:", error)
-    }
-  }, [])
-
   return {
     storeHandle,
     getHandle,
     getVaultHandles,
     deleteHandle,
     deleteVaultHandles,
-    storeReferenceFile,
-    getReferenceFilesByVault,
-    deleteReferenceFilesByVault,
-  }
-}
-
-// Export utility function to scan and store reference files
-// This can be called from outside the hook, e.g., in addVault
-export async function scanAndStoreReferenceFiles(vaultId: string, directoryHandle: FileSystemDirectoryHandle): Promise<void> {
-  const referenceFileNames = ["references.bib", "Reference.bib", "library.bib"] // Add more patterns if needed
-  try {
-    for await (const entry of directoryHandle.values()) {
-      if (entry.kind === "file" && referenceFileNames.includes(entry.name)) {
-        const id = `${vaultId}/${entry.name}`
-        await dbHandle.referenceFiles.put({
-          id,
-          vaultId,
-          name: entry.name,
-          handle: entry, // entry is FileSystemFileHandle here
-        })
-        console.log(`Found and stored reference file: ${entry.name} for vault ${vaultId}`)
-      }
-      // Optionally recurse into subdirectories if needed
-      // if (entry.kind === 'directory') {
-      //   await scanAndStoreReferenceFiles(vaultId, entry); // Might need path adjustments for ID
-      // }
-    }
-  } catch (error) {
-    console.error(`Error scanning vault ${vaultId} for reference files:`, error)
   }
 }

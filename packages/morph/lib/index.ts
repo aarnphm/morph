@@ -93,5 +93,27 @@ export function highlight(searchTerm: string, text: string, trim?: boolean) {
   }`
 }
 
+// Add a helper function to sanitize streaming content by removing trailing JSON syntax
+export const sanitizeStreamingContent = (content: string): string => {
+  if (!content) return ""
+
+  // Remove any trailing JSON syntax characters that might be part of streaming
+  // This handles cases like trailing quotes, braces, commas, etc.
+  let sanitized = content
+
+  // First, check if we have an incomplete escape sequence at the end
+  if (sanitized.endsWith("\\")) {
+    sanitized = sanitized.slice(0, -1)
+  }
+
+  // Remove any trailing JSON syntax characters
+  sanitized = sanitized.replace(/["},\]\s]+$/, "")
+
+  // Also handle cases where there might be escaped quotes
+  sanitized = sanitized.replace(/"$/, "")
+
+  return sanitized
+}
+
 export * from "@/lib/utils"
 export * from "@/lib/jsx"

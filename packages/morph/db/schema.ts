@@ -16,7 +16,6 @@ export const vaults = p.pgTable("vaults", {
 })
 
 export const vaultsRelations = relations(vaults, ({ many }) => ({
-  references: many(references),
   files: many(files),
 }))
 
@@ -45,47 +44,10 @@ export const files = p.pgTable(
   (table) => [p.index("idx_files_vault_filename").on(table.vaultId, table.name)],
 )
 
-export const filesRelations = relations(files, ({ one, many }) => ({
+export const filesRelations = relations(files, ({ one }) => ({
   vault: one(vaults, {
     fields: [files.vaultId],
     references: [vaults.id],
-  }),
-  notes: many(notes),
-  reasonings: many(reasonings),
-  references: many(references),
-}))
-
-export const references = p.pgTable("references", {
-  id: p
-    .text("id")
-    .primaryKey()
-    .$defaultFn(() => createId()),
-  fileId: p
-    .text("fileId")
-    .notNull()
-    .references(() => files.id, { onDelete: "cascade" }),
-  vaultId: p
-    .text("vaultId")
-    .notNull()
-    .references(() => vaults.id, { onDelete: "cascade" }),
-  handleId: p.text("handleId").notNull(),
-  format: p
-    .text("format", {
-      enum: ["biblatex", "csl-json"],
-    })
-    .notNull(),
-  path: p.text("path").notNull(),
-  lastModified: p.timestamp("lastModified", { mode: "date" }).notNull().defaultNow(),
-})
-
-export const referencesRelations = relations(references, ({ one }) => ({
-  vault: one(vaults, {
-    fields: [references.vaultId],
-    references: [vaults.id],
-  }),
-  file: one(files, {
-    fields: [references.fileId],
-    references: [files.id],
   }),
 }))
 
@@ -164,11 +126,7 @@ export const reasonings = p.pgTable(
   (table) => [p.index("idx_reasonings_vault_filename").on(table.vaultId, table.fileId)],
 )
 
-export const reasoningsRelations = relations(reasonings, ({ one, many }) => ({
-  file: one(files, {
-    fields: [reasonings.fileId],
-    references: [files.id],
-  }),
+export const reasoningsRelations = relations(reasonings, ({ many }) => ({
   notes: many(notes),
 }))
 
@@ -240,10 +198,6 @@ export const fileEmbeddings = p.pgTable(
 )
 
 export const fileEmbeddingsRelations = relations(fileEmbeddings, ({ one }) => ({
-  vault: one(vaults, {
-    fields: [fileEmbeddings.vaultId],
-    references: [vaults.id],
-  }),
   file: one(files, {
     fields: [fileEmbeddings.fileId],
     references: [files.id],

@@ -10,9 +10,6 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
-
-import { useVaultContext } from "@/context/vault"
 
 import usePersistedSettings from "@/hooks/use-persisted-settings"
 
@@ -44,15 +41,7 @@ type PluginsCategory = {
 } & Omit<SettingsCategory, "id">
 
 // Add core plugins configuration
-const corePlugins: PluginsCategory[] = [
-  {
-    id: "citation",
-    name: "Citations",
-    description: "Add support for citations in your notes",
-    hasSettings: true,
-    label: "Citations",
-  },
-]
+const corePlugins: PluginsCategory[] = []
 
 interface SettingItemProps {
   name: string | React.ReactNode
@@ -174,7 +163,7 @@ const HotkeySettings = React.memo(function HotkeySettings() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const key = e.target.value.slice(-1).toLowerCase()
       if (key.match(/[a-z]/i)) {
-        updateSettings({ editModeShortcut: key })
+        updateSettings({ toggleEditMode: key })
       }
     },
     [updateSettings],
@@ -191,184 +180,10 @@ const HotkeySettings = React.memo(function HotkeySettings() {
         <Input
           id="edit-mode-shortcut"
           type="text"
-          value={settings.editModeShortcut}
+          value={settings.toggleEditMode}
           onChange={handleEditModeShortcutChange}
           className="w-10 text-center border rounded-md"
           maxLength={1}
-        />
-      </SettingItem>
-    </div>
-  )
-})
-
-const CitationSettings = React.memo(function CitationSettings() {
-  const { settings, updateSettings } = usePersistedSettings()
-  const { getActiveVault, updateReference } = useVaultContext()
-  const [referencesPath, setReferencesPath] = useState<string | undefined>(
-    settings.citation.databasePath,
-  )
-  const [hasManuallyCleared, setHasManuallyCleared] = useState(false)
-
-  const vault = getActiveVault()
-
-  // Save raw references to temp file and update database path
-  const handleRawReferencesChange = useCallback(
-    async (value: string) => {
-      try {
-        if (!vault) return
-
-        const handle = vault.tree.handle as FileSystemDirectoryHandle
-        const format = settings.citation.format
-        const fileName = `references.${format === "biblatex" ? "bib" : "json"}`
-
-        // Create or get .morph directory in vault
-        const morphDir = await handle.getDirectoryHandle(".morph", { create: true })
-        const fileHandle = await morphDir.getFileHandle(fileName, { create: true })
-
-        // Write raw references to file
-        const writable = await fileHandle.createWritable()
-        await writable.write(value)
-        await writable.close()
-
-        // Update settings with new file path and raw references
-        const newPath = `.morph/${fileName}`
-        setReferencesPath(newPath)
-        updateSettings({
-          citation: {
-            ...settings.citation,
-            databasePath: newPath,
-          },
-        })
-      } catch (error) {
-        console.error("Failed to save references file:", error)
-      }
-    },
-    [vault, updateSettings, settings],
-  )
-
-  // Check if References.bib exists in any vault and copy it to .morph directory
-  useEffect(() => {
-    const handleReferences = async () => {
-      try {
-        if (!vault) return
-
-        const handle = vault.tree.handle as FileSystemDirectoryHandle
-        // Try to get the default References.bib
-        const defaultFileHandle = await handle.getFileHandle("References.bib")
-        if (defaultFileHandle && !hasManuallyCleared) {
-          // Read the content of References.bib
-          const file = await defaultFileHandle.getFile()
-          const content = await file.text()
-
-          // Create .morph directory and copy the content
-          const morphDir = await handle.getDirectoryHandle(".morph", { create: true })
-          const morphFileHandle = await morphDir.getFileHandle("references.bib", { create: true })
-
-          // Write content to .morph/references.bib
-          const writable = await morphFileHandle.createWritable()
-          await writable.write(content)
-          await writable.close()
-
-          // Update settings
-          const newPath = `.morph/references.${settings.citation.format === "biblatex" ? "bib" : "json"}`
-          setReferencesPath(newPath)
-          await updateReference(vault, morphFileHandle, settings.citation.format, newPath)
-          if (!settings.citation.databasePath) {
-            updateSettings({
-              citation: {
-                ...settings.citation,
-                databasePath: newPath,
-              },
-            })
-          }
-        }
-      } catch (error) {
-        // Silently fail if References.bib doesn't exist
-        console.debug("No References.bib found:", error)
-      }
-    }
-
-    if (!settings.citation.databasePath && !hasManuallyCleared) handleReferences()
-  }, [vault, settings, hasManuallyCleared, updateReference, updateSettings])
-
-  const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newValue = e.target.value
-      setReferencesPath(newValue)
-      setHasManuallyCleared(!newValue)
-      updateSettings({
-        citation: {
-          ...settings.citation,
-          databasePath: newValue,
-        },
-      })
-    },
-    [updateSettings, settings],
-  )
-
-  const handleTextareaChange = useCallback(
-    (value: string) => {
-      handleRawReferencesChange(value)
-    },
-    [handleRawReferencesChange],
-  )
-
-  const handleRadioGroupChange = useCallback(
-    (value: "biblatex" | "csl-json") => {
-      updateSettings({
-        citation: {
-          ...settings.citation,
-          format: value,
-        },
-      })
-    },
-    [updateSettings, settings],
-  )
-
-  return (
-    <div className="text-sm">
-      <SettingItem name="Citation Settings" isHeading />
-
-      <SettingItem name="Citation Format" description="Choose your preferred citation format">
-        <RadioGroup
-          value={settings.citation.format}
-          onValueChange={handleRadioGroupChange}
-          className="flex gap-4"
-        >
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="biblatex" id="biblatex" />
-            <Label htmlFor="biblatex">BibLaTeX</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="csl-json" id="csl-json" />
-            <Label htmlFor="csl-json">CSL-JSON</Label>
-          </div>
-        </RadioGroup>
-      </SettingItem>
-
-      <SettingItem
-        name="Database Path"
-        description="Path to your citation database file (automatically detected)"
-      >
-        <Input
-          value={referencesPath || ""}
-          onChange={handleInputChange}
-          className="w-full text-sm"
-          placeholder="Enter path to your references file (e.g. References.bib)"
-        />
-      </SettingItem>
-      <SettingItem
-        name="Raw References"
-        description="Enter your references in BibLaTeX or CSL-JSON format"
-        className="items-start"
-      >
-        <Textarea
-          value=""
-          onChange={(e) => handleTextareaChange(e.target.value)}
-          className="min-h-[200px] font-mono text-sm"
-          placeholder={`Enter your references here in ${
-            settings.citation.format === "biblatex" ? "BibLaTeX" : "CSL-JSON"
-          } format`}
         />
       </SettingItem>
     </div>
@@ -501,8 +316,6 @@ export const SettingsPanel = React.memo(function SettingsPanel({
         return <HotkeySettings />
       case "core-plugins":
         return <CorePluginsSettings setActiveCategory={setActiveCategory} />
-      case "citation":
-        return <CitationSettings />
       default:
         return null
     }

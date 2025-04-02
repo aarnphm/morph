@@ -1,51 +1,30 @@
 // use inconjunction with DB for nicer handling
 
 export interface Settings {
-  editor: {
-    vim: boolean
-    tabSize: number
-  }
-  shortcuts: {
-    editMode: string
-    toggleNotes: string
-  }
-  general: {
-    ignorePatterns: string[]
-  }
-  citation: {
-    enabled: boolean
-    format: "biblatex" | "csl-json"
-    databasePath?: string
-  }
+  vimMode: boolean
+  tabSize: number
+  toggleEditMode: string
+  toggleNotes: string
+  ignorePatterns: string[]
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  editor: {
-    vim: false,
-    tabSize: 2,
-  },
-  shortcuts: {
-    editMode: "e",
-    toggleNotes: "i",
-  },
-  general: {
-    ignorePatterns: [
-      "**/.*",
-      "**/node_modules/**",
-      ".vercel/**",
-      ".venv/**",
-      "venv/**",
-      "**/dist/**",
-      "__pycache__/**",
-      "*.log",
-      ".DS_Store",
-      ".obsidian",
-    ],
-  },
-  citation: {
-    enabled: false,
-    format: "biblatex",
-  },
+  vimMode: false,
+  tabSize: 2,
+  toggleEditMode: "e",
+  toggleNotes: "i",
+  ignorePatterns: [
+    "**/.*",
+    "**/node_modules/**",
+    ".vercel/**",
+    ".venv/**",
+    "venv/**",
+    "**/dist/**",
+    "__pycache__/**",
+    "*.log",
+    ".DS_Store",
+    ".obsidian",
+  ],
 }
 
 export type FileSystemHandleType = FileSystemFileHandle | FileSystemDirectoryHandle
@@ -129,8 +108,8 @@ export interface Note {
   accessedAt?: Date
   dropped?: boolean
   steering?: Steering
-  embeddingStatus?: "in_progress" | "success" | "failure" | "cancelled"
-  embeddingTaskId?: string
+  embeddingStatus: "in_progress" | "success" | "failure" | "cancelled" | null
+  embeddingTaskId: string | null
 }
 
 export interface Reasoning {

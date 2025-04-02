@@ -59,30 +59,9 @@ function Scene({ numStars = 100 }) {
   const time = useTime()
 
   useLayoutEffect(() => {
-    gl.setPixelRatio(0.3)
+    gl.setPixelRatio(1)
     scene.background = new THREE.Color(bgColor)
   }, [gl, scene])
-
-  useEffect(() => {
-    return () => {
-      // Traverse the scene and dispose of geometries and materials
-      scene.traverse((object) => {
-        if (object instanceof THREE.Mesh) {
-          if (object.geometry) {
-            object.geometry.dispose()
-          }
-          if (object.material) {
-            // If material is an array, dispose each element
-            if (Array.isArray(object.material)) {
-              object.material.forEach((material) => material.dispose())
-            } else {
-              object.material.dispose()
-            }
-          }
-        }
-      })
-    }
-  }, [scene, gl])
 
   useFrame(({ camera }) => {
     camera.position.setFromSphericalCoords(8, degreesToRadians(75), time.get() * 0.0002)
@@ -102,7 +81,7 @@ function Scene({ numStars = 100 }) {
   )
 }
 
-export default memo(function PixelatedScene() {
+export default function PixelatedScene() {
   return (
     <Canvas gl={{ antialias: false }}>
       <Scene />
@@ -115,4 +94,4 @@ export default memo(function PixelatedScene() {
       />
     </Canvas>
   )
-})
+}

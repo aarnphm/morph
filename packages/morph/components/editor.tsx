@@ -1,8 +1,8 @@
 "use client"
 
-import { cn, toJsx } from "@/lib"
+import { cn, sanitizeStreamingContent, toJsx } from "@/lib"
 import { generatePastelColor } from "@/lib/notes"
-import { NOTES_DND_TYPE } from "@/lib/notes"
+import { groupNotesByDate } from "@/lib/notes"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
 import { Compartment, EditorState } from "@codemirror/state"
@@ -11,16 +11,17 @@ import { createId } from "@paralleldrive/cuid2"
 import { CopyIcon, Cross2Icon, GlobeIcon, StackIcon } from "@radix-ui/react-icons"
 import { Vim, vim } from "@replit/codemirror-vim"
 import CodeMirror from "@uiw/react-codemirror"
-import { and, desc, eq } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/pglite"
 import type { Root } from "hast"
 import { AnimatePresence, motion } from "motion/react"
 import { useTheme } from "next-themes"
 import * as React from "react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { DndProvider, useDragLayer, useDrop } from "react-dnd"
+import { DndProvider } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
 
+import { CustomDragLayer, EditorDropTarget, Playspace } from "@/components/dnd"
 import { fileField, mdToHtml } from "@/components/markdown-inline"
 import { setFile } from "@/components/markdown-inline"
 import { DroppedNoteGroup } from "@/components/note-group"
@@ -52,139 +53,6 @@ interface EditorProps {
   vaultId: string
   vaults: Vault[]
 }
-
-const CustomDragLayer = memo(function CustomDragLayer() {
-  const { isDragging, item, currentOffset } = useDragLayer((monitor) => ({
-    isDragging: monitor.isDragging(),
-    item: monitor.getItem() as Note | null,
-    currentOffset: monitor.getSourceClientOffset(),
-  }))
-
-  if (!isDragging || !currentOffset || !item) {
-    return null
-  }
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        pointerEvents: "none", // Important: prevent interference with drop detection
-        zIndex: 9999,
-        left: 0,
-        top: 0,
-        transform: `translate(${currentOffset.x}px, ${currentOffset.y}px)`,
-        width: "256px",
-        maxWidth: "256px",
-        opacity: 0.9,
-      }}
-    >
-      <div
-        className={cn(
-          "p-3 border border-border shadow-xl rounded-sm",
-          "transition-shadow",
-          "notecard-ragged relative",
-          "before:content-[''] before:absolute before:inset-0 before:z-[-1]",
-          "before:opacity-50 before:mix-blend-multiply before:bg-noise-pattern",
-          "after:content-[''] after:absolute after:bottom-[-4px] after:right-[-4px]",
-          "after:left-[4px] after:top-[4px] after:z-[-2]",
-          item.color || "bg-muted",
-        )}
-      >
-        <p className="text-sm leading-relaxed text-gray-800 dark:text-gray-200">{item.content}</p>
-      </div>
-    </div>
-  )
-})
-
-interface EditorDropTargetProps {
-  children: React.ReactNode
-  handleNoteDropped: (note: Note) => void
-}
-
-const EditorDropTarget = memo(function EditorDropTarget({
-  children,
-  handleNoteDropped,
-}: EditorDropTargetProps) {
-  // Save the handleNoteDropped reference in a ref to avoid dependency changes
-  const handleDroppedRef = useRef(handleNoteDropped)
-  useEffect(() => {
-    handleDroppedRef.current = handleNoteDropped
-  }, [handleNoteDropped])
-
-  const onDropped = useCallback(
-    (item: Note) => {
-      handleNoteDropped(item)
-    },
-    [handleNoteDropped],
-  )
-
-  const [{ isOver }, drop] = useDrop(
-    () => ({
-      accept: NOTES_DND_TYPE,
-      drop(item: Note) {
-        onDropped(item)
-        return { targetId: "editor" }
-      },
-      collect: (monitor) => ({ isOver: monitor.isOver() }),
-    }),
-    [onDropped],
-  )
-
-  const dropRef = useCallback(
-    (element: HTMLDivElement | null) => {
-      if (element) {
-        drop(element)
-      }
-    },
-    [drop],
-  )
-
-  return (
-    <div
-      ref={dropRef}
-      className={cn(
-        "flex-1 relative transition-all duration-300 ease-in-out",
-        isOver && "border-teal-300 border rounded-s-md rounded-w-md",
-      )}
-    >
-      {children}
-    </div>
-  )
-})
-
-const Playspace = memo(function Playspace({
-  children,
-  vaultId,
-}: {
-  children: React.ReactNode
-  vaultId: string
-}) {
-  return (
-    <motion.section
-      className="flex flex-1 overflow-hidden m-4 border"
-      layout
-      layoutId={`vault-card-${vaultId}`}
-      transition={{
-        type: "spring",
-        stiffness: 300,
-        damping: 26,
-        mass: 0.8,
-      }}
-      initial={{ borderRadius: 0 }}
-      animate={{
-        margin: "16px",
-        borderRadius: "8px",
-      }}
-      exit={{
-        margin: "16px",
-        borderRadius: "8px",
-        opacity: 0,
-      }}
-    >
-      {children}
-    </motion.section>
-  )
-})
 
 interface ReasoningHistory {
   id: string
@@ -221,28 +89,6 @@ interface NewlyGeneratedNotes {
   reasoningContent: string
 }
 
-// Add a helper function to sanitize streaming content by removing trailing JSON syntax
-const sanitizeStreamingContent = (content: string): string => {
-  if (!content) return ""
-
-  // Remove any trailing JSON syntax characters that might be part of streaming
-  // This handles cases like trailing quotes, braces, commas, etc.
-  let sanitized = content
-
-  // First, check if we have an incomplete escape sequence at the end
-  if (sanitized.endsWith("\\")) {
-    sanitized = sanitized.slice(0, -1)
-  }
-
-  // Remove any trailing JSON syntax characters
-  sanitized = sanitized.replace(/[\"\}\,\]\s]+$/, "")
-
-  // Also handle cases where there might be escaped quotes
-  sanitized = sanitized.replace(/\\\"$/, "")
-
-  return sanitized
-}
-
 // Replace the wrapper component with a direct export of EditorComponent
 export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const { theme } = useTheme()
@@ -259,8 +105,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [showEphemeralBanner, setShowEphemeralBanner] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
   const [isClient, setIsClient] = useState(false)
-
-  const { settings } = usePersistedSettings()
   const codeMirrorViewRef = useRef<EditorView | null>(null)
   const readingModeRef = useRef<HTMLDivElement>(null)
   const [showNotes, setShowNotes] = useState(false)
@@ -286,6 +130,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   // State for embedding indicator
   // const [eyeIconState, setEyeIconState] = useState<"open" | "closed">("open")
 
+  const { settings } = usePersistedSettings()
   const client = usePGlite()
   const db = drizzle({ client, schema })
 
@@ -313,7 +158,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     window.addEventListener("offline", handleOffline)
 
     // Initial check in case the event listeners haven't fired yet
-    // setIsOnline(navigator.onLine);
+    setIsOnline(navigator.onLine)
 
     return () => {
       window.removeEventListener("online", handleOnline)
@@ -365,132 +210,39 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         return [...prev, noteWithColor]
       })
 
-      // Save to database - update the note's dropped flag
+      // Find the file in the database to get its ID
       try {
-        // Drizzle: Use db.update().set().where()
+        // First, find the file in the database
+        const dbFile = await db.query.files.findFirst({
+          where: (files, { and, eq }) =>
+            and(eq(files.name, currentFile), eq(files.vaultId, vault?.id || "")),
+        })
+
+        if (!dbFile) {
+          console.error("Failed to find file in database when dropping note")
+          return
+        }
+
+        // Save to database - update the note's dropped flag
         await db
           .update(schema.notes)
           .set({
             dropped: true,
             color: noteWithColor.color,
             accessedAt: new Date(), // Update accessedAt timestamp
-            // lastModified: new Date(), // Schema doesn't have lastModified in notes table
+            fileId: dbFile.id,
           })
           .where(eq(schema.notes.id, noteWithColor.id))
       } catch (error) {
         console.error("Failed to update note dropped status:", error)
       }
-      // Update dependency array if needed, likely fine as is
     },
-    [db],
-  ) // Added db dependency
-
-  useEffect(() => {
-    if (!currentFile || !vault || currentFile === "Untitled") return // Added check for "Untitled"
-
-    const loadDroppedNotes = async () => {
-      try {
-        // Get notes that are dropped for this file using Drizzle
-        const fileDroppedNotes: Note[] = await db
-          .select()
-          .from(schema.notes)
-          .where(
-            and(
-              eq(schema.notes.dropped, true),
-              eq(schema.notes.fileId, currentFile),
-              eq(schema.notes.vaultId, vault.id), // Also filter by vaultId
-            ),
-          )
-
-        // Ensure each note has a color
-        const notesWithColors = fileDroppedNotes.map((note) => ({
-          ...note,
-          color: note.color || generatePastelColor(),
-        }))
-
-        setDroppedNotes(notesWithColors)
-      } catch (error) {
-        console.error("Failed to load dropped notes:", error)
-        setDroppedNotes([])
-      }
-    }
-
-    loadDroppedNotes()
-    // Updated dependencies
-  }, [currentFile, vault, db])
+    [db, currentFile, vault],
+  )
 
   useEffect(() => {
     contentRef.current = { content: markdownContent, filename: currentFile }
   }, [markdownContent, currentFile])
-
-  // Group notes by date for display (more granular - by minute)
-  const groupNotesByDate = useCallback((notesList: Note[]) => {
-    const groups: { [key: string]: Note[] } = {}
-
-    notesList.forEach((note) => {
-      const date = new Date(note.createdAt)
-      // Format with hours, minutes, and 15-second intervals
-      const seconds = date.getSeconds()
-      const interval = Math.floor(seconds / 15) * 15
-      const dateKey = `${date.toDateString()}-${date.getHours()}-${date.getMinutes()}-${interval}`
-
-      if (!groups[dateKey]) {
-        groups[dateKey] = []
-      }
-
-      groups[dateKey].push(note)
-    })
-
-    return Object.entries(groups).sort((a, b) => {
-      // Sort from newest to oldest
-      const dateA = new Date(a[0].split("-")[0])
-      const hourA = parseInt(a[0].split("-")[1])
-      const minuteA = parseInt(a[0].split("-")[2])
-      const secondsA = parseInt(a[0].split("-")[3] || "0")
-      const dateB = new Date(b[0].split("-")[0])
-      const hourB = parseInt(b[0].split("-")[1])
-      const minuteB = parseInt(b[0].split("-")[2])
-      const secondsB = parseInt(b[0].split("-")[3] || "0")
-
-      if (dateA.getTime() === dateB.getTime()) {
-        if (hourA === hourB) {
-          if (minuteA === minuteB) {
-            return secondsB - secondsA // If same minute, sort by seconds interval
-          }
-          return minuteB - minuteA // If same hour, sort by minute
-        }
-        return hourB - hourA // If same day, sort by hour
-      }
-      return dateB.getTime() - dateA.getTime() // Otherwise sort by date
-    })
-  }, [])
-
-  // Sort notes from latest to oldest
-  // useEffect(() => {
-  //   if (currentFile && vault && currentFile !== "Untitled") { // Added check for "Untitled"
-  //     // Drizzle: Use db.select().from().where().orderBy()
-  //     db.select()
-  //       .from(schema.notes)
-  //       .where(
-  //         and(
-  //           eq(schema.notes.fileId, currentFile),
-  //           eq(schema.notes.vaultId, vault.id), // Also filter by vaultId
-  //         ),
-  //       )
-  //       .orderBy(desc(schema.notes.createdAt)) // Sort directly in the query
-  //       .then((loadedNotes) => {
-  //         // No need to sort again here
-  //         setNotes(loadedNotes as Note[]); // Cast to Note[]
-  //       })
-  //       .catch((error) => {
-  //         console.error("Failed to load notes:", error);
-  //         setNotes([]); // Reset notes on error
-  //       });
-  //   } else {
-  //     setNotes([]); // Clear notes if no file/vault or file is "Untitled"
-  //   }
-  // // Updated dependencies
-  // }, [currentFile, vault, db]); // Add db
 
   const updatePreview = useCallback(
     async (value: string) => {
@@ -1022,7 +774,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       markdown({ base: markdownLanguage, codeLanguages: languages }),
       frontmatter(),
       EditorView.lineWrapping,
-      tabSize.of(EditorState.tabSize.of(settings.editor.tabSize)),
+      tabSize.of(EditorState.tabSize.of(settings.tabSize)),
       fileField.init(() => currentFile),
       EditorView.updateListener.of((update) => {
         if (update.docChanged || update.selectionSet) {
@@ -1057,10 +809,10 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   const handleKeyDown = useCallback(
     async (event: KeyboardEvent) => {
-      if (event.key === settings.shortcuts.toggleNotes && (event.metaKey || event.ctrlKey)) {
+      if (event.key === settings.toggleNotes && (event.metaKey || event.ctrlKey)) {
         event.preventDefault()
         toggleNotes()
-      } else if (event.key === settings.shortcuts.editMode && (event.metaKey || event.altKey)) {
+      } else if (event.key === settings.toggleEditMode && (event.metaKey || event.altKey)) {
         event.preventDefault()
         setIsEditMode((prev) => !prev)
         // Safely try to render mermaid diagrams if available
@@ -1083,32 +835,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [handleSave, toggleNotes, settings, handleKeyDown])
-
-  useEffect(() => {
-    if (!showNotes) return
-
-    // First load notes from DB when the notes panel is opened
-    if (currentFile && vault && currentFile !== "Untitled") {
-      // Added check for "Untitled"
-      // Drizzle: Use db.select().from().where().orderBy()
-      db.select()
-        .from(schema.notes)
-        .where(
-          and(
-            eq(schema.notes.fileId, currentFile),
-            eq(schema.notes.vaultId, vault.id), // Also filter by vaultId
-          ),
-        )
-        .orderBy(desc(schema.notes.createdAt)) // Sort directly in the query
-        .then((loadedNotes) => {
-          setNotes(loadedNotes as Note[]) // Cast to Note[]
-        })
-        .catch((error) => {
-          console.error("Failed to load notes:", error)
-          setNotes([]) // Reset notes on error
-        })
-    }
-  }, [showNotes, currentFile, vault, db])
 
   const generateNewSuggestions = useCallback(
     async (steeringSettings: SteeringSettings) => {
@@ -1158,12 +884,14 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             createdAt: new Date(),
             lastModified: new Date(),
             reasoningId: reasoningId,
-            authors: steeringSettings.authors,
-            tonality: steeringSettings.tonalityEnabled ? steeringSettings.tonality : undefined,
-            temperature: steeringSettings.temperature,
-            numSuggestions: steeringSettings.numSuggestions,
-            embeddingStatus: undefined, // Will be set to 'in_progress' by trigger function if needed
-            embeddingTaskId: undefined,
+            steering: {
+              authors: steeringSettings.authors,
+              tonality: steeringSettings.tonalityEnabled ? steeringSettings.tonality : undefined,
+              temperature: steeringSettings.temperature,
+              numSuggestions: steeringSettings.numSuggestions,
+            },
+            embeddingStatus: "in_progress",
+            embeddingTaskId: null,
           }
         })
 
@@ -1174,19 +902,47 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
         // Only save if the file is not "Untitled"
         if (currentFile !== "Untitled" && vault) {
-          // Ensure vault exists too
+          // First, find or create the file in the database
+          let dbFile = await db.query.files.findFirst({
+            where: (files, { and, eq }) =>
+              and(eq(files.name, currentFile), eq(files.vaultId, vault.id)),
+          })
+
+          if (!dbFile) {
+            // Extract extension
+            const extension = currentFile.includes(".") ? currentFile.split(".").pop() || "" : ""
+
+            // Insert file into database
+            await db.insert(schema.files).values({
+              name: currentFile,
+              extension,
+              vaultId: vault.id,
+              lastModified: new Date(),
+              embeddingStatus: "in_progress",
+            })
+
+            // Re-fetch the file to get its ID
+            dbFile = await db.query.files.findFirst({
+              where: (files, { and, eq }) =>
+                and(eq(files.name, currentFile), eq(files.vaultId, vault.id)),
+            })
+
+            if (!dbFile) {
+              throw new Error("Failed to create file in database")
+            }
+          }
+
           // Save reasoning using Drizzle insert
           db.insert(schema.reasonings)
             .values({
               id: reasoningId,
-              fileId: currentFile,
+              fileId: dbFile.id,
               vaultId: vault.id,
               content: reasoningContent,
               noteIds: newNoteIds,
-              createdAt: now, // Use the same timestamp
-              accessedAt: now, // Use the same timestamp
+              createdAt: now,
+              accessedAt: now,
               duration: reasoningElapsedTime,
-              // Adapt steering data structure if needed for schema.reasonings.steering (JSONB)
               steering: {
                 authors: steeringSettings.authors,
                 tonality: steeringSettings.tonalityEnabled ? steeringSettings.tonality : undefined,
@@ -1208,15 +964,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             dropped: note.dropped ?? false, // Ensure dropped has a default
             fileId: note.fileId,
             vaultId: note.vaultId,
-            reasoningId: note.reasoningId,
-            // Adapt steering data structure if needed for schema.notes.steering (JSONB)
-            steering: {
-              authors: note.steering!.authors,
-              tonality: note.steering!.tonality,
-              temperature: note.steering!.temperature,
-              numSuggestions: note.steering!.numSuggestions,
-            },
-            embeddingStatus: note.embeddingStatus ?? "in_progress", // Provide default
+            reasoningId: note.reasoningId!,
+            steering: note.steering!,
+            embeddingStatus: note.embeddingStatus ?? "in_progress",
             embeddingTaskId: note.embeddingTaskId,
           }))
 
@@ -1267,7 +1017,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     )
 
     return groupNotesByDate(filteredNotes)
-  }, [notes, currentGenerationNotes, droppedNotes, groupNotesByDate])
+  }, [notes, currentGenerationNotes, droppedNotes])
 
   const handleCurrentGenerationNote = useCallback((note: Note) => {
     setCurrentGenerationNotes((prev) => prev.filter((n) => n.id !== note.id))
@@ -1342,26 +1092,114 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       try {
         const file = await node.handle!.getFile()
         const content = await file.text()
+        const fileName = file.name
 
         // Update CodeMirror
         codeMirrorViewRef.current.dispatch({
           changes: { from: 0, to: codeMirrorViewRef.current.state.doc.length, insert: content },
           // Update the file field using the effect
-          effects: setFile.of(file.name),
+          effects: setFile.of(fileName),
         })
+
+        // Check if file exists in database
+        let dbFile = await db.query.files.findFirst({
+          where: (files, { and, eq }) => and(eq(files.name, fileName), eq(files.vaultId, vault.id)),
+        })
+
+        // If file doesn't exist in DB, create it
+        if (!dbFile) {
+          // Extract extension
+          const extension = fileName.includes(".") ? fileName.split(".").pop() || "" : ""
+
+          try {
+            // Insert file into database
+            await db.insert(schema.files).values({
+              name: fileName,
+              extension,
+              vaultId: vault.id,
+              lastModified: new Date(),
+              embeddingStatus: "in_progress",
+            })
+
+            // Re-fetch the file to get its ID
+            dbFile = await db.query.files.findFirst({
+              where: (files, { and, eq }) =>
+                and(eq(files.name, fileName), eq(files.vaultId, vault.id)),
+            })
+
+            console.log(`Created new file in database: ${fileName}`)
+          } catch (dbError) {
+            console.error("Error inserting file into database:", dbError)
+          }
+        }
+
+        // Fetch notes associated with this file from the database
+        if (dbFile) {
+          try {
+            // Query all notes for this file
+            const fileNotes = await db.query.notes.findMany({
+              where: (notes, { and, eq }) =>
+                and(eq(notes.fileId, dbFile.id), eq(notes.vaultId, vault.id)),
+              orderBy: (notes, { desc }) => [desc(notes.createdAt)],
+            })
+
+            if (fileNotes.length > 0) {
+              // Separate notes into regular and dropped notes
+              const regularNotes = fileNotes.filter((note) => !note.dropped)
+              const droppedNotesList = fileNotes.filter((note) => note.dropped)
+
+              // Update the state with fetched notes
+              setNotes(regularNotes)
+              setDroppedNotes(droppedNotesList)
+
+              // Fetch related reasonings if needed
+              const reasoningIds = [...new Set(fileNotes.map((note) => note.reasoningId))]
+              if (reasoningIds.length > 0) {
+                const reasonings = await db.query.reasonings.findMany({
+                  where: (reasonings, { inArray }) => inArray(reasonings.id, reasoningIds),
+                })
+
+                if (reasonings.length > 0) {
+                  // Convert to ReasoningHistory format and update state
+                  const reasoningHistory = reasonings.map((r) => ({
+                    id: r.id,
+                    content: r.content,
+                    timestamp: r.createdAt,
+                    noteIds: fileNotes.filter((n) => n.reasoningId === r.id).map((n) => n.id),
+                    reasoningElapsedTime: r.duration,
+                    authors: r.steering?.authors,
+                    tonality: r.steering?.tonality,
+                    temperature: r.steering?.temperature,
+                    numSuggestions: r.steering?.numSuggestions,
+                  }))
+
+                  setReasoningHistory(reasoningHistory)
+                }
+              }
+            } else {
+              // No notes found for this file
+              setNotes([])
+              setDroppedNotes([])
+              setReasoningHistory([])
+            }
+          } catch (error) {
+            console.error("Error fetching notes for file:", error)
+            // Reset note states on error
+            setNotes([])
+            setDroppedNotes([])
+            setReasoningHistory([])
+          }
+        }
 
         // Update component state
         setCurrentFileHandle(node.handle as FileSystemFileHandle)
-        setCurrentFile(file.name) // State update
+        setCurrentFile(fileName) // State update
         setMarkdownContent(content)
         setHasUnsavedChanges(false)
         setIsEditMode(true) // Reset to edit mode on file change
         updatePreview(content) // Update preview
 
-        // Clear states related to previous file's notes/reasoning
-        setNotes([])
-        setDroppedNotes([])
-        setReasoningHistory([])
+        // Clear states related to current generation
         setCurrentGenerationNotes([])
         setCurrentlyGeneratingDateKey(null)
         setNotesError(null)
@@ -1374,8 +1212,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         })
       }
     },
-    [vault, updatePreview, toast],
-  ) // Added dependencies
+    [vault, updatePreview, toast, db],
+  )
 
   return (
     <DndProvider backend={HTML5Backend}>

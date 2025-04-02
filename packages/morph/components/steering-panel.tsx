@@ -269,7 +269,7 @@ function TemperatureSlider({ value, onChange, className }: TemperatureSliderProp
     if (temp <= 0.3) return "Deterministic"
     if (temp <= 0.6) return "Balanced"
     if (temp <= 0.8) return "Creative"
-    return "Erratic"
+    return "Unhinged"
   }
 
   const getColor = (temp: number) => {
@@ -298,7 +298,7 @@ function TemperatureSlider({ value, onChange, className }: TemperatureSliderProp
       />
       <div className="flex justify-between text-xs text-foreground">
         <span>Deterministic</span>
-        <span>Erratic</span>
+        <span>Unhinged</span>
       </div>
     </div>
   )

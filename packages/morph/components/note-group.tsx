@@ -166,25 +166,6 @@ export const DroppedNoteGroup = memo(
       prevNotesLengthRef.current = droppedNotes.length
     }, [droppedNotes.length, isStackExpanded])
 
-    // Modified to provide a ref to the last note and pass the onDragBackToPanel handler
-    const AttachedDisplayNotes = useCallback(
-      () => (
-        <>
-          {notesToDisplay.map((note, index) => (
-            <AttachedNoteCard
-              key={index}
-              note={note}
-              index={index}
-              isStackExpanded={isStackExpanded}
-              onDragBackToPanel={onDragBackToPanel}
-              className={className}
-            />
-          ))}
-        </>
-      ),
-      [isStackExpanded, notesToDisplay, onDragBackToPanel, className],
-    )
-
     // Render nothing if there are no notes
     if (!hasNotes) return null
 
@@ -204,7 +185,20 @@ export const DroppedNoteGroup = memo(
           )}
         >
           <AnimatePresence mode="sync">
-            <AttachedDisplayNotes key="attached-notes" />
+            {notesToDisplay.map((note, index) => (
+              <div
+                key={note.id}
+                ref={index === notesToDisplay.length - 1 ? lastNoteRef : undefined}
+              >
+                <AttachedNoteCard
+                  note={note}
+                  index={index}
+                  isStackExpanded={isStackExpanded}
+                  onDragBackToPanel={onDragBackToPanel}
+                  className={className}
+                />
+              </div>
+            ))}
             {hasMoreNotes && !isStackExpanded && (
               <motion.div
                 key="more-notes-indicator"

@@ -152,11 +152,9 @@ export function SearchProvider({ children, vault }: { children: React.ReactNode;
         // Note: FlexSearch Document doesn't have a clear() method. Re-instantiating might be needed for full clear.
         // For now, we will just add, assuming duplicates won't cause major issues or are handled.
 
-        console.log("Indexing vault content...")
         for (const node of nodes) {
           await indexNode(node)
         }
-        console.log("Indexing complete.")
       }, 500), // Increased debounce time slightly
     [indexNode, isIndexReady, index],
   )

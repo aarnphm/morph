@@ -3,9 +3,9 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: (pnpm-lock.yaml|emojimap.json|migrations/)
+        exclude: (pnpm-lock.yaml|emojimap.json|generated/)
       - id: end-of-file-fixer
-        exclude: (pnpm-lock.yaml|emojimap.json|migrations/)
+        exclude: (pnpm-lock.yaml|emojimap.json|generated/)
       - id: check-yaml
         exclude: (pnpm-lock.yaml)
       - id: check-added-large-files

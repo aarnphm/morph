@@ -34,7 +34,7 @@ export default function useDatabaseModels() {
         // Process directory to rebuild the tree with handles
         const tree = await processDirectory(
           rootHandle as FileSystemDirectoryHandle,
-          dbVault.settings.general.ignorePatterns,
+          dbVault.settings.ignorePatterns,
         )
 
         // Apply handleIds from DB tree
