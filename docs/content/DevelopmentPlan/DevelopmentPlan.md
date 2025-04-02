@@ -56,8 +56,7 @@ methods, Email should be used to communicate with the rest of the team and the i
 
 The following encapsulates member roles for Hinterland.
 
-[Aaron Pham](https://aarnphm.xyz) will take the lead role for the team and acts as [BDFL](https://en.wikipedia.org/wiki/Benevolent_dictator_for_life) for `tinymorph`.
-They will be responsible for overall project management, communication among course instructors, supervisor, as well as providing support to the rest of the team
+[Aaron Pham](https://aarnphm.xyz) will serve as the Project Lead, responsible for coordinating all aspects of the project. This includes managing communication with course instructors and the project supervisor, setting priorities, facilitating team alignment, and supporting other members across different components.
 
 Notetakers will be responsible for taking notes during meetings, lectures during the working week, and this role will
 be rotated among team members on a four week basis. The following can be used:
@@ -70,18 +69,17 @@ A[Aaron Pham] --> B[Waleed Malik] --> C[Nebras Khan] --> D[Lucas Li]
 > [!note] Meeting chair assignment
 > Follow the schedule for notetakers.
 
-Given that `tinymorph` will include two components (web-based editor and ML inference server), the following include
-a rough draft of each champion's responsibilities:
+Given that `tinymorph` consists of both a web-based editor and an ML inference server, the following team members will take primary responsibility for each area:
 
-- design work: The team will collaborate on general design works for interfaces, lead by [Aaron Pham](https://aarnphm.xyz).
-- web-based editor: [Nebras Khan](https://github.com/nebrask).
+- Interface design: Collaborative design process led by [Aaron Pham](https://aarnphm.xyz).
+- Web-based editor: [Nebras Khan](https://github.com/nebrask).
 - ML inference server: [Waleed Malik](https://github.com/waleedmalik7)
-- SAE intervention: Lead by [Aaron Pham](https://aarnphm.xyz), with [Lucas Li](https://github.com/lucas-lizhiwei)
+- SAE intervention: Led by [Aaron Pham](https://aarnphm.xyz), with support from [Lucas Li](https://github.com/lucas-lizhiwei)
 
-Reviewers will be assigned automatically based on the project they champion.
+Code reviewers will be assigned based on ownership of the component in question. Team members are encouraged to collaborate across components as needed.
 
 > [!note] Assignment
-> Generally, everyone can work simultaneously on any of the three components mentioned above.
+> While responsibilities are divided for clarity, all members are free to contribute across components depending on project needs.
 
 ## Workflow Plan
 
@@ -328,6 +326,6 @@ For metrics, try to show up for meetings, and push your progress through draft P
 
 ##### Decision Making
 
-The team will follow a concensus voting model with regards features design and implementation decisions.
+The team will follow a consensus-based voting model for feature design and implementation decisions.
 
-Should there be a split vote, BDFL will have the final say.
+In the event of a split vote, a final decision will be made by the team member responsible for that component.
