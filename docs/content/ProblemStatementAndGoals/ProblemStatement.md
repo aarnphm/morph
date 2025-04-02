@@ -185,7 +185,7 @@ do (which is mechanistic interpretability).
 
 2. Writing about advanced topics like mechanistic interpretability without overwhelming the reader was tricky. We had to balance technical depth with accessibility. We resolved it by breaking things down with clear, high-level descriptions and pushing technical details into other supporting documents.
 
-3. We made sure to reflect on what success would look like for both the user and the course. That led us to scope down to the core interaction layer such as the web editor, feedback loop, and basic LLM integration. We set aside more experimental ideas like deep customization of model internals. It felt like a good middle ground between ambition and feasibility.
+3. We made sure to reflect on what success would look like for both the user and the course. This led us to scope down to the core interaction layer such as the web editor, feedback loop, and basic LLM integration. We set aside more experimental ideas like deep customization of model internals. It felt like a good middle ground between ambition and feasibility.
 
 </div>
 

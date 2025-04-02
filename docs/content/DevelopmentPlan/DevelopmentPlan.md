@@ -30,8 +30,8 @@ Meeting will be run into two formats: Standup and Supervisor Meeting
 
 | Meeting Type              | Frequency | Time (EST)      | Day    | Location                        | Agenda                                                                                                                                                            |
 | ------------------------- | --------- | --------------- | ------ | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Standup                   | Weekly    | **15:30-16:30** | Monday | Online via Teams                | • Round table format<br>• What are you working on<br>• Blockers?<br>• Plan for this week                                                                          |
-| Supervisor (w/ Dr.Mishra) | Bi-weekly | **12:00-13:00** | Friday | In person, at arranged location | • Progress update<br>• Discussion regarding relevant research and potential solutions for UX interaction<br>• Q&A session for any issues during development cycle |
+| Standup                   | Weekly    | **17:30-18:30** | Monday | Online via Teams                | • Round table format<br>• What are you working on<br>• Blockers?<br>• Plan for this week                                                                          |
+| Supervisor (w/ Dr.Mishra) | Monthly | **15:00-16:00** | Friday | In person, at arranged location | • Progress update<br>• Discussion regarding relevant research and potential solutions for UX interaction<br>• Q&A session for any issues during development cycle |
 
 Meeting chairs and notetakes will be responsible for ensuring that given issues are filled out.
 For meeting with supervisors, notes should be taken under [[meetings]].
