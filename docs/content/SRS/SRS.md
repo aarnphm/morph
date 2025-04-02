@@ -351,19 +351,7 @@ Rationale: This ensures the system can handle high-performance inference tasks b
 
 Rationale: This ensures the system can dynamically scale to meet user demand, maintaining performance and stability by efficiently managing multiple requests and preventing overload during periods of peak traffic.
 
-### Partner or Collaborative Applications
 
-> [!important] MC-P1
->
-> The system must support integration with tools like Notion, Obsidian, and text editors such as Neovim and VSCode.
-
-Rationale: This allows users to work with their preferred tools, enhancing productivity and collaboration by enabling them to transfer and synchronize content seamlessly between the application and other commonly used applications in the same space.
-
-> [!important] MC-P2
->
-> The system must provide export options in multiple formats (e.g., Markdown, PDF).
-
-Rationale: Providing multiple export formats allows users to share and collaborate across a variety of tools and systems, supporting flexible workflows and interoperability with a wide range of applications.
 
 ### Off-the-Shelf Software
 
@@ -761,53 +749,12 @@ Rationale: The LTR panel offers an intuitive way to refine model behavior, but i
 
 Rationale: Allowing users to customize the tone, style, voice, and formality ensures `tinymorph` adapts to individual preferences, making the generated text more personalized and relevant to the user's needs.
 
-> [!important] FR-5
->
-> Users shall be able to save their preferred configurations as profiles, enabling them to switch between different writing styles or goals. For the initial version, the focus shall be on creative writing, with the potential to expand to other writing types (e.g., academic, casual blog posts) as additional datasets are integrated.
-
-Rationale: Allowing users to save profiles for different writing styles supports personalization, and initially focusing on creative writing ensures that `tinymorph` can refine its functionality before expanding to other types of content that may require specialized datasets.
-
-> [!important] FR-6
->
-> `tinymorph` shall allow users to navigate through their text non-linearly by providing a visual map or tree view that displays key points, topics, sections, and revision history. This tree-based exploration shall support both text structure and revision tracking, allowing users to explore and edit different versions or sections easily.
-
-Rationale: Providing a tree-based view enhances the user's ability to navigate their content efficiently, particularly during revision or structural changes. This visual aid allows for more intuitive exploration of key points, sections, and revisions, offering greater control over the writing process.
-
-> [!important] FR-7
->
-> `tinymorph` shall present possible planning steps that users can choose, modify, or combine to guide the structure and flow of their writing.
-
-Rationale: Focusing on planning steps rather than text alternatives aligns with the creative writing process, helping users organize and structure their ideas more effectively. This approach avoids the limitations of traditional generation methods like beam search, which may not perform well in this context.
-
-> [!important] FR-8
->
-> `tinymorph` shall offer version control features that allow users to navigate through previous edits, revert to earlier document versions, and compare different drafts visually.
-
-Rationale: Providing a clear representation of revision history helps users track changes, make informed decisions about reverting to previous states, and compare different versions of their work with ease.
-
-> [!important] FR-9
->
-> `tinymorph` shall support an offline mode where users can continue to write and interact with the editor without internet access, using pre-downloaded resources.
-
-Rationale: While offline mode may not be a priority in the current development phase, providing the ability to work offline in future versions ensures greater accessibility and flexibility for users in varying environments.
-
 > [!important] FR-10
 >
 > `tinymorph` shall allow users to continue writing and saving files locally during offline sessions. However, certain features, such as planning-related suggestions, will only be available when the user is connected to the internet.
 
 Rationale: By allowing users to write and save locally during offline sessions, `tinymorph` ensures uninterrupted productivity. However, advanced features requiring internet access, like planning assistance, will only function when a connection is restored.
 
-> [!important] FR-11
->
-> Users shall be able to set and track specific writing goals (e.g., word count, tone consistency, argument development) through customizable progress tracking features, such as word count meters, tone analysis, and style consistency checks. `tinymorph` will offer suggestions to help users meet these goals, ensuring alignment with their intended writing objectives.
-
-Rationale: Combining goal-setting with progress tracking allows users to monitor their progress and receive actionable feedback, making the writing process more structured and goal-oriented. This unified approach supports personalized goal management, helping users stay on track.
-
-> [!important] FR-12
->
-> `tinymorph` shall allow users to categorize and tag different sections of their text (e.g., introduction, argument, conclusion), and automatically generate an outline based on the document's structure.
-
-Rationale: Combining tagging with automatic outline generation streamlines document organization and navigation. This will provide a high-level overview of the content and enable quick access to specific sections for better organization and navigation within large documents. This feature also helps users maintain clarity and easily navigate large documents, providing both a detailed view of the content.
 
 > [!important] FR-13
 >
@@ -873,37 +820,12 @@ Rationale: Providing immediate visual feedback for user actions confirms the sys
 
 ### Ease of Use Requirements
 
-> [!important] UH-EOU1
->
-> `tinymorph` shall include a session history feature that records and displays the user's most recent editing activities such as document accesses and text modifications.
-
-Rationale: This functionality streamlines user workflow by providing quick access to recent actions, which reduces the time needed for navigation and increases efficiency.
-
-> [!important] UH-EOU2
->
-> `tinymorph` must allow users to interactively review and manually accept or reject changes suggested by the system after their inputs are submitted.
-
-Rationale: Providing users with the option to manually accept or reject suggested changes allows them with greater control over their content. This functionality would enhance user engagement by making the editing process more interactive and ensures that the final output aligns precisely with their preferences and intentions.
-
 > [!important] UH-EOU3
 >
 > The application shall include a planning interface to assist users in organizing and debugging their creative writing steps.
 
 Rationale: The interface will improve user efficiency by supporting the iterative refinement of writing tasks and planning steps. It enables users to easily adjust and debug their creative outlines, enhancing the overall usability and functionality of the application.
 
-### Personalization and Internationalization Requirements
-
-> [!important] UH-PI1
->
-> `tinymorph` interface must include multilingual support to cater to an international audience.
-
-Rationale: Multilingual support enhances the application’s global accessibility and user engagement, ensuring that users can interact with the platform in their preferred language.
-
-> [!important] UH-PI2
->
-> The application shall provide options for users to select between light or dark mode based on their system settings or preference.
-
-Rationale: These theme customization improves visual comfort and personalization, enabling users to adapt the interface to their visual preferences and working environments.
 
 ### Learning Requirements
 
@@ -947,7 +869,7 @@ Rationale: ARIA attributes help provide essential information about the element'
 
 > [!IMPORTANT] PR-SLR1
 >
-> [[glossary#time-to-first-tokens|TTFT]] should be minimum, around 200-500ms
+> [[glossary#time-to-first-tokens|TTFT]] should be minimum, below 200ms
 
 Rationale: Suggestion and planning should feel smooth, and fast. Therefore, time-to-first-token is important.
 
@@ -1023,11 +945,6 @@ Rationale: During high traffic, the inference servers must be able to scale up b
 
 Rationale: `tinymorph` should be able to extend to different [model architectures](https://www.llama.com/) with variety of SAEs.
 
-> [!IMPORTANT] PR-LR2
->
-> Support different distribution platforms.
-
-Rationale: `tinymorph` will first ship a web interface. It should then reserve the ability to be packaged into a standalone universal binary that can be run on different operating systems and architectures.
 
 ## Operational and Environmental Requirements
 
@@ -1035,13 +952,13 @@ Rationale: `tinymorph` will first ship a web interface. It should then reserve t
 
 > [!IMPORTANT] OER-EPE1
 >
-> `tinymorph` will be able to run on different hardware environment, given it can run modern browser.
+> `tinymorph` will be able to run on different hardware environment, given it can run on most modern browsers.
 
 Rationale: `tinymorph` will ship a web interface through browsers. Therefore, it should support any hardware environment that can run a browser.
 
 > [!IMPORTANT] OER-EPE2
 >
-> `tinymorph` should have minimal increase in power consumption
+> `tinymorph` should have moderate increase in power consumption
 
 Rationale: `tinymorph` should avoid a huge increase in RAM for a browser tab.
 
@@ -1067,7 +984,7 @@ Rationale: To ensure all production environment variables are safe from bad acto
 >
 > Relevant documentation should be accessible by users.
 
-Rationale: Usage manuals and technical-related details should be easily accessible from `tinymorph`'s interface.
+Rationale: User manual and technical-related details should be easily accessible from `tinymorph`'s interface.
 
 > [!IMPORTANT] OER-PR3
 >
@@ -1105,13 +1022,7 @@ Rationale: Regular security updates to adjacent dependencies must be done quickl
 
 Rationale: Given features works must not fail existing testing infrastructure.
 
-### Supportability Requirements
 
-> [!IMPORTANT] OER-SR1
->
-> User feedback loop must be present.
-
-Rationale: For further development and UX improvement, a user-feedback loop is required.
 
 ### Adaptability Requirements
 
@@ -1147,11 +1058,7 @@ Rationale: Securing DNS interactions prevents attackers from manipulating or rer
 
 Rationale: Content Security Policies (CSP) are an effective security control to prevent XSS attacks by restricting the sources from which scripts can be loaded and executed in the application. CSP will help in safeguarding against data theft and maintain the integrity of the content delivered to users.
 
-> [!important] SR-INT4
->
-> Implement JWT and short-lived tokens to secure session communications.
 
-Rationale: Utilizing JWT and short-lived tokens for session management enhances security by ensuring that session data remains protected against unauthorized access. This approach helps prevent bad actors from intercepting or tampering with session data, ensuring that user content and session details remain confidential and intact.
 
 ### Privacy Requirements
 
@@ -1193,39 +1100,13 @@ Rationale: Minimizing the attack surface reduces the number of potential entry p
 
 Rationale: English will be supported for alpha release of `tinymorph`. This is due to the limited capabilities of models when dealing with multilingual inputs.
 
-> [!IMPORTANT] CulR-CR2
->
-> Cultural reference must be factual
-
-Rationale: If given cultural references are generated, it must utilize tools to fact-check given suggestions (using web-search).
-
 > [!IMPORTANT] CulR-CR3
 >
 > Support left-to-right (LTR) reading flow
 
-Rationale: Panels will be presented in LTR manner. RTL will be supported once multilingual are added.
+Rationale: Panels will be presented in LTR manner. 
 
 ## Compliance Requirements
-
-### Legal Requirements
-
-> [!IMPORTANT] CompR-LR1
->
-> Suggestion must follow strict US copyright law.
-
-Rationale: Certain suggestions, if any, uses additional contents, references must be made to ensure copyright law compliance.
-
-> [!IMPORTANT] CompR-LR2
->
-> [SOC2](https://www.vanta.com/products/soc-2) compliance
-
-Rationale: `tinymorph` should follow SOC-2 attestation for its inference server.
-
-> [!IMPORTANT] CompR-LR2
->
-> Users permission to run inference against their content
-
-Rationale: `tinymorph` will require users' inputs to make corresponding suggestions. In other words, existing user content will be sent during inference requests.
 
 ### Standards Compliance Requirements
 
@@ -1545,15 +1426,10 @@ _note: we exclude the calculation for hosting the sites, given we will be using 
 
 Rationale: This guide will act as the primary resource for users to fully understand and effectively utilize all features of the application, enabling them to solve common problems independently. Keeping the guide updated will reflect ongoing changes and user feedback, enhancing user satisfaction and self sufficiency.
 
-> [!important] UDT-D2
->
-> Develop an installation manual with detailed instructions for the software installation, configuration, and initial setup processes.
-
-Rationale: The manual ensures that all users regardless of their technical expertise can easily set up the application. This minimizes setup errors and facilitates smoother adoption of the software.
 
 > [!important] UDT-D3
 >
-> Compile a design document describing the software architecture, API specifications, data flow diagrams, and code structure.
+> Compile design documents(MIS and MG) describing the software architecture, API specifications, data flow diagrams, and code structure.
 
 Rationale: This document is crucial for developers and technical stakeholders to understand the inner workings of the application. It wil support maintenance tasks, future development efforts, and integration with other systems.
 
@@ -1569,19 +1445,8 @@ Rationale: This documentation confirms that the application adheres to all techn
 
 Rationale: Serves as a foundational document that guides the entire development process, ensuring that every feature and functionality aligns with user expectations and business objectives. It provides a detailed blueprint for developers and stakeholders, facilitating better planning and consistency in implementation. This approach ensures the development process remains focused on user and business needs, preventing deviations and ensuring the end product is robust, compliant, and aligned to the user's needs.
 
-> [!important] UDT-D6
->
-> Produce an emergency procedure manual outlining critical steps for handling urgent software issues and unexpected operational scenarios.
-
-Rationale: Essential for enabling users to quickly respond to and resolve emergencies. This manual reduces downtime and ensures continuous operational efficiency, bolstering user confidence and system reliability.
 
 ### Training Requirements
-
-> [!important] UDT-T1
->
-> Conduct interactive online workshops that demonstrate the core functionalities and creative writing tools of the web-based text editor.
-
-Rationale: Interactive workshops provide hands-on learning experiences that allow users to see practical applications of the editor's features in real-time. This direct interaction enables users to ask questions and enhances their understanding and proficiency.
 
 > [!important] UDT-T2
 >
@@ -1589,15 +1454,66 @@ Rationale: Interactive workshops provide hands-on learning experiences that allo
 
 Rationale: Video tutorials allow users to visually follow processes at their own pace, which is crucial for understanding complex features that enhance creative writing. It ensures users can fully exploit the text editor's capabilities.
 
-> [!important] UDT-T3
->
-> Offer a scheduled Q&A session following the release of new features to address user queries and ensure clarity on the latest updates.
-
-Rationale: Scheduled Q&A sessions after updates ensure that users fully understand new functionalities and can discuss any issues or suggestions. This helps in maintaining high user satisfaction and engagement with the platform.
-
 ## Waiting Room
 
 ### Future Functional Requirements
+
+> [!important] MC-P1
+>
+> The system must support integration with tools like Notion, Obsidian, and text editors such as Neovim and VSCode.
+
+Rationale: This allows users to work with their preferred tools, enhancing productivity and collaboration by enabling them to transfer and synchronize content seamlessly between the application and other commonly used applications in the same space.
+
+> [!important] MC-P2
+>
+> The system must provide export options in multiple formats (e.g., Markdown, PDF).
+
+Rationale: Providing multiple export formats allows users to share and collaborate across a variety of tools and systems, supporting flexible workflows and interoperability with a wide range of applications.
+
+
+> [!important] FR-5
+>
+> Users shall be able to save their preferred configurations as profiles, enabling them to switch between different writing styles or goals. For the initial version, the focus shall be on creative writing, with the potential to expand to other writing types (e.g., academic, casual blog posts) as additional datasets are integrated.
+
+Rationale: Allowing users to save profiles for different writing styles supports personalization, and initially focusing on creative writing ensures that `tinymorph` can refine its functionality before expanding to other types of content that may require specialized datasets.
+
+> [!important] FR-6
+>
+> `tinymorph` shall allow users to navigate through their text non-linearly by providing a visual map or tree view that displays key points, topics, sections, and revision history. This tree-based exploration shall support both text structure and revision tracking, allowing users to explore and edit different versions or sections easily.
+
+Rationale: Providing a tree-based view enhances the user's ability to navigate their content efficiently, particularly during revision or structural changes. This visual aid allows for more intuitive exploration of key points, sections, and revisions, offering greater control over the writing process.
+
+> [!important] FR-7
+>
+> `tinymorph` shall present possible planning steps that users can choose, modify, or combine to guide the structure and flow of their writing.
+
+Rationale: Focusing on planning steps rather than text alternatives aligns with the creative writing process, helping users organize and structure their ideas more effectively. This approach avoids the limitations of traditional generation methods like beam search, which may not perform well in this context.
+
+> [!important] FR-8
+>
+> `tinymorph` shall offer version control features that allow users to navigate through previous edits, revert to earlier document versions, and compare different drafts visually.
+
+Rationale: Providing a clear representation of revision history helps users track changes, make informed decisions about reverting to previous states, and compare different versions of their work with ease.
+
+> [!important] FR-9
+>
+> `tinymorph` shall support an offline mode where users can continue to write and interact with the editor without internet access, using pre-downloaded resources.
+
+Rationale: While offline mode may not be a priority in the current development phase, providing the ability to work offline in future versions ensures greater accessibility and flexibility for users in varying environments.
+
+
+> [!important] FR-11
+>
+> Users shall be able to set and track specific writing goals (e.g., word count, tone consistency, argument development) through customizable progress tracking features, such as word count meters, tone analysis, and style consistency checks. `tinymorph` will offer suggestions to help users meet these goals, ensuring alignment with their intended writing objectives.
+
+Rationale: Combining goal-setting with progress tracking allows users to monitor their progress and receive actionable feedback, making the writing process more structured and goal-oriented. This unified approach supports personalized goal management, helping users stay on track.
+
+> [!important] FR-12
+>
+> `tinymorph` shall allow users to categorize and tag different sections of their text (e.g., introduction, argument, conclusion), and automatically generate an outline based on the document's structure.
+
+Rationale: Combining tagging with automatic outline generation streamlines document organization and navigation. This will provide a high-level overview of the content and enable quick access to specific sections for better organization and navigation within large documents. This feature also helps users maintain clarity and easily navigate large documents, providing both a detailed view of the content.
+
 
 > [!important] FR-15
 >
@@ -1610,6 +1526,48 @@ Rationale: Providing users with quick access to alternative phrasings or structu
 > The system shall support an offline locally hosted language models for text generation through on-device inference.
 
 Rationale: Offline functionality would rely on on-device inference to ensure users can generate text without internet connectivity. While this requires more local computational resources, it allows for uninterrupted productivity in environments where internet access is limited or unavailable. However, this feature might be deferred to future iterations due to the complexity of integrating efficient on-device inference for large language models.
+
+### Future Non-functional Requirements
+
+
+> [!important] UH-EOU1
+>
+> `tinymorph` shall include a session history feature that records and displays the user's most recent editing activities such as document accesses and text modifications.
+
+Rationale: This functionality streamlines user workflow by providing quick access to recent actions, which reduces the time needed for navigation and increases efficiency.
+
+> [!important] UH-EOU2
+>
+> `tinymorph` must allow users to interactively review and manually accept or reject changes suggested by the system after their inputs are submitted.
+
+Rationale: Providing users with the option to manually accept or reject suggested changes allows them with greater control over their content. This functionality would enhance user engagement by making the editing process more interactive and ensures that the final output aligns precisely with their preferences and intentions.
+
+
+> [!important] UH-PI2
+>
+> The application shall provide options for users to select between light or dark mode based on their system settings or preference.
+
+Rationale: These theme customization improves visual comfort and personalization, enabling users to adapt the interface to their visual preferences and working environments.
+
+> [!IMPORTANT] PR-LR2
+>
+> Support different distribution platforms.
+
+Rationale: `tinymorph` will first ship a web interface. It should then reserve the ability to be packaged into a standalone universal binary that can be run on different operating systems and architectures.
+
+> [!IMPORTANT] OER-SR1
+>
+> User feedback loop must be present.
+
+Rationale: For further development and UX improvement, a user-feedback loop is required.
+
+
+> [!IMPORTANT] CulR-CR2
+>
+> Cultural reference must be factual
+
+Rationale: If given cultural references are generated, it must utilize tools to fact-check given suggestions (using web-search).
+
 
 ## Ideas for Solution
 
