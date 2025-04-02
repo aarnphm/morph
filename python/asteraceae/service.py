@@ -303,6 +303,7 @@ class Embeddings:
       prefix_caching=False,
       dtype=torch.float16,
       max_num_seqs=256,
+      chunked_prefill=False,
       hf_overrides={'is_causal': True},
     )
 
