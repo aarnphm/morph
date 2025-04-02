@@ -2,7 +2,7 @@
 id: ProblemStatement
 tags:
   - meta
-author: aarnphm
+author: aarnphm,nebrask,waleedmalik7,lucas-lizhiwei
 date: "2024-09-16"
 title: Problem Statement and Goals
 titleTransclude: false
@@ -12,6 +12,7 @@ See also: [[ProblemStatementAndGoals/ProblemStatement#Revision|this document rev
 
 ## Problem
 
+<br>
 <p class="quotes">
   <i>To know the world one must construct it.</i> -- Pavese
 </p>
@@ -97,10 +98,11 @@ Reasoning:
 
 ## Appendix
 
-[^ref]
-
 ### Reflection
 
+1. What went well while writing this deliverable?
+2. What pain points did you experience during this deliverable, and how did you resolve them?
+3. How did you and your team adjust the scope of your goals to ensure they are suitable for a Capstone project (not overly ambitious but also of appropriate complexity for a senior design project)?
 <div class="reflection-container">
 
 <div class="users">
@@ -109,23 +111,86 @@ Reasoning:
 
 <div class="blob">
 
-Writing this document helps me structure my thoughts surrounding the problem
+1. Writing this document helps me structure my thoughts surrounding the problem
 definition and somewhat confirm an intuition I have towards this problem. Interfaces for personal computing are
 supposed to be open-ended to surprise ourselves with new ways to create, therefore, I think it is important for me to
 write down these thoughts. At the end of the day, writing is a form of lossiness as mutation, turning a "net into a line".
 
-The main pain point I have during writing the problem statement includes declaring the scope for hardware and software
+2. The main pain point I have during writing the problem statement includes declaring the scope for hardware and software
 requirements. We did have an internal discussion whether to build a GUI text-editor or refer to a web-based one. After
 a quick discussion, we decided that given everyone expertise and preference with the web, our main focus for capstone would be a
 web-based interface.
 
-We did consult with our supervisor to limit down the scope for both the UX work as well as potential avenue for ML research.
+3. We did consult with our supervisor to limit down the scope for both the UX work as well as potential avenue for ML research.
 We established a clear boundaries for UX components we would develop that supplement the core ML work we are going to
 do (which is mechanistic interpretability).
 
 </div>
 
 </div>
+
+<br/>
+
+<div class="reflection-container">
+
+<div class="users">
+  <a class="name" href="https://github.com/nebrask">Nebras</a>
+</div>
+
+<div class="blob">
+
+1. I think we did a good job distilling the overall vision of tinymorph into something focused and compelling. Everyone contributed ideas that helped shape the goals into more than just features. They became value-driven statements. The revision of the problem statement also flowed smoothly once we got feedback. We all aligned on tone and clarity pretty quickly.
+
+2. Initially, our writing was too verbose and implementation-heavy, especially in the problem statement and environment sections. It was difficult to step back and abstract things to the appropriate level. We resolved it by reviewing each section against the feedback and asking, “Is this what the reader needs to know at this point?” That helped guide clearer edits.
+
+3. Originally, we had some pretty ambitious goals involving mechanistic interpretability, local model support, and UI customizations across multiple devices. After talking with our supervisor and reviewing technical feasibility, we narrowed the scope to focus on the web-based editor and meaningful user feedback loops. These are still technically challenging but more realistic within the timeframe.
+
+
+</div>
+
+</div>
+
+<br/>
+
+<div class="reflection-container">
+
+<div class="users">
+  <a class="name" href="https://github.com/waleedmalik7">Waleed</a>
+</div>
+
+<div class="blob">
+
+1. We worked well as a team when iterating on feedback, especially when condensing the problem statement. Everyone was receptive to critique and focused on making the document tighter and more readable. That really helped us shape a more focused narrative.
+
+2. A challenge we ran into was separating “how we’ll build it” from “what we’re building,” particularly in the environment and goals sections. It took several rounds of rewrites and peer edits before we were able to frame things more from a user's perspective rather than a developer's.
+
+3.  We removed some of the stretch elements like native GUI versions and deep research on activation editing. Instead, we added more user-centric goals such as usability testing and a user manual. These still provide value and complexity but are achievable within our team size and timeline.
+
+
+</div>
+
+</div>
+
+<br/>
+
+<div class="reflection-container">
+
+<div class="users">
+  <a class="name" href="https://github.com/lucas-lizhiwei">Lucas</a>
+</div>
+
+<div class="blob">
+
+1. It was encouraging to see how much clarity we gained once we committed to making each section user-facing. Once we reframed our goals around user experience rather than just technical output, the entire document felt more cohesive and aligned with our vision.
+
+2. Writing about advanced topics like mechanistic interpretability without overwhelming the reader was tricky. We had to balance technical depth with accessibility. We resolved it by breaking things down with clear, high-level descriptions and pushing technical details into other supporting documents.
+
+3. We made sure to reflect on what success would look like for both the user and the course. That led us to scope down to the core interaction layer such as the web editor, feedback loop, and basic LLM integration. We set aside more experimental ideas like deep customization of model internals. It felt like a good middle ground between ambition and feasibility.
+
+</div>
+
+</div>
+
 
 <!-- 1. What went well while writing this deliverable? -->
 <!-- 2. What pain points did you experience during this deliverable, and how did you resolve them? -->
@@ -138,6 +203,7 @@ do (which is mechanistic interpretability).
 | Sept. 16 2024 | 0.0      | Initial skafolding                            |
 | Sept. 19 2024 | 0.1      | Problem Statement definitions                 |
 | Oct. 5 2024   | 0.2      | Update problem statement, adjust stakeholders |
+| Apr. 2 2025   | 0.3      | Full document revision and restructuring |
 
 [^1]:
     Historically, the seminar work from Alan Turing laid the foundation for exploring the possibilities of a thinking machine [@10.1093/mind/LIX.236.433].
