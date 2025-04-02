@@ -81,7 +81,7 @@ function Scene({ numStars = 100 }) {
   )
 }
 
-export default function PixelatedScene() {
+export default memo(function PixelatedScene() {
   return (
     <Canvas gl={{ antialias: false }}>
       <Scene />
@@ -94,4 +94,4 @@ export default function PixelatedScene() {
       />
     </Canvas>
   )
-}
+})

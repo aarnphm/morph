@@ -135,13 +135,13 @@ export const NoteGroup = memo(
 
     return (
       <div className="mb-3">
-        <div className="px-4 mb-2 space-y-4 bg-background">
+        <div className="mb-2 space-y-4 bg-background">
           <DateDisplay dateStr={dateStr} formatDate={formatDate} />
           {MemoizedReasoningPanel}
         </div>
 
         <motion.div
-          className="space-y-3 px-2"
+          className="grid gap-4"
           variants={containerVariants}
           initial="hidden"
           animate="visible"

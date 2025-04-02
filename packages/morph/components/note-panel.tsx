@@ -258,8 +258,11 @@ export const NotesPanel = memo(function NotesPanel({
                       currentGenerationNotes.length > 0 &&
                       !droppedNotes.some((d) => d.id === currentGenerationNotes[0]?.id))) && (
                     <div className="space-y-4 flex-shrink-0 mb-6">
-                      <div className="px-4 mb-2 space-y-4 bg-background">
-                        <DateDisplay dateStr={currentlyGeneratingDateKey!} formatDate={formatDate} />
+                      <div className="mb-2 space-y-4 bg-background">
+                        <DateDisplay
+                          dateStr={currentlyGeneratingDateKey!}
+                          formatDate={formatDate}
+                        />
 
                         <ReasoningPanel
                           reasoning={streamingReasoning}
@@ -278,7 +281,7 @@ export const NotesPanel = memo(function NotesPanel({
                         !scanAnimationComplete &&
                         streamingNotes &&
                         streamingNotes.length > 0 && (
-                          <div className="space-y-4 px-2">
+                          <div className="grid gap-4">
                             {streamingNotes.map((note) => (
                               <NoteCard
                                 key={note.id}
@@ -341,7 +344,7 @@ export const NotesPanel = memo(function NotesPanel({
                       exit={{ opacity: 0, y: -10 }}
                       transition={{
                         duration: 0.4,
-                        ease: [0.4, 0.0, 0.2, 1]
+                        ease: [0.4, 0.0, 0.2, 1],
                       }}
                       className="h-full"
                     >

@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils"
 import { ChevronRightIcon, TransformIcon } from "@radix-ui/react-icons"
-import { drizzle } from "drizzle-orm/pglite"
 import { eq } from "drizzle-orm"
+import { drizzle } from "drizzle-orm/pglite"
 import { AnimatePresence, motion } from "motion/react"
 import * as React from "react"
-import { memo, useEffect, useRef, useState, useCallback } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { usePGlite } from "@/context/db"
 
@@ -112,20 +112,42 @@ export const ReasoningPanel = memo(function ReasoningPanel({
     }
   }, [isStreaming])
 
-  // Save reasoning to database when complete
+  // Save reasoning to database when complete - batch updates to reduce database writes
   useEffect(() => {
     if (isStreaming && reasoning && currentFile && vaultId) {
-      db.update(schema.reasonings)
-        .set({ content: reasoning })
-        .where(eq(schema.reasonings.id, reasoningId))
-        .execute()
+      // Debounce database updates to reduce writes
+      const debouncedUpdate = setTimeout(() => {
+        db.update(schema.reasonings)
+          .set({ content: reasoning })
+          .where(eq(schema.reasonings.id, reasoningId))
+          .execute()
+      }, 500)
+
+      return () => clearTimeout(debouncedUpdate)
     }
   }, [isStreaming, reasoning, currentFile, vaultId, reasoningId, db])
 
   // Auto-scroll to bottom when content changes and panel is expanded
   useEffect(() => {
     if (isExpanded && reasoningRef.current && isStreaming) {
-      reasoningRef.current.scrollTop = reasoningRef.current.scrollHeight
+      // Use a more gentle scrolling approach
+      const element = reasoningRef.current
+      const currentScrollTop = element.scrollTop
+      const targetScrollTop = element.scrollHeight - element.clientHeight
+
+      // Only scroll if not already at the bottom
+      if (targetScrollTop - currentScrollTop > 5) {
+        // Use a simple smooth scroll that won't interfere with other interactions
+        element.style.scrollBehavior = "smooth"
+        element.scrollTop = targetScrollTop
+
+        // Reset scroll behavior after animation completes
+        const resetTimer = setTimeout(() => {
+          element.style.scrollBehavior = "auto"
+        }, 300)
+
+        return () => clearTimeout(resetTimer)
+      }
     }
   }, [reasoning, isExpanded, isStreaming])
 
@@ -146,6 +168,27 @@ export const ReasoningPanel = memo(function ReasoningPanel({
       return `${minutes} minute${minutes !== 1 ? "s" : ""} ${remainingSeconds} second${remainingSeconds !== 1 ? "s" : ""}`
     }
   }
+
+  // Virtualized text rendering for performance
+  const renderReasoningText = useMemo(() => {
+    if (!reasoning) return null
+
+    // For larger text, split into paragraphs for better performance
+    if (reasoning.length > 3000) {
+      const paragraphs = reasoning
+        .split("\n\n")
+        .filter(Boolean)
+        .map((para, index) => (
+          <p key={index} className="mb-2">
+            {para}
+          </p>
+        ))
+
+      return paragraphs
+    }
+
+    return <span>{reasoning}</span>
+  }, [reasoning])
 
   return (
     <div
@@ -194,11 +237,20 @@ export const ReasoningPanel = memo(function ReasoningPanel({
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className={cn(
-              "text-xs whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72 transition-colors duration-200",
+              "text-xs whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72 transition-colors duration-200 will-change-transform",
               isHovering ? "text-foreground" : "text-muted-foreground",
             )}
           >
-            <span>{reasoning}</span>
+            {renderReasoningText}
+            {isStreaming && (
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3, repeat: Infinity, repeatType: "reverse" }}
+              >
+                █
+              </motion.span>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
