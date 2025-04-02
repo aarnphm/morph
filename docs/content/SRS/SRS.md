@@ -869,13 +869,13 @@ Rationale: ARIA attributes help provide essential information about the element'
 
 > [!IMPORTANT] PR-SLR1
 >
-> [[glossary#time-to-first-tokens|TTFT]] should be minimum, below 200ms
+> [[glossary#time-to-first-tokens|TTFT]] should be minimum, below 200ms. TTFT will be measured using a profiler. The system passes this requirement if the average TTFT across 100 requests (batch size = 1) is ≤ 200ms under normal load conditions.
 
 Rationale: Suggestion and planning should feel smooth, and fast. Therefore, time-to-first-token is important.
 
 > [!IMPORTANT] PR-SLR2
 >
-> Throughput should be approximate 300 tokens/sec for a batch size of 4
+> Throughput should be approximate 300 tokens/sec for a batch size of 4，Throughput will be tested by sending at least 100 requests using a benchmarking script.
 
 Rationale: `morph` inference server should be able to handle incoming requests in batches, ideally handling a decent amount of throughput. Note that we will have to sacrifice some throughput for higher TTFT.
 
