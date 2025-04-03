@@ -136,7 +136,13 @@ interface TonalityRadarProps {
   className?: string
 }
 
-export function TonalityRadar({ value, onChange, enabled, onToggle, className }: TonalityRadarProps) {
+export function TonalityRadar({
+  value,
+  onChange,
+  enabled,
+  onToggle,
+  className,
+}: TonalityRadarProps) {
   const isInternalChange = useRef(false)
   const [tonality, setTonality] = useState<Record<string, number>>(value)
   const previousTonalityRef = useRef<Record<string, number>>(value)

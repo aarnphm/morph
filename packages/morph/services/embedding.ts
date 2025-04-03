@@ -1,10 +1,12 @@
 // services/embeddings.ts
+import { API_ENDPOINT, POLLING_INTERVAL } from "@/services/constants"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { eq } from "drizzle-orm"
+
 import { client } from "@/context/db"
-import * as schema from "@/db/schema"
+
 import type { Note } from "@/db/interfaces"
-import { API_ENDPOINT, POLLING_INTERVAL } from "@/services/constants"
+import * as schema from "@/db/schema"
 
 // Types based on OpenAPI spec
 export interface TaskStatusResponse {
@@ -35,8 +37,8 @@ async function submitNoteForEmbedding(note: Note): Promise<TaskStatusResponse> {
       vault_id: note.vaultId,
       file_id: note.fileId,
       note_id: note.id,
-      content: note.content
-    })
+      content: note.content,
+    }),
   })
 
   if (!response.ok) {
@@ -73,11 +75,12 @@ async function getEmbeddingResult(taskId: string): Promise<NoteEmbeddingResponse
 
 // Save embedding to database
 async function saveEmbeddingToDatabase(result: NoteEmbeddingResponse): Promise<void> {
-  await db.update(schema.notes)
+  await db
+    .update(schema.notes)
     .set({
       embedding: result.embedding,
       embeddingStatus: "completed",
-      embeddingTaskId: null
+      embeddingTaskId: null,
     })
     .where(eq(schema.notes.id, result.note_id))
 }
@@ -93,17 +96,17 @@ export function useSubmitNoteEmbedding() {
       db.update(schema.notes)
         .set({
           embeddingStatus: "in_progress",
-          embeddingTaskId: data.task_id
+          embeddingTaskId: data.task_id,
         })
         .where(eq(schema.notes.id, note.id))
         .then(() => {
           // Start polling for this task
           queryClient.prefetchQuery({
             queryKey: ["noteEmbeddingStatus", data.task_id],
-            queryFn: () => checkEmbeddingStatus(data.task_id)
+            queryFn: () => checkEmbeddingStatus(data.task_id),
           })
         })
-    }
+    },
   })
 }
 
@@ -138,27 +141,28 @@ export function useNoteEmbeddingStatus(taskId: string | null | undefined) {
         }
       }
       return data
-    }
+    },
   })
 }
 
 // Submit multiple notes for embedding (can be used by the editor)
 export function submitMultipleNotes(notes: Note[]) {
   // For each note, submit it for embedding
-  notes.forEach(note => {
+  notes.forEach((note) => {
     // Only submit notes that don't already have an embedding or in-progress task
     if (note.embeddingStatus !== "in_progress" && !note.embedding) {
       submitNoteForEmbedding(note)
-        .then(response => {
+        .then((response) => {
           // Update the note with the task ID
-          return db.update(schema.notes)
+          return db
+            .update(schema.notes)
             .set({
               embeddingStatus: "in_progress",
-              embeddingTaskId: response.task_id
+              embeddingTaskId: response.task_id,
             })
             .where(eq(schema.notes.id, note.id))
         })
-        .catch(error => {
+        .catch((error) => {
           console.error(`Failed to submit note ${note.id} for embedding:`, error)
         })
     }
@@ -173,20 +177,20 @@ export function useProcessPendingEmbeddings() {
     mutationFn: async () => {
       // Find all notes with "in_progress" status
       const pendingNotes = await db.query.notes.findMany({
-        where: eq(schema.notes.embeddingStatus, "in_progress")
+        where: eq(schema.notes.embeddingStatus, "in_progress"),
       })
 
       // Set up polling for each pending note with a task ID
       pendingNotes
-        .filter(note => note.embeddingTaskId)
-        .forEach(note => {
+        .filter((note) => note.embeddingTaskId)
+        .forEach((note) => {
           queryClient.prefetchQuery({
             queryKey: ["noteEmbeddingStatus", note.embeddingTaskId],
-            queryFn: () => checkEmbeddingStatus(note.embeddingTaskId!)
+            queryFn: () => checkEmbeddingStatus(note.embeddingTaskId!),
           })
         })
 
       return pendingNotes.length
-    }
+    },
   })
 }

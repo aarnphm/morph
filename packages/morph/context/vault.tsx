@@ -219,10 +219,11 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         dbTree.handleId = rootHandleId
 
         // Update the database
-        await db.update(schema.vaults)
+        await db
+          .update(schema.vaults)
           .set({
             tree: dbTree,
-            rootPath
+            rootPath,
           })
           .where(eq(schema.vaults.id, vaultId))
 

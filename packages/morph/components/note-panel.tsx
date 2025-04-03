@@ -1,7 +1,7 @@
 import { cn } from "@/lib"
 import { generatePastelColor } from "@/lib/notes"
 import { NOTES_DND_TYPE } from "@/lib/notes"
-import { ShadowInnerIcon, MixerHorizontalIcon, Cross2Icon } from "@radix-ui/react-icons"
+import { Cross2Icon, MixerHorizontalIcon, ShadowInnerIcon } from "@radix-ui/react-icons"
 import { AnimatePresence, motion } from "motion/react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useDrop } from "react-dnd"
@@ -12,9 +12,9 @@ import { DateDisplay, NoteGroup } from "@/components/note-group"
 import { ReasoningPanel } from "@/components/reasoning-panel"
 import {
   AuthorsSelector,
-  TonalityRadar,
+  SuggestionsSlider,
   TemperatureSlider,
-  SuggestionsSlider
+  TonalityRadar,
 } from "@/components/steering-panel"
 import { VaultButton } from "@/components/ui/button"
 
@@ -110,7 +110,7 @@ const DriversBar = memo(
     } = useSteeringContext()
 
     const toggleSteeringPanel = useCallback(() => {
-      setIsSteeringExpanded(prev => !prev)
+      setIsSteeringExpanded((prev) => !prev)
     }, [])
 
     // Close steering panel when the notes panel is closed

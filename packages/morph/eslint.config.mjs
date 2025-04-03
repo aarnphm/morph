@@ -13,9 +13,8 @@ const compat = new FlatCompat({
 })
 
 export default defineConfig([
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
   ...compat.config({
-    extends: ["next"],
+    extends: ["next", "next/core-web-vitals", "next/typescript", "prettier"],
     rules: {
       "react/no-unescaped-entities": "off",
       "@next/next/no-page-custom-font": "off",

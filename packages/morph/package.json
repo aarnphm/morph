@@ -146,6 +146,7 @@
     "drizzle-kit": "^0.30.6",
     "eslint": "^9.23.0",
     "eslint-config-next": "15.2.2",
+    "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-drizzle": "^0.2.3",
     "micromark-util-types": "^2.0.2",
     "postcss": "^8.5.3",

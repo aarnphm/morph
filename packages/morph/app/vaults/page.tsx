@@ -215,9 +215,11 @@ export default function Home() {
                   <div className="flex flex-col">
                     <CardTitle className="justify-start flex">{vault.name}</CardTitle>
                     <span className="text-xs text-muted-foreground mt-1 truncate max-w-xs">
-                      {vault.rootPath ? vault.rootPath : (vault.tree && vault.tree.path
-                        ? vault.tree.path.replace(/^\//, "")
-                        : "Local folder")}
+                      {vault.rootPath
+                        ? vault.rootPath
+                        : vault.tree && vault.tree.path
+                          ? vault.tree.path.replace(/^\//, "")
+                          : "Local folder"}
                     </span>
                   </div>
                   <CardDescription className="text-right">
