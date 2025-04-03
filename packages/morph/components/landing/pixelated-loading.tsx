@@ -3,7 +3,7 @@
 import { Icosahedron } from "@react-three/drei"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { motion, useAnimation } from "motion/react"
-import { useEffect, useRef, useState, memo } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 import type * as THREE from "three"
 
 interface PixelatedLoadingProps {
@@ -95,9 +95,7 @@ export default function PixelatedLoading({
       animate={controls}
     >
       <div className="w-full h-full flex flex-col items-center justify-center">
-        <div className="w-64 h-64 mb-8">
-          {canvasRendered && <ThreeCanvas />}
-        </div>
+        <div className="w-64 h-64 mb-8">{canvasRendered && <ThreeCanvas />}</div>
       </div>
     </motion.div>
   )

@@ -38,12 +38,15 @@ import { usePGlite } from "@/context/db"
 import { SearchProvider } from "@/context/search"
 import { SteeringProvider, SteeringSettings } from "@/context/steering"
 import { useVaultContext } from "@/context/vault"
+import { verifyHandle } from "@/context/vault-reducer"
 
+import useFsHandles from "@/hooks/use-fs-handles"
 import usePersistedSettings from "@/hooks/use-persisted-settings"
 import { useToast } from "@/hooks/use-toast"
 
 import type { FileSystemTreeNode, Note, Vault } from "@/db/interfaces"
 import * as schema from "@/db/schema"
+import { useRestoredFile } from "@/context/file-restoration"
 
 interface GeneratedNote {
   content: string
@@ -93,6 +96,8 @@ interface NewlyGeneratedNotes {
 export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const { theme } = useTheme()
   const { toast } = useToast()
+  const { getHandle, storeHandle } = useFsHandles()
+  const { restoredFile, setRestoredFile, isRestorationAttempted } = useRestoredFile()
 
   const { refreshVault, flattenedFileIds } = useVaultContext()
   const [currentFile, setCurrentFile] = useState<string>("Untitled")
@@ -126,9 +131,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [currentGenerationNotes, setCurrentGenerationNotes] = useState<Note[]>([])
   const [streamingNotes, setStreamingNotes] = useState<StreamingNote[]>([])
   const [vimMode] = useState(false)
+  // Add a ref to track if we've already attempted to restore a file
+  const fileRestorationAttempted = useRef(false)
 
-  // State for embedding indicator
-  // const [eyeIconState, setEyeIconState] = useState<"open" | "closed">("open")
+  // Add a ref to track loaded files to prevent duplicate note loading
+  const loadedFiles = useRef<Set<string>>(new Set())
 
   const { settings } = usePersistedSettings()
   const client = usePGlite()
@@ -144,6 +151,356 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   useEffect(() => {
     setIsClient(true)
   }, [])
+
+  // Helper function to load file content and UI state
+  const loadFileContent = useCallback((fileName: string, fileHandle: FileSystemFileHandle, content: string) => {
+    if (!codeMirrorViewRef.current) return false
+
+    try {
+      // Update CodeMirror
+      codeMirrorViewRef.current.dispatch({
+        changes: {
+          from: 0,
+          to: codeMirrorViewRef.current.state.doc.length,
+          insert: content,
+        },
+        effects: setFile.of(fileName),
+      })
+
+      // Update state
+      setCurrentFileHandle(fileHandle)
+      setCurrentFile(fileName)
+      setMarkdownContent(content)
+      setHasUnsavedChanges(false)
+      setIsEditMode(true)
+
+      // Update preview
+      updatePreview(content)
+
+      return true
+    } catch (error) {
+      console.error("Error loading file content:", error)
+      return false
+    }
+  }, [])
+
+  // Helper function to load file metadata (notes, reasonings, etc.)
+  const loadFileMetadata = useCallback(
+    async (fileName: string) => {
+      if (!vault) return
+
+      try {
+        // Find the file in database
+        let dbFile = await db.query.files.findFirst({
+          where: (files, { and, eq }) => and(eq(files.name, fileName), eq(files.vaultId, vault.id)),
+        })
+
+        // If file doesn't exist in DB, create it
+        if (!dbFile) {
+          // Extract extension
+          const extension = fileName.includes(".") ? fileName.split(".").pop() || "" : ""
+
+          try {
+            // Insert file into database
+            await db.insert(schema.files).values({
+              name: fileName,
+              extension,
+              vaultId: vault.id,
+              lastModified: new Date(),
+              embeddingStatus: "in_progress",
+            })
+
+            // Re-fetch the file to get its ID
+            dbFile = await db.query.files.findFirst({
+              where: (files, { and, eq }) =>
+                and(eq(files.name, fileName), eq(files.vaultId, vault.id)),
+            })
+
+            console.debug(`Created new file in database: ${fileName}`)
+          } catch (dbError) {
+            console.error("Error inserting file into database:", dbError)
+            return // Exit early if we can't create the file
+          }
+        }
+
+        // Only continue if we have a valid file reference
+        if (!dbFile) {
+          console.error("Failed to find or create file in database")
+          return
+        }
+
+        // Fetch notes associated with this file in a single query
+        try {
+          console.debug(`Loading notes for file ID: ${dbFile.id}`)
+
+          // Query all notes for this file
+          const fileNotes = await db
+            .select()
+            .from(schema.notes)
+            .where(and(eq(schema.notes.fileId, dbFile.id), eq(schema.notes.vaultId, vault.id)))
+
+          if (fileNotes && fileNotes.length > 0) {
+            console.debug(`Found ${fileNotes.length} notes for file ${fileName}`)
+
+            // Process notes and reasoning in parallel
+            const processNotesPromise = (async () => {
+              // Separate notes into regular and dropped notes
+              const regularNotes = fileNotes.filter((note) => !note.dropped)
+              const droppedNotesList = fileNotes.filter((note) => note.dropped)
+
+              console.debug(
+                `Regular notes: ${regularNotes.length}, Dropped notes: ${droppedNotesList.length}`,
+              )
+
+              // Prepare notes for the UI
+              const uiReadyRegularNotes = regularNotes.map((note) => ({
+                ...note,
+                color: note.color || generatePastelColor(),
+                lastModified: new Date(note.accessedAt),
+              }))
+
+              const uiReadyDroppedNotes = droppedNotesList.map((note) => ({
+                ...note,
+                color: note.color || generatePastelColor(),
+                lastModified: new Date(note.accessedAt),
+              }))
+
+              // Update the state with fetched notes in a non-blocking way
+              React.startTransition(() => {
+                setNotes(uiReadyRegularNotes)
+                setDroppedNotes(uiReadyDroppedNotes)
+              })
+            })()
+
+            // In parallel, fetch and process reasoning if needed
+            const reasoningIds = [...new Set(fileNotes.map((note) => note.reasoningId))]
+            if (reasoningIds.length > 0) {
+              const reasonings = await db
+                .select()
+                .from(schema.reasonings)
+                .where(inArray(schema.reasonings.id, reasoningIds))
+
+              if (reasonings && reasonings.length > 0) {
+                // Convert to ReasoningHistory format
+                const reasoningHistory = reasonings.map((r) => ({
+                  id: r.id,
+                  content: r.content,
+                  timestamp: r.createdAt,
+                  noteIds: fileNotes.filter((n) => n.reasoningId === r.id).map((n) => n.id),
+                  reasoningElapsedTime: r.duration,
+                  authors: r.steering?.authors,
+                  tonality: r.steering?.tonality,
+                  temperature: r.steering?.temperature,
+                  numSuggestions: r.steering?.numSuggestions,
+                }))
+
+                // Update reasoning history state in a non-blocking way
+                React.startTransition(() => {
+                  setReasoningHistory(reasoningHistory)
+                })
+              }
+            }
+
+            // Make sure we wait for note processing to complete
+            await processNotesPromise
+          } else {
+            console.debug(`No notes found for file ${fileName}`)
+          }
+        } catch (error) {
+          console.error("Error fetching notes for file:", error)
+        }
+      } catch (dbError) {
+        console.error("Error with database operations:", dbError)
+      }
+    },
+    [db, vault],
+  )
+
+
+  // Helper function to load file metadata with deduplication
+  const loadFileMetadataOnce = useCallback(async (fileName: string) => {
+    // Create a unique key for this file
+    const fileKey = `${vaultId}:${fileName}`
+
+    // Skip if we've already loaded this file
+    if (loadedFiles.current.has(fileKey)) {
+      console.debug(`Skipping metadata loading for already loaded file: ${fileName}`)
+      return
+    }
+
+    // Mark file as loaded before we start loading to prevent race conditions
+    loadedFiles.current.add(fileKey)
+
+    try {
+      await loadFileMetadata(fileName)
+      console.debug(`Loaded metadata for file: ${fileName}`)
+    } catch (error) {
+      // If loading fails, remove from the loaded set so we can try again
+      loadedFiles.current.delete(fileKey)
+      console.error("Error loading file metadata:", error)
+    }
+  }, [vaultId, loadFileMetadata])
+
+  // Effect to use preloaded file from context if available
+  useEffect(() => {
+    if (!isClient || !codeMirrorViewRef.current || !restoredFile || fileRestorationAttempted.current) return
+
+    console.debug("Using preloaded file from context:", restoredFile.fileName)
+
+    // Load file content
+    const success = loadFileContent(restoredFile.fileName, restoredFile.fileHandle, restoredFile.content)
+
+    if (success) {
+      // Load file metadata once
+      loadFileMetadataOnce(restoredFile.fileName)
+
+      // Mark file as restored so we don't try again
+      fileRestorationAttempted.current = true
+
+      // Clear the reference to avoid using it again
+      setRestoredFile(null)
+    }
+  }, [isClient, restoredFile, setRestoredFile, loadFileContent, loadFileMetadataOnce])
+
+  // Effect to restore the last accessed file when component mounts
+  useEffect(() => {
+    // Only run this once after client-side mounting when vault is available
+    // Skip if we already restored from the preloaded file or if restoration was already attempted
+    if (!isClient || !vaultId || !vault || fileRestorationAttempted.current || !isRestorationAttempted) return
+
+    // Mark that we've attempted restoration so we don't try again
+    fileRestorationAttempted.current = true
+    console.debug("Starting file restoration attempt")
+
+    const restoreLastFile = async () => {
+      try {
+        // Attempt to load the last accessed file information from localStorage
+        const lastFileInfoStr = localStorage.getItem(`morph:last-file:${vaultId}`)
+        if (!lastFileInfoStr) {
+          console.debug("No last file info found in localStorage")
+          return
+        }
+
+        const lastFileInfo = JSON.parse(lastFileInfoStr)
+        console.debug("Found last file info:", lastFileInfo)
+
+        // First, try to use the handle ID if available
+        if (lastFileInfo.handleId) {
+          console.debug("Attempting to restore file using handle ID:", lastFileInfo.handleId)
+          try {
+            const handle = await getHandle(lastFileInfo.handleId)
+
+            if (handle && "getFile" in handle) {
+              // Verify that the handle is still valid and has necessary permissions
+              const isValid = await verifyHandle(handle)
+
+              if (isValid) {
+                console.debug("Handle is valid, loading file")
+                const fileHandle = handle as FileSystemFileHandle
+                const file = await fileHandle.getFile()
+                const content = await file.text()
+                const fileName = file.name
+
+                // Load the file content and UI state
+                const success = loadFileContent(fileName, fileHandle, content)
+
+                if (success) {
+                  console.debug(`Restored last accessed file: ${fileName} from handle ID: ${lastFileInfo.handleId}`)
+
+                  // Load file metadata once
+                  await loadFileMetadataOnce(fileName)
+                  return // Successfully restored
+                }
+              } else {
+                console.debug("Handle permission check failed, will try fallback method")
+              }
+            } else {
+              console.debug("Retrieved handle is not a file handle or is null:", handle)
+            }
+          } catch (handleError) {
+            console.error("Error using IndexedDB handle, will try fallback method:", handleError)
+          }
+        }
+
+        // Fallback method: search by filename in the file tree
+        if (lastFileInfo.fileName && vault.tree) {
+          console.debug("Attempting to restore file by searching tree for:", lastFileInfo.fileName)
+
+          // Find the file node in the vault's file tree
+          const findFile = (node: FileSystemTreeNode): FileSystemTreeNode | null => {
+            if (node.kind === "file" && node.name === lastFileInfo.fileName) {
+              return node
+            }
+
+            if (node.children) {
+              for (const child of node.children) {
+                const found = findFile(child)
+                if (found) return found
+              }
+            }
+
+            return null
+          }
+
+          const fileNode = findFile(vault.tree)
+
+          if (fileNode?.kind === "file" && fileNode.handle) {
+            try {
+              // Verify permissions for this handle too
+              const isValid = await verifyHandle(fileNode.handle)
+
+              if (!isValid) {
+                console.debug("Tree file handle permission check failed")
+                return
+              }
+
+              // We found the file, let's load it directly
+              const file = await fileNode.handle.getFile()
+              const content = await file.text()
+              const fileName = file.name
+
+              // Load file content and UI state
+              const success = loadFileContent(fileName, fileNode.handle as FileSystemFileHandle, content)
+
+              if (success) {
+                console.debug(`Restored last accessed file using tree search: ${fileName}`)
+
+                // Save this handle ID for future use to avoid tree search
+                if (fileNode.handleId) {
+                  localStorage.setItem(
+                    `morph:last-file:${vaultId}`,
+                    JSON.stringify({
+                      fileName,
+                      lastAccessed: new Date().toISOString(),
+                      handleId: fileNode.handleId,
+                    }),
+                  )
+                }
+
+                // Load file metadata once
+                await loadFileMetadataOnce(fileName)
+              }
+            } catch (fileError) {
+              console.error("Error loading file from tree:", fileError)
+            }
+          } else {
+            console.debug("Could not find file in tree:", lastFileInfo.fileName)
+          }
+        }
+      } catch (error) {
+        console.error("Error restoring last accessed file:", error)
+        // Continue without restoring - not a critical error
+      }
+    }
+
+    // Execute file restoration
+    restoreLastFile()
+  }, [isClient, vault, vaultId, isRestorationAttempted, getHandle, loadFileContent, loadFileMetadataOnce])
+
+  // Reset loaded files when vault changes
+  useEffect(() => {
+    loadedFiles.current.clear()
+  }, [vaultId])
 
   // Effect to track online/offline status
   useEffect(() => {
@@ -168,6 +525,24 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
     // Rerun specifically when isClient becomes true to set initial state
   }, [isClient])
+
+  const updatePreview = useCallback(
+    async (value: string) => {
+      try {
+        const tree = await mdToHtml({
+          value,
+          settings,
+          vaultId,
+          filename: currentFile,
+          returnHast: true,
+        })
+        setPreviewNode(tree)
+      } catch (error) {
+        console.error(error)
+      }
+    },
+    [currentFile, settings, vaultId],
+  )
 
   const toggleNotes = useCallback(() => {
     // Check isClient here for safety, though interaction implies client-side
@@ -353,24 +728,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   useEffect(() => {
     contentRef.current = { content: markdownContent, filename: currentFile }
   }, [markdownContent, currentFile])
-
-  const updatePreview = useCallback(
-    async (value: string) => {
-      try {
-        const tree = await mdToHtml({
-          value,
-          settings,
-          vaultId,
-          filename: currentFile,
-          returnHast: true,
-        })
-        setPreviewNode(tree)
-      } catch (error) {
-        console.error(error)
-      }
-    },
-    [currentFile, settings, vaultId],
-  )
 
   const onContentChange = useCallback(
     async (value: string) => {
@@ -874,16 +1231,49 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       await writable.write(markdownContent)
       await writable.close()
 
+      // When saving a new file, we need to get a handle ID for it
+      const handleId = createId() // Generate a new ID for this handle
+
       if (!currentFileHandle && vault) {
+        // Store the handle in IndexedDB with the new ID
+        await storeHandle(handleId, vaultId, handleId, targetHandle)
+
         setCurrentFileHandle(targetHandle)
         setCurrentFile(targetHandle.name)
 
         await refreshVault(vault.id)
       }
 
+      // Save the current file info to localStorage for this vault
+      if (isClient && vaultId) {
+        try {
+          const fileName = targetHandle.name
+          localStorage.setItem(
+            `morph:last-file:${vaultId}`,
+            JSON.stringify({
+              fileName,
+              lastAccessed: new Date().toISOString(),
+              handleId: handleId, // Use the newly created handleId
+            }),
+          )
+        } catch (storageError) {
+          console.error("Failed to save file info to localStorage:", storageError)
+          // Non-critical, we can continue
+        }
+      }
+
       setHasUnsavedChanges(false)
     } catch {}
-  }, [currentFileHandle, markdownContent, currentFile, vault, refreshVault, vaultId])
+  }, [
+    currentFileHandle,
+    markdownContent,
+    currentFile,
+    vault,
+    refreshVault,
+    vaultId,
+    isClient,
+    storeHandle,
+  ])
 
   const memoizedExtensions = useMemo(() => {
     const tabSize = new Compartment()
@@ -923,7 +1313,16 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     setDroppedNotes([]) // Clear dropped notes
     setReasoningHistory([]) // Clear reasoning history
     setHasUnsavedChanges(false) // Reset unsaved changes
-  }, [])
+
+    // Clear the last file info from localStorage
+    if (isClient && vaultId) {
+      try {
+        localStorage.removeItem(`morph:last-file:${vaultId}`)
+      } catch (storageError) {
+        console.error("Failed to clear file info from localStorage:", storageError)
+      }
+    }
+  }, [isClient, vaultId])
 
   const handleKeyDown = useCallback(
     async (event: KeyboardEvent) => {
@@ -1268,33 +1667,63 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [droppedNotes, db, currentFile, vault, setNotes],
   )
 
+  // Update handleFileSelect to save the handle ID
   const handleFileSelect = useCallback(
     async (node: FileSystemTreeNode) => {
-      if (!vault || node.kind !== "file" || !codeMirrorViewRef.current) return
+      if (!vault || node.kind !== "file" || !codeMirrorViewRef.current || !node.handle) return
 
       try {
-        // Start loading indicator if needed
-        // setIsLoading(true)
-
         // Only do file I/O once
         const file = await node.handle!.getFile()
         const content = await file.text()
         const fileName = file.name
 
-        // Update CodeMirror first for immediate feedback
-        codeMirrorViewRef.current.dispatch({
-          changes: { from: 0, to: codeMirrorViewRef.current.state.doc.length, insert: content },
-          effects: setFile.of(fileName),
-        })
+        // If the node doesn't have a handleId, create one and store it
+        let handleId = node.handleId
+        if (!handleId) {
+          handleId = createId()
+          // Store the handle for future use
+          try {
+            await storeHandle(handleId, vaultId, handleId, node.handle as FileSystemFileHandle)
+            console.debug(`Stored new handle ID ${handleId} for file ${fileName}`)
+          } catch (storeError) {
+            console.error("Failed to store handle:", storeError)
+            // Continue without storing - non-critical
+          }
+        } else {
+          // Verify the existing handle is still valid
+          try {
+            const isValid = await verifyHandle(node.handle)
+            if (!isValid) {
+              console.debug(`Handle permission verification failed for ${fileName}, updating...`)
+              await storeHandle(handleId, vaultId, handleId, node.handle as FileSystemFileHandle)
+            }
+          } catch (verifyError) {
+            console.error("Failed to verify handle:", verifyError)
+          }
+        }
 
-        // Batch update UI state using a single function call
-        const batchStateUpdates = () => {
-          setCurrentFileHandle(node.handle as FileSystemFileHandle)
-          setCurrentFile(fileName)
-          setMarkdownContent(content)
-          setHasUnsavedChanges(false)
-          setIsEditMode(true)
+        // Save the current file info to localStorage for this vault
+        if (isClient && vaultId) {
+          try {
+            localStorage.setItem(
+              `morph:last-file:${vaultId}`,
+              JSON.stringify({
+                fileName,
+                lastAccessed: new Date().toISOString(),
+                handleId: handleId || node.id, // Use handleId if available, fall back to node.id
+              }),
+            )
+          } catch (storageError) {
+            console.error("Failed to save file info to localStorage:", storageError)
+            // Non-critical, we can continue
+          }
+        }
 
+        // Load file content first
+        const success = loadFileContent(fileName, node.handle as FileSystemFileHandle, content)
+
+        if (success) {
           // Reset all notes states in one batch
           setCurrentGenerationNotes([])
           setCurrentlyGeneratingDateKey(null)
@@ -1302,146 +1731,16 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           setNotes([])
           setDroppedNotes([])
           setReasoningHistory([])
+
+          // Load file metadata once
+          await loadFileMetadataOnce(fileName)
+        } else {
+          toast({
+            title: "Error Loading File",
+            description: `Could not load file ${node.name}. Please try again.`,
+            variant: "destructive",
+          })
         }
-
-        // Execute batched state updates
-        batchStateUpdates()
-
-        // Update preview in a non-blocking way
-        setTimeout(() => {
-          updatePreview(content)
-        }, 0)
-
-        // Database operations happen independently of UI updates
-        ;(async () => {
-          try {
-            // Run database queries in parallel when possible
-            const dbFilePromise = db.query.files.findFirst({
-              where: (files, { and, eq }) =>
-                and(eq(files.name, fileName), eq(files.vaultId, vault.id)),
-            })
-
-            // Wait for the file query to complete
-            let dbFile = await dbFilePromise
-
-            // If file doesn't exist in DB, create it
-            if (!dbFile) {
-              // Extract extension
-              const extension = fileName.includes(".") ? fileName.split(".").pop() || "" : ""
-
-              try {
-                // Insert file into database
-                await db.insert(schema.files).values({
-                  name: fileName,
-                  extension,
-                  vaultId: vault.id,
-                  lastModified: new Date(),
-                  embeddingStatus: "in_progress",
-                })
-
-                // Re-fetch the file to get its ID
-                dbFile = await db.query.files.findFirst({
-                  where: (files, { and, eq }) =>
-                    and(eq(files.name, fileName), eq(files.vaultId, vault.id)),
-                })
-
-                console.debug(`Created new file in database: ${fileName}`)
-              } catch (dbError) {
-                console.error("Error inserting file into database:", dbError)
-                return // Exit early if we can't create the file
-              }
-            }
-
-            // Only continue if we have a valid file reference
-            if (!dbFile) {
-              console.error("Failed to find or create file in database")
-              return
-            }
-
-            // Fetch notes associated with this file in a single query
-            try {
-              console.debug(`Loading notes for file ID: ${dbFile.id}`)
-
-              // Query all notes for this file
-              const fileNotes = await db
-                .select()
-                .from(schema.notes)
-                .where(and(eq(schema.notes.fileId, dbFile.id), eq(schema.notes.vaultId, vault.id)))
-
-              if (fileNotes && fileNotes.length > 0) {
-                console.debug(`Found ${fileNotes.length} notes for file ${fileName}`)
-
-                // Process notes and reasoning in parallel
-                const processNotesPromise = (async () => {
-                  // Separate notes into regular and dropped notes
-                  const regularNotes = fileNotes.filter((note) => !note.dropped)
-                  const droppedNotesList = fileNotes.filter((note) => note.dropped)
-
-                  console.debug(
-                    `Regular notes: ${regularNotes.length}, Dropped notes: ${droppedNotesList.length}`,
-                  )
-
-                  // Prepare notes for the UI
-                  const uiReadyRegularNotes = regularNotes.map((note) => ({
-                    ...note,
-                    color: note.color || generatePastelColor(),
-                    lastModified: new Date(note.accessedAt),
-                  }))
-
-                  const uiReadyDroppedNotes = droppedNotesList.map((note) => ({
-                    ...note,
-                    color: note.color || generatePastelColor(),
-                    lastModified: new Date(note.accessedAt),
-                  }))
-
-                  // Update the state with fetched notes in a non-blocking way
-                  React.startTransition(() => {
-                    setNotes(uiReadyRegularNotes)
-                    setDroppedNotes(uiReadyDroppedNotes)
-                  })
-                })()
-
-                // In parallel, fetch and process reasoning if needed
-                const reasoningIds = [...new Set(fileNotes.map((note) => note.reasoningId))]
-                if (reasoningIds.length > 0) {
-                  const reasonings = await db
-                    .select()
-                    .from(schema.reasonings)
-                    .where(inArray(schema.reasonings.id, reasoningIds))
-
-                  if (reasonings && reasonings.length > 0) {
-                    // Convert to ReasoningHistory format
-                    const reasoningHistory = reasonings.map((r) => ({
-                      id: r.id,
-                      content: r.content,
-                      timestamp: r.createdAt,
-                      noteIds: fileNotes.filter((n) => n.reasoningId === r.id).map((n) => n.id),
-                      reasoningElapsedTime: r.duration,
-                      authors: r.steering?.authors,
-                      tonality: r.steering?.tonality,
-                      temperature: r.steering?.temperature,
-                      numSuggestions: r.steering?.numSuggestions,
-                    }))
-
-                    // Update reasoning history state in a non-blocking way
-                    React.startTransition(() => {
-                      setReasoningHistory(reasoningHistory)
-                    })
-                  }
-                }
-
-                // Make sure we wait for note processing to complete
-                await processNotesPromise
-              } else {
-                console.debug(`No notes found for file ${fileName}`)
-              }
-            } catch (error) {
-              console.error("Error fetching notes for file:", error)
-            }
-          } catch (dbError) {
-            console.error("Error with database operations:", dbError)
-          }
-        })()
       } catch (error) {
         console.error("Error handling file selection:", error)
         toast({
@@ -1451,7 +1750,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         })
       }
     },
-    [vault, updatePreview, toast, db],
+    [vault, vaultId, isClient, loadFileContent, loadFileMetadataOnce, toast, storeHandle],
   )
 
   return (
@@ -1505,141 +1804,141 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       />
                     )}
                   </AnimatePresence>
-                {showNotes && <SteeringPanel />}
-                <div className="flex flex-col items-center space-y-2 absolute bottom-4 right-4 z-20">
-                  <VaultButton
-                    className={cn(
-                      isClient &&
-                        (isNotesLoading || !isOnline) &&
-                        "opacity-50 cursor-not-allowed",
-                    )} // Conditionally apply style based on isClient
-                    onClick={toggleNotes}
-                    disabled={!isClient || isNotesLoading || !isOnline} // Disable if not client, loading, or offline
-                    size="small"
-                    // Adjust title based on client state as well
-                    title={
-                      showNotes
-                        ? "Hide Notes"
-                        : isClient && isOnline
-                          ? "Show Notes"
-                          : isClient && !isOnline
-                            ? "Notes unavailable offline"
-                            : "Loading..."
-                    }
-                  >
-                    <CopyIcon className="w-3 h-3" />
-                  </VaultButton>
-                </div>
-                <div className="absolute top-4 left-4 text-sm/7 z-10 flex flex-col items-center gap-2">
-                  {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
-                  {isClient && !isOnline && <GlobeIcon className="w-4 h-4 text-destructive" />}
-                  {/* {isEmbeddingInProgress && ( */}
-                  {/*   <> */}
-                  {/*     {eyeIconState === "open" ? ( */}
-                  {/*       <EyeOpenIcon className="w-4 h-4 text-blue-400 animate-pulse" /> */}
-                  {/*     ) : ( */}
-                  {/*       <EyeClosedIcon className="w-4 h-4 text-blue-400/70" /> */}
-                  {/*     )} */}
-                  {/*   </> */}
-                  {/* )} */}
-                </div>
-                <div
-                  className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
-                >
-                  <div className="h-full scrollbar-hidden relative">
-                    <CodeMirror
-                      value={markdownContent}
-                      height="100%"
-                      autoFocus
-                      placeholder={"What's on your mind?"}
-                      basicSetup={{
-                        rectangularSelection: true,
-                        indentOnInput: true,
-                        syntaxHighlighting: true,
-                        searchKeymap: true,
-                        highlightActiveLine: false,
-                        highlightSelectionMatches: false,
-                      }}
-                      indentWithTab={false}
-                      extensions={memoizedExtensions}
-                      onChange={onContentChange}
-                      className="overflow-auto h-full mx-8 scrollbar-hidden pt-4"
-                      theme={theme === "dark" ? "dark" : editorTheme}
-                      onCreateEditor={(view) => {
-                        codeMirrorViewRef.current = view
-                      }}
-                    />
+                  {showNotes && <SteeringPanel />}
+                  <div className="flex flex-col items-center space-y-2 absolute bottom-4 right-4 z-20">
+                    <VaultButton
+                      className={cn(
+                        isClient &&
+                          (isNotesLoading || !isOnline) &&
+                          "opacity-50 cursor-not-allowed",
+                      )} // Conditionally apply style based on isClient
+                      onClick={toggleNotes}
+                      disabled={!isClient || isNotesLoading || !isOnline} // Disable if not client, loading, or offline
+                      size="small"
+                      // Adjust title based on client state as well
+                      title={
+                        showNotes
+                          ? "Hide Notes"
+                          : isClient && isOnline
+                            ? "Show Notes"
+                            : isClient && !isOnline
+                              ? "Notes unavailable offline"
+                              : "Loading..."
+                      }
+                    >
+                      <CopyIcon className="w-3 h-3" />
+                    </VaultButton>
                   </div>
-                </div>
-                <div
-                  className={`reading-mode absolute inset-0 ${isEditMode ? "hidden" : "block overflow-hidden"}`}
-                  ref={readingModeRef}
-                >
-                  <div className="prose dark:prose-invert h-full mr-8 overflow-auto scrollbar-hidden">
-                    <article className="@container h-full max-w-5xl mx-auto scrollbar-hidden mt-4">
-                      {previewNode && toJsx(previewNode)}
-                    </article>
+                  <div className="absolute top-4 left-4 text-sm/7 z-10 flex flex-col items-center gap-2">
+                    {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
+                    {isClient && !isOnline && <GlobeIcon className="w-4 h-4 text-destructive" />}
+                    {/* {isEmbeddingInProgress && ( */}
+                    {/*   <> */}
+                    {/*     {eyeIconState === "open" ? ( */}
+                    {/*       <EyeOpenIcon className="w-4 h-4 text-blue-400 animate-pulse" /> */}
+                    {/*     ) : ( */}
+                    {/*       <EyeClosedIcon className="w-4 h-4 text-blue-400/70" /> */}
+                    {/*     )} */}
+                    {/*   </> */}
+                    {/* )} */}
                   </div>
-                </div>
-              </EditorDropTarget>
-              <AnimatePresence mode="wait" initial={false}>
-                {showNotes && (
-                  <motion.div
-                    key="notes-panel"
-                    initial={{ width: 0, opacity: 0, overflow: "hidden" }}
-                    animate={{
-                      width: "22rem",
-                      opacity: 1,
-                      overflow: "visible",
-                    }}
-                    exit={{
-                      width: 0,
-                      opacity: 0,
-                      overflow: "hidden",
-                    }}
-                    transition={{
-                      type: "tween",
-                      duration: 0.2,
-                      ease: "easeOut",
-                    }}
-                    layout
+                  <div
+                    className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
                   >
-                    <NotesPanel
-                      notes={notes}
-                      isNotesLoading={isNotesLoading}
-                      notesError={notesError}
-                      currentlyGeneratingDateKey={currentlyGeneratingDateKey}
-                      currentGenerationNotes={currentGenerationNotes}
-                      droppedNotes={droppedNotes}
-                      streamingReasoning={streamingReasoning}
-                      reasoningComplete={reasoningComplete}
-                      currentFile={currentFile}
-                      vaultId={vault?.id}
-                      currentReasoningId={currentReasoningId}
-                      reasoningHistory={reasoningHistory}
-                      handleNoteDropped={handleNoteDropped}
-                      handleNoteRemoved={handleNoteRemoved}
-                      handleCurrentGenerationNote={handleCurrentGenerationNote}
-                      formatDate={formatDate}
-                      isNotesRecentlyGenerated={isNotesRecentlyGenerated}
-                      currentReasoningElapsedTime={currentReasoningElapsedTime}
-                      generateNewSuggestions={generateNewSuggestions}
-                      noteGroupsData={noteGroupsData}
-                      notesContainerRef={notesContainerRef}
-                      streamingNotes={streamingNotes}
-                      scanAnimationComplete={scanAnimationComplete}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </Playspace>
-            <SearchCommand
-              maps={flattenedFileIds}
-              vault={vault!}
-              onFileSelect={handleFileSelect}
-            />
-          </SidebarInset>
-        </SidebarProvider>
+                    <div className="h-full scrollbar-hidden relative">
+                      <CodeMirror
+                        value={markdownContent}
+                        height="100%"
+                        autoFocus
+                        placeholder={"What's on your mind?"}
+                        basicSetup={{
+                          rectangularSelection: true,
+                          indentOnInput: true,
+                          syntaxHighlighting: true,
+                          searchKeymap: true,
+                          highlightActiveLine: false,
+                          highlightSelectionMatches: false,
+                        }}
+                        indentWithTab={false}
+                        extensions={memoizedExtensions}
+                        onChange={onContentChange}
+                        className="overflow-auto h-full mx-8 scrollbar-hidden pt-4"
+                        theme={theme === "dark" ? "dark" : editorTheme}
+                        onCreateEditor={(view) => {
+                          codeMirrorViewRef.current = view
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div
+                    className={`reading-mode absolute inset-0 ${isEditMode ? "hidden" : "block overflow-hidden"}`}
+                    ref={readingModeRef}
+                  >
+                    <div className="prose dark:prose-invert h-full mr-8 overflow-auto scrollbar-hidden">
+                      <article className="@container h-full max-w-5xl mx-auto scrollbar-hidden mt-4">
+                        {previewNode && toJsx(previewNode)}
+                      </article>
+                    </div>
+                  </div>
+                </EditorDropTarget>
+                <AnimatePresence mode="wait" initial={false}>
+                  {showNotes && (
+                    <motion.div
+                      key="notes-panel"
+                      initial={{ width: 0, opacity: 0, overflow: "hidden" }}
+                      animate={{
+                        width: "22rem",
+                        opacity: 1,
+                        overflow: "visible",
+                      }}
+                      exit={{
+                        width: 0,
+                        opacity: 0,
+                        overflow: "hidden",
+                      }}
+                      transition={{
+                        type: "tween",
+                        duration: 0.2,
+                        ease: "easeOut",
+                      }}
+                      layout
+                    >
+                      <NotesPanel
+                        notes={notes}
+                        isNotesLoading={isNotesLoading}
+                        notesError={notesError}
+                        currentlyGeneratingDateKey={currentlyGeneratingDateKey}
+                        currentGenerationNotes={currentGenerationNotes}
+                        droppedNotes={droppedNotes}
+                        streamingReasoning={streamingReasoning}
+                        reasoningComplete={reasoningComplete}
+                        currentFile={currentFile}
+                        vaultId={vault?.id}
+                        currentReasoningId={currentReasoningId}
+                        reasoningHistory={reasoningHistory}
+                        handleNoteDropped={handleNoteDropped}
+                        handleNoteRemoved={handleNoteRemoved}
+                        handleCurrentGenerationNote={handleCurrentGenerationNote}
+                        formatDate={formatDate}
+                        isNotesRecentlyGenerated={isNotesRecentlyGenerated}
+                        currentReasoningElapsedTime={currentReasoningElapsedTime}
+                        generateNewSuggestions={generateNewSuggestions}
+                        noteGroupsData={noteGroupsData}
+                        notesContainerRef={notesContainerRef}
+                        streamingNotes={streamingNotes}
+                        scanAnimationComplete={scanAnimationComplete}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </Playspace>
+              <SearchCommand
+                maps={flattenedFileIds}
+                vault={vault!}
+                onFileSelect={handleFileSelect}
+              />
+            </SidebarInset>
+          </SidebarProvider>
         </SearchProvider>
       </SteeringProvider>
     </DndProvider>

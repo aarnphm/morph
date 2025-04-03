@@ -13,6 +13,7 @@ export const vaults = p.pgTable("vaults", {
   lastOpened: p.timestamp("lastOpened", { mode: "date" }).notNull().defaultNow(),
   tree: p.jsonb("tree").$type<FileSystemTreeNodeDb>().notNull(),
   settings: p.jsonb("settings").$type<Settings>().notNull(),
+  rootPath: p.text("rootPath").notNull(),
 })
 
 export const vaultsRelations = relations(vaults, ({ many }) => ({

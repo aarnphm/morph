@@ -7,7 +7,7 @@
       "\nCREATE TABLE \"notes\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"content\" text NOT NULL,\n\t\"color\" text NOT NULL,\n\t\"createdAt\" timestamp NOT NULL,\n\t\"accessedAt\" timestamp NOT NULL,\n\t\"dropped\" boolean DEFAULT false NOT NULL,\n\t\"fileId\" text NOT NULL,\n\t\"vaultId\" text NOT NULL,\n\t\"reasoningId\" text NOT NULL,\n\t\"steering\" jsonb NOT NULL,\n\t\"embeddingStatus\" text DEFAULT 'in_progress' NOT NULL,\n\t\"embeddingTaskId\" text\n);\n",
       "\nCREATE TABLE \"reasonings\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"content\" text NOT NULL,\n\t\"fileId\" text NOT NULL,\n\t\"vaultId\" text NOT NULL,\n\t\"noteIds\" text[] NOT NULL,\n\t\"createdAt\" timestamp NOT NULL,\n\t\"accessedAt\" timestamp NOT NULL,\n\t\"duration\" integer NOT NULL,\n\t\"steering\" jsonb NOT NULL\n);\n",
       "\nCREATE TABLE \"tasks\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"status\" text DEFAULT 'in_progress' NOT NULL,\n\t\"createdAt\" timestamp NOT NULL,\n\t\"completedAt\" timestamp,\n\t\"error\" text\n);\n",
-      "\nCREATE TABLE \"vaults\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"name\" text NOT NULL,\n\t\"lastOpened\" timestamp DEFAULT now() NOT NULL,\n\t\"tree\" jsonb NOT NULL,\n\t\"settings\" jsonb NOT NULL\n);\n",
+      "\nCREATE TABLE \"vaults\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"name\" text NOT NULL,\n\t\"lastOpened\" timestamp DEFAULT now() NOT NULL,\n\t\"tree\" jsonb NOT NULL,\n\t\"settings\" jsonb NOT NULL,\n\t\"rootPath\" text NOT NULL\n);\n",
       "\nALTER TABLE \"fileEmbeddings\" ADD CONSTRAINT \"fileEmbeddings_vaultId_vaults_id_fk\" FOREIGN KEY (\"vaultId\") REFERENCES \"public\".\"vaults\"(\"id\") ON DELETE cascade ON UPDATE no action;",
       "\nALTER TABLE \"fileEmbeddings\" ADD CONSTRAINT \"fileEmbeddings_fileId_files_id_fk\" FOREIGN KEY (\"fileId\") REFERENCES \"public\".\"files\"(\"id\") ON DELETE cascade ON UPDATE no action;",
       "\nALTER TABLE \"files\" ADD CONSTRAINT \"files_vaultId_vaults_id_fk\" FOREIGN KEY (\"vaultId\") REFERENCES \"public\".\"vaults\"(\"id\") ON DELETE cascade ON UPDATE no action;",
@@ -27,7 +27,7 @@
       "\nCREATE INDEX \"idx_reasonings_vault_filename\" ON \"reasonings\" USING btree (\"vaultId\",\"fileId\");"
     ],
     "bps": true,
-    "folderMillis": 1743578310403,
-    "hash": "f5eb29b9654d1023dd2f1f8a5d7a6e8c9856da1356e763e160d9ac87d48cdf6b"
+    "folderMillis": 1743670342947,
+    "hash": "adfbefeda36508f92b64b5dd8b559c49163495d5fb00194f7ebaac253e0cf7dc"
   }
 ]

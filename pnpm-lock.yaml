@@ -811,12 +811,6 @@ importers:
       '@trivago/prettier-plugin-sort-imports':
         specifier: ^5.2.2
         version: 5.2.2(prettier@3.5.3)
-      '@types/d3-drag':
-        specifier: ^3.0.7
-        version: 3.0.7
-      '@types/d3-selection':
-        specifier: ^3.0.11
-        version: 3.0.11
       '@types/hast':
         specifier: ^3.0.4
         version: 3.0.4

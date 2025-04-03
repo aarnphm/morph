@@ -121,6 +121,10 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         // Add root tree handle reference
         dbTree.handleId = treeHandleId
 
+        // Generate a unique ID hash for this vault to avoid namespace collisions
+        const uniqueHash = createId().slice(0, 6)
+        const rootPath = `${handle.name}-${uniqueHash}`
+
         // Insert the new vault into database
         const newVaultId = createId()
 
@@ -130,6 +134,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
           lastOpened: new Date(),
           tree: dbTree,
           settings: DEFAULT_SETTINGS,
+          rootPath,
         })
 
         // The vault for state needs the actual handle
@@ -139,6 +144,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
           lastOpened: new Date(),
           tree,
           settings: DEFAULT_SETTINGS,
+          rootPath,
         }
 
         dispatch({ type: "ADD_VAULT", vault: newVault })
@@ -205,15 +211,23 @@ export function VaultProvider({ children }: { children: ReactNode }) {
           await storeHandle(rootHandleId, vaultId, "root", dirHandle)
         }
 
+        // Keep existing rootPath - no need to regenerate as it should be unique
+        const rootPath = vault.rootPath
+
         // Convert to DB format
         const dbTree = treeToDbTree(tree)
         dbTree.handleId = rootHandleId
 
         // Update the database
-        await db.update(schema.vaults).set({ tree: dbTree }).where(eq(schema.vaults.id, vaultId))
+        await db.update(schema.vaults)
+          .set({
+            tree: dbTree,
+            rootPath
+          })
+          .where(eq(schema.vaults.id, vaultId))
 
         // Update the state with the full tree including handles
-        const updatedVault = { ...vault, tree }
+        const updatedVault = { ...vault, tree, rootPath }
         dispatch({ type: "UPDATE_VAULT", vault: updatedVault })
       } catch (error) {
         console.error("Error refreshing vault:", error)

@@ -61,6 +61,7 @@ export default function useDatabaseModels() {
         return {
           ...dbVault,
           tree,
+          rootPath: dbVault.rootPath,
         }
       } catch (error) {
         console.error(`Failed to convert vault ${dbVault.id}:`, error)

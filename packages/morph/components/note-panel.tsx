@@ -269,7 +269,8 @@ export const NotesPanel = memo(function NotesPanel({
                           isStreaming={isNotesLoading && !reasoningComplete}
                           isComplete={reasoningComplete}
                           currentFile={currentFile}
-                          vaultspace-y-4 px-2Id={vaultId}
+                          vaultspace-y-4
+                          px-2Id={vaultId}
                           reasoningId={currentReasoningId}
                           shouldExpand={isNotesLoading || currentGenerationNotes.length > 0}
                           elapsedTime={currentReasoningElapsedTime}
@@ -336,22 +337,22 @@ export const NotesPanel = memo(function NotesPanel({
                     </div>
                   )}
                 <div className="flex-1 min-h-0">
-                      <Virtuoso
-                        key={`note-list-${currentFile}-${noteGroupsData.length}`}
-                        style={{ height: "100%", width: "100%" }}
-                        totalCount={noteGroupsData.length}
-                        data={noteGroupsData}
-                        overscan={5}
-                        components={{ ScrollSeekPlaceholder }}
-                        itemContent={itemContent}
-                        initialItemCount={1}
-                        increaseViewportBy={{ top: 100, bottom: 100 }}
-                        scrollSeekConfiguration={{
-                          enter: (velocity) => Math.abs(velocity) > 1000,
-                          exit: (velocity) => Math.abs(velocity) < 100,
-                        }}
-                        customScrollParent={notesContainerRef.current!}
-                      />
+                  <Virtuoso
+                    key={`note-list-${currentFile}-${noteGroupsData.length}`}
+                    style={{ height: "100%", width: "100%" }}
+                    totalCount={noteGroupsData.length}
+                    data={noteGroupsData}
+                    overscan={5}
+                    components={{ ScrollSeekPlaceholder }}
+                    itemContent={itemContent}
+                    initialItemCount={1}
+                    increaseViewportBy={{ top: 100, bottom: 100 }}
+                    scrollSeekConfiguration={{
+                      enter: (velocity) => Math.abs(velocity) > 1000,
+                      exit: (velocity) => Math.abs(velocity) < 100,
+                    }}
+                    customScrollParent={notesContainerRef.current!}
+                  />
                 </div>
               </div>
             )}

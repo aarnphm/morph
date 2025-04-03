@@ -54,6 +54,7 @@ export interface VaultDb {
   lastOpened: Date
   tree: FileSystemTreeNodeDb
   settings: Settings
+  rootPath: string
 }
 
 // Runtime version of vault
@@ -63,6 +64,7 @@ export interface Vault {
   lastOpened: Date
   tree: FileSystemTreeNode
   settings: Settings
+  rootPath: string
 }
 
 export interface FileIndex {

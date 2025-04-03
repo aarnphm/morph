@@ -198,9 +198,10 @@ export const DroppedNoteGroup = memo(
 
     // Motion values for chevron drag
     const dragY = useMotionValue(0)
-    const chevronScale = useTransform(dragY,
+    const chevronScale = useTransform(
+      dragY,
       isStackExpanded ? [0, 30] : [0, -30],
-      isStackExpanded ? [1, 1.3] : [1, 1.3]
+      isStackExpanded ? [1, 1.3] : [1, 1.3],
     )
 
     // Function to handle drag end
@@ -312,7 +313,7 @@ export const DroppedNoteGroup = memo(
           ref={scrollContainerRef}
           className={cn(
             "flex flex-col items-center gap-1.5",
-            isStackExpanded && "max-h-[20vh] overflow-y-auto scrollbar-hidden"
+            isStackExpanded && "max-h-[20vh] overflow-y-auto scrollbar-hidden",
           )}
           layout
         >
@@ -360,24 +361,26 @@ export const DroppedNoteGroup = memo(
             >
               <ChevronUpIcon className="w-4 h-4" />
             </motion.div>
-          ) : hasMoreNotes && (
-            <motion.div
-              key="more-notes-indicator"
-              className="text-primary/50 cursor-grab active:cursor-grabbing flex justify-center items-center py-1"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
-              title="Drag down to expand notes"
-              drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 0 }}
-              dragElastic={0.2}
-              style={{ y: dragY, scale: chevronScale }}
-              onDragEnd={handleDragEnd}
-            >
-              <ChevronDownIcon className="w-4 h-4" />
-            </motion.div>
+          ) : (
+            hasMoreNotes && (
+              <motion.div
+                key="more-notes-indicator"
+                className="text-primary/50 cursor-grab active:cursor-grabbing flex justify-center items-center py-1"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1 }}
+                title="Drag down to expand notes"
+                drag="y"
+                dragDirectionLock
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragElastic={0.2}
+                style={{ y: dragY, scale: chevronScale }}
+                onDragEnd={handleDragEnd}
+              >
+                <ChevronDownIcon className="w-4 h-4" />
+              </motion.div>
+            )
           )}
         </motion.div>
       </motion.div>

@@ -1,0 +1,2476 @@
+{
+  "openapi": "3.0.2",
+  "info": {
+    "title": "asteraceae-inference-api",
+    "version": "None",
+    "description": "# asteraceae-inference-api:dev\n\n[![pypi_status](https://img.shields.io/badge/BentoML-1.4.7-informational)](https://pypi.org/project/BentoML)\n[![documentation_status](https://readthedocs.org/projects/bentoml/badge/?version=latest)](https://docs.bentoml.com/)\n[![join_slack](https://badgen.net/badge/Join/BentoML%20Slack/cyan?icon=slack)](https://l.bentoml.com/join-slack-swagger)\n[![BentoML GitHub Repo](https://img.shields.io/github/stars/bentoml/bentoml?style=social)](https://github.com/bentoml/BentoML)\n[![Twitter Follow](https://img.shields.io/twitter/follow/bentomlai?label=Follow%20BentoML&style=social)](https://twitter.com/bentomlai)\n\nThis is a Machine Learning Service created with BentoML.\n\n## Help\n\n* [📖 Documentation](https://docs.bentoml.com/en/latest/): Learn how to use BentoML.\n* [💬 Community](https://l.bentoml.com/join-slack-swagger): Join the BentoML Slack community.\n* [🐛 GitHub Issues](https://github.com/bentoml/BentoML/issues): Report bugs and feature requests.\n* Tip: you can also [customize this README](https://docs.bentoml.com/en/latest/reference/bentoml/bento-build-options.html#description).\n",
+    "contact": { "name": "BentoML Team", "email": "contact@bentoml.com" }
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "responses": { "200": { "description": "Successful Response" } },
+        "tags": ["Infrastructure"],
+        "description": "Health check endpoint. Expecting an empty response with status code \u003Ccode\u003E200\u003C/code\u003E when the service is in health state. The \u003Ccode\u003E/healthz\u003C/code\u003E endpoint is \u003Cb\u003Edeprecated\u003C/b\u003E. (since Kubernetes v1.16)"
+      }
+    },
+    "/livez": {
+      "get": {
+        "responses": { "200": { "description": "Successful Response" } },
+        "tags": ["Infrastructure"],
+        "description": "Health check endpoint for Kubernetes. Healthy endpoint responses with a \u003Ccode\u003E200\u003C/code\u003E OK status."
+      }
+    },
+    "/readyz": {
+      "get": {
+        "responses": { "200": { "description": "Successful Response" } },
+        "tags": ["Infrastructure"],
+        "description": "A \u003Ccode\u003E200\u003C/code\u003E OK status from \u003Ccode\u003E/readyz\u003C/code\u003E endpoint indicated the service is ready to accept traffic. From that point and onward, Kubernetes will use \u003Ccode\u003E/livez\u003C/code\u003E endpoint to perform periodic health checks."
+      }
+    },
+    "/metrics": {
+      "get": {
+        "responses": { "200": { "description": "Successful Response" } },
+        "tags": ["Infrastructure"],
+        "description": "Prometheus metrics endpoint. The \u003Ccode\u003E/metrics\u003C/code\u003E responses with a \u003Ccode\u003E200\u003C/code\u003E. The output can then be used by a Prometheus sidecar to scrape the metrics of the service."
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "create_chat_completion",
+        "description": "",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "title": "ChatCompletionRequestIODescriptor",
+                "required": ["messages"],
+                "properties": {
+                  "messages": {
+                    "items": {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/ChatCompletionDeveloperMessageParam" },
+                        { "$ref": "#/components/schemas/ChatCompletionSystemMessageParam" },
+                        { "$ref": "#/components/schemas/ChatCompletionUserMessageParam" },
+                        { "$ref": "#/components/schemas/ChatCompletionAssistantMessageParam" },
+                        { "$ref": "#/components/schemas/ChatCompletionToolMessageParam" },
+                        { "$ref": "#/components/schemas/ChatCompletionFunctionMessageParam" },
+                        { "$ref": "#/components/schemas/CustomChatCompletionMessageParam" }
+                      ]
+                    },
+                    "title": "Messages",
+                    "type": "array"
+                  },
+                  "model": { "default": null, "title": "Model", "type": "string" },
+                  "frequency_penalty": {
+                    "default": 0,
+                    "title": "Frequency Penalty",
+                    "type": "number"
+                  },
+                  "logit_bias": {
+                    "default": null,
+                    "title": "Logit Bias",
+                    "additionalProperties": { "type": "number" },
+                    "type": "object"
+                  },
+                  "logprobs": { "default": false, "title": "Logprobs", "type": "boolean" },
+                  "top_logprobs": { "default": 0, "title": "Top Logprobs", "type": "integer" },
+                  "max_tokens": {
+                    "default": null,
+                    "deprecated": true,
+                    "title": "Max Tokens",
+                    "type": "integer"
+                  },
+                  "max_completion_tokens": {
+                    "default": null,
+                    "title": "Max Completion Tokens",
+                    "type": "integer"
+                  },
+                  "n": { "default": 1, "title": "N", "type": "integer" },
+                  "presence_penalty": {
+                    "default": 0,
+                    "title": "Presence Penalty",
+                    "type": "number"
+                  },
+                  "response_format": {
+                    "default": null,
+                    "$ref": "#/components/schemas/ResponseFormat"
+                  },
+                  "seed": {
+                    "default": null,
+                    "title": "Seed",
+                    "maximum": 9.223372036854776e18,
+                    "minimum": -9.223372036854776e18,
+                    "type": "integer"
+                  },
+                  "stop": { "title": "Stop", "type": "string" },
+                  "stream": { "default": false, "title": "Stream", "type": "boolean" },
+                  "stream_options": {
+                    "default": null,
+                    "$ref": "#/components/schemas/StreamOptions"
+                  },
+                  "temperature": { "default": null, "title": "Temperature", "type": "number" },
+                  "top_p": { "default": null, "title": "Top P", "type": "number" },
+                  "tools": {
+                    "default": null,
+                    "title": "Tools",
+                    "items": { "$ref": "#/components/schemas/ChatCompletionToolsParam" },
+                    "type": "array"
+                  },
+                  "tool_choice": {
+                    "default": "none",
+                    "title": "Tool Choice",
+                    "const": "none",
+                    "type": "string"
+                  },
+                  "parallel_tool_calls": {
+                    "default": false,
+                    "title": "Parallel Tool Calls",
+                    "type": "boolean"
+                  },
+                  "user": { "default": null, "title": "User", "type": "string" },
+                  "best_of": { "default": null, "title": "Best Of", "type": "integer" },
+                  "use_beam_search": {
+                    "default": false,
+                    "title": "Use Beam Search",
+                    "type": "boolean"
+                  },
+                  "top_k": { "default": null, "title": "Top K", "type": "integer" },
+                  "min_p": { "default": null, "title": "Min P", "type": "number" },
+                  "repetition_penalty": {
+                    "default": null,
+                    "title": "Repetition Penalty",
+                    "type": "number"
+                  },
+                  "length_penalty": { "default": 1, "title": "Length Penalty", "type": "number" },
+                  "stop_token_ids": {
+                    "title": "Stop Token Ids",
+                    "items": { "type": "integer" },
+                    "type": "array"
+                  },
+                  "include_stop_str_in_output": {
+                    "default": false,
+                    "title": "Include Stop Str In Output",
+                    "type": "boolean"
+                  },
+                  "ignore_eos": { "default": false, "title": "Ignore Eos", "type": "boolean" },
+                  "min_tokens": { "default": 0, "title": "Min Tokens", "type": "integer" },
+                  "skip_special_tokens": {
+                    "default": true,
+                    "title": "Skip Special Tokens",
+                    "type": "boolean"
+                  },
+                  "spaces_between_special_tokens": {
+                    "default": true,
+                    "title": "Spaces Between Special Tokens",
+                    "type": "boolean"
+                  },
+                  "truncate_prompt_tokens": {
+                    "default": null,
+                    "title": "Truncate Prompt Tokens",
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "prompt_logprobs": {
+                    "default": null,
+                    "title": "Prompt Logprobs",
+                    "type": "integer"
+                  },
+                  "echo": {
+                    "default": false,
+                    "description": "If true, the new message will be prepended with the last message if they belong to the same role.",
+                    "title": "Echo",
+                    "type": "boolean"
+                  },
+                  "add_generation_prompt": {
+                    "default": true,
+                    "description": "If true, the generation prompt will be added to the chat template. This is a parameter used by chat template in tokenizer config of the model.",
+                    "title": "Add Generation Prompt",
+                    "type": "boolean"
+                  },
+                  "continue_final_message": {
+                    "default": false,
+                    "description": "If this is set, the chat will be formatted so that the final message in the chat is open-ended, without any EOS tokens. The model will continue this message rather than starting a new one. This allows you to \"prefill\" part of the model's response for it. Cannot be used at the same time as `add_generation_prompt`.",
+                    "title": "Continue Final Message",
+                    "type": "boolean"
+                  },
+                  "add_special_tokens": {
+                    "default": false,
+                    "description": "If true, special tokens (e.g. BOS) will be added to the prompt on top of what is added by the chat template. For most models, the chat template takes care of adding the special tokens so this should be set to false (as is the default).",
+                    "title": "Add Special Tokens",
+                    "type": "boolean"
+                  },
+                  "documents": {
+                    "default": null,
+                    "description": "A list of dicts representing documents that will be accessible to the model if it is performing RAG (retrieval-augmented generation). If the template does not support RAG, this argument will have no effect. We recommend that each document should be a dict containing \"title\" and \"text\" keys.",
+                    "title": "Documents",
+                    "items": { "additionalProperties": { "type": "string" }, "type": "object" },
+                    "type": "array"
+                  },
+                  "chat_template": {
+                    "default": null,
+                    "description": "A Jinja template to use for this conversion. As of transformers v4.44, default chat template is no longer allowed, so you must provide a chat template if the tokenizer does not define one.",
+                    "title": "Chat Template",
+                    "type": "string"
+                  },
+                  "chat_template_kwargs": {
+                    "default": null,
+                    "description": "Additional kwargs to pass to the template renderer. Will be accessible by the chat template.",
+                    "title": "Chat Template Kwargs",
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "mm_processor_kwargs": {
+                    "default": null,
+                    "description": "Additional kwargs to pass to the HF processor.",
+                    "title": "Mm Processor Kwargs",
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "guided_json": {
+                    "default": null,
+                    "description": "If specified, the output will follow the JSON schema.",
+                    "title": "Guided Json",
+                    "type": "string"
+                  },
+                  "guided_regex": {
+                    "default": null,
+                    "description": "If specified, the output will follow the regex pattern.",
+                    "title": "Guided Regex",
+                    "type": "string"
+                  },
+                  "guided_choice": {
+                    "default": null,
+                    "description": "If specified, the output will be exactly one of the choices.",
+                    "title": "Guided Choice",
+                    "items": { "type": "string" },
+                    "type": "array"
+                  },
+                  "guided_grammar": {
+                    "default": null,
+                    "description": "If specified, the output will follow the context free grammar.",
+                    "title": "Guided Grammar",
+                    "type": "string"
+                  },
+                  "guided_decoding_backend": {
+                    "default": null,
+                    "description": "If specified, will override the default guided decoding backend of the server for this specific request. If set, must be either 'outlines' / 'lm-format-enforcer'",
+                    "title": "Guided Decoding Backend",
+                    "type": "string"
+                  },
+                  "guided_whitespace_pattern": {
+                    "default": null,
+                    "description": "If specified, will override the default whitespace pattern for guided json decoding.",
+                    "title": "Guided Whitespace Pattern",
+                    "type": "string"
+                  },
+                  "priority": {
+                    "default": 0,
+                    "description": "The priority of the request (lower means earlier handling; default: 0). Any priority other than 0 will raise an error if the served model does not use priority scheduling.",
+                    "title": "Priority",
+                    "type": "integer"
+                  },
+                  "request_id": {
+                    "description": "The request_id related to this request. If the caller does not set it, a random_uuid will be generated. This id is used through out the inference process and return in response.",
+                    "title": "Request Id",
+                    "type": "string"
+                  },
+                  "logits_processors": {
+                    "default": null,
+                    "description": "A list of either qualified names of logits processors, or constructor objects, to apply when sampling. A constructor is a JSON object with a required 'qualname' field specifying the qualified name of the processor class/factory, and optional 'args' and 'kwargs' fields containing positional and keyword arguments. For example: {'qualname': 'my_module.MyLogitsProcessor', 'args': [1, 2], 'kwargs': {'param': 'value'}}.",
+                    "title": "Logits Processors",
+                    "items": {
+                      "anyOf": [
+                        { "type": "string" },
+                        { "$ref": "#/components/schemas/LogitsProcessorConstructor" }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "return_tokens_as_token_ids": {
+                    "default": null,
+                    "description": "If specified with 'logprobs', tokens are represented  as strings of the form 'token_id:{token_id}' so that tokens that are not JSON-encodable can be identified.",
+                    "title": "Return Tokens As Token Ids",
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": true,
+                "root_input": true
+              }
+            }
+          }
+        },
+        "operationId": "asteraceae-inference-api__create_chat_completion"
+      }
+    },
+    "/v1/embeddings": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "create_embedding",
+        "description": "",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "title": "EmbeddingCompletionRequestIODescriptor",
+                "required": ["input"],
+                "properties": {
+                  "model": { "default": null, "title": "Model", "type": "string" },
+                  "input": { "title": "Input", "items": { "type": "integer" }, "type": "array" },
+                  "encoding_format": {
+                    "default": "float",
+                    "enum": ["float", "base64"],
+                    "title": "Encoding Format",
+                    "type": "string"
+                  },
+                  "dimensions": { "default": null, "title": "Dimensions", "type": "integer" },
+                  "user": { "default": null, "title": "User", "type": "string" },
+                  "truncate_prompt_tokens": {
+                    "default": null,
+                    "title": "Truncate Prompt Tokens",
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "additional_data": { "default": null, "title": "Additional Data" },
+                  "add_special_tokens": {
+                    "default": true,
+                    "description": "If true (the default), special tokens (e.g. BOS) will be added to the prompt.",
+                    "title": "Add Special Tokens",
+                    "type": "boolean"
+                  },
+                  "priority": {
+                    "default": 0,
+                    "description": "The priority of the request (lower means earlier handling; default: 0). Any priority other than 0 will raise an error if the served model does not use priority scheduling.",
+                    "title": "Priority",
+                    "type": "integer"
+                  }
+                },
+                "additionalProperties": true,
+                "root_input": true
+              }
+            }
+          }
+        },
+        "operationId": "asteraceae-inference-api__create_embedding"
+      }
+    },
+    "/essays": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "EssayResponseIODescriptor",
+                  "required": ["vault_id", "file_id", "nodes"],
+                  "properties": {
+                    "vault_id": { "title": "Vault Id", "type": "string" },
+                    "file_id": { "title": "File Id", "type": "string" },
+                    "nodes": {
+                      "items": { "$ref": "#/components/schemas/EssayNode" },
+                      "title": "Nodes",
+                      "type": "array"
+                    },
+                    "error": { "default": "", "title": "Error", "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "essays",
+        "description": "",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "title": "EssayRequestIODescriptor",
+                "required": ["vault_id", "file_id", "content"],
+                "properties": {
+                  "vault_id": { "title": "Vault Id", "type": "string" },
+                  "file_id": { "title": "File Id", "type": "string" },
+                  "content": { "title": "Content", "type": "string" }
+                },
+                "root_input": true
+              }
+            }
+          }
+        },
+        "operationId": "asteraceae-inference-api__essays"
+      }
+    },
+    "/essays/status": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TaskStatusResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "essays_status",
+        "description": "Get status of task essays",
+        "operationId": "asteraceae-inference-api__essays_status",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "title": "Task ID" }
+          }
+        ]
+      }
+    },
+    "/essays/get": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "EssayResponseIODescriptor",
+                  "required": ["vault_id", "file_id", "nodes"],
+                  "properties": {
+                    "vault_id": { "title": "Vault Id", "type": "string" },
+                    "file_id": { "title": "File Id", "type": "string" },
+                    "nodes": {
+                      "items": { "$ref": "#/components/schemas/EssayNode" },
+                      "title": "Nodes",
+                      "type": "array"
+                    },
+                    "error": { "default": "", "title": "Error", "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "essays_result",
+        "description": "Get result of task essays",
+        "operationId": "asteraceae-inference-api__essays_result",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "title": "Task ID" }
+          }
+        ]
+      }
+    },
+    "/essays/submit": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TaskStatusResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "essays_submit",
+        "description": "Submit a new task of essays",
+        "operationId": "asteraceae-inference-api__essays_submit",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "title": "EssayRequestIODescriptor",
+                "required": ["vault_id", "file_id", "content"],
+                "properties": {
+                  "vault_id": { "title": "Vault Id", "type": "string" },
+                  "file_id": { "title": "File Id", "type": "string" },
+                  "content": { "title": "Content", "type": "string" }
+                },
+                "root_input": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/essays/retry": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TaskStatusResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "essays_retry",
+        "description": "Retry a task of essays",
+        "operationId": "asteraceae-inference-api__essays_retry",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "title": "Task ID" }
+          }
+        ]
+      }
+    },
+    "/essays/cancel": {
+      "put": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TaskStatusResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "essays_retry",
+        "description": "Cancel an in-progress task of essays",
+        "operationId": "asteraceae-inference-api__essays_retry",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "title": "Task ID" }
+          }
+        ]
+      }
+    },
+    "/health": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "HealthResponseIODescriptor",
+                  "required": ["healthy", "services", "timestamp"],
+                  "properties": {
+                    "healthy": { "title": "Healthy", "type": "boolean" },
+                    "services": {
+                      "items": { "$ref": "#/components/schemas/DependentStatus" },
+                      "title": "Services",
+                      "type": "array"
+                    },
+                    "timestamp": { "title": "Timestamp", "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "health",
+        "description": "",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "title": "HealthRequestIODescriptor",
+                "properties": {
+                  "timeout": { "default": 30, "title": "Timeout", "type": "integer" }
+                },
+                "root_input": true
+              }
+            }
+          }
+        },
+        "operationId": "asteraceae-inference-api__health"
+      }
+    },
+    "/notes": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "NotesResponseIODescriptor",
+                  "required": ["vault_id", "file_id", "note_id", "embedding"],
+                  "properties": {
+                    "vault_id": { "title": "Vault Id", "type": "string" },
+                    "file_id": { "title": "File Id", "type": "string" },
+                    "note_id": { "title": "Note Id", "type": "string" },
+                    "embedding": {
+                      "items": { "type": "number" },
+                      "title": "Embedding",
+                      "type": "array"
+                    },
+                    "error": { "default": "", "title": "Error", "type": "string" },
+                    "usage": { "$ref": "#/components/schemas/Usage" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "notes",
+        "description": "",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "title": "NotesRequestIODescriptor",
+                "required": ["vault_id", "file_id", "note_id", "content"],
+                "properties": {
+                  "vault_id": { "title": "Vault Id", "type": "string" },
+                  "file_id": { "title": "File Id", "type": "string" },
+                  "note_id": { "title": "Note Id", "type": "string" },
+                  "content": { "title": "Content", "type": "string" }
+                },
+                "root_input": true
+              }
+            }
+          }
+        },
+        "operationId": "asteraceae-inference-api__notes"
+      }
+    },
+    "/notes/status": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TaskStatusResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "notes_status",
+        "description": "Get status of task notes",
+        "operationId": "asteraceae-inference-api__notes_status",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "title": "Task ID" }
+          }
+        ]
+      }
+    },
+    "/notes/get": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "NotesResponseIODescriptor",
+                  "required": ["vault_id", "file_id", "note_id", "embedding"],
+                  "properties": {
+                    "vault_id": { "title": "Vault Id", "type": "string" },
+                    "file_id": { "title": "File Id", "type": "string" },
+                    "note_id": { "title": "Note Id", "type": "string" },
+                    "embedding": {
+                      "items": { "type": "number" },
+                      "title": "Embedding",
+                      "type": "array"
+                    },
+                    "error": { "default": "", "title": "Error", "type": "string" },
+                    "usage": { "$ref": "#/components/schemas/Usage" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "notes_result",
+        "description": "Get result of task notes",
+        "operationId": "asteraceae-inference-api__notes_result",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "title": "Task ID" }
+          }
+        ]
+      }
+    },
+    "/notes/submit": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TaskStatusResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "notes_submit",
+        "description": "Submit a new task of notes",
+        "operationId": "asteraceae-inference-api__notes_submit",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "title": "NotesRequestIODescriptor",
+                "required": ["vault_id", "file_id", "note_id", "content"],
+                "properties": {
+                  "vault_id": { "title": "Vault Id", "type": "string" },
+                  "file_id": { "title": "File Id", "type": "string" },
+                  "note_id": { "title": "Note Id", "type": "string" },
+                  "content": { "title": "Content", "type": "string" }
+                },
+                "root_input": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notes/retry": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TaskStatusResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "notes_retry",
+        "description": "Retry a task of notes",
+        "operationId": "asteraceae-inference-api__notes_retry",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "title": "Task ID" }
+          }
+        ]
+      }
+    },
+    "/notes/cancel": {
+      "put": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TaskStatusResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "notes_retry",
+        "description": "Cancel an in-progress task of notes",
+        "operationId": "asteraceae-inference-api__notes_retry",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "title": "Task ID" }
+          }
+        ]
+      }
+    },
+    "/suggests": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvalidArgument" } }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NotFound" } }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerError" }
+              }
+            }
+          }
+        },
+        "tags": ["Service APIs"],
+        "x-bentoml-name": "suggests",
+        "description": "",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "title": "SuggestRequestIODescriptor",
+                "required": ["essay"],
+                "properties": {
+                  "essay": { "title": "Essay", "type": "string" },
+                  "authors": {
+                    "default": [
+                      "Raymond Carver",
+                      "Franz Kafka",
+                      "Albert Camus",
+                      "Iain McGilchrist",
+                      "Ian McEwan"
+                    ],
+                    "title": "Authors",
+                    "items": { "type": "string" },
+                    "type": "array"
+                  },
+                  "tonality": { "default": null, "$ref": "#/components/schemas/Tonality" },
+                  "num_suggestions": {
+                    "default": 3,
+                    "minimum": 1,
+                    "title": "Num Suggestions",
+                    "type": "integer"
+                  },
+                  "top_p": {
+                    "default": 0.95,
+                    "maximum": 1,
+                    "minimum": 0,
+                    "title": "Top P",
+                    "type": "number"
+                  },
+                  "temperature": {
+                    "default": 0.6,
+                    "maximum": 1,
+                    "minimum": 0,
+                    "title": "Temperature",
+                    "type": "number"
+                  },
+                  "max_tokens": {
+                    "default": 16384,
+                    "maximum": 16384,
+                    "minimum": 256,
+                    "title": "Max Tokens",
+                    "type": "integer"
+                  },
+                  "usage": { "default": true, "title": "Usage", "type": "boolean" }
+                },
+                "root_input": true
+              }
+            }
+          }
+        },
+        "operationId": "asteraceae-inference-api__suggests"
+      }
+    },
+    "/v1/models": {
+      "get": {
+        "summary": "Show Available Models",
+        "operationId": "show_available_models_v1_models_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ModelList" } }
+            }
+          }
+        }
+      }
+    },
+    "/metadata": {
+      "get": {
+        "summary": "Metadata",
+        "operationId": "metadata_metadata_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/MetadataResponse" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "servers": [{ "url": "." }],
+  "tags": [
+    { "name": "Service APIs", "description": "BentoML Service API endpoints for inference." },
+    {
+      "name": "Infrastructure",
+      "description": "Common infrastructure endpoints for observability."
+    }
+  ],
+  "components": {
+    "schemas": {
+      "EmbedInfo": {
+        "properties": {
+          "model_id": { "type": "string", "title": "Model Id" },
+          "model_type": { "type": "string", "title": "Model Type" },
+          "M": { "type": "integer", "title": "M" },
+          "ef_construction": { "type": "integer", "title": "Ef Construction" },
+          "dimensions": { "type": "integer", "title": "Dimensions" }
+        },
+        "type": "object",
+        "required": ["model_id", "model_type", "M", "ef_construction", "dimensions"],
+        "title": "EmbedInfo"
+      },
+      "LLMInfo": {
+        "properties": {
+          "model_id": { "type": "string", "title": "Model Id" },
+          "model_type": { "type": "string", "title": "Model Type" },
+          "structured_outputs": { "type": "string", "title": "Structured Outputs" }
+        },
+        "type": "object",
+        "required": ["model_id", "model_type", "structured_outputs"],
+        "title": "LLMInfo"
+      },
+      "MetadataResponse": {
+        "properties": {
+          "llm": { "$ref": "#/components/schemas/LLMInfo" },
+          "embed": { "$ref": "#/components/schemas/EmbedInfo" }
+        },
+        "type": "object",
+        "required": ["llm", "embed"],
+        "title": "MetadataResponse"
+      },
+      "ModelCard": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "object": { "type": "string", "title": "Object", "default": "model" },
+          "created": { "type": "integer", "title": "Created" },
+          "owned_by": { "type": "string", "title": "Owned By", "default": "vllm" },
+          "root": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Root" },
+          "parent": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Parent" },
+          "max_model_len": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Max Model Len"
+          },
+          "permission": {
+            "items": { "$ref": "#/components/schemas/ModelPermission" },
+            "type": "array",
+            "title": "Permission"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": ["id"],
+        "title": "ModelCard"
+      },
+      "ModelList": {
+        "properties": {
+          "object": { "type": "string", "title": "Object", "default": "list" },
+          "data": {
+            "items": { "$ref": "#/components/schemas/ModelCard" },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ModelList"
+      },
+      "ModelPermission": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "object": { "type": "string", "title": "Object", "default": "model_permission" },
+          "created": { "type": "integer", "title": "Created" },
+          "allow_create_engine": {
+            "type": "boolean",
+            "title": "Allow Create Engine",
+            "default": false
+          },
+          "allow_sampling": { "type": "boolean", "title": "Allow Sampling", "default": true },
+          "allow_logprobs": { "type": "boolean", "title": "Allow Logprobs", "default": true },
+          "allow_search_indices": {
+            "type": "boolean",
+            "title": "Allow Search Indices",
+            "default": false
+          },
+          "allow_view": { "type": "boolean", "title": "Allow View", "default": true },
+          "allow_fine_tuning": {
+            "type": "boolean",
+            "title": "Allow Fine Tuning",
+            "default": false
+          },
+          "organization": { "type": "string", "title": "Organization", "default": "*" },
+          "group": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Group" },
+          "is_blocking": { "type": "boolean", "title": "Is Blocking", "default": false }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ModelPermission"
+      },
+      "ChatCompletionRequestIODescriptor": {
+        "type": "object",
+        "title": "ChatCompletionRequestIODescriptor",
+        "required": ["messages"],
+        "properties": {
+          "messages": {
+            "items": {
+              "anyOf": [
+                { "$ref": "#/components/schemas/ChatCompletionDeveloperMessageParam" },
+                { "$ref": "#/components/schemas/ChatCompletionSystemMessageParam" },
+                { "$ref": "#/components/schemas/ChatCompletionUserMessageParam" },
+                { "$ref": "#/components/schemas/ChatCompletionAssistantMessageParam" },
+                { "$ref": "#/components/schemas/ChatCompletionToolMessageParam" },
+                { "$ref": "#/components/schemas/ChatCompletionFunctionMessageParam" },
+                { "$ref": "#/components/schemas/CustomChatCompletionMessageParam" }
+              ]
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "model": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "default": null,
+            "title": "Model"
+          },
+          "frequency_penalty": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "default": 0,
+            "title": "Frequency Penalty"
+          },
+          "logit_bias": {
+            "anyOf": [
+              { "additionalProperties": { "type": "number" }, "type": "object" },
+              { "type": "null" }
+            ],
+            "default": null,
+            "title": "Logit Bias"
+          },
+          "logprobs": {
+            "anyOf": [{ "type": "boolean" }, { "type": "null" }],
+            "default": false,
+            "title": "Logprobs"
+          },
+          "top_logprobs": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "default": 0,
+            "title": "Top Logprobs"
+          },
+          "max_tokens": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "default": null,
+            "deprecated": true,
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "default": null,
+            "title": "Max Completion Tokens"
+          },
+          "n": { "anyOf": [{ "type": "integer" }, { "type": "null" }], "default": 1, "title": "N" },
+          "presence_penalty": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "default": 0,
+            "title": "Presence Penalty"
+          },
+          "response_format": {
+            "anyOf": [{ "$ref": "#/components/schemas/ResponseFormat" }, { "type": "null" }],
+            "default": null
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "maximum": 9.223372036854776e18,
+                "minimum": -9.223372036854776e18,
+                "type": "integer"
+              },
+              { "type": "null" }
+            ],
+            "default": null,
+            "title": "Seed"
+          },
+          "stop": {
+            "anyOf": [
+              { "type": "string" },
+              { "items": { "type": "string" }, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Stop"
+          },
+          "stream": {
+            "anyOf": [{ "type": "boolean" }, { "type": "null" }],
+            "default": false,
+            "title": "Stream"
+          },
+          "stream_options": {
+            "anyOf": [{ "$ref": "#/components/schemas/StreamOptions" }, { "type": "null" }],
+            "default": null
+          },
+          "temperature": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "default": null,
+            "title": "Temperature"
+          },
+          "top_p": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "default": null,
+            "title": "Top P"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": { "$ref": "#/components/schemas/ChatCompletionToolsParam" },
+                "type": "array"
+              },
+              { "type": "null" }
+            ],
+            "default": null,
+            "title": "Tools"
+          },
+          "tool_choice": {
+            "anyOf": [
+              { "const": "none", "type": "string" },
+              { "const": "auto", "type": "string" },
+              { "$ref": "#/components/schemas/ChatCompletionNamedToolChoiceParam" },
+              { "type": "null" }
+            ],
+            "default": "none",
+            "title": "Tool Choice"
+          },
+          "parallel_tool_calls": {
+            "anyOf": [{ "type": "boolean" }, { "type": "null" }],
+            "default": false,
+            "title": "Parallel Tool Calls"
+          },
+          "user": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "default": null,
+            "title": "User"
+          },
+          "best_of": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "default": null,
+            "title": "Best Of"
+          },
+          "use_beam_search": { "default": false, "title": "Use Beam Search", "type": "boolean" },
+          "top_k": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "default": null,
+            "title": "Top K"
+          },
+          "min_p": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "default": null,
+            "title": "Min P"
+          },
+          "repetition_penalty": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "default": null,
+            "title": "Repetition Penalty"
+          },
+          "length_penalty": { "default": 1, "title": "Length Penalty", "type": "number" },
+          "stop_token_ids": {
+            "anyOf": [{ "items": { "type": "integer" }, "type": "array" }, { "type": "null" }],
+            "title": "Stop Token Ids"
+          },
+          "include_stop_str_in_output": {
+            "default": false,
+            "title": "Include Stop Str In Output",
+            "type": "boolean"
+          },
+          "ignore_eos": { "default": false, "title": "Ignore Eos", "type": "boolean" },
+          "min_tokens": { "default": 0, "title": "Min Tokens", "type": "integer" },
+          "skip_special_tokens": {
+            "default": true,
+            "title": "Skip Special Tokens",
+            "type": "boolean"
+          },
+          "spaces_between_special_tokens": {
+            "default": true,
+            "title": "Spaces Between Special Tokens",
+            "type": "boolean"
+          },
+          "truncate_prompt_tokens": {
+            "anyOf": [{ "minimum": 1, "type": "integer" }, { "type": "null" }],
+            "default": null,
+            "title": "Truncate Prompt Tokens"
+          },
+          "prompt_logprobs": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "default": null,
+            "title": "Prompt Logprobs"
+          },
+          "echo": {
+            "default": false,
+            "description": "If true, the new message will be prepended with the last message if they belong to the same role.",
+            "title": "Echo",
+            "type": "boolean"
+          },
+          "add_generation_prompt": {
+            "default": true,
+            "description": "If true, the generation prompt will be added to the chat template. This is a parameter used by chat template in tokenizer config of the model.",
+            "title": "Add Generation Prompt",
+            "type": "boolean"
+          },
+          "continue_final_message": {
+            "default": false,
+            "description": "If this is set, the chat will be formatted so that the final message in the chat is open-ended, without any EOS tokens. The model will continue this message rather than starting a new one. This allows you to \"prefill\" part of the model's response for it. Cannot be used at the same time as `add_generation_prompt`.",
+            "title": "Continue Final Message",
+            "type": "boolean"
+          },
+          "add_special_tokens": {
+            "default": false,
+            "description": "If true, special tokens (e.g. BOS) will be added to the prompt on top of what is added by the chat template. For most models, the chat template takes care of adding the special tokens so this should be set to false (as is the default).",
+            "title": "Add Special Tokens",
+            "type": "boolean"
+          },
+          "documents": {
+            "anyOf": [
+              {
+                "items": { "additionalProperties": { "type": "string" }, "type": "object" },
+                "type": "array"
+              },
+              { "type": "null" }
+            ],
+            "default": null,
+            "description": "A list of dicts representing documents that will be accessible to the model if it is performing RAG (retrieval-augmented generation). If the template does not support RAG, this argument will have no effect. We recommend that each document should be a dict containing \"title\" and \"text\" keys.",
+            "title": "Documents"
+          },
+          "chat_template": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "default": null,
+            "description": "A Jinja template to use for this conversion. As of transformers v4.44, default chat template is no longer allowed, so you must provide a chat template if the tokenizer does not define one.",
+            "title": "Chat Template"
+          },
+          "chat_template_kwargs": {
+            "anyOf": [{ "additionalProperties": true, "type": "object" }, { "type": "null" }],
+            "default": null,
+            "description": "Additional kwargs to pass to the template renderer. Will be accessible by the chat template.",
+            "title": "Chat Template Kwargs"
+          },
+          "mm_processor_kwargs": {
+            "anyOf": [{ "additionalProperties": true, "type": "object" }, { "type": "null" }],
+            "default": null,
+            "description": "Additional kwargs to pass to the HF processor.",
+            "title": "Mm Processor Kwargs"
+          },
+          "guided_json": {
+            "anyOf": [
+              { "type": "string" },
+              { "additionalProperties": true, "type": "object" },
+              { "$ref": "#/components/schemas/BaseModel" },
+              { "type": "null" }
+            ],
+            "default": null,
+            "description": "If specified, the output will follow the JSON schema.",
+            "title": "Guided Json"
+          },
+          "guided_regex": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "default": null,
+            "description": "If specified, the output will follow the regex pattern.",
+            "title": "Guided Regex"
+          },
+          "guided_choice": {
+            "anyOf": [{ "items": { "type": "string" }, "type": "array" }, { "type": "null" }],
+            "default": null,
+            "description": "If specified, the output will be exactly one of the choices.",
+            "title": "Guided Choice"
+          },
+          "guided_grammar": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "default": null,
+            "description": "If specified, the output will follow the context free grammar.",
+            "title": "Guided Grammar"
+          },
+          "guided_decoding_backend": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "default": null,
+            "description": "If specified, will override the default guided decoding backend of the server for this specific request. If set, must be either 'outlines' / 'lm-format-enforcer'",
+            "title": "Guided Decoding Backend"
+          },
+          "guided_whitespace_pattern": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "default": null,
+            "description": "If specified, will override the default whitespace pattern for guided json decoding.",
+            "title": "Guided Whitespace Pattern"
+          },
+          "priority": {
+            "default": 0,
+            "description": "The priority of the request (lower means earlier handling; default: 0). Any priority other than 0 will raise an error if the served model does not use priority scheduling.",
+            "title": "Priority",
+            "type": "integer"
+          },
+          "request_id": {
+            "description": "The request_id related to this request. If the caller does not set it, a random_uuid will be generated. This id is used through out the inference process and return in response.",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "logits_processors": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    { "type": "string" },
+                    { "$ref": "#/components/schemas/LogitsProcessorConstructor" }
+                  ]
+                },
+                "type": "array"
+              },
+              { "type": "null" }
+            ],
+            "default": null,
+            "description": "A list of either qualified names of logits processors, or constructor objects, to apply when sampling. A constructor is a JSON object with a required 'qualname' field specifying the qualified name of the processor class/factory, and optional 'args' and 'kwargs' fields containing positional and keyword arguments. For example: {'qualname': 'my_module.MyLogitsProcessor', 'args': [1, 2], 'kwargs': {'param': 'value'}}.",
+            "title": "Logits Processors"
+          },
+          "return_tokens_as_token_ids": {
+            "anyOf": [{ "type": "boolean" }, { "type": "null" }],
+            "default": null,
+            "description": "If specified with 'logprobs', tokens are represented  as strings of the form 'token_id:{token_id}' so that tokens that are not JSON-encodable can be identified.",
+            "title": "Return Tokens As Token Ids"
+          }
+        },
+        "additionalProperties": true,
+        "root_input": true
+      },
+      "Audio": {
+        "type": "object",
+        "title": "Audio",
+        "required": ["id"],
+        "properties": { "id": { "title": "Id", "type": "string" } }
+      },
+      "AudioURL": {
+        "type": "object",
+        "title": "AudioURL",
+        "required": ["url"],
+        "properties": { "url": { "title": "Url", "type": "string" } }
+      },
+      "BaseModel": { "type": "object", "title": "BaseModel", "properties": {} },
+      "ChatCompletionAssistantMessageParam": {
+        "type": "object",
+        "title": "ChatCompletionAssistantMessageParam",
+        "required": ["role"],
+        "properties": {
+          "role": { "const": "assistant", "title": "Role", "type": "string" },
+          "audio": { "anyOf": [{ "$ref": "#/components/schemas/Audio" }, { "type": "null" }] },
+          "content": {
+            "anyOf": [
+              { "type": "string" },
+              {
+                "items": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/ChatCompletionContentPartTextParam" },
+                    { "$ref": "#/components/schemas/ChatCompletionContentPartRefusalParam" }
+                  ]
+                },
+                "type": "array"
+              },
+              { "type": "null" }
+            ],
+            "title": "Content"
+          },
+          "function_call": {
+            "anyOf": [{ "$ref": "#/components/schemas/FunctionCall" }, { "type": "null" }]
+          },
+          "name": { "title": "Name", "type": "string" },
+          "refusal": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Refusal" },
+          "tool_calls": {
+            "items": { "$ref": "#/components/schemas/ChatCompletionMessageToolCallParam" },
+            "title": "Tool Calls",
+            "type": "array"
+          }
+        }
+      },
+      "ChatCompletionContentPartAudioParam": {
+        "type": "object",
+        "title": "ChatCompletionContentPartAudioParam",
+        "required": ["audio_url", "type"],
+        "properties": {
+          "audio_url": { "$ref": "#/components/schemas/AudioURL" },
+          "type": { "const": "audio_url", "title": "Type", "type": "string" }
+        }
+      },
+      "ChatCompletionContentPartImageEmbedsParam": {
+        "type": "object",
+        "title": "ChatCompletionContentPartImageEmbedsParam",
+        "required": ["image_embeds", "type"],
+        "properties": {
+          "image_embeds": {
+            "anyOf": [
+              { "type": "string" },
+              { "additionalProperties": { "type": "string" }, "type": "object" }
+            ],
+            "title": "Image Embeds"
+          },
+          "type": { "const": "image_embeds", "title": "Type", "type": "string" }
+        }
+      },
+      "ChatCompletionContentPartImageParam": {
+        "type": "object",
+        "title": "ChatCompletionContentPartImageParam",
+        "required": ["image_url", "type"],
+        "properties": {
+          "image_url": { "$ref": "#/components/schemas/ImageURL" },
+          "type": { "const": "image_url", "title": "Type", "type": "string" }
+        }
+      },
+      "ChatCompletionContentPartInputAudioParam": {
+        "type": "object",
+        "title": "ChatCompletionContentPartInputAudioParam",
+        "required": ["input_audio", "type"],
+        "properties": {
+          "input_audio": { "$ref": "#/components/schemas/InputAudio" },
+          "type": { "const": "input_audio", "title": "Type", "type": "string" }
+        }
+      },
+      "ChatCompletionContentPartRefusalParam": {
+        "type": "object",
+        "title": "ChatCompletionContentPartRefusalParam",
+        "required": ["refusal", "type"],
+        "properties": {
+          "refusal": { "title": "Refusal", "type": "string" },
+          "type": { "const": "refusal", "title": "Type", "type": "string" }
+        }
+      },
+      "ChatCompletionContentPartTextParam": {
+        "type": "object",
+        "title": "ChatCompletionContentPartTextParam",
+        "required": ["text", "type"],
+        "properties": {
+          "text": { "title": "Text", "type": "string" },
+          "type": { "const": "text", "title": "Type", "type": "string" }
+        }
+      },
+      "ChatCompletionContentPartVideoParam": {
+        "type": "object",
+        "title": "ChatCompletionContentPartVideoParam",
+        "required": ["video_url", "type"],
+        "properties": {
+          "video_url": { "$ref": "#/components/schemas/VideoURL" },
+          "type": { "const": "video_url", "title": "Type", "type": "string" }
+        }
+      },
+      "ChatCompletionDeveloperMessageParam": {
+        "type": "object",
+        "title": "ChatCompletionDeveloperMessageParam",
+        "required": ["content", "role"],
+        "properties": {
+          "content": {
+            "anyOf": [
+              { "type": "string" },
+              {
+                "items": { "$ref": "#/components/schemas/ChatCompletionContentPartTextParam" },
+                "type": "array"
+              }
+            ],
+            "title": "Content"
+          },
+          "role": { "const": "developer", "title": "Role", "type": "string" },
+          "name": { "title": "Name", "type": "string" }
+        }
+      },
+      "ChatCompletionFunctionMessageParam": {
+        "type": "object",
+        "title": "ChatCompletionFunctionMessageParam",
+        "required": ["content", "name", "role"],
+        "properties": {
+          "content": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Content" },
+          "name": { "title": "Name", "type": "string" },
+          "role": { "const": "function", "title": "Role", "type": "string" }
+        }
+      },
+      "ChatCompletionMessageToolCallParam": {
+        "type": "object",
+        "title": "ChatCompletionMessageToolCallParam",
+        "required": ["id", "function", "type"],
+        "properties": {
+          "id": { "title": "Id", "type": "string" },
+          "function": { "$ref": "#/components/schemas/Function" },
+          "type": { "const": "function", "title": "Type", "type": "string" }
+        }
+      },
+      "ChatCompletionNamedFunction": {
+        "type": "object",
+        "title": "ChatCompletionNamedFunction",
+        "required": ["name"],
+        "properties": { "name": { "title": "Name", "type": "string" } },
+        "additionalProperties": true
+      },
+      "ChatCompletionNamedToolChoiceParam": {
+        "type": "object",
+        "title": "ChatCompletionNamedToolChoiceParam",
+        "required": ["function"],
+        "properties": {
+          "function": { "$ref": "#/components/schemas/ChatCompletionNamedFunction" },
+          "type": { "const": "function", "default": "function", "title": "Type", "type": "string" }
+        },
+        "additionalProperties": true
+      },
+      "ChatCompletionSystemMessageParam": {
+        "type": "object",
+        "title": "ChatCompletionSystemMessageParam",
+        "required": ["content", "role"],
+        "properties": {
+          "content": {
+            "anyOf": [
+              { "type": "string" },
+              {
+                "items": { "$ref": "#/components/schemas/ChatCompletionContentPartTextParam" },
+                "type": "array"
+              }
+            ],
+            "title": "Content"
+          },
+          "role": { "const": "system", "title": "Role", "type": "string" },
+          "name": { "title": "Name", "type": "string" }
+        }
+      },
+      "ChatCompletionToolMessageParam": {
+        "type": "object",
+        "title": "ChatCompletionToolMessageParam",
+        "required": ["content", "role", "tool_call_id"],
+        "properties": {
+          "content": {
+            "anyOf": [
+              { "type": "string" },
+              {
+                "items": { "$ref": "#/components/schemas/ChatCompletionContentPartTextParam" },
+                "type": "array"
+              }
+            ],
+            "title": "Content"
+          },
+          "role": { "const": "tool", "title": "Role", "type": "string" },
+          "tool_call_id": { "title": "Tool Call Id", "type": "string" }
+        }
+      },
+      "ChatCompletionToolsParam": {
+        "type": "object",
+        "title": "ChatCompletionToolsParam",
+        "required": ["function"],
+        "properties": {
+          "type": { "const": "function", "default": "function", "title": "Type", "type": "string" },
+          "function": { "$ref": "#/components/schemas/FunctionDefinition" }
+        },
+        "additionalProperties": true
+      },
+      "ChatCompletionUserMessageParam": {
+        "type": "object",
+        "title": "ChatCompletionUserMessageParam",
+        "required": ["content", "role"],
+        "properties": {
+          "content": {
+            "anyOf": [
+              { "type": "string" },
+              {
+                "items": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/ChatCompletionContentPartTextParam" },
+                    { "$ref": "#/components/schemas/ChatCompletionContentPartImageParam" },
+                    { "$ref": "#/components/schemas/ChatCompletionContentPartInputAudioParam" },
+                    { "$ref": "#/components/schemas/File" }
+                  ]
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Content"
+          },
+          "role": { "const": "user", "title": "Role", "type": "string" },
+          "name": { "title": "Name", "type": "string" }
+        }
+      },
+      "CustomChatCompletionContentSimpleAudioParam": {
+        "type": "object",
+        "title": "CustomChatCompletionContentSimpleAudioParam",
+        "required": ["audio_url"],
+        "properties": { "audio_url": { "title": "Audio Url", "type": "string" } },
+        "description": "A simpler version of the param that only accepts a plain audio_url.\n\nExample:\n{\n    \"audio_url\": \"https://example.com/audio.mp3\"\n}"
+      },
+      "CustomChatCompletionContentSimpleImageParam": {
+        "type": "object",
+        "title": "CustomChatCompletionContentSimpleImageParam",
+        "required": ["image_url"],
+        "properties": { "image_url": { "title": "Image Url", "type": "string" } },
+        "description": "A simpler version of the param that only accepts a plain image_url.\nThis is supported by OpenAI API, although it is not documented.\n\nExample:\n{\n    \"image_url\": \"https://example.com/image.jpg\"\n}"
+      },
+      "CustomChatCompletionContentSimpleVideoParam": {
+        "type": "object",
+        "title": "CustomChatCompletionContentSimpleVideoParam",
+        "required": ["video_url"],
+        "properties": { "video_url": { "title": "Video Url", "type": "string" } },
+        "description": "A simpler version of the param that only accepts a plain audio_url.\n\nExample:\n{\n    \"video_url\": \"https://example.com/video.mp4\"\n}"
+      },
+      "CustomChatCompletionMessageParam": {
+        "type": "object",
+        "title": "CustomChatCompletionMessageParam",
+        "required": ["role"],
+        "properties": {
+          "role": { "title": "Role", "type": "string" },
+          "content": {
+            "anyOf": [
+              { "type": "string" },
+              {
+                "items": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/ChatCompletionContentPartTextParam" },
+                    { "$ref": "#/components/schemas/ChatCompletionContentPartImageParam" },
+                    { "$ref": "#/components/schemas/ChatCompletionContentPartInputAudioParam" },
+                    { "$ref": "#/components/schemas/File" },
+                    { "$ref": "#/components/schemas/ChatCompletionContentPartAudioParam" },
+                    { "$ref": "#/components/schemas/ChatCompletionContentPartVideoParam" },
+                    { "$ref": "#/components/schemas/ChatCompletionContentPartRefusalParam" },
+                    { "$ref": "#/components/schemas/CustomChatCompletionContentSimpleImageParam" },
+                    { "$ref": "#/components/schemas/ChatCompletionContentPartImageEmbedsParam" },
+                    { "$ref": "#/components/schemas/CustomChatCompletionContentSimpleAudioParam" },
+                    { "$ref": "#/components/schemas/CustomChatCompletionContentSimpleVideoParam" },
+                    { "type": "string" }
+                  ]
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Content"
+          },
+          "name": { "title": "Name", "type": "string" },
+          "tool_call_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Tool Call Id"
+          },
+          "tool_calls": {
+            "anyOf": [
+              {
+                "items": { "$ref": "#/components/schemas/ChatCompletionMessageToolCallParam" },
+                "type": "array"
+              },
+              { "type": "null" }
+            ],
+            "title": "Tool Calls"
+          }
+        },
+        "description": "Enables custom roles in the Chat Completion API."
+      },
+      "File": {
+        "type": "object",
+        "title": "File",
+        "required": ["file", "type"],
+        "properties": {
+          "file": { "$ref": "#/components/schemas/FileFile" },
+          "type": { "const": "file", "title": "Type", "type": "string" }
+        }
+      },
+      "FileFile": {
+        "type": "object",
+        "title": "FileFile",
+        "properties": {
+          "file_data": { "title": "File Data", "type": "string" },
+          "file_id": { "title": "File Id", "type": "string" },
+          "filename": { "title": "Filename", "type": "string" }
+        }
+      },
+      "Function": {
+        "type": "object",
+        "title": "Function",
+        "required": ["arguments", "name"],
+        "properties": {
+          "arguments": { "title": "Arguments", "type": "string" },
+          "name": { "title": "Name", "type": "string" }
+        }
+      },
+      "FunctionCall": {
+        "type": "object",
+        "title": "FunctionCall",
+        "required": ["arguments", "name"],
+        "properties": {
+          "arguments": { "title": "Arguments", "type": "string" },
+          "name": { "title": "Name", "type": "string" }
+        }
+      },
+      "FunctionDefinition": {
+        "type": "object",
+        "title": "FunctionDefinition",
+        "required": ["name"],
+        "properties": {
+          "name": { "title": "Name", "type": "string" },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "default": null,
+            "title": "Description"
+          },
+          "parameters": {
+            "anyOf": [{ "additionalProperties": true, "type": "object" }, { "type": "null" }],
+            "default": null,
+            "title": "Parameters"
+          }
+        },
+        "additionalProperties": true
+      },
+      "ImageURL": {
+        "type": "object",
+        "title": "ImageURL",
+        "required": ["url"],
+        "properties": {
+          "url": { "title": "Url", "type": "string" },
+          "detail": { "enum": ["auto", "low", "high"], "title": "Detail", "type": "string" }
+        }
+      },
+      "InputAudio": {
+        "type": "object",
+        "title": "InputAudio",
+        "required": ["data", "format"],
+        "properties": {
+          "data": { "title": "Data", "type": "string" },
+          "format": { "enum": ["wav", "mp3"], "title": "Format", "type": "string" }
+        }
+      },
+      "JsonSchemaResponseFormat": {
+        "type": "object",
+        "title": "JsonSchemaResponseFormat",
+        "required": ["name"],
+        "properties": {
+          "name": { "title": "Name", "type": "string" },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "default": null,
+            "title": "Description"
+          },
+          "schema": {
+            "anyOf": [{ "additionalProperties": true, "type": "object" }, { "type": "null" }],
+            "default": null,
+            "title": "Schema"
+          },
+          "strict": {
+            "anyOf": [{ "type": "boolean" }, { "type": "null" }],
+            "default": null,
+            "title": "Strict"
+          }
+        },
+        "additionalProperties": true
+      },
+      "LogitsProcessorConstructor": {
+        "type": "object",
+        "title": "LogitsProcessorConstructor",
+        "required": ["qualname"],
+        "properties": {
+          "qualname": { "title": "Qualname", "type": "string" },
+          "args": {
+            "anyOf": [{ "items": {}, "type": "array" }, { "type": "null" }],
+            "default": null,
+            "title": "Args"
+          },
+          "kwargs": {
+            "anyOf": [{ "additionalProperties": true, "type": "object" }, { "type": "null" }],
+            "default": null,
+            "title": "Kwargs"
+          }
+        }
+      },
+      "ResponseFormat": {
+        "type": "object",
+        "title": "ResponseFormat",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "enum": ["text", "json_object", "json_schema"],
+            "title": "Type",
+            "type": "string"
+          },
+          "json_schema": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/JsonSchemaResponseFormat" },
+              { "type": "null" }
+            ],
+            "default": null
+          }
+        },
+        "additionalProperties": true
+      },
+      "StreamOptions": {
+        "type": "object",
+        "title": "StreamOptions",
+        "properties": {
+          "include_usage": {
+            "anyOf": [{ "type": "boolean" }, { "type": "null" }],
+            "default": true,
+            "title": "Include Usage"
+          },
+          "continuous_usage_stats": {
+            "anyOf": [{ "type": "boolean" }, { "type": "null" }],
+            "default": false,
+            "title": "Continuous Usage Stats"
+          }
+        },
+        "additionalProperties": true
+      },
+      "VideoURL": {
+        "type": "object",
+        "title": "VideoURL",
+        "required": ["url"],
+        "properties": { "url": { "title": "Url", "type": "string" } }
+      },
+      "EmbeddingCompletionRequestIODescriptor": {
+        "type": "object",
+        "title": "EmbeddingCompletionRequestIODescriptor",
+        "required": ["input"],
+        "properties": {
+          "model": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "default": null,
+            "title": "Model"
+          },
+          "input": {
+            "anyOf": [
+              { "items": { "type": "integer" }, "type": "array" },
+              { "items": { "items": { "type": "integer" }, "type": "array" }, "type": "array" },
+              { "type": "string" },
+              { "items": { "type": "string" }, "type": "array" }
+            ],
+            "title": "Input"
+          },
+          "encoding_format": {
+            "default": "float",
+            "enum": ["float", "base64"],
+            "title": "Encoding Format",
+            "type": "string"
+          },
+          "dimensions": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "default": null,
+            "title": "Dimensions"
+          },
+          "user": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "default": null,
+            "title": "User"
+          },
+          "truncate_prompt_tokens": {
+            "anyOf": [{ "minimum": 1, "type": "integer" }, { "type": "null" }],
+            "default": null,
+            "title": "Truncate Prompt Tokens"
+          },
+          "additional_data": {
+            "anyOf": [{}, { "type": "null" }],
+            "default": null,
+            "title": "Additional Data"
+          },
+          "add_special_tokens": {
+            "default": true,
+            "description": "If true (the default), special tokens (e.g. BOS) will be added to the prompt.",
+            "title": "Add Special Tokens",
+            "type": "boolean"
+          },
+          "priority": {
+            "default": 0,
+            "description": "The priority of the request (lower means earlier handling; default: 0). Any priority other than 0 will raise an error if the served model does not use priority scheduling.",
+            "title": "Priority",
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true,
+        "root_input": true
+      },
+      "EssayRequestIODescriptor": {
+        "type": "object",
+        "title": "EssayRequestIODescriptor",
+        "required": ["vault_id", "file_id", "content"],
+        "properties": {
+          "vault_id": { "title": "Vault Id", "type": "string" },
+          "file_id": { "title": "File Id", "type": "string" },
+          "content": { "title": "Content", "type": "string" }
+        },
+        "root_input": true
+      },
+      "EssayResponseIODescriptor": {
+        "type": "object",
+        "title": "EssayResponseIODescriptor",
+        "required": ["vault_id", "file_id", "nodes"],
+        "properties": {
+          "vault_id": { "title": "Vault Id", "type": "string" },
+          "file_id": { "title": "File Id", "type": "string" },
+          "nodes": {
+            "items": { "$ref": "#/components/schemas/EssayNode" },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "error": { "default": "", "title": "Error", "type": "string" }
+        }
+      },
+      "EssayNode": {
+        "type": "object",
+        "title": "EssayNode",
+        "required": ["embedding", "node_id", "metadata", "relationships", "metadata_separator"],
+        "properties": {
+          "embedding": {
+            "anyOf": [{ "items": { "type": "number" }, "type": "array" }, { "type": "null" }],
+            "title": "Embedding"
+          },
+          "node_id": { "title": "Node Id", "type": "string" },
+          "metadata": { "additionalProperties": true, "title": "Metadata", "type": "object" },
+          "relationships": {
+            "additionalProperties": {
+              "anyOf": [
+                { "$ref": "#/components/schemas/RelatedNodeInfo" },
+                { "items": { "$ref": "#/components/schemas/RelatedNodeInfo" }, "type": "array" }
+              ]
+            },
+            "propertyNames": { "$ref": "#/components/schemas/NodeRelationship" },
+            "title": "Relationships",
+            "type": "object"
+          },
+          "metadata_separator": { "title": "Metadata Separator", "type": "string" }
+        }
+      },
+      "NodeRelationship": {
+        "type": "string",
+        "title": "NodeRelationship",
+        "enum": ["1", "2", "3", "4", "5"],
+        "description": "Node relationships used in `BaseNode` class.\n\nAttributes:\n    SOURCE: The node is the source document.\n    PREVIOUS: The node is the previous node in the document.\n    NEXT: The node is the next node in the document.\n    PARENT: The node is the parent node in the document.\n    CHILD: The node is a child node in the document."
+      },
+      "ObjectType": { "type": "string", "title": "ObjectType", "enum": ["1", "2", "3", "4", "5"] },
+      "RelatedNodeInfo": {
+        "type": "object",
+        "title": "RelatedNodeInfo",
+        "required": ["node_id"],
+        "properties": {
+          "node_id": { "title": "Node Id", "type": "string" },
+          "node_type": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/ObjectType" },
+              { "type": "string" },
+              { "type": "null" }
+            ],
+            "default": null,
+            "title": "Node Type"
+          },
+          "metadata": { "additionalProperties": true, "title": "Metadata", "type": "object" },
+          "hash": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "default": null,
+            "title": "Hash"
+          },
+          "class_name": { "default": "RelatedNodeInfo", "title": "Class Name", "type": "string" }
+        }
+      },
+      "HealthRequestIODescriptor": {
+        "type": "object",
+        "title": "HealthRequestIODescriptor",
+        "properties": { "timeout": { "default": 30, "title": "Timeout", "type": "integer" } },
+        "root_input": true
+      },
+      "HealthResponseIODescriptor": {
+        "type": "object",
+        "title": "HealthResponseIODescriptor",
+        "required": ["healthy", "services", "timestamp"],
+        "properties": {
+          "healthy": { "title": "Healthy", "type": "boolean" },
+          "services": {
+            "items": { "$ref": "#/components/schemas/DependentStatus" },
+            "title": "Services",
+            "type": "array"
+          },
+          "timestamp": { "title": "Timestamp", "type": "string" }
+        }
+      },
+      "DependentStatus": {
+        "type": "object",
+        "title": "DependentStatus",
+        "required": ["name"],
+        "properties": {
+          "name": { "title": "Name", "type": "string" },
+          "healthy": { "default": false, "title": "Healthy", "type": "boolean" },
+          "latency_ms": { "default": 0, "title": "Latency Ms", "type": "number" },
+          "error": { "default": "", "title": "Error", "type": "string" }
+        }
+      },
+      "NotesRequestIODescriptor": {
+        "type": "object",
+        "title": "NotesRequestIODescriptor",
+        "required": ["vault_id", "file_id", "note_id", "content"],
+        "properties": {
+          "vault_id": { "title": "Vault Id", "type": "string" },
+          "file_id": { "title": "File Id", "type": "string" },
+          "note_id": { "title": "Note Id", "type": "string" },
+          "content": { "title": "Content", "type": "string" }
+        },
+        "root_input": true
+      },
+      "NotesResponseIODescriptor": {
+        "type": "object",
+        "title": "NotesResponseIODescriptor",
+        "required": ["vault_id", "file_id", "note_id", "embedding"],
+        "properties": {
+          "vault_id": { "title": "Vault Id", "type": "string" },
+          "file_id": { "title": "File Id", "type": "string" },
+          "note_id": { "title": "Note Id", "type": "string" },
+          "embedding": { "items": { "type": "number" }, "title": "Embedding", "type": "array" },
+          "error": { "default": "", "title": "Error", "type": "string" },
+          "usage": { "$ref": "#/components/schemas/Usage" }
+        }
+      },
+      "Usage": {
+        "type": "object",
+        "title": "Usage",
+        "required": ["prompt_tokens", "total_tokens"],
+        "properties": {
+          "prompt_tokens": { "title": "Prompt Tokens", "type": "integer" },
+          "total_tokens": { "title": "Total Tokens", "type": "integer" }
+        },
+        "additionalProperties": true
+      },
+      "SuggestRequestIODescriptor": {
+        "type": "object",
+        "title": "SuggestRequestIODescriptor",
+        "required": ["essay"],
+        "properties": {
+          "essay": { "title": "Essay", "type": "string" },
+          "authors": {
+            "anyOf": [{ "items": { "type": "string" }, "type": "array" }, { "type": "null" }],
+            "default": [
+              "Raymond Carver",
+              "Franz Kafka",
+              "Albert Camus",
+              "Iain McGilchrist",
+              "Ian McEwan"
+            ],
+            "title": "Authors"
+          },
+          "tonality": {
+            "anyOf": [{ "$ref": "#/components/schemas/Tonality" }, { "type": "null" }],
+            "default": null
+          },
+          "num_suggestions": {
+            "default": 3,
+            "minimum": 1,
+            "title": "Num Suggestions",
+            "type": "integer"
+          },
+          "top_p": {
+            "default": 0.95,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Top P",
+            "type": "number"
+          },
+          "temperature": {
+            "default": 0.6,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Temperature",
+            "type": "number"
+          },
+          "max_tokens": {
+            "default": 16384,
+            "maximum": 16384,
+            "minimum": 256,
+            "title": "Max Tokens",
+            "type": "integer"
+          },
+          "usage": { "default": true, "title": "Usage", "type": "boolean" }
+        },
+        "root_input": true
+      },
+      "Tonality": {
+        "type": "object",
+        "title": "Tonality",
+        "properties": {
+          "formal": { "default": 0, "title": "Formal", "type": "number" },
+          "fun": { "default": 0, "title": "Fun", "type": "number" },
+          "logical": { "default": 0, "title": "Logical", "type": "number" },
+          "soul-cartographer": { "default": 0, "title": "Soul-Cartographer", "type": "number" }
+        },
+        "additionalProperties": true
+      },
+      "TaskStatusResponse": {
+        "type": "object",
+        "title": "TaskStatusResponse",
+        "required": ["task_id", "status", "created_at", "executed_at"],
+        "properties": {
+          "task_id": { "title": "Task Id", "type": "string" },
+          "status": {
+            "enum": ["in_progress", "success", "failure", "cancelled"],
+            "title": "Status",
+            "type": "string"
+          },
+          "created_at": { "title": "Created At", "type": "string" },
+          "executed_at": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Executed At"
+          }
+        }
+      },
+      "InvalidArgument": {
+        "type": "object",
+        "title": "InvalidArgument",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string", "title": "Message" },
+          "detail": { "type": "string", "title": "Error Detail" }
+        },
+        "description": "Bad Request"
+      },
+      "NotFound": {
+        "type": "object",
+        "title": "NotFound",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string", "title": "Message" },
+          "detail": { "type": "string", "title": "Error Detail" }
+        },
+        "description": "Not Found"
+      },
+      "InternalServerError": {
+        "type": "object",
+        "title": "InternalServerError",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string", "title": "Message" },
+          "detail": { "type": "string", "title": "Error Detail" }
+        },
+        "description": "Internal Server Error"
+      }
+    }
+  }
+}
