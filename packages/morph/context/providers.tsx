@@ -4,7 +4,6 @@ import { applyPgLiteMigrations, initializeDb } from "@/db"
 import migrations from "@/generated/migrations.json"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
-import { drizzle } from "drizzle-orm/pglite"
 import { AnimatePresence, motion } from "motion/react"
 import type React from "react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -19,8 +18,6 @@ import { VaultProvider } from "@/context/vault"
 import { verifyHandle } from "@/context/vault-reducer"
 
 import useFsHandles from "@/hooks/use-fs-handles"
-
-import * as schema from "@/db/schema"
 
 interface ClientProviderProps {
   children: React.ReactNode
@@ -73,8 +70,8 @@ async function restoreLastFile(vaultId: string, getHandle: any) {
   }
 }
 
-// Component that handles file preloading
-function FilePreloader() {
+// Component that handles file preloading - exported to be used in vault-specific routes
+export function FilePreloader() {
   const { getHandle } = useFsHandles()
   const { setRestoredFile, setIsRestorationAttempted } = useRestoredFile()
   const fileRestorationRef = useRef<boolean>(false)
@@ -124,38 +121,29 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
       setLoadingProgress(0)
 
       try {
-        // Simulate progress updates for 0-50%
+        // Simulate progress updates for 0-70% with faster intervals
         const progressInterval = setInterval(() => {
           setLoadingProgress((prev) => {
-            const newProgress = prev + 0.05
-            return newProgress > 0.5 ? 0.5 : newProgress
+            const newProgress = prev + 0.1 // Faster increment
+            return newProgress > 0.7 ? 0.7 : newProgress
           })
-        }, 200)
+        }, 50) // Much shorter interval
 
         const dbInstance = await initializeDb()
         await applyPgLiteMigrations(dbInstance, migrations)
 
-        // Set up Drizzle with the DB instance
-        drizzle({ client: dbInstance, schema })
-
         clearInterval(progressInterval)
-        setLoadingProgress(0.6) // DB is ready at 60%
-        setDb(dbInstance)
+        setLoadingProgress(0.8) // DB is ready at 80%
 
-        // Now start file pre-loading - this now happens in the FilePreloader component
-        // Move to 70% to indicate file preloading has started
-        setLoadingProgress(0.7)
-
-        // Wait a bit for file preloading to complete
+        // Quick transition to finish
         setTimeout(() => {
-          // Move to 90% progress
           setLoadingProgress(0.9)
-
-          // Final progress - loading complete
           setTimeout(() => {
+            setDb(dbInstance)
             setLoadingProgress(1)
-          }, 200)
-        }, 500)
+          }, 50)
+        }, 50)
+
       } catch (err) {
         console.error("Error initializing database:", err)
         setLoadingProgress(1) // Move to 100% even on error so UI can show
@@ -194,7 +182,6 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
             <PGliteProvider db={db}>
               <QueryClientProvider client={queryClient}>
                 <FileRestorationProvider>
-                  <FilePreloader />
                   <VaultProvider>
                     <ThemeProvider
                       attribute="class"

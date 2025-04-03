@@ -96,8 +96,8 @@ interface NewlyGeneratedNotes {
 export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const { theme } = useTheme()
   const { toast } = useToast()
-  const { getHandle, storeHandle } = useFsHandles()
-  const { restoredFile, setRestoredFile, isRestorationAttempted } = useRestoredFile()
+  const { storeHandle } = useFsHandles()
+  const { restoredFile, setRestoredFile } = useRestoredFile()
 
   const { refreshVault, flattenedFileIds } = useVaultContext()
   const [currentFile, setCurrentFile] = useState<string>("Untitled")
@@ -343,161 +343,31 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   // Effect to use preloaded file from context if available
   useEffect(() => {
-    if (!isClient || !codeMirrorViewRef.current || !restoredFile || fileRestorationAttempted.current) return
+    if (!isClient || !restoredFile || fileRestorationAttempted.current) return
 
-    console.debug("Using preloaded file from context:", restoredFile.fileName)
+    console.debug("Initializing with preloaded file from context:", restoredFile.fileName)
 
-    // Load file content
-    const success = loadFileContent(restoredFile.fileName, restoredFile.fileHandle, restoredFile.content)
+    // Update local state even before CodeMirror is ready
+    setCurrentFile(restoredFile.fileName)
+    setMarkdownContent(restoredFile.content)
+    setCurrentFileHandle(restoredFile.fileHandle)
+    setHasUnsavedChanges(false)
 
-    if (success) {
+    // If CodeMirror is ready, also update it
+    if (codeMirrorViewRef.current) {
+      console.debug("Updating CodeMirror with preloaded content")
+
+      loadFileContent(restoredFile.fileName, restoredFile.fileHandle, restoredFile.content)
+
       // Load file metadata once
       loadFileMetadataOnce(restoredFile.fileName)
-
-      // Mark file as restored so we don't try again
-      fileRestorationAttempted.current = true
-
-      // Clear the reference to avoid using it again
-      setRestoredFile(null)
     }
-  }, [isClient, restoredFile, setRestoredFile, loadFileContent, loadFileMetadataOnce])
 
-  // Effect to restore the last accessed file when component mounts
-  useEffect(() => {
-    // Only run this once after client-side mounting when vault is available
-    // Skip if we already restored from the preloaded file or if restoration was already attempted
-    if (!isClient || !vaultId || !vault || fileRestorationAttempted.current || !isRestorationAttempted) return
-
-    // Mark that we've attempted restoration so we don't try again
+    // Mark file as restored so we don't try again
     fileRestorationAttempted.current = true
-    console.debug("Starting file restoration attempt")
+  }, [isClient, setRestoredFile, restoredFile, loadFileContent, loadFileMetadataOnce])
 
-    const restoreLastFile = async () => {
-      try {
-        // Attempt to load the last accessed file information from localStorage
-        const lastFileInfoStr = localStorage.getItem(`morph:last-file:${vaultId}`)
-        if (!lastFileInfoStr) {
-          console.debug("No last file info found in localStorage")
-          return
-        }
-
-        const lastFileInfo = JSON.parse(lastFileInfoStr)
-        console.debug("Found last file info:", lastFileInfo)
-
-        // First, try to use the handle ID if available
-        if (lastFileInfo.handleId) {
-          console.debug("Attempting to restore file using handle ID:", lastFileInfo.handleId)
-          try {
-            const handle = await getHandle(lastFileInfo.handleId)
-
-            if (handle && "getFile" in handle) {
-              // Verify that the handle is still valid and has necessary permissions
-              const isValid = await verifyHandle(handle)
-
-              if (isValid) {
-                console.debug("Handle is valid, loading file")
-                const fileHandle = handle as FileSystemFileHandle
-                const file = await fileHandle.getFile()
-                const content = await file.text()
-                const fileName = file.name
-
-                // Load the file content and UI state
-                const success = loadFileContent(fileName, fileHandle, content)
-
-                if (success) {
-                  console.debug(`Restored last accessed file: ${fileName} from handle ID: ${lastFileInfo.handleId}`)
-
-                  // Load file metadata once
-                  await loadFileMetadataOnce(fileName)
-                  return // Successfully restored
-                }
-              } else {
-                console.debug("Handle permission check failed, will try fallback method")
-              }
-            } else {
-              console.debug("Retrieved handle is not a file handle or is null:", handle)
-            }
-          } catch (handleError) {
-            console.error("Error using IndexedDB handle, will try fallback method:", handleError)
-          }
-        }
-
-        // Fallback method: search by filename in the file tree
-        if (lastFileInfo.fileName && vault.tree) {
-          console.debug("Attempting to restore file by searching tree for:", lastFileInfo.fileName)
-
-          // Find the file node in the vault's file tree
-          const findFile = (node: FileSystemTreeNode): FileSystemTreeNode | null => {
-            if (node.kind === "file" && node.name === lastFileInfo.fileName) {
-              return node
-            }
-
-            if (node.children) {
-              for (const child of node.children) {
-                const found = findFile(child)
-                if (found) return found
-              }
-            }
-
-            return null
-          }
-
-          const fileNode = findFile(vault.tree)
-
-          if (fileNode?.kind === "file" && fileNode.handle) {
-            try {
-              // Verify permissions for this handle too
-              const isValid = await verifyHandle(fileNode.handle)
-
-              if (!isValid) {
-                console.debug("Tree file handle permission check failed")
-                return
-              }
-
-              // We found the file, let's load it directly
-              const file = await fileNode.handle.getFile()
-              const content = await file.text()
-              const fileName = file.name
-
-              // Load file content and UI state
-              const success = loadFileContent(fileName, fileNode.handle as FileSystemFileHandle, content)
-
-              if (success) {
-                console.debug(`Restored last accessed file using tree search: ${fileName}`)
-
-                // Save this handle ID for future use to avoid tree search
-                if (fileNode.handleId) {
-                  localStorage.setItem(
-                    `morph:last-file:${vaultId}`,
-                    JSON.stringify({
-                      fileName,
-                      lastAccessed: new Date().toISOString(),
-                      handleId: fileNode.handleId,
-                    }),
-                  )
-                }
-
-                // Load file metadata once
-                await loadFileMetadataOnce(fileName)
-              }
-            } catch (fileError) {
-              console.error("Error loading file from tree:", fileError)
-            }
-          } else {
-            console.debug("Could not find file in tree:", lastFileInfo.fileName)
-          }
-        }
-      } catch (error) {
-        console.error("Error restoring last accessed file:", error)
-        // Continue without restoring - not a critical error
-      }
-    }
-
-    // Execute file restoration
-    restoreLastFile()
-  }, [isClient, vault, vaultId, isRestorationAttempted, getHandle, loadFileContent, loadFileMetadataOnce])
-
-  // Reset loaded files when vault changes
+  // Reset loaded files cache when vault changes
   useEffect(() => {
     loadedFiles.current.clear()
   }, [vaultId])
@@ -1302,6 +1172,13 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       updatePreview(markdownContent)
     }
   }, [markdownContent, updatePreview])
+
+  // Add an effect to update preview specifically when a file is restored
+  useEffect(() => {
+    if (restoredFile?.content && !fileRestorationAttempted.current) {
+      updatePreview(restoredFile.content)
+    }
+  }, [restoredFile, updatePreview])
 
   const onNewFile = useCallback(() => {
     setCurrentFileHandle(null)
