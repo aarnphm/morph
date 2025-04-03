@@ -3,6 +3,11 @@
 import { cn, sanitizeStreamingContent, toJsx } from "@/lib"
 import { generatePastelColor } from "@/lib/notes"
 import { groupNotesByDate } from "@/lib/notes"
+import {
+  checkNoteHasEmbedding,
+  submitNoteForEmbedding,
+  useProcessPendingEmbeddings,
+} from "@/services/embedding"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
 import { Compartment, EditorState } from "@codemirror/state"
@@ -22,6 +27,8 @@ import { DndProvider } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
 
 import { CustomDragLayer, EditorDropTarget, Playspace } from "@/components/dnd"
+import { EmbeddingProcessor } from "@/components/embedding-processor"
+import { EmbeddingStatus } from "@/components/embedding-status"
 import { fileField, mdToHtml } from "@/components/markdown-inline"
 import { setFile } from "@/components/markdown-inline"
 import { DroppedNoteGroup } from "@/components/note-group"
@@ -34,6 +41,7 @@ import { DotIcon } from "@/components/ui/icons"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 import { usePGlite } from "@/context/db"
+import { useEmbeddingTasks } from "@/context/embedding"
 import { useRestoredFile } from "@/context/file-restoration"
 import { SearchProvider } from "@/context/search"
 import { SteeringProvider, SteeringSettings } from "@/context/steering"
@@ -141,6 +149,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const db = drizzle({ client, schema })
 
   const vault = vaults.find((v) => v.id === vaultId)
+
+  // Add the process pending embeddings mutation
+  const processEmbeddings = useProcessPendingEmbeddings()
+
+  // Use the embedding tasks context
+  const { addTask } = useEmbeddingTasks()
 
   const toggleStackExpand = useCallback(() => {
     setIsStackExpanded((prev) => !prev)
@@ -257,33 +271,29 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
           if (fileNotes && fileNotes.length > 0) {
             // Process notes and reasoning in parallel
-            const processNotesPromise = (async () => {
-              // Separate notes into regular and dropped notes
-              const regularNotes = fileNotes.filter((note) => !note.dropped)
-              const droppedNotesList = fileNotes.filter((note) => note.dropped)
-              console.debug(
-                `Regular notes: ${regularNotes.length}, Dropped notes: ${droppedNotesList.length}`,
-              )
+            // Separate notes into regular and dropped notes
+            const regularNotes = fileNotes.filter((note) => !note.dropped)
+            const droppedNotesList = fileNotes.filter((note) => note.dropped)
+            console.debug(
+              `Regular notes: ${regularNotes.length}, Dropped notes: ${droppedNotesList.length}`,
+            )
 
-              // Prepare notes for the UI
-              const uiReadyRegularNotes = regularNotes.map((note) => ({
-                ...note,
-                color: note.color || generatePastelColor(),
-                lastModified: new Date(note.accessedAt),
-              }))
+            // Prepare notes for the UI
+            const uiReadyRegularNotes = regularNotes.map((note) => ({
+              ...note,
+              color: note.color || generatePastelColor(),
+              lastModified: new Date(note.accessedAt),
+            }))
 
-              const uiReadyDroppedNotes = droppedNotesList.map((note) => ({
-                ...note,
-                color: note.color || generatePastelColor(),
-                lastModified: new Date(note.accessedAt),
-              }))
+            const uiReadyDroppedNotes = droppedNotesList.map((note) => ({
+              ...note,
+              color: note.color || generatePastelColor(),
+              lastModified: new Date(note.accessedAt),
+            }))
 
-              // Update the state with fetched notes in a non-blocking way
-              React.startTransition(() => {
-                setNotes(uiReadyRegularNotes)
-                setDroppedNotes(uiReadyDroppedNotes)
-              })
-            })()
+            // Update the state with fetched notes in a non-blocking way
+            setNotes(uiReadyRegularNotes)
+            setDroppedNotes(uiReadyDroppedNotes)
 
             // In parallel, fetch and process reasoning if needed
             const reasoningIds = [...new Set(fileNotes.map((note) => note.reasoningId))]
@@ -313,9 +323,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 })
               }
             }
-
-            // Make sure we wait for note processing to complete
-            await processNotesPromise
           }
         } catch (error) {
           console.error("Error fetching notes for file:", error)
@@ -443,7 +450,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             // We use a self-executing async function to avoid making the whole callback async
             ;(async () => {
               try {
-                // Find the file in database
+                // First, find the file in database
                 const dbFile = await db.query.files.findFirst({
                   where: (files, { and, eq }) =>
                     and(eq(files.name, currentFile), eq(files.vaultId, vault.id)),
@@ -467,7 +474,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     // Get note IDs for the reasoning
                     const noteIds = currentGenerationNotes.map((note) => note.id)
 
-                    // Insert reasoning
+                    // Insert reasoning with properly typed steering (can be null)
                     await db.insert(schema.reasonings).values({
                       id: currentReasoningId,
                       fileId: dbFile.id,
@@ -490,7 +497,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   })
 
                   if (!existingNote) {
-                    // Insert new note
+                    // Insert note with properly typed steering (can be null)
                     await db.insert(schema.notes).values({
                       id: note.id,
                       content: note.content,
@@ -501,10 +508,53 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       fileId: dbFile.id,
                       vaultId: note.vaultId,
                       reasoningId: note.reasoningId!,
-                      steering: note.steering!,
+                      steering: note.steering || null,
                       embeddingStatus: "in_progress",
                       embeddingTaskId: null,
                     })
+                  }
+                }
+
+                // Process notes for embedding one by one and set up polling
+                for (const note of currentGenerationNotes) {
+                  console.debug(
+                    `[Embedding] Checking current generation note ${note.id} for embedding...`,
+                  )
+                  const hasEmbedding = await checkNoteHasEmbedding(db, note.id)
+                  if (!hasEmbedding) {
+                    console.debug(
+                      `[Embedding] Current generation note ${note.id} needs embedding, submitting...`,
+                    )
+                    const result = await submitNoteForEmbedding(db, note)
+
+                    // If successful and we have a task ID, add it for polling
+                    if (result) {
+                      console.debug(
+                        `[Embedding] Current generation note ${note.id} submitted successfully, checking for task ID...`,
+                      )
+                      const updatedNote = await db.query.notes.findFirst({
+                        where: eq(schema.notes.id, note.id),
+                      })
+
+                      if (updatedNote?.embeddingTaskId) {
+                        console.debug(
+                          `[Embedding] Adding task ${updatedNote.embeddingTaskId} for current generation note ${note.id} to polling`,
+                        )
+                        addTask(updatedNote.embeddingTaskId)
+                      } else {
+                        console.debug(
+                          `[Embedding] No task ID found for current generation note ${note.id}`,
+                        )
+                      }
+                    } else {
+                      console.debug(
+                        `[Embedding] Failed to submit current generation note ${note.id} for embedding`,
+                      )
+                    }
+                  } else {
+                    console.debug(
+                      `[Embedding] Current generation note ${note.id} already has embedding`,
+                    )
                   }
                 }
               } catch (error) {
@@ -516,6 +566,14 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           // Reset current generation state to prevent duplication when reopening
           setCurrentGenerationNotes([])
           setCurrentlyGeneratingDateKey(null)
+        }
+      } else {
+        // When opening the notes panel, check for notes that need embeddings
+        // but only process once per file to avoid excessive processing
+        if (notes.length > 0 && !embeddingProcessedRef.current) {
+          console.debug(`[Embedding] Opening notes panel, processing pending embeddings...`)
+          processEmbeddings.mutate({ addTask })
+          embeddingProcessedRef.current = true
         }
       }
       return !prev
@@ -531,6 +589,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     db,
     currentReasoningId,
     reasoningHistory,
+    processEmbeddings,
+    addTask,
+    notes.length,
   ])
 
   const contentRef = useRef({ content: "", filename: "" })
@@ -575,11 +636,35 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             fileId: dbFile.id,
           })
           .where(eq(schema.notes.id, noteWithColor.id))
+
+        // After updating the note's dropped status, check if it needs embedding
+        // If it doesn't already have an embedding, submit it
+        const hasEmbedding = await checkNoteHasEmbedding(db, noteWithColor.id)
+        if (!hasEmbedding) {
+          // Get the full note with all fields
+          const fullNote = await db.query.notes.findFirst({
+            where: eq(schema.notes.id, noteWithColor.id),
+          })
+
+          if (fullNote) {
+            // Submit for embedding and get task ID
+            const result = await submitNoteForEmbedding(db, fullNote)
+
+            // If successful and we have a task ID, add it to our context
+            const updatedNote = await db.query.notes.findFirst({
+              where: eq(schema.notes.id, noteWithColor.id),
+            })
+
+            if (result && updatedNote?.embeddingTaskId) {
+              addTask(updatedNote.embeddingTaskId)
+            }
+          }
+        }
       } catch (error) {
         console.error("Failed to update note dropped status:", error)
       }
     },
-    [db, currentFile, vault],
+    [db, currentFile, vault, addTask],
   )
 
   useEffect(() => {
@@ -1451,7 +1536,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               },
             })
 
-            // Convert to proper database format for insertion
+            // Insert notes into database
             for (const note of newNotes) {
               await db.insert(schema.notes).values({
                 id: note.id,
@@ -1463,7 +1548,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 fileId: dbFile!.id,
                 vaultId: note.vaultId,
                 reasoningId: note.reasoningId!,
-                steering: note.steering!,
+                steering: note.steering || null,
                 embeddingStatus: "in_progress",
                 embeddingTaskId: null,
               })
@@ -1479,6 +1564,38 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
             // Set current generation notes for UI
             setCurrentGenerationNotes(newNotes)
+
+            // Submit each note for embedding individually and track task IDs for polling
+            console.debug(
+              `[Embedding] Processing ${newNotes.length} newly generated notes for embeddings...`,
+            )
+            for (const note of newNotes) {
+              console.debug(`[Embedding] Submitting new note ${note.id} for embedding...`)
+              const result = await submitNoteForEmbedding(db, note)
+
+              // If successful and the note has a task ID, add it for polling
+              if (result && note.embeddingTaskId) {
+                console.debug(
+                  `[Embedding] New note ${note.id} successfully submitted, checking for task ID...`,
+                )
+                const updatedNote = await db.query.notes.findFirst({
+                  where: eq(schema.notes.id, note.id),
+                })
+
+                if (updatedNote?.embeddingTaskId) {
+                  console.debug(
+                    `[Embedding] Adding task ${updatedNote.embeddingTaskId} for new note ${note.id} to polling`,
+                  )
+                  addTask(updatedNote.embeddingTaskId)
+                } else {
+                  console.debug(`[Embedding] No task ID found for new note ${note.id}`)
+                }
+              } else {
+                console.debug(
+                  `[Embedding] Failed to submit new note ${note.id} for embedding or no task ID assigned`,
+                )
+              }
+            }
           } catch (dbError) {
             console.error("Failed to save notes to database:", dbError)
             // Still show notes in UI even if DB fails
@@ -1518,6 +1635,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       streamingSuggestionColors,
       db,
       currentGenerationNotes,
+      addTask,
     ],
   )
 
@@ -1716,6 +1834,143 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [vault, vaultId, isClient, loadFileContent, loadFileMetadataOnce, toast, storeHandle],
   )
 
+  // Add this ref to track if we've processed embeddings for the current file
+  const embeddingProcessedRef = useRef(false)
+
+  // Reset the embedding processed flag when the file changes
+  useEffect(() => {
+    embeddingProcessedRef.current = false
+  }, [currentFile])
+
+  // Add an effect to process all notes in the editor for embeddings
+  useEffect(() => {
+    if (!isClient || !isOnline || notes.length === 0) return
+
+    // Use a stable reference to the notes length to prevent excessive processing
+    const notesCount = notes.length
+    console.debug(`[Embedding] Checking ${notesCount} notes for embedding processing...`)
+
+    // Check and process notes for embeddings after a short delay to avoid performance issues
+    const timeoutId = setTimeout(async () => {
+      try {
+        // Only process if we haven't already for this file
+        if (embeddingProcessedRef.current) {
+          console.debug(`[Embedding] Skipping processing - already processed for current file`)
+          return
+        }
+
+        // Process up to 3 notes that don't have embeddings yet
+        const notesToProcess = []
+        let processedCount = 0
+
+        // Create a stable copy of the notes array to avoid race conditions
+        const currentNotes = [...notes]
+
+        for (const note of currentNotes) {
+          if (processedCount >= 3) break // Limit to 3 per batch
+
+          // Only process notes that aren't already in progress or success
+          if (
+            note.embeddingStatus !== "success" &&
+            note.embeddingStatus !== "in_progress" &&
+            !note.dropped
+          ) {
+            console.debug(`[Embedding] Checking if note ${note.id} needs embedding...`)
+            const hasEmbedding = await checkNoteHasEmbedding(db, note.id)
+            if (!hasEmbedding) {
+              console.debug(`[Embedding] Note ${note.id} needs embedding, adding to process queue`)
+              notesToProcess.push(note)
+              processedCount++
+            } else {
+              console.debug(`[Embedding] Note ${note.id} already has embedding`)
+            }
+          }
+        }
+
+        console.debug(`[Embedding] Found ${notesToProcess.length} notes that need embedding`)
+
+        // Process collected notes one by one
+        for (const note of notesToProcess) {
+          console.debug(`[Embedding] Submitting note ${note.id} for embedding...`)
+          const result = await submitNoteForEmbedding(db, note)
+
+          // If successful and we have a task ID, add it for polling
+          if (result) {
+            console.debug(
+              `[Embedding] Successfully submitted note ${note.id}, checking for task ID...`,
+            )
+            const updatedNote = await db.query.notes.findFirst({
+              where: eq(schema.notes.id, note.id),
+            })
+
+            if (updatedNote?.embeddingTaskId) {
+              console.debug(
+                `[Embedding] Adding task ${updatedNote.embeddingTaskId} for note ${note.id} to polling`,
+              )
+              addTask(updatedNote.embeddingTaskId)
+            } else {
+              console.debug(`[Embedding] No task ID found for note ${note.id}`)
+            }
+          } else {
+            console.debug(`[Embedding] Failed to submit note ${note.id} for embedding`)
+          }
+        }
+
+        // Mark as processed after we're done
+        embeddingProcessedRef.current = true
+      } catch (error) {
+        console.error("[Embedding] Failed to check and process notes for embeddings:", error)
+      }
+    }, 2000) // 2 second delay
+
+    return () => clearTimeout(timeoutId)
+  }, [isClient, isOnline, currentFile]) // Only depend on stable values, not notes array itself
+
+  // Use the embedding status hook
+  // This hooks has some side-effects, and must be called at the very last.
+  const [embeddingStatus, setEmbeddingStatus] = useState<Note["embeddingStatus"]>(null)
+  useEffect(() => {
+    if (notes.length === 0) {
+      console.debug(`[Embedding] useEmbeddingStatus: No notes to track, status = null`)
+      setEmbeddingStatus(null)
+      return
+    }
+
+    // Check if any notes are in progress
+    const anyInProgress = notes.some((note) => note.embeddingStatus === "in_progress")
+    if (anyInProgress) {
+      console.debug(
+        `[Embedding] useEmbeddingStatus: Some notes are in progress, status = in_progress`,
+      )
+      setEmbeddingStatus("in_progress")
+      return
+    }
+
+    // Check if all notes have successful embeddings
+    const allSuccess = notes.every((note) => note.embeddingStatus === "success")
+    if (allSuccess && notes.length > 0) {
+      console.debug(
+        `[Embedding] useEmbeddingStatus: All notes have successful embeddings, status = success`,
+      )
+      setEmbeddingStatus("success")
+      return
+    }
+
+    // Check if any notes failed
+    const anyFailed = notes.some(
+      (note) => note.embeddingStatus === "failure" || note.embeddingStatus === "cancelled",
+    )
+    if (anyFailed) {
+      console.debug(`[Embedding] useEmbeddingStatus: Some notes failed, status = failure`)
+      setEmbeddingStatus("failure")
+      return
+    }
+
+    // Default to null if we can't determine status
+    console.debug(`[Embedding] useEmbeddingStatus: Can't determine status, status = null`)
+    setEmbeddingStatus(null)
+  }, [notes])
+
   return (
     <DndProvider backend={HTML5Backend}>
       <SteeringProvider>
@@ -1731,6 +1986,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             />
             <SidebarInset className="flex flex-col h-screen flex-1 overflow-hidden">
               <Playspace vaultId={vaultId}>
+                <EmbeddingProcessor />
                 <AnimatePresence initial={false}>
                   {showEphemeralBanner && (
                     <motion.div
@@ -1772,12 +2028,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       className={cn(
                         isClient &&
                           (isNotesLoading || !isOnline) &&
-                          "opacity-50 cursor-not-allowed",
-                      )} // Conditionally apply style based on isClient
+                          "cursor-not-allowed opacity-50 hover:cursor-not-allowed",
+                      )}
                       onClick={toggleNotes}
-                      disabled={!isClient || isNotesLoading || !isOnline} // Disable if not client, loading, or offline
+                      disabled={!isClient || isNotesLoading || !isOnline}
                       size="small"
-                      // Adjust title based on client state as well
                       title={
                         showNotes
                           ? "Hide Notes"
@@ -1794,15 +2049,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   <div className="absolute top-4 left-4 text-sm/7 z-10 flex flex-col items-center gap-2">
                     {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
                     {isClient && !isOnline && <GlobeIcon className="w-4 h-4 text-destructive" />}
-                    {/* {isEmbeddingInProgress && ( */}
-                    {/*   <> */}
-                    {/*     {eyeIconState === "open" ? ( */}
-                    {/*       <EyeOpenIcon className="w-4 h-4 text-blue-400 animate-pulse" /> */}
-                    {/*     ) : ( */}
-                    {/*       <EyeClosedIcon className="w-4 h-4 text-blue-400/70" /> */}
-                    {/*     )} */}
-                    {/*   </> */}
-                    {/* )} */}
+                    {embeddingStatus && <EmbeddingStatus status={embeddingStatus} />}
                   </div>
                   <div
                     className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}

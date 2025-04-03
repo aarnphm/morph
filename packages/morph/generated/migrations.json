@@ -29,5 +29,14 @@
     "bps": true,
     "folderMillis": 1743670342947,
     "hash": "adfbefeda36508f92b64b5dd8b559c49163495d5fb00194f7ebaac253e0cf7dc"
+  },
+  {
+    "sql": [
+      "ALTER TABLE \"notes\" ALTER COLUMN \"steering\" DROP NOT NULL;",
+      "\nALTER TABLE \"reasonings\" ALTER COLUMN \"steering\" DROP NOT NULL;"
+    ],
+    "bps": true,
+    "folderMillis": 1743681605947,
+    "hash": "508ee01396189c49987c009823a73a9b1d96ea6c98df332e78a7b7ce90422f68"
   }
 ]

@@ -220,6 +220,10 @@ const DriversBar = memo(
             size="small"
             color="yellow"
             title="Interpreter Settings"
+            disabled={isNotesLoading}
+            className={cn(
+              isNotesLoading && "cursor-not-allowed opacity-50 hover:cursor-not-allowed",
+            )}
           >
             <MixerHorizontalIcon className="h-3 w-3" />
           </VaultButton>
@@ -232,6 +236,7 @@ const DriversBar = memo(
             className={cn(
               "text-primary border border-accent-foreground/40",
               !isNotesRecentlyGenerated && "button-shimmer-border",
+              isNotesLoading && "cursor-not-allowed opacity-50 hover:cursor-not-allowed",
             )}
             title="Generate Suggestions"
           >

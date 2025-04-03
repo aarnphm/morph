@@ -18,6 +18,7 @@ import { VaultProvider } from "@/context/vault"
 import { verifyHandle } from "@/context/vault-reducer"
 
 import useFsHandles from "@/hooks/use-fs-handles"
+import { EmbeddingTasksProvider } from "@/context/embedding"
 
 interface ClientProviderProps {
   children: React.ReactNode
@@ -175,6 +176,7 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
             <PGliteProvider db={db}>
               <QueryClientProvider client={queryClient}>
                 <FileRestorationProvider>
+                  <EmbeddingTasksProvider>
                   <VaultProvider>
                     <ThemeProvider
                       attribute="class"
@@ -187,8 +189,9 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
                       </TooltipProvider>
                     </ThemeProvider>
                   </VaultProvider>
-                  <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+</EmbeddingTasksProvider>
                 </FileRestorationProvider>
+                  <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
               </QueryClientProvider>
             </PGliteProvider>
           </motion.div>

@@ -21,6 +21,7 @@ dependencies = [
   "llama-index-llms-openai-like>=0.3.4",
   "httpx>=0.27.0",
   "fastapi>=0.115.8",
+  "exa-py>=1.9.1",
 ]
 [project.urls]
 Website = "https://morph-editor.app"

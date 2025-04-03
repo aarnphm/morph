@@ -76,7 +76,7 @@ export const notes = p.pgTable(
       .text("reasoningId")
       .notNull()
       .references(() => reasonings.id, { onDelete: "cascade" }),
-    steering: p.jsonb("steering").$type<Steering>().notNull(),
+    steering: p.jsonb("steering").$type<Steering | null>(),
     embeddingStatus: p
       .text("embeddingStatus", {
         enum: ["in_progress", "success", "failure", "cancelled"],
@@ -122,7 +122,7 @@ export const reasonings = p.pgTable(
     createdAt: p.timestamp("createdAt", { mode: "date" }).notNull(),
     accessedAt: p.timestamp("accessedAt", { mode: "date" }).notNull(),
     duration: p.integer("duration").notNull(),
-    steering: p.jsonb("steering").$type<Steering>().notNull(),
+    steering: p.jsonb("steering").$type<Steering | null>(),
   },
   (table) => [p.index("idx_reasonings_vault_filename").on(table.vaultId, table.fileId)],
 )

@@ -13,6 +13,7 @@ import { usePGlite } from "@/context/db"
 
 import { Note } from "@/db/interfaces"
 import * as schema from "@/db/schema"
+import { submitNotesForEmbedding } from "@/services/embedding"
 
 interface DateDisplayProps {
   dateStr: string
@@ -231,6 +232,38 @@ export const DroppedNoteGroup = memo(
       () => (isStackExpanded ? droppedNotes : droppedNotes.slice(0, MAX_VISIBLE_NOTES)),
       [droppedNotes, isStackExpanded],
     )
+
+    // Process notes for embeddings whenever droppedNotes changes
+    useEffect(() => {
+      // Skip if no notes to process
+      if (droppedNotes.length === 0) return
+
+      // Debounce the embedding check to prevent excessive processing
+      const timeoutId = setTimeout(() => {
+        // Only process notes that are visible
+        const visibleNotes = isStackExpanded
+          ? droppedNotes
+          : droppedNotes.slice(0, MAX_VISIBLE_NOTES)
+
+        // Check which notes need embeddings by checking for notes with no embedding status or non-success status
+        const notesRequiringEmbedding = visibleNotes.filter(
+          note => note.embeddingStatus !== "success"
+        )
+
+        // Only process if we have notes that need embeddings
+        if (notesRequiringEmbedding.length > 0) {
+          console.log(`[DroppedNotes] Processing ${notesRequiringEmbedding.length} visible notes for embedding`)
+
+          // Process these notes - use as any to handle type mismatch
+          submitNotesForEmbedding(db, notesRequiringEmbedding as any)
+            .catch(error => {
+              console.error("[DroppedNotes] Error submitting notes for embedding:", error)
+            })
+        }
+      }, 500) // Wait 500ms before processing to avoid excessive calls
+
+      return () => clearTimeout(timeoutId)
+    }, [droppedNotes, isStackExpanded, db, MAX_VISIBLE_NOTES])
 
     // Update the database when a note is reordered - use batching for efficiency
     const updateNotesInDB = useCallback(

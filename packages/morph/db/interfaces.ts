@@ -109,7 +109,7 @@ export interface Note {
   createdAt: Date
   accessedAt?: Date
   dropped?: boolean
-  steering?: Steering
+  steering?: Steering | null
   embeddingStatus: "in_progress" | "success" | "failure" | "cancelled" | null
   embeddingTaskId: string | null
 }

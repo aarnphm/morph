@@ -209,6 +209,10 @@ class Suggestions(pydantic.BaseModel):
   suggestions: list[Suggestion]
 
 
+class Authors(pydantic.BaseModel):
+  authors: list[str] = pydantic.Field(description='A list of suggested authors for given essay excerpt')
+
+
 class Tonality(pydantic.BaseModel):
   formal: float = 0
   fun: float = 0

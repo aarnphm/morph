@@ -7,7 +7,7 @@ from starlette.responses import JSONResponse, StreamingResponse
 from vllm.entrypoints.openai.serving_embedding import OpenAIServingEmbedding
 
 with bentoml.importing():
-  import openai
+  import openai, exa_py
 
   from openai.types import CreateEmbeddingResponse
   from openai.types.chat import ChatCompletionChunk
@@ -43,6 +43,7 @@ with bentoml.importing():
     LineNumberMetadataExtractor,
     Suggestion,
     Suggestions,
+    Authors,
     TaskType,
     Tonality,
     NotesRequest,
@@ -101,6 +102,27 @@ class SuggestRequest(pydantic.BaseModel):
   usage: bool = True
 
 
+class AuthorRequest(pydantic.BaseModel):
+  essay: str
+  num_authors: t.Annotated[int, at.Ge(1)] = 4
+  top_p: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['top_p']
+  temperature: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['temperature']
+  max_tokens: t.Annotated[int, at.Ge(256), at.Le(MAX_TOKENS)] = MAX_TOKENS
+  authors: t.Optional[list[str]] = pydantic.Field(AUTHORS)
+  search_backend: t.Optional[t.Literal['exa']] = None
+
+
+class StreamingCall(pydantic.BaseModel):
+  task: t.Literal['tool-call', 'tool-result', 'tool-error', 'tool-end', 'tool-start', 'llm-call', 'llm-result']
+  content: t.Union[pydantic.BaseModel, dict, str]
+  error: t.Optional[str] = None
+
+
+class StreamingToolCall(pydantic.BaseModel):
+  tool: str
+  content: t.Union[str, dict, list]
+
+
 llm_app = fastapi.FastAPI(title=f'OpenAI Compatible Endpoint for {LLM_ID}')
 embed_app = fastapi.FastAPI(title=f'OpenAI Compatible Endpoint for {EMBED_ID}')
 app = fastapi.FastAPI(title='API Gateway for morph')
@@ -118,7 +140,8 @@ def make_engine_service_config(type_: t.Literal['llm', 'embed'] = 'llm') -> Serv
   }
 
 
-def make_env(engine_version: t.Literal[0, 1] = 1, *, skip_hf: bool = False) -> list[dict[str, str]]:
+def make_env(engine_version: t.Literal[0, 1] = 1, *, skip_hf: bool = False, **kwargs: bool) -> list[dict[str, str]]:
+  # We provide a kwargs supports for all required envs for this service if specified
   results = []
   if not skip_hf:
     results.append({'name': 'HF_TOKEN'})
@@ -129,6 +152,9 @@ def make_env(engine_version: t.Literal[0, 1] = 1, *, skip_hf: bool = False) -> l
     {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
     {'name': 'VLLM_USE_V1', 'value': str(engine_version)},
   ])
+  required_envs = [{'name': k.upper()} for k, v in kwargs.items() if v]
+  if all(required_envs):
+    results.extend(required_envs)
   return results
 
 
@@ -342,12 +368,14 @@ class Embeddings:
   name='asteraceae-inference-api',
   resources={'cpu': 4},
   labels={'owner': 'aarnphm', 'type': 'api'},
-  envs=make_env(0, skip_hf=True),
+  envs=make_env(0, skip_hf=True, EXA_API_KEY=True),
   **SERVICE_CONFIG,
 )
 class API:
   llm = bentoml.depends(LLM, url=make_url('generate'))
   embed = bentoml.depends(Embeddings, url=make_url('embed'))
+
+  search_backend: t.Literal['exa'] = 'exa'
 
   def __init__(self):
     loader = jinja2.FileSystemLoader(searchpath=WORKING_DIR)
@@ -360,6 +388,8 @@ class API:
   def setup_clients(self):
     self.llm_httpx = (tllm := self.as_proxy(self.llm)).to_async.client
     self.embed_httpx = (tembed := self.as_proxy(self.embed)).to_async.client
+
+    self.exa = exa_py.Exa(api_key=os.environ.get('EXA_API_KEY'))
 
     self.llm_client = openai.AsyncOpenAI(
       base_url=f'{tllm.client_url}/v1', api_key='dummy', default_headers={'Runner-Name': LLM.name}
@@ -481,6 +511,188 @@ class API:
     return ModelList(
       data=[ModelCard(**d.model_dump()) for d in list(itertools.chain.from_iterable(p.data for p in results))]
     )
+
+  @bentoml.task
+  async def authors(self, request: AuthorRequest, /) -> Authors:
+    """Generate author suggestions based on essay analysis, using function calling and search tools."""
+
+    # Use the request's search backend if specified, otherwise use the default
+    search_backend = request.search_backend or self.search_backend
+    logger.info('Using search backend: %s', search_backend)
+
+    # Define the search tool specifications
+    search_tools = [
+      {
+        'type': 'function',
+        'function': {
+          'name': 'search_tool',
+          'description': 'Search the internet for information about authors, writing styles, or other relevant literary information',
+          'parameters': {
+            'type': 'object',
+            'properties': {
+              'query': {
+                'type': 'string',
+                'description': 'The search query to find information about authors, writing styles, or literary information',
+              }
+            },
+            'required': ['query'],
+          },
+        },
+      }
+    ]
+
+    # Initial message to analyze the text and consider authors
+    messages = [
+      {
+        'role': 'user',
+        'content': self.templater.get_template('TOOL_CALLING.md').render(
+          excerpt=request.essay, num_authors=request.num_authors, authors=request.authors
+        ),
+      }
+    ]
+
+    try:
+      logger.info('Making initial completion request')
+      # First call: Let the model analyze and potentially use search tools
+      tool_caller = await self.llm_client.chat.completions.create(
+        model=LLM_ID,
+        messages=messages,
+        tools=search_tools,
+        temperature=request.temperature,
+        top_p=request.top_p,
+        max_tokens=request.max_tokens,
+        tool_choice='auto',
+      )
+
+      assistant_message = tool_caller.choices[0].message
+      messages.append(assistant_message.model_dump())
+
+      # Process any tool calls
+      if assistant_message.tool_calls:
+        logger.info('Processing %d tool calls', len(assistant_message.tool_calls))
+        for tool_call in assistant_message.tool_calls:
+          if tool_call.function.name == 'search_tool':
+            try:
+              # Parse the arguments - Qwen/vLLM provides JSON string
+              args = json.loads(tool_call.function.arguments)
+              search_query = args.get('query', '')
+              logger.info('Executing search for: "%s"', search_query)
+
+              # Execute the search using the configured backend
+              search_results = await self.search(search_query, backend=search_backend)
+              logger.info('Found %d search results', len(search_results))
+
+              # Add the tool response to messages
+              messages.append({
+                'role': 'tool',
+                'tool_call_id': tool_call.id,
+                'name': 'search_tool',
+                'content': json.dumps(search_results),
+              })
+
+            except Exception as e:
+              # Handle errors in tool execution
+              error_message = f'Error executing search tool: {e!s}'
+              logger.error('Search error: %s', error_message)
+              messages.append({
+                'role': 'tool',
+                'tool_call_id': tool_call.id,
+                'name': 'search_tool',
+                'content': json.dumps({'error': error_message}),
+              })
+
+        # Add a prompt to use the search results
+        messages.append({
+          'role': 'user',
+          'content': 'Based on the search results and the excerpt, please provide your final list of authors.',
+        })
+
+        logger.info('Making final completion with guided_json')
+
+        # Final call: Generate structured output with guided_json and enable reasoning
+        # For Qwen models with vLLM, guided_json is the recommended structured output format
+        completions = await self.llm_client.chat.completions.create(
+          model=LLM_ID,
+          messages=messages,
+          temperature=request.temperature * 0.8,  # Slightly lower temperature for more consistent output
+          max_tokens=1024,
+          extra_body={'guided_json': Authors.model_json_schema()},
+        )
+
+        # Parse the response which may contain reasoning
+        try:
+          content = completions.choices[0].message.content or '{}'
+          reasoning_content = completions.choices[0].message.reasoning_content
+          logger.info('reasoning logics: %s', reasoning_content)
+
+          authors_data = json.loads(content)
+          authors_list = authors_data.get('authors', [])
+          logger.info('Found %d authors: %s', len(authors_list), authors_list)
+          return Authors(authors=authors_list)
+        except Exception as e:
+          logger.error('Error parsing final authors response: %s', e)
+          return Authors(authors=[])
+      else:
+        logger.info('No tool calls, parsing initial response')
+        # The model already generated a response without using tools
+        try:
+          content = assistant_message.content
+          reasoning_content = assistant_message.reasoning_content
+          logger.info('reasoning logics: %s', reasoning_content)
+
+          # Try regular JSON parsing
+          authors_data = json.loads(content)
+          authors_list = authors_data.get('authors', [])
+          logger.info('Found %d authors: %s', len(authors_list), authors_list)
+          return Authors(authors=authors_list)
+        except Exception:
+          logger.info('Initial response not in JSON format, making final guided_json request')
+          # If the output is not JSON, make a final request with guided_json
+          messages.append({
+            'role': 'user',
+            'content': "Please format your response as a valid JSON object with a single key 'authors' and a list of author names as strings.",
+          })
+
+          completions = await self.llm_client.chat.completions.create(
+            model=LLM_ID,
+            messages=messages,
+            temperature=0.2,  # Low temperature for consistent output
+            max_tokens=1024,
+            extra_body={'guided_json': Authors.model_json_schema()},
+          )
+
+          try:
+            content = completions.choices[0].message.content or '{}'
+            reasoning_content = completions.choices[0].message.reasoning_content
+            logger.info('reasoning logics: %s', reasoning_content)
+
+            # Standard JSON parsing
+            authors_data = json.loads(content)
+            authors_list = authors_data.get('authors', [])
+            logger.info('Found %d authors from final request: %s', len(authors_list), authors_list)
+            return Authors(authors=authors_list)
+          except Exception as inner_e:
+            logger.error('Error generating final authors list: %s', inner_e)
+            return Authors(authors=[])
+
+    except Exception as e:
+      logger.error('Error in authors function: %s', e)
+      logger.error(traceback.format_exc())
+      return Authors(authors=[])
+
+  async def search(
+    self, query: str, backend: t.Literal['exa'] | str = 'exa', num_results: int = 5
+  ) -> list[dict[str, str]]:
+    if backend == 'exa':
+      return await self.exa_search(query, num_results)
+    else:
+      raise ValueError(f'Unsupported search backend: {backend}')
+
+  async def exa_search(self, query: str, max_results: int = 5) -> list[dict[str, str]]:
+    """Perform a search using the Exa API for high-quality semantic search results."""
+    if self.exa is None:
+      raise ValueError('Currently only exa is supported')
+    return self.exa.search_and_contents(query, num_results=max_results, text=True, type='auto')
 
   @bentoml.api
   async def suggests(self, request: SuggestRequest, /) -> t.AsyncGenerator[str, None]:
