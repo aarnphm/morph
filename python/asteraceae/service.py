@@ -757,17 +757,7 @@ class API:
     try:
       result = await self.pipeline.arun(
         show_progress=True,
-        documents=[
-          Document(
-            text=essay.content,
-            doc_id=essay.file_id,
-            metadata={
-              'vault_id': essay.vault_id,
-              'original_text': essay.content,  # Store original text for line number extraction
-              'file_id': essay.file_id,  # Include file ID for reference
-            },
-          )
-        ],
+        documents=[Document(text=essay.content, doc_id=essay.file_id, metadata=essay.model_dump())],
         num_workers=multiprocessing.cpu_count(),
       )
       return EssayResponse(

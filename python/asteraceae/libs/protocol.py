@@ -232,14 +232,7 @@ class LineNumberMetadataExtractor(TransformComponent):
   in the node metadata after semantic chunking.
   """
 
-  def __init__(self, include_whitespace: bool = True):
-    """Initialize the line number extractor.
-
-    Args:
-        include_whitespace: Whether to include whitespace lines in numbering
-    """
-    self.include_whitespace = include_whitespace
-    super().__init__()
+  include_whitespace: bool = True
 
   def __call__(self, nodes: list[BaseNode], **kwargs: t.Any) -> list[BaseNode]:
     """Process nodes to add line number metadata.
@@ -264,8 +257,8 @@ class LineNumberMetadataExtractor(TransformComponent):
       original_text = None
 
       # First check if we stored original_text in metadata during document creation
-      if 'original_text' in node.metadata:
-        original_text = node.metadata['original_text']
+      if 'content' in node.metadata:
+        original_text = node.metadata['content']
       # Then check source_node for Document-derived nodes
       elif hasattr(node, 'source_node') and node.source_node and hasattr(node.source_node, 'text'):
         original_text = node.source_node.text
