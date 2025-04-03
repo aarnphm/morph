@@ -750,7 +750,7 @@ export default memo(function Rails({
         console.error("Error reading file:", error)
       }
     },
-    [], // Remove all dependencies
+    [vault, editorViewRef, onContentUpdate, onFileSelect, toast],
   )
 
   // Memoize the motion components to prevent unnecessary recalculations

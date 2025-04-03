@@ -23,7 +23,12 @@ const eslintConfig = [
     extends: ["plugin:drizzle/recommended"],
     parser: "@typescript-eslint/parser",
     rules: {
-      "drizzle/enforce-update-with-where": "warn",
+      "drizzle/enforce-update-with-where": [
+        "error",
+        {
+          drizzleObjectName: "db",
+        },
+      ],
     },
   }),
 ]
