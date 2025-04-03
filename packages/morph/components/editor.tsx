@@ -33,6 +33,7 @@ import SteeringPanel from "@/components/steering-panel"
 import { VaultButton } from "@/components/ui/button"
 import { DotIcon } from "@/components/ui/icons"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 import { usePGlite } from "@/context/db"
 import { SearchProvider } from "@/context/search"
@@ -187,54 +188,54 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         // Reset reasoning state
         setStreamingReasoning("")
         setReasoningComplete(false)
-        
+
         // Synchronize current generation notes with history if they exist
         if (currentGenerationNotes.length > 0 && currentlyGeneratingDateKey) {
           // Move current generation notes to main notes array
           setNotes((prevNotes) => {
             // Filter out any duplicates that might already exist
             const notesToAdd = currentGenerationNotes.filter(
-              (note) => !prevNotes.some((existingNote) => existingNote.id === note.id)
+              (note) => !prevNotes.some((existingNote) => existingNote.id === note.id),
             )
-            
+
             if (notesToAdd.length === 0) return prevNotes
-            
+
             // Add to notes and sort by creation date
             const combined = [...notesToAdd, ...prevNotes]
             return combined.sort(
-              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
             )
           })
-          
+
           // Save notes to database if the file isn't "Untitled" and we have a vault
           if (currentFile !== "Untitled" && vault) {
             // We use a self-executing async function to avoid making the whole callback async
-            (async () => {
+            ;(async () => {
               try {
                 // Find the file in database
                 const dbFile = await db.query.files.findFirst({
-                  where: (files, { and, eq }) => 
-                    and(eq(files.name, currentFile), eq(files.vaultId, vault.id))
+                  where: (files, { and, eq }) =>
+                    and(eq(files.name, currentFile), eq(files.vaultId, vault.id)),
                 })
-                
+
                 if (!dbFile) {
                   console.error("Failed to find file in database when synchronizing notes")
                   return
                 }
-                
+
                 // Get the current reasoning for these notes
-                const currentReasoning = reasoningHistory.find(r => r.id === currentReasoningId)
+                const currentReasoning = reasoningHistory.find((r) => r.id === currentReasoningId)
                 if (currentReasoning && currentReasoningId) {
                   // Check if reasoning exists in database
                   const existingReasoning = await db.query.reasonings.findFirst({
-                    where: eq(schema.reasonings.id, currentReasoningId)
+                    where: eq(schema.reasonings.id, currentReasoningId),
                   })
-                  
+
                   // If reasoning doesn't exist yet, create it
                   if (!existingReasoning && currentReasoning) {
                     // Get note IDs for the reasoning
-                    const noteIds = currentGenerationNotes.map(note => note.id)
-                    
+                    const noteIds = currentGenerationNotes.map((note) => note.id)
+
                     // Insert reasoning
                     await db.insert(schema.reasonings).values({
                       id: currentReasoningId,
@@ -249,14 +250,14 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     })
                   }
                 }
-                
+
                 // For each note, ensure it's saved to database if not already
                 for (const note of currentGenerationNotes) {
                   // Check if note exists in database
                   const existingNote = await db.query.notes.findFirst({
-                    where: eq(schema.notes.id, note.id)
+                    where: eq(schema.notes.id, note.id),
                   })
-                  
+
                   if (!existingNote) {
                     // Insert new note
                     await db.insert(schema.notes).values({
@@ -280,7 +281,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               }
             })()
           }
-          
+
           // Reset current generation state to prevent duplication when reopening
           setCurrentGenerationNotes([])
           setCurrentlyGeneratingDateKey(null)
@@ -288,7 +289,18 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       }
       return !prev
     })
-  }, [isOnline, isClient, toast, currentGenerationNotes, currentlyGeneratingDateKey, currentFile, vault, db, currentReasoningId, reasoningHistory])
+  }, [
+    isOnline,
+    isClient,
+    toast,
+    currentGenerationNotes,
+    currentlyGeneratingDateKey,
+    currentFile,
+    vault,
+    db,
+    currentReasoningId,
+    reasoningHistory,
+  ])
 
   const contentRef = useRef({ content: "", filename: "" })
 
@@ -1262,138 +1274,175 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       if (!vault || node.kind !== "file" || !codeMirrorViewRef.current) return
 
       try {
+        // Start loading indicator if needed
+        // setIsLoading(true)
+
+        // Only do file I/O once
         const file = await node.handle!.getFile()
         const content = await file.text()
         const fileName = file.name
 
-        // Update CodeMirror
+        // Update CodeMirror first for immediate feedback
         codeMirrorViewRef.current.dispatch({
           changes: { from: 0, to: codeMirrorViewRef.current.state.doc.length, insert: content },
-          // Update the file field using the effect
           effects: setFile.of(fileName),
         })
 
-        // Update component state first to show content
-        setCurrentFileHandle(node.handle as FileSystemFileHandle)
-        setCurrentFile(fileName)
-        setMarkdownContent(content)
-        setHasUnsavedChanges(false)
-        setIsEditMode(true)
-        updatePreview(content)
+        // Batch update UI state using a single function call
+        const batchStateUpdates = () => {
+          setCurrentFileHandle(node.handle as FileSystemFileHandle)
+          setCurrentFile(fileName)
+          setMarkdownContent(content)
+          setHasUnsavedChanges(false)
+          setIsEditMode(true)
 
-        // Clear any current generation states
-        setCurrentGenerationNotes([])
-        setCurrentlyGeneratingDateKey(null)
-        setNotesError(null)
+          // Reset all notes states in one batch
+          setCurrentGenerationNotes([])
+          setCurrentlyGeneratingDateKey(null)
+          setNotesError(null)
+          setNotes([])
+          setDroppedNotes([])
+          setReasoningHistory([])
+        }
 
-        // Reset note states first to prevent stale data
-        setNotes([])
-        setDroppedNotes([])
-        setReasoningHistory([])
+        // Execute batched state updates
+        batchStateUpdates()
 
-        // Check if file exists in database
-        let dbFile = await db.query.files.findFirst({
-          where: (files, { and, eq }) => and(eq(files.name, fileName), eq(files.vaultId, vault.id)),
-        })
+        // Update preview in a non-blocking way
+        setTimeout(() => {
+          updatePreview(content)
+        }, 0)
 
-        // If file doesn't exist in DB, create it
-        if (!dbFile) {
-          // Extract extension
-          const extension = fileName.includes(".") ? fileName.split(".").pop() || "" : ""
-
+        // Database operations happen independently of UI updates
+        ;(async () => {
           try {
-            // Insert file into database
-            await db.insert(schema.files).values({
-              name: fileName,
-              extension,
-              vaultId: vault.id,
-              lastModified: new Date(),
-              embeddingStatus: "in_progress",
-            })
-
-            // Re-fetch the file to get its ID
-            dbFile = await db.query.files.findFirst({
+            // Run database queries in parallel when possible
+            const dbFilePromise = db.query.files.findFirst({
               where: (files, { and, eq }) =>
                 and(eq(files.name, fileName), eq(files.vaultId, vault.id)),
             })
 
-            console.debug(`Created new file in database: ${fileName}`)
-          } catch (dbError) {
-            console.error("Error inserting file into database:", dbError)
-          }
-        }
+            // Wait for the file query to complete
+            let dbFile = await dbFilePromise
 
-        // Fetch notes associated with this file from the database
-        if (dbFile) {
-          try {
-            console.debug(`Loading notes for file ID: ${dbFile.id}`)
+            // If file doesn't exist in DB, create it
+            if (!dbFile) {
+              // Extract extension
+              const extension = fileName.includes(".") ? fileName.split(".").pop() || "" : ""
 
-            // Query all notes for this file using the proper Drizzle syntax
-            const fileNotes = await db
-              .select()
-              .from(schema.notes)
-              .where(and(eq(schema.notes.fileId, dbFile.id), eq(schema.notes.vaultId, vault.id)))
+              try {
+                // Insert file into database
+                await db.insert(schema.files).values({
+                  name: fileName,
+                  extension,
+                  vaultId: vault.id,
+                  lastModified: new Date(),
+                  embeddingStatus: "in_progress",
+                })
 
-            if (fileNotes && fileNotes.length > 0) {
-              console.debug(`Found ${fileNotes.length} notes for file ${fileName}`)
+                // Re-fetch the file to get its ID
+                dbFile = await db.query.files.findFirst({
+                  where: (files, { and, eq }) =>
+                    and(eq(files.name, fileName), eq(files.vaultId, vault.id)),
+                })
 
-              // Separate notes into regular and dropped notes
-              const regularNotes = fileNotes.filter((note) => !note.dropped)
-              const droppedNotesList = fileNotes.filter((note) => note.dropped)
+                console.debug(`Created new file in database: ${fileName}`)
+              } catch (dbError) {
+                console.error("Error inserting file into database:", dbError)
+                return // Exit early if we can't create the file
+              }
+            }
 
-              console.debug(
-                `Regular notes: ${regularNotes.length}, Dropped notes: ${droppedNotesList.length}`,
-              )
+            // Only continue if we have a valid file reference
+            if (!dbFile) {
+              console.error("Failed to find or create file in database")
+              return
+            }
 
-              // Properly prepare notes for the UI by adding display properties
-              const uiReadyRegularNotes = regularNotes.map((note) => ({
-                ...note,
-                color: note.color || generatePastelColor(),
-                lastModified: new Date(note.accessedAt),
-              }))
+            // Fetch notes associated with this file in a single query
+            try {
+              console.debug(`Loading notes for file ID: ${dbFile.id}`)
 
-              const uiReadyDroppedNotes = droppedNotesList.map((note) => ({
-                ...note,
-                color: note.color || generatePastelColor(),
-                lastModified: new Date(note.accessedAt),
-              }))
+              // Query all notes for this file
+              const fileNotes = await db
+                .select()
+                .from(schema.notes)
+                .where(and(eq(schema.notes.fileId, dbFile.id), eq(schema.notes.vaultId, vault.id)))
 
-              // Update the state with fetched notes
-              setNotes(uiReadyRegularNotes)
-              setDroppedNotes(uiReadyDroppedNotes)
+              if (fileNotes && fileNotes.length > 0) {
+                console.debug(`Found ${fileNotes.length} notes for file ${fileName}`)
 
-              // Fetch related reasonings if needed
-              const reasoningIds = [...new Set(fileNotes.map((note) => note.reasoningId))]
-              if (reasoningIds.length > 0) {
-                const reasonings = await db
-                  .select()
-                  .from(schema.reasonings)
-                  .where(inArray(schema.reasonings.id, reasoningIds))
+                // Process notes and reasoning in parallel
+                const processNotesPromise = (async () => {
+                  // Separate notes into regular and dropped notes
+                  const regularNotes = fileNotes.filter((note) => !note.dropped)
+                  const droppedNotesList = fileNotes.filter((note) => note.dropped)
 
-                if (reasonings && reasonings.length > 0) {
-                  // Convert to ReasoningHistory format and update state
-                  const reasoningHistory = reasonings.map((r) => ({
-                    id: r.id,
-                    content: r.content,
-                    timestamp: r.createdAt,
-                    noteIds: fileNotes.filter((n) => n.reasoningId === r.id).map((n) => n.id),
-                    reasoningElapsedTime: r.duration,
-                    authors: r.steering?.authors,
-                    tonality: r.steering?.tonality,
-                    temperature: r.steering?.temperature,
-                    numSuggestions: r.steering?.numSuggestions,
+                  console.debug(
+                    `Regular notes: ${regularNotes.length}, Dropped notes: ${droppedNotesList.length}`,
+                  )
+
+                  // Prepare notes for the UI
+                  const uiReadyRegularNotes = regularNotes.map((note) => ({
+                    ...note,
+                    color: note.color || generatePastelColor(),
+                    lastModified: new Date(note.accessedAt),
                   }))
 
-                  setReasoningHistory(reasoningHistory)
+                  const uiReadyDroppedNotes = droppedNotesList.map((note) => ({
+                    ...note,
+                    color: note.color || generatePastelColor(),
+                    lastModified: new Date(note.accessedAt),
+                  }))
+
+                  // Update the state with fetched notes in a non-blocking way
+                  React.startTransition(() => {
+                    setNotes(uiReadyRegularNotes)
+                    setDroppedNotes(uiReadyDroppedNotes)
+                  })
+                })()
+
+                // In parallel, fetch and process reasoning if needed
+                const reasoningIds = [...new Set(fileNotes.map((note) => note.reasoningId))]
+                if (reasoningIds.length > 0) {
+                  const reasonings = await db
+                    .select()
+                    .from(schema.reasonings)
+                    .where(inArray(schema.reasonings.id, reasoningIds))
+
+                  if (reasonings && reasonings.length > 0) {
+                    // Convert to ReasoningHistory format
+                    const reasoningHistory = reasonings.map((r) => ({
+                      id: r.id,
+                      content: r.content,
+                      timestamp: r.createdAt,
+                      noteIds: fileNotes.filter((n) => n.reasoningId === r.id).map((n) => n.id),
+                      reasoningElapsedTime: r.duration,
+                      authors: r.steering?.authors,
+                      tonality: r.steering?.tonality,
+                      temperature: r.steering?.temperature,
+                      numSuggestions: r.steering?.numSuggestions,
+                    }))
+
+                    // Update reasoning history state in a non-blocking way
+                    React.startTransition(() => {
+                      setReasoningHistory(reasoningHistory)
+                    })
+                  }
                 }
+
+                // Make sure we wait for note processing to complete
+                await processNotesPromise
+              } else {
+                console.debug(`No notes found for file ${fileName}`)
               }
-            } else {
-              console.debug(`No notes found for file ${fileName}`)
+            } catch (error) {
+              console.error("Error fetching notes for file:", error)
             }
-          } catch (error) {
-            console.error("Error fetching notes for file:", error)
+          } catch (dbError) {
+            console.error("Error with database operations:", dbError)
           }
-        }
+        })()
       } catch (error) {
         console.error("Error handling file selection:", error)
         toast({
@@ -1408,207 +1457,194 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <SteeringProvider>
-        <CustomDragLayer />
-        <SearchProvider vault={vault!}>
-          <SidebarProvider defaultOpen={false} className="flex min-h-screen">
-            <Rails
-              vault={vault!}
-              editorViewRef={codeMirrorViewRef}
-              onFileSelect={handleFileSelect}
-              onNewFile={onNewFile}
-              onContentUpdate={updatePreview}
-            />
-            <SidebarInset className="flex flex-col h-screen flex-1 overflow-hidden">
-              <Playspace vaultId={vaultId}>
-                <AnimatePresence>
-                  {showEphemeralBanner && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ duration: 0.3 }}
-                      className="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-50 bg-yellow-100 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-md shadow-md text-xs flex items-center space-x-2"
-                    >
-                      <span>
-                        📝 Suggestions are ephemeral and will be{" "}
-                        <span className="text-red-400">lost</span> unless the file is saved (
-                        <kbd>⌘ s</kbd>)
-                      </span>
-                      <button
-                        onClick={() => setShowEphemeralBanner(false)}
-                        className="text-yellow-800 hover:text-yellow-900 hover:cursor-pointer"
-                        aria-label="Dismiss notification"
+      <TooltipProvider>
+        <SteeringProvider>
+          <CustomDragLayer />
+          <SearchProvider vault={vault!}>
+            <SidebarProvider defaultOpen={false} className="flex min-h-screen">
+              <Rails
+                vault={vault!}
+                editorViewRef={codeMirrorViewRef}
+                onFileSelect={handleFileSelect}
+                onNewFile={onNewFile}
+                onContentUpdate={updatePreview}
+              />
+              <SidebarInset className="flex flex-col h-screen flex-1 overflow-hidden">
+                <Playspace vaultId={vaultId}>
+                  <AnimatePresence initial={false}>
+                    {showEphemeralBanner && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                        className="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-50 bg-yellow-100 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-md shadow-md text-xs flex items-center space-x-2"
                       >
-                        <Cross2Icon className="w-3 h-3" />
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <EditorDropTarget handleNoteDropped={handleNoteDropped}>
-                  <AnimatePresence>
-                    {memoizedDroppedNotes.length > 0 && (
-                      <DroppedNoteGroup
-                        droppedNotes={memoizedDroppedNotes}
-                        isStackExpanded={isStackExpanded}
-                        onExpandStack={toggleStackExpand}
-                        onDragBackToPanel={handleNoteDragBackToPanel}
-                        className="before:mix-blend-multiply before:bg-noise-pattern"
-                      />
+                        <span>
+                          📝 Suggestions are ephemeral and will be{" "}
+                          <span className="text-red-400">lost</span> unless the file is saved (
+                          <kbd>⌘ s</kbd>)
+                        </span>
+                        <button
+                          onClick={() => setShowEphemeralBanner(false)}
+                          className="text-yellow-800 hover:text-yellow-900 hover:cursor-pointer"
+                          aria-label="Dismiss notification"
+                        >
+                          <Cross2Icon className="w-3 h-3" />
+                        </button>
+                      </motion.div>
                     )}
                   </AnimatePresence>
-                  {showNotes && <SteeringPanel />}
-                  <div className="flex flex-col items-center space-y-2 absolute bottom-4 right-4 z-20">
-                    {droppedNotes.length > 0 && (
+                  <EditorDropTarget handleNoteDropped={handleNoteDropped}>
+                    <AnimatePresence initial={false}>
+                      {memoizedDroppedNotes.length > 0 && (
+                        <DroppedNoteGroup
+                          droppedNotes={memoizedDroppedNotes}
+                          isStackExpanded={isStackExpanded}
+                          onExpandStack={toggleStackExpand}
+                          onDragBackToPanel={handleNoteDragBackToPanel}
+                          className="before:mix-blend-multiply before:bg-noise-pattern"
+                        />
+                      )}
+                    </AnimatePresence>
+                    {showNotes && <SteeringPanel />}
+                    <div className="flex flex-col items-center space-y-2 absolute bottom-4 right-4 z-20">
                       <VaultButton
-                        onClick={toggleStackExpand}
-                        color="orange"
+                        className={cn(
+                          isClient &&
+                            (isNotesLoading || !isOnline) &&
+                            "opacity-50 cursor-not-allowed",
+                        )} // Conditionally apply style based on isClient
+                        onClick={toggleNotes}
+                        disabled={!isClient || isNotesLoading || !isOnline} // Disable if not client, loading, or offline
                         size="small"
-                        title={isStackExpanded ? "Collapse notes stack" : "Expand notes stack"}
+                        // Adjust title based on client state as well
+                        title={
+                          showNotes
+                            ? "Hide Notes"
+                            : isClient && isOnline
+                              ? "Show Notes"
+                              : isClient && !isOnline
+                                ? "Notes unavailable offline"
+                                : "Loading..."
+                        }
                       >
-                        {isStackExpanded ? (
-                          <Cross2Icon className="w-3 h-3" />
-                        ) : (
-                          <StackIcon className="w-3 h-3" />
-                        )}
+                        <CopyIcon className="w-3 h-3" />
                       </VaultButton>
+                    </div>
+                    <div className="absolute top-4 left-4 text-sm/7 z-10 flex flex-col items-center gap-2">
+                      {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
+                      {isClient && !isOnline && <GlobeIcon className="w-4 h-4 text-destructive" />}
+                      {/* {isEmbeddingInProgress && ( */}
+                      {/*   <> */}
+                      {/*     {eyeIconState === "open" ? ( */}
+                      {/*       <EyeOpenIcon className="w-4 h-4 text-blue-400 animate-pulse" /> */}
+                      {/*     ) : ( */}
+                      {/*       <EyeClosedIcon className="w-4 h-4 text-blue-400/70" /> */}
+                      {/*     )} */}
+                      {/*   </> */}
+                      {/* )} */}
+                    </div>
+                    <div
+                      className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
+                    >
+                      <div className="h-full scrollbar-hidden relative">
+                        <CodeMirror
+                          value={markdownContent}
+                          height="100%"
+                          autoFocus
+                          placeholder={"What's on your mind?"}
+                          basicSetup={{
+                            rectangularSelection: true,
+                            indentOnInput: true,
+                            syntaxHighlighting: true,
+                            searchKeymap: true,
+                            highlightActiveLine: false,
+                            highlightSelectionMatches: false,
+                          }}
+                          indentWithTab={false}
+                          extensions={memoizedExtensions}
+                          onChange={onContentChange}
+                          className="overflow-auto h-full mx-8 scrollbar-hidden pt-4"
+                          theme={theme === "dark" ? "dark" : editorTheme}
+                          onCreateEditor={(view) => {
+                            codeMirrorViewRef.current = view
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div
+                      className={`reading-mode absolute inset-0 ${isEditMode ? "hidden" : "block overflow-hidden"}`}
+                      ref={readingModeRef}
+                    >
+                      <div className="prose dark:prose-invert h-full mr-8 overflow-auto scrollbar-hidden">
+                        <article className="@container h-full max-w-5xl mx-auto scrollbar-hidden mt-4">
+                          {previewNode && toJsx(previewNode)}
+                        </article>
+                      </div>
+                    </div>
+                  </EditorDropTarget>
+                  <AnimatePresence mode="wait" initial={false}>
+                    {showNotes && (
+                      <motion.div
+                        key="notes-panel"
+                        initial={{ width: 0, opacity: 0, overflow: "hidden" }}
+                        animate={{
+                          width: "22rem",
+                          opacity: 1,
+                          overflow: "visible",
+                        }}
+                        exit={{
+                          width: 0,
+                          opacity: 0,
+                          overflow: "hidden",
+                        }}
+                        transition={{
+                          type: "tween",
+                          duration: 0.2,
+                          ease: "easeOut",
+                        }}
+                        layout
+                      >
+                        <NotesPanel
+                          notes={notes}
+                          isNotesLoading={isNotesLoading}
+                          notesError={notesError}
+                          currentlyGeneratingDateKey={currentlyGeneratingDateKey}
+                          currentGenerationNotes={currentGenerationNotes}
+                          droppedNotes={droppedNotes}
+                          streamingReasoning={streamingReasoning}
+                          reasoningComplete={reasoningComplete}
+                          currentFile={currentFile}
+                          vaultId={vault?.id}
+                          currentReasoningId={currentReasoningId}
+                          reasoningHistory={reasoningHistory}
+                          handleNoteDropped={handleNoteDropped}
+                          handleNoteRemoved={handleNoteRemoved}
+                          handleCurrentGenerationNote={handleCurrentGenerationNote}
+                          formatDate={formatDate}
+                          isNotesRecentlyGenerated={isNotesRecentlyGenerated}
+                          currentReasoningElapsedTime={currentReasoningElapsedTime}
+                          generateNewSuggestions={generateNewSuggestions}
+                          noteGroupsData={noteGroupsData}
+                          notesContainerRef={notesContainerRef}
+                          streamingNotes={streamingNotes}
+                          scanAnimationComplete={scanAnimationComplete}
+                        />
+                      </motion.div>
                     )}
-                    <VaultButton
-                      className={cn(
-                        isClient &&
-                          (isNotesLoading || !isOnline) &&
-                          "opacity-50 cursor-not-allowed",
-                      )} // Conditionally apply style based on isClient
-                      onClick={toggleNotes}
-                      disabled={!isClient || isNotesLoading || !isOnline} // Disable if not client, loading, or offline
-                      size="small"
-                      // Adjust title based on client state as well
-                      title={
-                        showNotes
-                          ? "Hide Notes"
-                          : isClient && isOnline
-                            ? "Show Notes"
-                            : isClient && !isOnline
-                              ? "Notes unavailable offline"
-                              : "Loading..."
-                      }
-                    >
-                      <CopyIcon className="w-3 h-3" />
-                    </VaultButton>
-                  </div>
-                  <div className="absolute top-4 left-4 text-sm/7 z-10 flex flex-col items-center gap-2">
-                    {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
-                    {isClient && !isOnline && <GlobeIcon className="w-4 h-4 text-destructive" />}
-                    {/* {isEmbeddingInProgress && ( */}
-                    {/*   <> */}
-                    {/*     {eyeIconState === "open" ? ( */}
-                    {/*       <EyeOpenIcon className="w-4 h-4 text-blue-400 animate-pulse" /> */}
-                    {/*     ) : ( */}
-                    {/*       <EyeClosedIcon className="w-4 h-4 text-blue-400/70" /> */}
-                    {/*     )} */}
-                    {/*   </> */}
-                    {/* )} */}
-                  </div>
-                  <div
-                    className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
-                  >
-                    <div className="h-full scrollbar-hidden relative">
-                      <CodeMirror
-                        value={markdownContent}
-                        height="100%"
-                        autoFocus
-                        placeholder={"What's on your mind?"}
-                        basicSetup={{
-                          rectangularSelection: true,
-                          indentOnInput: true,
-                          syntaxHighlighting: true,
-                          searchKeymap: true,
-                          highlightActiveLine: false,
-                          highlightSelectionMatches: false,
-                        }}
-                        indentWithTab={false}
-                        extensions={memoizedExtensions}
-                        onChange={onContentChange}
-                        className="overflow-auto h-full mx-8 scrollbar-hidden pt-4"
-                        theme={theme === "dark" ? "dark" : editorTheme}
-                        onCreateEditor={(view) => {
-                          codeMirrorViewRef.current = view
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div
-                    className={`reading-mode absolute inset-0 ${isEditMode ? "hidden" : "block overflow-hidden"}`}
-                    ref={readingModeRef}
-                  >
-                    <div className="prose dark:prose-invert h-full mr-8 overflow-auto scrollbar-hidden">
-                      <article className="@container h-full max-w-5xl mx-auto scrollbar-hidden mt-4">
-                        {previewNode && toJsx(previewNode)}
-                      </article>
-                    </div>
-                  </div>
-                </EditorDropTarget>
-                <AnimatePresence mode="wait">
-                  {showNotes && (
-                    <motion.div
-                      key="notes-panel"
-                      initial={{ width: 0, opacity: 0, overflow: "hidden" }}
-                      animate={{
-                        width: "22rem",
-                        opacity: 1,
-                        overflow: "visible",
-                      }}
-                      exit={{
-                        width: 0,
-                        opacity: 0,
-                        overflow: "hidden",
-                      }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 300,
-                        damping: 30,
-                        opacity: { duration: 0.2 },
-                      }}
-                      layout
-                    >
-                      <NotesPanel
-                        notes={notes}
-                        isNotesLoading={isNotesLoading}
-                        notesError={notesError}
-                        currentlyGeneratingDateKey={currentlyGeneratingDateKey}
-                        currentGenerationNotes={currentGenerationNotes}
-                        droppedNotes={droppedNotes}
-                        streamingReasoning={streamingReasoning}
-                        reasoningComplete={reasoningComplete}
-                        currentFile={currentFile}
-                        vaultId={vault?.id}
-                        currentReasoningId={currentReasoningId}
-                        reasoningHistory={reasoningHistory}
-                        handleNoteDropped={handleNoteDropped}
-                        handleNoteRemoved={handleNoteRemoved}
-                        handleCurrentGenerationNote={handleCurrentGenerationNote}
-                        formatDate={formatDate}
-                        isNotesRecentlyGenerated={isNotesRecentlyGenerated}
-                        currentReasoningElapsedTime={currentReasoningElapsedTime}
-                        generateNewSuggestions={generateNewSuggestions}
-                        noteGroupsData={noteGroupsData}
-                        notesContainerRef={notesContainerRef}
-                        streamingNotes={streamingNotes}
-                        scanAnimationComplete={scanAnimationComplete}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </Playspace>
-              <SearchCommand
-                maps={flattenedFileIds}
-                vault={vault!}
-                onFileSelect={handleFileSelect}
-              />
-            </SidebarInset>
-          </SidebarProvider>
-        </SearchProvider>
-      </SteeringProvider>
+                  </AnimatePresence>
+                </Playspace>
+                <SearchCommand
+                  maps={flattenedFileIds}
+                  vault={vault!}
+                  onFileSelect={handleFileSelect}
+                />
+              </SidebarInset>
+            </SidebarProvider>
+          </SearchProvider>
+        </SteeringProvider>
+      </TooltipProvider>
     </DndProvider>
   )
 })

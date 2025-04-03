@@ -37,6 +37,83 @@ const CenteredDialogContent = memo(function CenteredDialogContent({
   )
 })
 
+const Notch = memo(function Notch({ onClickBanner }: { onClickBanner: () => void }) {
+  return (
+    <>
+      <motion.svg
+        className="absolute top-0 left-0 w-full h-10 pointer-events-none"
+        preserveAspectRatio="none"
+        viewBox="0 0 1000 32"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ zIndex: 10 }}
+        initial={{ opacity: 0, scaleY: 0.7, y: -5 }}
+        animate={{ opacity: 1, scaleY: 1, y: 0 }}
+        transition={{
+          duration: 0.7,
+          ease: [0.34, 1.56, 0.64, 1],
+          delay: 0.2,
+          opacity: { duration: 0.4 },
+        }}
+      >
+        <defs>
+          <filter id="shadow" x="-10%" y="-10%" width="120%" height="150%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="rgba(253, 230, 138, 0.7)" />
+            <feDropShadow dx="0" dy="1" stdDeviation="1" floodColor="rgba(251, 191, 36, 0.3)" />
+          </filter>
+          <linearGradient
+            id="buttonBlend"
+            x1="0%"
+            y1="0%"
+            x2="0%"
+            y2="100%"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%" stopColor="#FEF3C7" stopOpacity="1" />
+            <stop offset="100%" stopColor="#FEF3C7" stopOpacity="1" />
+          </linearGradient>
+        </defs>
+        <motion.path
+          d="M0,1
+                 H390
+                 C400,1 415,8 425,15
+                 C435,22 445,25 475,25
+                 H525
+                 C555,25 565,22 575,15
+                 C585,8 600,1 610,1
+                 H1000"
+          stroke="#FDE68A"
+          strokeWidth="2.5"
+          fill="url(#buttonBlend)"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          filter="url(#shadow)"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{
+            duration: 1.2,
+            ease: "easeInOut",
+            delay: 0.3,
+          }}
+        />
+      </motion.svg>
+      <motion.div
+        className="absolute top-0 left-1/2 -translate-x-1/2 cursor-pointer z-20 flex flex-row items-center gap-1 px-4 py-1 border-t-0"
+        onClick={onClickBanner}
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          duration: 0.5,
+          ease: [0.34, 1.56, 0.64, 1],
+          delay: 0.5,
+        }}
+      >
+        <InfoCircledIcon className="h-3.5 w-3.5 text-amber-700" />
+        <span className="text-xs font-medium text-amber-700">Research Preview</span>
+      </motion.div>
+    </>
+  )
+})
+
 export default function Home() {
   const router = useRouter()
   const pathname = usePathname()
@@ -62,6 +139,11 @@ export default function Home() {
     setHasAcknowledged(true)
     setShowBannerDetails(false)
   }
+
+  const onClickBanner = useCallback(
+    () => setShowBannerDetails(!showBannerDetails),
+    [showBannerDetails],
+  )
 
   const handleOpenDirectory = useCallback(async () => {
     try {
@@ -240,7 +322,6 @@ export default function Home() {
       </Dialog>
 
       <div className="container max-w-4xl">
-        {/* Notch at the top - Absolutely positioned to avoid layout shift */}
         <motion.div
           className="relative"
           initial={{ opacity: 0 }}
@@ -258,87 +339,7 @@ export default function Home() {
               delay: 0.1,
             }}
           >
-            <motion.svg
-              className="absolute top-0 left-0 w-full h-10 pointer-events-none"
-              preserveAspectRatio="none"
-              viewBox="0 0 1000 32"
-              xmlns="http://www.w3.org/2000/svg"
-              style={{ zIndex: 10 }}
-              initial={{ opacity: 0, scaleY: 0.7, y: -5 }}
-              animate={{ opacity: 1, scaleY: 1, y: 0 }}
-              transition={{
-                duration: 0.7,
-                ease: [0.34, 1.56, 0.64, 1],
-                delay: 0.2,
-                opacity: { duration: 0.4 },
-              }}
-            >
-              <defs>
-                <filter id="shadow" x="-10%" y="-10%" width="120%" height="150%">
-                  <feDropShadow
-                    dx="0"
-                    dy="2"
-                    stdDeviation="2"
-                    floodColor="rgba(253, 230, 138, 0.7)"
-                  />
-                  <feDropShadow
-                    dx="0"
-                    dy="1"
-                    stdDeviation="1"
-                    floodColor="rgba(251, 191, 36, 0.3)"
-                  />
-                </filter>
-                <linearGradient
-                  id="buttonBlend"
-                  x1="0%"
-                  y1="0%"
-                  x2="0%"
-                  y2="100%"
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <stop offset="0%" stopColor="#FEF3C7" stopOpacity="1" />
-                  <stop offset="100%" stopColor="#FEF3C7" stopOpacity="1" />
-                </linearGradient>
-              </defs>
-              <motion.path
-                d="M0,1
-                 H390
-                 C400,1 415,8 425,15
-                 C435,22 445,25 475,25
-                 H525
-                 C555,25 565,22 575,15
-                 C585,8 600,1 610,1
-                 H1000"
-                stroke="#FDE68A"
-                strokeWidth="2.5"
-                fill="url(#buttonBlend)"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                filter="url(#shadow)"
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: 1 }}
-                transition={{
-                  duration: 1.2,
-                  ease: "easeInOut",
-                  delay: 0.3,
-                }}
-              />
-            </motion.svg>
-            <motion.div
-              className="absolute top-0 left-1/2 -translate-x-1/2 cursor-pointer z-20 flex flex-row items-center gap-1 px-4 py-1 border-t-0"
-              onClick={() => setShowBannerDetails(!showBannerDetails)}
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.5,
-                ease: [0.34, 1.56, 0.64, 1],
-                delay: 0.5,
-              }}
-            >
-              <InfoCircledIcon className="h-3.5 w-3.5 text-amber-700" />
-              <span className="text-xs font-medium text-amber-700">Research Preview</span>
-            </motion.div>
-
+            <Notch onClickBanner={onClickBanner} />
             <div className="p-8 pt-16">
               <motion.section
                 className="flex items-center justify-between mb-8"

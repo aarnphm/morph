@@ -1,9 +1,9 @@
 import { cn } from "@/lib"
 import { generatePastelColor } from "@/lib/notes"
-import { ChevronDownIcon } from "@radix-ui/react-icons"
+import { ChevronDownIcon, ChevronUpIcon } from "@radix-ui/react-icons"
 import { eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/pglite"
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence, motion, useMotionValue, useTransform } from "motion/react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { AttachedNoteCard, DraggableNoteCard } from "@/components/note-card"
@@ -196,6 +196,31 @@ export const DroppedNoteGroup = memo(
     const hasMoreNotes = droppedNotes.length > MAX_VISIBLE_NOTES
     const hasNotes = droppedNotes.length > 0
 
+    // Motion values for chevron drag
+    const dragY = useMotionValue(0)
+    const chevronScale = useTransform(dragY,
+      isStackExpanded ? [0, 30] : [0, -30],
+      isStackExpanded ? [1, 1.3] : [1, 1.3]
+    )
+
+    // Function to handle drag end
+    const handleDragEnd = () => {
+      const threshold = 15
+      const currentY = dragY.get()
+
+      // If expanded and dragged up beyond threshold, collapse
+      if (isStackExpanded && currentY < -threshold) {
+        onExpandStack()
+      }
+      // If collapsed and dragged down beyond threshold, expand
+      else if (!isStackExpanded && currentY > threshold) {
+        onExpandStack()
+      }
+
+      // Reset drag position
+      dragY.set(0)
+    }
+
     // Get database client
     const client = usePGlite()
     const db = useMemo(() => drizzle({ client, schema }), [client])
@@ -265,19 +290,6 @@ export const DroppedNoteGroup = memo(
 
         // Use our batched update function
         updateNotesInDB(noteIds)
-        
-        // Also scroll to the bottom of the container whenever expanded
-        if (scrollContainerRef.current) {
-          // Use setTimeout to ensure the DOM has updated after expansion
-          setTimeout(() => {
-            if (lastNoteRef.current) {
-              lastNoteRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" })
-            } else if (scrollContainerRef.current) {
-              // Fallback to scrolling the container to the bottom if lastNoteRef isn't available
-              scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight
-            }
-          }, 100)
-        }
       }
     }, [isStackExpanded, droppedNotes, updateNotesInDB])
 
@@ -292,7 +304,7 @@ export const DroppedNoteGroup = memo(
           isStackExpanded && "bg-background/80 backdrop-blur-sm border rounded-md shadow-md p-2",
         )}
         key={`dropped-notes-${droppedNotes.length}`}
-        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+        initial={{ opacity: 0, scale: 0.95, y: 0 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 0 }}
       >
@@ -300,7 +312,7 @@ export const DroppedNoteGroup = memo(
           ref={scrollContainerRef}
           className={cn(
             "flex flex-col items-center gap-1.5",
-            isStackExpanded && "max-h-[20vh] overflow-y-auto scrollbar-hidden",
+            isStackExpanded && "max-h-[20vh] overflow-y-auto scrollbar-hidden"
           )}
           layout
         >
@@ -319,30 +331,54 @@ export const DroppedNoteGroup = memo(
                 />
               </div>
             ))}
-            {hasMoreNotes && !isStackExpanded && (
-              <motion.div
-                key="more-notes-indicator"
-                className="text-primary/50 cursor-pointer"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
-                title={`${droppedNotes.length - MAX_VISIBLE_NOTES} more notes`}
-              >
-                <motion.div
-                  animate={{ y: [0, 4, 0] }}
-                  transition={{
-                    duration: 2,
-                    ease: "easeInOut",
-                    repeat: Infinity,
-                  }}
-                  onClick={onExpandStack}
-                >
-                  <ChevronDownIcon className="w-4 h-4" />
-                </motion.div>
-              </motion.div>
-            )}
           </AnimatePresence>
+        </motion.div>
+
+        {/* Chevron for drag interaction - separate from scrollable content */}
+        <motion.div
+          animate={{ y: [0, 4, 0] }}
+          transition={{
+            duration: 2,
+            ease: "easeInOut",
+            repeat: Infinity,
+          }}
+          className="flex justify-center mt-1"
+        >
+          {isStackExpanded ? (
+            <motion.div
+              className="text-primary/50 cursor-grab active:cursor-grabbing flex justify-center items-center py-1"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.1 }}
+              title="Drag up to collapse notes"
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={0.2}
+              style={{ y: dragY, scale: chevronScale }}
+              onDragEnd={handleDragEnd}
+            >
+              <ChevronUpIcon className="w-4 h-4" />
+            </motion.div>
+          ) : hasMoreNotes && (
+            <motion.div
+              key="more-notes-indicator"
+              className="text-primary/50 cursor-grab active:cursor-grabbing flex justify-center items-center py-1"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              title="Drag down to expand notes"
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={0.2}
+              style={{ y: dragY, scale: chevronScale }}
+              onDragEnd={handleDragEnd}
+            >
+              <ChevronDownIcon className="w-4 h-4" />
+            </motion.div>
+          )}
         </motion.div>
       </motion.div>
     )

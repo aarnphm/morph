@@ -3,7 +3,7 @@
 import { Icosahedron } from "@react-three/drei"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { motion, useAnimation } from "motion/react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, memo } from "react"
 import type * as THREE from "three"
 
 interface PixelatedLoadingProps {
@@ -33,6 +33,16 @@ function LoadingIcosahedron() {
   )
 }
 
+// Memoized Canvas component to prevent recreating the Canvas during transitions
+const ThreeCanvas = memo(function ThreeCanvas() {
+  return (
+    <Canvas gl={{ antialias: false }}>
+      <ambientLight intensity={0.5} />
+      <LoadingIcosahedron />
+    </Canvas>
+  )
+})
+
 export default function PixelatedLoading({
   isLoading,
   progress,
@@ -40,27 +50,38 @@ export default function PixelatedLoading({
 }: PixelatedLoadingProps) {
   const [visible, setVisible] = useState(true)
   const controls = useAnimation()
+  // Use a ref to track if we're in exit animation to avoid unnecessary renders
+  const isExiting = useRef(false)
+  // Maintain the Canvas reference even during transitions
+  const [canvasRendered, setCanvasRendered] = useState(true)
 
   useEffect(() => {
-    if (!isLoading && progress >= 1) {
+    if (!isLoading && progress >= 1 && !isExiting.current) {
+      // Mark as exiting to prevent re-triggering animations
+      isExiting.current = true
+
       // Start the exit animation
       controls
         .start({
           opacity: 0,
-          transition: { duration: 1.2, ease: "easeInOut" },
+          transition: { duration: 0.8, ease: "easeInOut" }, // Slightly faster transition
         })
         .then(() => {
           setVisible(false)
+          // Only remove the Canvas after the animation completes
+          setCanvasRendered(false)
           if (onTransitionComplete) {
             onTransitionComplete()
           }
         })
-    } else if (isLoading) {
+    } else if (isLoading && !isExiting.current) {
       setVisible(true)
+      setCanvasRendered(true)
       controls.start({ opacity: 1, transition: { duration: 0.5 } })
     }
   }, [isLoading, progress, controls, onTransitionComplete])
 
+  // Skip rendering completely if not visible
   if (!visible) return null
 
   return (
@@ -72,10 +93,7 @@ export default function PixelatedLoading({
     >
       <div className="w-full h-full flex flex-col items-center justify-center">
         <div className="w-64 h-64 mb-8">
-          <Canvas gl={{ antialias: false }}>
-            <ambientLight intensity={0.5} />
-            <LoadingIcosahedron />
-          </Canvas>
+          {canvasRendered && <ThreeCanvas />}
         </div>
       </div>
     </motion.div>

@@ -118,9 +118,9 @@ export const Playspace = memo(function Playspace({ children, vaultId }: Playspac
       layoutId={`vault-card-${vaultId}`}
       transition={{
         type: "spring",
-        stiffness: 300,
-        damping: 26,
-        mass: 0.8,
+        stiffness: 200,
+        damping: 20,
+        mass: 0.3,
       }}
       initial={{ borderRadius: 0 }}
       animate={{
