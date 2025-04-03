@@ -35,6 +35,7 @@ import { DotIcon } from "@/components/ui/icons"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 import { usePGlite } from "@/context/db"
+import { useRestoredFile } from "@/context/file-restoration"
 import { SearchProvider } from "@/context/search"
 import { SteeringProvider, SteeringSettings } from "@/context/steering"
 import { useVaultContext } from "@/context/vault"
@@ -46,7 +47,6 @@ import { useToast } from "@/hooks/use-toast"
 
 import type { FileSystemTreeNode, Note, Vault } from "@/db/interfaces"
 import * as schema from "@/db/schema"
-import { useRestoredFile } from "@/context/file-restoration"
 
 interface GeneratedNote {
   content: string
@@ -152,37 +152,58 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     setIsClient(true)
   }, [])
 
+  const updatePreview = useCallback(
+    async (value: string) => {
+      try {
+        const tree = await mdToHtml({
+          value,
+          settings,
+          vaultId,
+          filename: currentFile,
+          returnHast: true,
+        })
+        setPreviewNode(tree)
+      } catch (error) {
+        console.error(error)
+      }
+    },
+    [currentFile, settings, vaultId],
+  )
+
   // Helper function to load file content and UI state
-  const loadFileContent = useCallback((fileName: string, fileHandle: FileSystemFileHandle, content: string) => {
-    if (!codeMirrorViewRef.current) return false
+  const loadFileContent = useCallback(
+    (fileName: string, fileHandle: FileSystemFileHandle, content: string) => {
+      if (!codeMirrorViewRef.current) return false
 
-    try {
-      // Update CodeMirror
-      codeMirrorViewRef.current.dispatch({
-        changes: {
-          from: 0,
-          to: codeMirrorViewRef.current.state.doc.length,
-          insert: content,
-        },
-        effects: setFile.of(fileName),
-      })
+      try {
+        // Update CodeMirror
+        codeMirrorViewRef.current.dispatch({
+          changes: {
+            from: 0,
+            to: codeMirrorViewRef.current.state.doc.length,
+            insert: content,
+          },
+          effects: setFile.of(fileName),
+        })
 
-      // Update state
-      setCurrentFileHandle(fileHandle)
-      setCurrentFile(fileName)
-      setMarkdownContent(content)
-      setHasUnsavedChanges(false)
-      setIsEditMode(true)
+        // Update state
+        setCurrentFileHandle(fileHandle)
+        setCurrentFile(fileName)
+        setMarkdownContent(content)
+        setHasUnsavedChanges(false)
+        setIsEditMode(true)
 
-      // Update preview
-      updatePreview(content)
+        // Update preview
+        updatePreview(content)
 
-      return true
-    } catch (error) {
-      console.error("Error loading file content:", error)
-      return false
-    }
-  }, [])
+        return true
+      } catch (error) {
+        console.error("Error loading file content:", error)
+        return false
+      }
+    },
+    [updatePreview],
+  )
 
   // Helper function to load file metadata (notes, reasonings, etc.)
   const loadFileMetadata = useCallback(
@@ -215,8 +236,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               where: (files, { and, eq }) =>
                 and(eq(files.name, fileName), eq(files.vaultId, vault.id)),
             })
-
-            console.debug(`Created new file in database: ${fileName}`)
           } catch (dbError) {
             console.error("Error inserting file into database:", dbError)
             return // Exit early if we can't create the file
@@ -231,8 +250,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
         // Fetch notes associated with this file in a single query
         try {
-          console.debug(`Loading notes for file ID: ${dbFile.id}`)
-
           // Query all notes for this file
           const fileNotes = await db
             .select()
@@ -240,14 +257,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             .where(and(eq(schema.notes.fileId, dbFile.id), eq(schema.notes.vaultId, vault.id)))
 
           if (fileNotes && fileNotes.length > 0) {
-            console.debug(`Found ${fileNotes.length} notes for file ${fileName}`)
-
             // Process notes and reasoning in parallel
             const processNotesPromise = (async () => {
               // Separate notes into regular and dropped notes
               const regularNotes = fileNotes.filter((note) => !note.dropped)
               const droppedNotesList = fileNotes.filter((note) => note.dropped)
-
               console.debug(
                 `Regular notes: ${regularNotes.length}, Dropped notes: ${droppedNotesList.length}`,
               )
@@ -303,8 +317,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
             // Make sure we wait for note processing to complete
             await processNotesPromise
-          } else {
-            console.debug(`No notes found for file ${fileName}`)
           }
         } catch (error) {
           console.error("Error fetching notes for file:", error)
@@ -316,36 +328,32 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [db, vault],
   )
 
-
   // Helper function to load file metadata with deduplication
-  const loadFileMetadataOnce = useCallback(async (fileName: string) => {
-    // Create a unique key for this file
-    const fileKey = `${vaultId}:${fileName}`
+  const loadFileMetadataOnce = useCallback(
+    async (fileName: string) => {
+      // Create a unique key for this file
+      const fileKey = `${vaultId}:${fileName}`
 
-    // Skip if we've already loaded this file
-    if (loadedFiles.current.has(fileKey)) {
-      console.debug(`Skipping metadata loading for already loaded file: ${fileName}`)
-      return
-    }
+      // Skip if we've already loaded this file
+      if (loadedFiles.current.has(fileKey)) return
 
-    // Mark file as loaded before we start loading to prevent race conditions
-    loadedFiles.current.add(fileKey)
+      // Mark file as loaded before we start loading to prevent race conditions
+      loadedFiles.current.add(fileKey)
 
-    try {
-      await loadFileMetadata(fileName)
-      console.debug(`Loaded metadata for file: ${fileName}`)
-    } catch (error) {
-      // If loading fails, remove from the loaded set so we can try again
-      loadedFiles.current.delete(fileKey)
-      console.error("Error loading file metadata:", error)
-    }
-  }, [vaultId, loadFileMetadata])
+      try {
+        await loadFileMetadata(fileName)
+      } catch (error) {
+        // If loading fails, remove from the loaded set so we can try again
+        loadedFiles.current.delete(fileKey)
+        console.error("Error loading file metadata:", error)
+      }
+    },
+    [vaultId, loadFileMetadata],
+  )
 
   // Effect to use preloaded file from context if available
   useEffect(() => {
     if (!isClient || !restoredFile || fileRestorationAttempted.current) return
-
-    console.debug("Initializing with preloaded file from context:", restoredFile.fileName)
 
     // Update local state even before CodeMirror is ready
     setCurrentFile(restoredFile.fileName)
@@ -355,8 +363,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
     // If CodeMirror is ready, also update it
     if (codeMirrorViewRef.current) {
-      console.debug("Updating CodeMirror with preloaded content")
-
       loadFileContent(restoredFile.fileName, restoredFile.fileHandle, restoredFile.content)
 
       // Load file metadata once
@@ -395,24 +401,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
     // Rerun specifically when isClient becomes true to set initial state
   }, [isClient])
-
-  const updatePreview = useCallback(
-    async (value: string) => {
-      try {
-        const tree = await mdToHtml({
-          value,
-          settings,
-          vaultId,
-          filename: currentFile,
-          returnHast: true,
-        })
-        setPreviewNode(tree)
-      } catch (error) {
-        console.error(error)
-      }
-    },
-    [currentFile, settings, vaultId],
-  )
 
   const toggleNotes = useCallback(() => {
     // Check isClient here for safety, though interaction implies client-side
@@ -1424,7 +1412,15 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         setIsNotesLoading(false)
       }
     },
-    [currentFile, vault, markdownContent, fetchNewNotes, streamingSuggestionColors, db],
+    [
+      currentFile,
+      vault,
+      markdownContent,
+      fetchNewNotes,
+      streamingSuggestionColors,
+      db,
+      currentGenerationNotes,
+    ],
   )
 
   // Handle removing a note from the notes array
@@ -1489,9 +1485,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         return
       }
 
-      // Log the action for debugging
-      console.debug(`Dragging note ${noteId} back to panel`)
-
       // Update the note to indicate it's no longer dropped
       const undropNote = {
         ...note,
@@ -1524,13 +1517,10 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           })
           .where(eq(schema.notes.id, noteId))
 
-        console.debug(`Successfully updated note ${noteId} status to not dropped`)
-
         // Add back to main notes collection if not already there
         setNotes((prevNotes) => {
           // If it exists, just update its dropped status
           if (prevNotes.some((n) => n.id === noteId)) {
-            console.debug(`Note ${noteId} already exists in notes, updating dropped status`)
             return prevNotes.map((n) => (n.id === noteId ? { ...n, dropped: false } : n))
           } else {
             // Add to the beginning of the notes array to make it appear at the top
@@ -1562,7 +1552,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           // Store the handle for future use
           try {
             await storeHandle(handleId, vaultId, handleId, node.handle as FileSystemFileHandle)
-            console.debug(`Stored new handle ID ${handleId} for file ${fileName}`)
           } catch (storeError) {
             console.error("Failed to store handle:", storeError)
             // Continue without storing - non-critical
@@ -1572,7 +1561,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           try {
             const isValid = await verifyHandle(node.handle)
             if (!isValid) {
-              console.debug(`Handle permission verification failed for ${fileName}, updating...`)
               await storeHandle(handleId, vaultId, handleId, node.handle as FileSystemFileHandle)
             }
           } catch (verifyError) {

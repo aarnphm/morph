@@ -28,28 +28,23 @@ async function restoreLastFile(vaultId: string, getHandle: any) {
   try {
     const lastFileInfoStr = localStorage.getItem(`morph:last-file:${vaultId}`)
     if (!lastFileInfoStr) {
-      console.debug("No last file info found for vault:", vaultId)
       return null
     }
 
     const lastFileInfo = JSON.parse(lastFileInfoStr)
-    console.debug("Found last file info for vault:", vaultId, lastFileInfo)
 
     if (!lastFileInfo.handleId) {
-      console.debug("No handle ID in last file info")
       return null
     }
 
     const handle = await getHandle(lastFileInfo.handleId)
     if (!handle || !("getFile" in handle)) {
-      console.debug("Could not retrieve valid file handle")
       return null
     }
 
     // Verify handle is valid
     const isValid = await verifyHandle(handle)
     if (!isValid) {
-      console.debug("Handle permission verification failed")
       return null
     }
 
@@ -91,7 +86,6 @@ export function FilePreloader() {
           if (restoredFile) {
             // We successfully preloaded a file
             setRestoredFile(restoredFile)
-            console.debug("Successfully preloaded file:", restoredFile.fileName)
           }
         }
       } catch (fileError) {
@@ -143,7 +137,6 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
             setLoadingProgress(1)
           }, 50)
         }, 50)
-
       } catch (err) {
         console.error("Error initializing database:", err)
         setLoadingProgress(1) // Move to 100% even on error so UI can show

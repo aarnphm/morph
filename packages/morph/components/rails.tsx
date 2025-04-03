@@ -323,7 +323,6 @@ const FileTreeItem = memo(
 function useVirtualizedItems<T>(items: T[] = [], itemHeight: number = 24, overscan: number = 10) {
   const [visibleItems, setVisibleItems] = useState<T[]>([])
   const [startIndex, setStartIndex] = useState(0)
-  const [endIndex, setEndIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const totalHeight = items.length * itemHeight
@@ -331,7 +330,7 @@ function useVirtualizedItems<T>(items: T[] = [], itemHeight: number = 24, oversc
   const updateVisibleItems = useCallback(() => {
     if (!containerRef.current) return
 
-    const { height, top } = containerRef.current.getBoundingClientRect()
+    const { height } = containerRef.current.getBoundingClientRect()
     const scrollTop = containerRef.current.scrollTop
 
     const visibleStart = Math.floor(scrollTop / itemHeight)
@@ -342,7 +341,6 @@ function useVirtualizedItems<T>(items: T[] = [], itemHeight: number = 24, oversc
     const end = Math.min(items.length - 1, visibleEnd + overscan)
 
     setStartIndex(start)
-    setEndIndex(end)
     setVisibleItems(items.slice(start, end + 1))
   }, [items, itemHeight, overscan])
 
@@ -395,11 +393,6 @@ const FileTree = memo(
       10,
     )
 
-    // Guard against empty or missing nodes array
-    if (!nodes || nodes.length === 0) {
-      return <div className="text-xs text-muted-foreground p-2">No files found</div>
-    }
-
     // Memoize the context value to avoid unnecessary re-renders of all children
     const fileTreeContextValue = useMemo(
       () => ({
@@ -417,6 +410,11 @@ const FileTree = memo(
       }),
       [expandedFoldersState],
     )
+
+    // Guard against empty or missing nodes array
+    if (!nodes || nodes.length === 0) {
+      return <div className="text-xs text-muted-foreground p-2">No files found</div>
+    }
 
     return (
       <ExpandedFoldersContext.Provider value={expandedFoldersContextValue}>

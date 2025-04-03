@@ -238,17 +238,10 @@ export const DroppedNoteGroup = memo(
         try {
           if (noteIds.length === 0) return
 
-          console.debug(`Batch updating ${noteIds.length} notes in database`)
-
-          // Use Promise.all to batch all updates in parallel
+          // Use Promise.all to batch all updates
           const now = new Date()
           const updatePromises = noteIds.map((noteId) =>
-            db
-              .update(schema.notes)
-              .set({
-                accessedAt: now, // Use the same timestamp for all updates
-              })
-              .where(eq(schema.notes.id, noteId)),
+            db.update(schema.notes).set({ accessedAt: now }).where(eq(schema.notes.id, noteId)),
           )
 
           await Promise.all(updatePromises)

@@ -22,6 +22,9 @@ const eslintConfig = [
   ...compat.config({
     extends: ["plugin:drizzle/recommended"],
     parser: "@typescript-eslint/parser",
+    rules: {
+      "drizzle/enforce-update-with-where": "warn",
+    },
   }),
 ]
 export default eslintConfig
