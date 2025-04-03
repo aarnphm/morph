@@ -8,6 +8,7 @@ import {
   submitNoteForEmbedding,
   useProcessPendingEmbeddings,
 } from "@/services/embedding"
+import { NoteEmbeddingRequest } from "@/services/embedding"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
 import { Compartment, EditorState } from "@codemirror/state"
@@ -79,11 +80,22 @@ interface ReasoningHistory {
 interface SuggestionRequest {
   essay: string
   authors?: string[]
+  notes?: NoteEmbeddingRequest[]
   tonality?: { [key: string]: number }
   num_suggestions?: number
   temperature?: number
   max_tokens?: number
   usage?: boolean
+}
+
+export interface AuthorRequest {
+  essay: string
+  authors?: string[]
+  num_authors?: number
+  temperature?: number
+  max_tokens?: number
+  search_backend?: "exa"
+  num_search_results?: integer
 }
 
 interface ReadinessResponse {
@@ -782,6 +794,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
         const max_tokens = 16384
         const essay = md(content).content
+        console.debug(JSON.stringify(essay))
         const request: SuggestionRequest = {
           essay,
           num_suggestions: numSuggestions,

@@ -5,7 +5,7 @@ import pydantic
 
 from openai.types.completion_usage import CompletionUsage
 from openai.types.create_embedding_response import Usage as EmbeddingUsage
-from llama_index.core.schema import EnumNameSerializer, NodeRelationship, RelatedNodeType, TransformComponent, Document
+from llama_index.core.schema import EnumNameSerializer, NodeRelationship, RelatedNodeType, TransformComponent
 
 if t.TYPE_CHECKING:
   from llama_index.core.schema import BaseNode
@@ -225,46 +225,146 @@ class Tonality(pydantic.BaseModel):
 
 
 class LineNumberMetadataExtractor(TransformComponent):
+  """Extracts line numbers from document content and adds them to node metadata.
+
+  This extractor assigns line numbers to each line in the document,
+  preserving whitespace, and ensures this information is available
+  in the node metadata after semantic chunking.
+  """
+
+  def __init__(self, include_whitespace: bool = True):
+    """Initialize the line number extractor.
+
+    Args:
+        include_whitespace: Whether to include whitespace lines in numbering
+    """
+    self.include_whitespace = include_whitespace
+    super().__init__()
+
   def __call__(self, nodes: list[BaseNode], **kwargs: t.Any) -> list[BaseNode]:
+    """Process nodes to add line number metadata.
+
+    For each node, this adds:
+    - line_numbers: List of line numbers contained in this node
+    - start_line: First line number in this node
+    - end_line: Last line number in this node
+    - line_map: Dictionary mapping line numbers to line content
+
+    Args:
+        nodes: The list of nodes to extract metadata from
+
+    Returns:
+        The same list of nodes with updated metadata
+    """
     for node in nodes:
-      # Ensure it's a TextNode derived from a Document and has source info
-      if (
-        isinstance(node, Document)
-        or not hasattr(node, 'source_node')
-        or not node.source_node
-        or not hasattr(node.source_node, 'text')
-      ):
+      if not hasattr(node, 'metadata'):
         continue
 
-      original_text = node.source_node.text
-      chunk_text = node.get_content()  # Use get_content() for robustness
+      # Get the original text - either from metadata or by looking at source node
+      original_text = None
 
-      node.metadata['start_line'] = -1  # Default value indicating failure
-      node.metadata['end_line'] = -1
+      # First check if we stored original_text in metadata during document creation
+      if 'original_text' in node.metadata:
+        original_text = node.metadata['original_text']
+      # Then check source_node for Document-derived nodes
+      elif hasattr(node, 'source_node') and node.source_node and hasattr(node.source_node, 'text'):
+        original_text = node.source_node.text
+      # Or check if this is actually a Document
+      elif hasattr(node, 'text'):
+        original_text = node.text
 
+      if not original_text:
+        logger.warning(
+          'No original text found for node %s, skipping line number extraction', getattr(node, 'node_id', 'unknown')
+        )
+        continue
+
+      # Get the content of this node
+      node_text = node.get_content() if hasattr(node, 'get_content') else getattr(node, 'text', '')
+      node_text = node_text.strip()  # Strip for better matching
+
+      if not node_text:
+        continue
+
+      # Split the original text into lines
+      original_lines = original_text.splitlines()
+
+      # Process line by line
+      line_numbers = []
+      line_map = {}
+
+      # Find the chunk text in the original document
       try:
-        start_char_index = original_text.find(chunk_text)
-        if start_char_index == -1:
-          # Log a warning if the exact chunk text isn't found
-          logger.warning(
-            'Could not find exact chunk text for node %s in original document %s. Line numbers will not be added.',
-            node.node_id,
-            node.source_node.node_id,
-          )
-          continue
+        # Simple approach: try to find exact chunk in text
+        start_char_index = original_text.find(node_text)
 
-        # Calculate start line (1-based)
-        start_line = original_text.count('\n', 0, start_char_index) + 1
+        if start_char_index >= 0:
+          # If found directly, calculate line numbers
+          start_line = original_text.count('\n', 0, start_char_index) + 1
+          end_char_index = start_char_index + len(node_text)
+          end_line = original_text.count('\n', 0, end_char_index) + 1
 
-        # Calculate end line (1-based)
-        # Count newlines *within* the chunk itself
-        end_line = start_line + chunk_text.count('\n')
+          # Generate line numbers and map
+          for i in range(start_line, end_line + 1):
+            line_numbers.append(i)
+            # Use 1-indexed for line numbers
+            if i - 1 < len(original_lines):
+              line_map[i] = original_lines[i - 1]
+        else:
+          # Fallback: check line by line for partial matches
+          node_sentences = [s.strip() for s in node_text.split('.') if s.strip()]
 
-        node.metadata['start_line'] = start_line
-        node.metadata['end_line'] = end_line
+          for i, line in enumerate(original_lines):
+            line_num = i + 1  # 1-indexed
 
+            # Skip empty lines if configured
+            if not line.strip() and not self.include_whitespace:
+              continue
+
+            # Direct match
+            if line.strip() in node_text or any(sent in line for sent in node_sentences):
+              line_numbers.append(line_num)
+              line_map[line_num] = line
       except Exception as e:
-        logger.error('Error extracting line numbers for node %s: %s', node.node_id, e)
-        # Keep default -1 values if an error occurs
+        logger.error('Error extracting line numbers for node %s: %s', getattr(node, 'node_id', 'unknown'), e)
+        # Continue with partial results if any
+
+      # Update metadata with line information
+      if line_numbers:
+        node.metadata['line_numbers'] = line_numbers
+        node.metadata['start_line'] = min(line_numbers)
+        node.metadata['end_line'] = max(line_numbers)
+        node.metadata['line_map'] = line_map
+      else:
+        # Default values
+        node.metadata['line_numbers'] = []
+        node.metadata['start_line'] = -1
+        node.metadata['end_line'] = -1
+        node.metadata['line_map'] = {}
 
     return nodes
+
+  # For compatibility with llama_index BaseExtractor
+  def extract(self, nodes, **kwargs):
+    """Extract line metadata as BaseExtractor interface.
+
+    This is for compatibility with the BaseExtractor interface in llama_index,
+    which might be used alongside this component.
+    """
+    # Process nodes using the __call__ method
+    self.__call__(nodes, **kwargs)
+
+    # Return metadata in the format expected by BaseExtractor
+    metadata_list = []
+    for node in nodes:
+      if hasattr(node, 'metadata'):
+        metadata_list.append({
+          'line_numbers': node.metadata.get('line_numbers', []),
+          'start_line': node.metadata.get('start_line', -1),
+          'end_line': node.metadata.get('end_line', -1),
+          'line_map': node.metadata.get('line_map', {}),
+        })
+      else:
+        metadata_list.append({})
+
+    return metadata_list

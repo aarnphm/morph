@@ -421,13 +421,28 @@ class API:
       default_headers={'Runner-Name': Embeddings.name},
     )
 
+    # Setup the semantic chunker with appropriate parameters
     chunker = SemanticSplitterNodeParser(
-      buffer_size=1, breakpoint_percentile_threshold=95, embed_model=self.embed_model
+      buffer_size=1,
+      breakpoint_percentile_threshold=95,  # Threshold for determining chunk boundaries
+      embed_model=self.embed_model,
     )
-    line_extractor = LineNumberMetadataExtractor()
+
+    # Create our line number metadata extractor
+    line_extractor = LineNumberMetadataExtractor(include_whitespace=True)
+
+    # Create the title extractor
     title_extractor = TitleExtractor(llm=self.llm_model)
 
-    self.pipeline = IngestionPipeline(transformations=[chunker, line_extractor, title_extractor, self.embed_model])
+    # Set up the full ingestion pipeline with all components
+    self.pipeline = IngestionPipeline(
+      transformations=[
+        chunker,  # First split into semantic chunks
+        line_extractor,  # Then extract line numbers for each chunk
+        title_extractor,  # Then generate titles for each chunk
+        self.embed_model,  # Finally generate embeddings
+      ]
+    )
 
   @bentoml.api(route='/v1/embeddings')
   async def create_embedding(self, request: EmbeddingCompletionRequest, /):
@@ -742,7 +757,17 @@ class API:
     try:
       result = await self.pipeline.arun(
         show_progress=True,
-        documents=[Document(text=essay.content, doc_id=essay.file_id, metadata=dict(vault_id=essay.vault_id))],
+        documents=[
+          Document(
+            text=essay.content,
+            doc_id=essay.file_id,
+            metadata={
+              'vault_id': essay.vault_id,
+              'original_text': essay.content,  # Store original text for line number extraction
+              'file_id': essay.file_id,  # Include file ID for reference
+            },
+          )
+        ],
         num_workers=multiprocessing.cpu_count(),
       )
       return EssayResponse(

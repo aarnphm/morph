@@ -29,6 +29,13 @@ export interface NoteEmbeddingResponse {
   }
 }
 
+export interface NoteEmbeddingRequest {
+  vault_id: string
+  file_id: string
+  note_id: string
+  content: string
+}
+
 // Check if a note already has embeddings
 export async function checkNoteHasEmbedding(
   db: PgliteDatabase<typeof schema>,
@@ -43,16 +50,17 @@ export async function checkNoteHasEmbedding(
 
 // Submit a note for embedding
 async function submitNoteEmbeddingTask(note: Note): Promise<TaskStatusResponse> {
-  console.debug(`[Embedding] Submitting note ${note.id} for embedding...`)
-  const response = await fetch(`${API_ENDPOINT}/notes/submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const req: NoteEmbeddingRequest = {
       vault_id: note.vaultId,
       file_id: note.fileId,
       note_id: note.id,
       content: note.content,
-    }),
+    }
+  console.debug(`[Embedding] Submitting note ${note.id} for embedding...`)
+  const response = await fetch(`${API_ENDPOINT}/notes/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
   })
 
   if (!response.ok) {
