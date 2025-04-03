@@ -47,6 +47,7 @@ _The following Software Requirements Specification for `tinymorph` is using [Vol
 | LLM       | Large Language Model                                                                       |
 | LTR       | Left-to-Right                                                                              |
 | LoRA      | Low-Rank Adaptation                                                                        |
+| ReLU      | rectified linear unit                                                                        |
 | MC        | Mandated Constraint                                                                        |
 | MLP       | Multi-Layer Perceptron                                                                     |
 | NSFW      | Not Safe For Work                                                                          |
@@ -655,7 +656,7 @@ tinymorph offers users the ability to switch between light and dark modes to enh
 | Search            | Additional search tool to improve correctness                                          | module   |
 | `ActivationCache` | Store said generations activations for performance purposes                            | class    |
 | streaming JSON    | Outputs from `asteraceae` will be streamed back to `morph`                             | text     |
-| tensor            | $n \times m$ matrix represented inputs processed by `logit_processor`                  | text     |
+| tensor            | $n \times m$ matrix(A matrix of shape (n tokens × m embedding size), where each row is a float vector embedding for a token.) represented inputs processed by `logit_processor`                  | text     |
 
 _see also [[glossary#logits]] and [[glossary#sparse autoencoders]]_
 
