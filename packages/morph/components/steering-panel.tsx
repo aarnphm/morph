@@ -1,15 +1,10 @@
 "use client"
 
 import { cn } from "@/lib"
-import { Cross2Icon, MixerHorizontalIcon, PlusIcon } from "@radix-ui/react-icons"
-import { AnimatePresence, motion } from "motion/react"
-import { memo, useCallback, useEffect, useRef, useState } from "react"
+import { Cross2Icon, PlusIcon } from "@radix-ui/react-icons"
+import { useCallback, useEffect, useRef, useState } from "react"
 
-import { VaultButton } from "@/components/ui/button"
-
-import { useSteeringContext } from "@/context/steering"
-
-import { Input } from "./ui/input"
+import { Input } from "@/components/ui/input"
 
 interface AuthorsSelectorProps {
   value: string[]
@@ -17,7 +12,7 @@ interface AuthorsSelectorProps {
   className?: string
 }
 
-function AuthorsSelector({ value, onChange, className }: AuthorsSelectorProps) {
+export function AuthorsSelector({ value, onChange, className }: AuthorsSelectorProps) {
   const [authors, setAuthors] = useState<string[]>(value)
   const [newAuthor, setNewAuthor] = useState<string>("")
   const [isAdding, setIsAdding] = useState(false)
@@ -141,7 +136,7 @@ interface TonalityRadarProps {
   className?: string
 }
 
-function TonalityRadar({ value, onChange, enabled, onToggle, className }: TonalityRadarProps) {
+export function TonalityRadar({ value, onChange, enabled, onToggle, className }: TonalityRadarProps) {
   const isInternalChange = useRef(false)
   const [tonality, setTonality] = useState<Record<string, number>>(value)
   const previousTonalityRef = useRef<Record<string, number>>(value)
@@ -257,7 +252,7 @@ interface TemperatureSliderProps {
   className?: string
 }
 
-function TemperatureSlider({ value, onChange, className }: TemperatureSliderProps) {
+export function TemperatureSlider({ value, onChange, className }: TemperatureSliderProps) {
   const handleSliderChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       onChange(parseFloat(e.target.value))
@@ -310,7 +305,7 @@ interface SuggestionsSliderProps {
   className?: string
 }
 
-function SuggestionsSlider({ value, onChange, className }: SuggestionsSliderProps) {
+export function SuggestionsSlider({ value, onChange, className }: SuggestionsSliderProps) {
   const handleSliderChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       onChange(parseInt(e.target.value))
@@ -340,120 +335,3 @@ function SuggestionsSlider({ value, onChange, className }: SuggestionsSliderProp
     </div>
   )
 }
-
-export default memo(function SteeringPanel({ className }: { className?: string }) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const {
-    settings,
-    updateAuthors,
-    updateTonality,
-    updateTemperature,
-    updateNumSuggestions,
-    toggleTonality,
-  } = useSteeringContext()
-
-  const handleButtonOnClick = useCallback(() => {
-    setIsExpanded((prev) => !prev)
-  }, [])
-
-  // Debug wrapper for update functions
-  const handleUpdateAuthors = useCallback(
-    (authors: string[]) => {
-      updateAuthors(authors)
-    },
-    [updateAuthors],
-  )
-
-  const handleUpdateTonality = useCallback(
-    (tonality: Record<string, number>) => {
-      updateTonality(tonality)
-    },
-    [updateTonality],
-  )
-
-  const handleUpdateTemperature = useCallback(
-    (temperature: number) => {
-      updateTemperature(temperature)
-    },
-    [updateTemperature],
-  )
-
-  const handleUpdateNumSuggestions = useCallback(
-    (numSuggestions: number) => {
-      updateNumSuggestions(numSuggestions)
-    },
-    [updateNumSuggestions],
-  )
-
-  const handleToggleTonality = useCallback(
-    (enabled: boolean) => {
-      toggleTonality(enabled)
-    },
-    [toggleTonality],
-  )
-
-  return (
-    <div className={cn("absolute right-4 top-1/2 z-50", className)}>
-      <VaultButton
-        onClick={handleButtonOnClick}
-        size="small"
-        color="yellow"
-        title="Interpreter Settings"
-      >
-        <MixerHorizontalIcon className="h-3 w-3" />
-      </VaultButton>
-
-      <AnimatePresence mode="wait">
-        {isExpanded && (
-          <motion.div
-            key="expanded-panel"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="absolute top-0 right-8 w-52 lg:w-72 rounded-lg border border-border bg-background p-4 shadow-lg -translate-y-1/2"
-          >
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
-              <h2 className="text-base font-semibold">Interpreter</h2>
-              <button
-                onClick={() => setIsExpanded(false)}
-                className="flex items-center justify-center h-5 w-5"
-              >
-                <Cross2Icon className="h-3 w-3" />
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              <div className="pb-4 border-b border-border">
-                <AuthorsSelector value={settings.authors} onChange={handleUpdateAuthors} />
-              </div>
-
-              <div className="pb-4 border-b border-border">
-                <TonalityRadar
-                  value={settings.tonality}
-                  onChange={handleUpdateTonality}
-                  enabled={settings.tonalityEnabled}
-                  onToggle={handleToggleTonality}
-                />
-              </div>
-
-              <div className="pb-4 border-b border-border">
-                <TemperatureSlider
-                  value={settings.temperature}
-                  onChange={handleUpdateTemperature}
-                />
-              </div>
-
-              <div>
-                <SuggestionsSlider
-                  value={settings.numSuggestions}
-                  onChange={handleUpdateNumSuggestions}
-                />
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-})

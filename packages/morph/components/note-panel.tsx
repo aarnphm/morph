@@ -1,15 +1,21 @@
 import { cn } from "@/lib"
 import { generatePastelColor } from "@/lib/notes"
 import { NOTES_DND_TYPE } from "@/lib/notes"
-import { ShadowInnerIcon } from "@radix-ui/react-icons"
+import { ShadowInnerIcon, MixerHorizontalIcon, Cross2Icon } from "@radix-ui/react-icons"
 import { AnimatePresence, motion } from "motion/react"
-import { memo, useCallback, useEffect, useMemo, useRef } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useDrop } from "react-dnd"
 import { Components, Virtuoso } from "react-virtuoso"
 
 import { DraggableNoteCard, NoteCard } from "@/components/note-card"
 import { DateDisplay, NoteGroup } from "@/components/note-group"
 import { ReasoningPanel } from "@/components/reasoning-panel"
+import {
+  AuthorsSelector,
+  TonalityRadar,
+  TemperatureSlider,
+  SuggestionsSlider
+} from "@/components/steering-panel"
 import { VaultButton } from "@/components/ui/button"
 
 import { SteeringSettings, useSteeringContext } from "@/context/steering"
@@ -82,7 +88,7 @@ const ScrollSeekPlaceholder: Components["ScrollSeekPlaceholder"] = memo(
 
 // Create a memoized driver bar component for the notes panel
 interface DriversBarProps {
-  handleGenerateNewSuggestions: () => void
+  handleGenerateNewSuggestions: (steeringSettings: SteeringSettings) => void
   isNotesLoading: boolean
   isNotesRecentlyGenerated: boolean
 }
@@ -93,21 +99,145 @@ const DriversBar = memo(
     isNotesLoading,
     isNotesRecentlyGenerated,
   }: DriversBarProps) {
+    const [isSteeringExpanded, setIsSteeringExpanded] = useState(false)
+    const {
+      settings,
+      updateAuthors,
+      updateTonality,
+      updateTemperature,
+      updateNumSuggestions,
+      toggleTonality,
+    } = useSteeringContext()
+
+    const toggleSteeringPanel = useCallback(() => {
+      setIsSteeringExpanded(prev => !prev)
+    }, [])
+
+    // Close steering panel when the notes panel is closed
+    useEffect(() => {
+      return () => {
+        // This cleanup function will run when the component unmounts
+        // (which happens when the notes panel is closed)
+        if (isSteeringExpanded) {
+          setIsSteeringExpanded(false)
+        }
+      }
+    }, [isSteeringExpanded])
+
+    // Handler functions for steering controls
+    const handleUpdateAuthors = useCallback(
+      (authors: string[]) => {
+        updateAuthors(authors)
+      },
+      [updateAuthors],
+    )
+
+    const handleUpdateTonality = useCallback(
+      (tonality: Record<string, number>) => {
+        updateTonality(tonality)
+      },
+      [updateTonality],
+    )
+
+    const handleUpdateTemperature = useCallback(
+      (temperature: number) => {
+        updateTemperature(temperature)
+      },
+      [updateTemperature],
+    )
+
+    const handleUpdateNumSuggestions = useCallback(
+      (numSuggestions: number) => {
+        updateNumSuggestions(numSuggestions)
+      },
+      [updateNumSuggestions],
+    )
+
+    const handleToggleTonality = useCallback(
+      (enabled: boolean) => {
+        toggleTonality(enabled)
+      },
+      [toggleTonality],
+    )
+
     return (
-      <div className="flex items-center justify-end gap-3 p-2 border-t bg-background/95 backdrop-blur-sm shadow-md z-10 relative">
-        <VaultButton
-          onClick={handleGenerateNewSuggestions}
-          disabled={isNotesLoading}
-          color="none"
-          size="small"
-          className={cn(
-            "text-primary border border-accent-foreground/40",
-            !isNotesRecentlyGenerated && "button-shimmer-border",
+      <div className="flex flex-col border-t bg-background/95 backdrop-blur-sm shadow-md z-10 relative">
+        <AnimatePresence initial={false}>
+          {isSteeringExpanded && (
+            <motion.div
+              key="steering-controls"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="px-4 pb-4 overflow-hidden border-b border-border"
+            >
+              <div className="pt-4 flex justify-between items-center">
+                <h2 className="text-base font-semibold">Interpreter</h2>
+                <button
+                  onClick={() => setIsSteeringExpanded(false)}
+                  className="flex items-center justify-center h-5 w-5 hover:bg-muted rounded-sm"
+                >
+                  <Cross2Icon className="h-3 w-3" />
+                </button>
+              </div>
+
+              <div className="space-y-6 pt-4 max-h-[60vh] overflow-y-auto pr-2">
+                <div className="pb-4 border-b border-border">
+                  <AuthorsSelector value={settings.authors} onChange={handleUpdateAuthors} />
+                </div>
+
+                <div className="pb-4 border-b border-border">
+                  <TonalityRadar
+                    value={settings.tonality}
+                    onChange={handleUpdateTonality}
+                    enabled={settings.tonalityEnabled}
+                    onToggle={handleToggleTonality}
+                  />
+                </div>
+
+                <div className="pb-4 border-b border-border">
+                  <TemperatureSlider
+                    value={settings.temperature}
+                    onChange={handleUpdateTemperature}
+                  />
+                </div>
+
+                <div>
+                  <SuggestionsSlider
+                    value={settings.numSuggestions}
+                    onChange={handleUpdateNumSuggestions}
+                  />
+                </div>
+              </div>
+            </motion.div>
           )}
-          title="Generate Suggestions"
-        >
-          <ShadowInnerIcon className="w-3 h-3" />
-        </VaultButton>
+        </AnimatePresence>
+
+        <div className="flex items-center justify-end gap-3 p-2">
+          <VaultButton
+            onClick={toggleSteeringPanel}
+            size="small"
+            color="yellow"
+            title="Interpreter Settings"
+          >
+            <MixerHorizontalIcon className="h-3 w-3" />
+          </VaultButton>
+
+          <VaultButton
+            onClick={() => handleGenerateNewSuggestions(settings)}
+            disabled={isNotesLoading}
+            color="none"
+            size="small"
+            className={cn(
+              "text-primary border border-accent-foreground/40",
+              !isNotesRecentlyGenerated && "button-shimmer-border",
+            )}
+            title="Generate Suggestions"
+          >
+            <ShadowInnerIcon className="w-3 h-3" />
+          </VaultButton>
+        </div>
       </div>
     )
   },
@@ -360,7 +490,7 @@ export const NotesPanel = memo(function NotesPanel({
         )}
       </div>
       <DriversBar
-        handleGenerateNewSuggestions={() => generateNewSuggestions(settings)}
+        handleGenerateNewSuggestions={generateNewSuggestions}
         isNotesLoading={isNotesLoading}
         isNotesRecentlyGenerated={isNotesRecentlyGenerated}
       />

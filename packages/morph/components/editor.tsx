@@ -29,7 +29,6 @@ import { NotesPanel, StreamingNote } from "@/components/note-panel"
 import { theme as editorTheme, frontmatter, md, syntaxHighlighting } from "@/components/parser"
 import Rails from "@/components/rails"
 import { SearchCommand } from "@/components/search-command"
-import SteeringPanel from "@/components/steering-panel"
 import { VaultButton } from "@/components/ui/button"
 import { DotIcon } from "@/components/ui/icons"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -613,15 +612,47 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     ): Promise<NewlyGeneratedNotes> => {
       try {
         const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:8000"
-        const readyz = await fetch(`${apiEndpoint}/readyz`)
-        if (!readyz.ok) {
-          throw new Error("Notes functionality is currently unavailable")
+
+        try {
+          const readyz = await fetch(`${apiEndpoint}/readyz`)
+          if (!readyz.ok) {
+            const errorMsg = "Notes functionality is currently unavailable"
+            toast({
+              title: "Service Unavailable",
+              description: errorMsg,
+              variant: "destructive",
+              duration: 5000,
+            })
+            throw new Error(errorMsg)
+          }
+        } catch (readyzError: any) {
+          const errorMsg = `Cannot connect to notes service: ${readyzError.message || "Unknown error"}`
+          toast({
+            title: "Connection Error",
+            description: errorMsg,
+            variant: "destructive",
+            duration: 5000,
+          })
+          throw new Error(errorMsg)
         }
-        const serviceReadiness: ReadinessResponse = await fetch(`${apiEndpoint}/health`, {
-          method: "POST",
-          headers: { Accept: "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify({ timeout: 30 }),
-        }).then((data) => data.json())
+
+        let serviceReadiness: ReadinessResponse
+        try {
+          serviceReadiness = await fetch(`${apiEndpoint}/health`, {
+            method: "POST",
+            headers: { Accept: "application/json", "Content-Type": "application/json" },
+            body: JSON.stringify({ timeout: 30 }),
+          }).then((data) => data.json())
+        } catch (healthError: any) {
+          const errorMsg = `Health check failed: ${healthError.message || "Unknown error"}`
+          toast({
+            title: "Health Check Error",
+            description: errorMsg,
+            variant: "destructive",
+            duration: 5000,
+          })
+          throw new Error(errorMsg)
+        }
 
         // Validate service health status with detailed information
         if (!serviceReadiness.healthy) {
@@ -637,7 +668,14 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             allServices: serviceReadiness.services,
           })
 
-          throw new Error(`Services unavailable: ${unhealthyServices}`)
+          const errorMsg = `Services unavailable: ${unhealthyServices}`
+          toast({
+            title: "Service Health Error",
+            description: errorMsg,
+            variant: "destructive",
+            duration: 5000,
+          })
+          throw new Error(errorMsg)
         }
 
         // Create a new reasoning ID for this generation
@@ -674,14 +712,45 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         let reasoningEndTime: number | null = null
 
         // Create streaming request
-        const response = await fetch(`${apiEndpoint}/suggests`, {
-          method: "POST",
-          headers: { Accept: "text/event-stream", "Content-Type": "application/json" },
-          body: JSON.stringify(request),
-        })
+        let response: Response
+        try {
+          response = await fetch(`${apiEndpoint}/suggests`, {
+            method: "POST",
+            headers: { Accept: "text/event-stream", "Content-Type": "application/json" },
+            body: JSON.stringify(request),
+          })
 
-        if (!response.ok) throw new Error("Failed to fetch suggestions")
-        if (!response.body) throw new Error("Response body is empty")
+          if (!response.ok) {
+            const errorMsg = `Failed to fetch suggestions: ${response.statusText || "Unknown error"}`
+            toast({
+              title: "Suggestion Error",
+              description: errorMsg,
+              variant: "destructive",
+              duration: 5000,
+            })
+            throw new Error(errorMsg)
+          }
+
+          if (!response.body) {
+            const errorMsg = "Response body is empty"
+            toast({
+              title: "Empty Response",
+              description: errorMsg,
+              variant: "destructive",
+              duration: 5000,
+            })
+            throw new Error(errorMsg)
+          }
+        } catch (suggestError: any) {
+          const errorMsg = `Failed to get suggestions: ${suggestError.message || "Unknown error"}`
+          toast({
+            title: "Suggestion Error",
+            description: errorMsg,
+            variant: "destructive",
+            duration: 5000,
+          })
+          throw new Error(errorMsg)
+        }
 
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
@@ -955,6 +1024,13 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             }
           } catch (e) {
             console.error("Error parsing suggestions:", e)
+            const errorMsg = "Failed to parse suggestion data"
+            toast({
+              title: "Parsing Error",
+              description: errorMsg,
+              variant: "destructive",
+              duration: 5000,
+            })
           }
         }
 
@@ -988,12 +1064,28 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         }
       } catch (error: any) {
         // Catch specific error type
-        setNotesError(`Notes not available: ${error.message || "Unknown error"}`)
+        const errorMsg = `Notes not available: ${error.message || "Unknown error"}`
+        setNotesError(errorMsg)
         setReasoningComplete(true)
         setCurrentlyGeneratingDateKey(null)
+
+        // Only show toast if not already shown by specific error handlers
+        if (!error.message || (!error.message.includes("Service") && !error.message.includes("Connection") &&
+            !error.message.includes("Health") && !error.message.includes("Suggestion") &&
+            !error.message.includes("Empty") && !error.message.includes("Parsing"))) {
+          toast({
+            title: "Error",
+            description: errorMsg,
+            variant: "destructive",
+            duration: 5000,
+          })
+        }
+
+        // Ensure we return a rejected promise
+        return Promise.reject(error)
       }
     },
-    [],
+    [toast],
   )
 
   // Format date for display
@@ -1420,6 +1512,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       streamingSuggestionColors,
       db,
       currentGenerationNotes,
+      toast,
     ],
   )
 
@@ -1669,7 +1762,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       />
                     )}
                   </AnimatePresence>
-                  {showNotes && <SteeringPanel />}
                   <div className="flex flex-col items-center space-y-2 absolute bottom-4 right-4 z-20">
                     <VaultButton
                       className={cn(
