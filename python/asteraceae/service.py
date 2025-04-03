@@ -59,7 +59,7 @@ logger = logging.getLogger('bentoml.service')
 WORKING_DIR = pathlib.Path(__file__).parent
 IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
 MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 48 * 1024))
-MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 16 * 1024))
+MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 32 * 1024))
 
 MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
 LLM_ID: str = (llm_ := ReasoningModels[MODEL_TYPE])['model_id']
@@ -105,12 +105,13 @@ class SuggestRequest(pydantic.BaseModel):
 
 class AuthorRequest(pydantic.BaseModel):
   essay: str
-  num_authors: t.Annotated[int, at.Ge(1)] = 4
+  num_authors: t.Annotated[int, at.Ge(1)] = 8
   top_p: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['top_p']
   temperature: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['temperature']
   max_tokens: t.Annotated[int, at.Ge(256), at.Le(MAX_TOKENS)] = MAX_TOKENS
-  authors: t.Optional[list[str]] = None
-  search_backend: t.Optional[t.Literal['exa']] = None
+  authors: t.Optional[list[str]] = pydantic.Field(DEFAULT_AUTHORS)
+  search_backend: t.Optional[t.Literal['exa']] = 'exa'
+  num_search_results: t.Annotated[int, at.Ge(1), at.Le(15)] = 10
 
 
 class StreamingCall(pydantic.BaseModel):
@@ -566,7 +567,8 @@ class API:
         temperature=request.temperature,
         top_p=request.top_p,
         max_tokens=request.max_tokens,
-        tool_choice={'type': 'function', 'function': {'name': 'search_tool'}},
+        # tool_choice={'type': 'function', 'function': {'name': 'search_tool'}},
+        tool_choice='auto',  # ok, doesn't work for now, but the generated lists looks cool afaict
         extra_body={'repetition_penalty': 1.05},
       )
 
@@ -585,7 +587,9 @@ class API:
               logger.info('Executing search for: "%s"', search_query)
 
               # Execute the search using the configured backend
-              search_results = await self.search(search_query, backend=search_backend, num_results=5)
+              search_results = await self.search(
+                search_query, backend=search_backend, num_results=request.num_search_results
+              )
               logger.info('Found %d search results', len(search_results.results))
 
               # Add the tool response to messages
@@ -604,7 +608,7 @@ class API:
                 'role': 'tool',
                 'tool_call_id': tool_call.id,
                 'name': 'search_tool',
-                'content': json.dumps({'error': error_message}),
+                'content': '<empty>',
               })
 
         # Add a prompt to use the search results
@@ -620,7 +624,7 @@ class API:
         completions = await self.llm_client.chat.completions.create(
           model=LLM_ID,
           messages=messages,
-          temperature=request.temperature * 0.8,  # Slightly lower temperature for more consistent output
+          temperature=request.temperature * 0.92,  # Slightly lower temperature for more consistent output
           max_tokens=request.max_tokens,
           extra_body={'guided_json': Authors.model_json_schema()},
         )
