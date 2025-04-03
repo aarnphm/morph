@@ -34,8 +34,8 @@ After your analysis, your final output MUST be a JSON object with a single key "
 
 ```json
 {
-"authors": ["Author Name 1", "Author Name 2", "Author Name 3"]
+  "authors": ["Author Name 1", "Author Name 2", "Author Name 3"]
 }
 ```
 
-IMPORTANT: Your response must end with a valid JSON object containing only the "authors" key and an array of author names.  Do not include any other content or explanations after the final JSON object.
+IMPORTANT: Your response must end with a valid JSON object containing only the "authors" key and an array of author names. Do not include any other content or explanations after the final JSON object.
