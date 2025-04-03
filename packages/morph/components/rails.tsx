@@ -12,10 +12,10 @@ import {
   PinRightIcon,
   PlusIcon,
 } from "@radix-ui/react-icons"
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useRouter } from "next/navigation"
 import * as React from "react"
-import { memo, useCallback, useMemo, useState, useEffect } from "react"
+import { memo, useCallback, useMemo, useState, useEffect, useRef } from "react"
 
 import { setFile } from "@/components/markdown-inline"
 import { VaultButton } from "@/components/ui/button"
@@ -58,6 +58,53 @@ const ExpandedFoldersContext = React.createContext<{
   expandedFolders: new Set<string>(),
   setExpandedFolder: () => {},
 });
+
+// Add this to prevent excessive re-renders from folder expansion state changes
+const useExpandedFoldersState = () => {
+  // Using useRef for storing expanded folders to avoid unnecessary re-renders
+  const expandedFoldersRef = React.useRef(new Set<string>());
+  // Keep a state copy to trigger re-renders only when needed
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+
+  // Batch updates for better performance when many folders are expanded/collapsed
+  const [pendingUpdates, setPendingUpdates] = useState<Array<{path: string, isExpanded: boolean}>>([]);
+
+  // Update function that batches changes
+  const setExpandedFolder = useCallback((path: string, isExpanded: boolean) => {
+    setPendingUpdates(prev => [...prev, {path, isExpanded}]);
+  }, []);
+
+  // Process batched updates with throttling
+  useEffect(() => {
+    if (pendingUpdates.length === 0) return;
+
+    const timer = setTimeout(() => {
+      // Apply all pending updates at once
+      const newSet = new Set(expandedFoldersRef.current);
+      pendingUpdates.forEach(({path, isExpanded}) => {
+        if (isExpanded) {
+          newSet.add(path);
+        } else {
+          newSet.delete(path);
+        }
+      });
+
+      // Update the ref immediately
+      expandedFoldersRef.current = newSet;
+      // Update state to trigger re-renders
+      setExpandedFolders(newSet);
+      // Clear pending updates
+      setPendingUpdates([]);
+    }, 50); // Throttle updates
+
+    return () => clearTimeout(timer);
+  }, [pendingUpdates]);
+
+  return {
+    expandedFolders: expandedFoldersRef.current,
+    setExpandedFolder
+  };
+};
 
 // Create a component for the extension pill
 const ExtensionPill = memo(function ExtensionPill({ extension }: { extension: string }) {
@@ -261,7 +308,67 @@ const FileTreeItem = memo(function FileTreeItem({ node, nodePath = '' }: { node:
   return prevProps.node === nextProps.node && prevProps.nodePath === nextProps.nodePath;
 });
 
-// Update the FileTree component to handle folder expansion state
+// Implement a basic virtualization helper for rendering large file trees
+function useVirtualizedItems<T>(
+  items: T[] = [],
+  itemHeight: number = 24,
+  overscan: number = 10
+) {
+  const [visibleItems, setVisibleItems] = useState<T[]>([]);
+  const [startIndex, setStartIndex] = useState(0);
+  const [endIndex, setEndIndex] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const totalHeight = items.length * itemHeight;
+
+  const updateVisibleItems = useCallback(() => {
+    if (!containerRef.current) return;
+
+    const { height, top } = containerRef.current.getBoundingClientRect();
+    const scrollTop = containerRef.current.scrollTop;
+
+    const visibleStart = Math.floor(scrollTop / itemHeight);
+    const visibleEnd = Math.min(
+      items.length - 1,
+      Math.floor((scrollTop + height) / itemHeight)
+    );
+
+    // Add overscan
+    const start = Math.max(0, visibleStart - overscan);
+    const end = Math.min(items.length - 1, visibleEnd + overscan);
+
+    setStartIndex(start);
+    setEndIndex(end);
+    setVisibleItems(items.slice(start, end + 1));
+  }, [items, itemHeight, overscan]);
+
+  useEffect(() => {
+    updateVisibleItems();
+  }, [items, updateVisibleItems]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    container.addEventListener('scroll', updateVisibleItems);
+    window.addEventListener('resize', updateVisibleItems);
+
+    return () => {
+      container.removeEventListener('scroll', updateVisibleItems);
+      window.removeEventListener('resize', updateVisibleItems);
+    };
+  }, [updateVisibleItems]);
+
+  return {
+    containerRef,
+    visibleItems,
+    startIndex,
+    totalHeight,
+    paddingTop: startIndex * itemHeight
+  };
+}
+
+// Update the FileTree component to use virtualization for large node arrays
 const FileTree = memo(function FileTree({
   nodes,
   onFileSelect,
@@ -271,21 +378,23 @@ const FileTree = memo(function FileTree({
   onFileSelect: (node: FileSystemTreeNode) => void;
   isExpanded: boolean;
 }) {
-  // Maintain a cache of expanded folder paths
-  const [expandedFolders, setExpandedFoldersState] = useState<Set<string>>(new Set());
+  // Use our optimized expanded folders state hook
+  const expandedFoldersState = useExpandedFoldersState();
 
-  // Function to update the expanded state of a folder
-  const setExpandedFolder = useCallback((path: string, isExpanded: boolean) => {
-    setExpandedFoldersState(prev => {
-      const newSet = new Set(prev);
-      if (isExpanded) {
-        newSet.add(path);
-      } else {
-        newSet.delete(path);
-      }
-      return newSet;
-    });
-  }, []);
+  // Use virtualization for large directories (>100 items)
+  const useVirtual = nodes.length > 100;
+  const itemHeight = 24; // Approximate height of each file node
+  const {
+    containerRef,
+    visibleItems,
+    startIndex,
+    totalHeight,
+    paddingTop
+  } = useVirtualizedItems(
+    useVirtual ? nodes : [],
+    itemHeight,
+    10
+  );
 
   // Guard against empty or missing nodes array
   if (!nodes || nodes.length === 0) {
@@ -297,17 +406,40 @@ const FileTree = memo(function FileTree({
     onFileSelect, isExpanded
   }), [onFileSelect, isExpanded]);
 
+  // Use the optimized expanded folders context
   const expandedFoldersContextValue = useMemo(() => ({
-    expandedFolders, setExpandedFolder
-  }), [expandedFolders, setExpandedFolder]);
+    expandedFolders: expandedFoldersState.expandedFolders,
+    setExpandedFolder: expandedFoldersState.setExpandedFolder
+  }), [expandedFoldersState]);
 
   return (
     <ExpandedFoldersContext.Provider value={expandedFoldersContextValue}>
       <FileTreeContext.Provider value={fileTreeContextValue}>
         <SidebarMenu>
-          {nodes.map((node, idx) => (
-            <FileTreeItem key={idx} node={node} />
-          ))}
+          {useVirtual ? (
+            <div
+              ref={containerRef}
+              className="overflow-y-auto h-full relative"
+              style={{ height: '100%' }}
+            >
+              <div style={{ height: totalHeight + 'px', position: 'relative' }}>
+                <div style={{ transform: `translateY(${paddingTop}px)` }}>
+                  {visibleItems.map((node, idx) => (
+                    <FileTreeItem
+                      key={`${startIndex + idx}-${node.name}`}
+                      node={node}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {nodes.map((node, idx) => (
+                <FileTreeItem key={idx} node={node} />
+              ))}
+            </>
+          )}
         </SidebarMenu>
       </FileTreeContext.Provider>
     </ExpandedFoldersContext.Provider>
@@ -319,10 +451,6 @@ const FileTree = memo(function FileTree({
     if (prevProps.nodes?.length !== nextProps.nodes?.length) {
       return false;
     }
-
-    // Potentially do more thorough comparison if needed
-    // For now, if length is same but reference changed, we'll still re-render
-    // This could be optimized further if needed
   }
 
   return (
@@ -467,12 +595,57 @@ const KeyboardShortcutsSection = memo(function KeyboardShortcutsSection({
   return (
     <div className="mt-auto w-full px-2 relative">
       {keyboardButton}
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {showKeyboardShortcuts && keyboardShortcutsPanel}
       </AnimatePresence>
     </div>
   );
 });
+
+// Optimize animations cleanup on unmount
+function useVisibilityBasedAnimation() {
+  // Tracks if the component is visible in the viewport
+  const [isVisible, setIsVisible] = useState(true)
+  // Respect user preferences for reduced motion
+  const prefersReducedMotion = useReducedMotion()
+  // Track if component is mounted
+  const isMounted = useRef(true)
+  // Add a ref to track initial render
+  const isInitialRender = useRef(true)
+
+  // Skip animations when not visible, user prefers reduced motion, when unmounting, or on initial render
+  const shouldAnimate = isVisible && !prefersReducedMotion && isMounted.current && !isInitialRender.current
+
+  useEffect(() => {
+    // Skip initial animation
+    const timer = setTimeout(() => {
+      isInitialRender.current = false
+    }, 500) // Give a small delay to ensure everything has rendered
+
+    // Simple intersection observer to detect visibility
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (isMounted.current) {
+          setIsVisible(entries[0]?.isIntersecting ?? true)
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    // Use a ref to the parent element instead of tracking every animated element
+    const parent = document.querySelector('nav')
+    if (parent) observer.observe(parent)
+
+    return () => {
+      isMounted.current = false
+      if (parent) observer.unobserve(parent)
+      observer.disconnect()
+      clearTimeout(timer)
+    }
+  }, [])
+
+  return shouldAnimate
+}
 
 export default memo(function Rails({
   className,
@@ -487,6 +660,8 @@ export default memo(function Rails({
   const isExpanded = state === "expanded"
   const router = useRouter()
   const { settings } = usePersistedSettings()
+  // Use our custom hook to optimize animations
+  const shouldAnimate = useVisibilityBasedAnimation()
 
   const onManageVault = useCallback(() => {
     setTimeout(() => {
@@ -574,10 +749,12 @@ export default memo(function Rails({
     },
     transition: {
       type: "tween",
-      duration: 0.2,
-      ease: "easeOut"
+      duration: shouldAnimate ? 0.2 : 0.01, // Almost instant when not visible or reduced motion preferred
+      ease: "easeOut",
+      layoutDependency: false,
+      willChange: "width"
     }
-  }), [isExpanded]);
+  }), [isExpanded, shouldAnimate]);
 
   // Memoize the vault icons buttons to prevent re-renders when toggling keyboard shortcuts
   const newFileButton = useMemo(() => (
@@ -664,26 +841,26 @@ export default memo(function Rails({
 
   // Now update the fileTreeSection in the Rails component
   const fileTreeSection = useMemo(() => (
-    <AnimatePresence>
+    <AnimatePresence mode="wait" initial={false}>
       {isExpanded && (
         <motion.div
-          initial={{ opacity: 0, height: 0, overflow: "hidden" }}
-          animate={{
-            opacity: 1,
-            height: "auto",
-            overflow: "visible",
-          }}
-          exit={{
-            opacity: 0,
-            height: 0,
-            overflow: "hidden",
-          }}
+          initial={shouldAnimate ? { opacity: 0, height: 0, overflow: "hidden" } : false}
+          animate={shouldAnimate
+            ? { opacity: 1, height: "auto", overflow: "visible" }
+            : { opacity: 1, height: "auto", overflow: "visible" }
+          }
+          exit={shouldAnimate
+            ? { opacity: 0, height: 0, overflow: "hidden" }
+            : { opacity: 0, height: 0, overflow: "hidden" }
+          }
           transition={{
             type: "tween",
-            duration: 0.2,
-            ease: "easeOut"
+            duration: shouldAnimate ? 0.2 : 0.01,
+            ease: "easeOut",
+            layoutDependency: false,
+            willChange: "opacity, height",
           }}
-          className="flex flex-grow flex-col relative px-2 mb-2"
+          className="flex flex-grow flex-col relative px-2 mb-2 will-change-transform"
         >
           <h3 className="text-text-300 flex items-center gap-1.5 text-xs text-muted-foreground select-none pb-2 pl-2 sticky top-0 z-10 bg-bg-200 backdrop-blur-sm">
             Files
@@ -708,20 +885,24 @@ export default memo(function Rails({
         </motion.div>
       )}
     </AnimatePresence>
-  ), [isExpanded, vault?.tree?.children, handleFileSelect]);
+  ), [isExpanded, vault?.tree?.children, handleFileSelect, shouldAnimate]);
 
   // TODO: Add settings panel back
   return (
       <motion.div
-        className={cn("fixed z-sidebar lg:sticky h-full", className)}
+        className={cn("fixed z-sidebar lg:sticky h-full will-change-transform", className)}
         {...sidebarMotionProps}
+        // Disable layout animations to improve performance
+        layout={false}
       >
         <motion.nav
           className={cn(
             "h-screen flex flex-col items-center py-4 gap-3 fixed top-0 left-0 z-20 border-border border-r",
-            "shadow-xl !bg-bg-300 backdrop-blur-sm",
+            "shadow-xl !bg-bg-300 backdrop-blur-sm will-change-transform",
           )}
           {...sidebarMotionProps}
+          // Disable layout animations to improve performance
+          layout={false}
         >
           <div className="flex w-full items-center gap-px px-2">
             <VaultButton

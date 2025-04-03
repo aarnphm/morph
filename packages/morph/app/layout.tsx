@@ -5,7 +5,7 @@ import type React from "react"
 
 import { Toaster } from "@/components/ui/toaster"
 
-import { Providers } from "@/context/providers"
+import ClientProvider from "@/context/providers"
 
 import "./globals.css"
 
@@ -47,7 +47,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <PlausibleProvider domain="morph-editor.app" trackOutboundLinks trackFileDownloads>
-          <Providers>{children}</Providers>
+          <ClientProvider>{children}</ClientProvider>
         </PlausibleProvider>
         <Toaster />
         {process.env.NODE_ENV === "production" && (

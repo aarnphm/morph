@@ -6,19 +6,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { AnimatePresence, motion } from "motion/react"
 import type React from "react"
-import { useEffect, useState, useMemo, useCallback } from "react"
+import { useEffect, useState, useMemo, useCallback, memo } from "react"
 
 import PixelatedLoading from "@/components/landing/pixelated-loading"
 
 import { MorphPgLite, PGliteProvider } from "@/context/db"
 import { ThemeProvider } from "@/context/theme"
 import { VaultProvider } from "@/context/vault"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
-interface ProvidersProps {
+interface ClientProviderProps {
   children: React.ReactNode
 }
 
-export function Providers({ children }: ProvidersProps) {
+export default memo(function ClientProvider({ children }: ClientProviderProps) {
   const queryClient = useMemo(() => new QueryClient(), [])
   const [db, setDb] = useState<MorphPgLite | undefined>()
   const [isDbLoading, setIsDbLoading] = useState(true)
@@ -76,7 +77,7 @@ export function Providers({ children }: ProvidersProps) {
         progress={loadingProgress}
         onTransitionComplete={handleTransitionComplete}
       />
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {!isDbLoading && db && transitionComplete && (
           <motion.div {...motionProps}>
             <PGliteProvider db={db}>
@@ -88,10 +89,12 @@ export function Providers({ children }: ProvidersProps) {
                     enableSystem
                     disableTransitionOnChange
                   >
-                    {children}
+                    <TooltipProvider delayDuration={0} skipDelayDuration={0}>
+                      {children}
+                    </TooltipProvider>
                   </ThemeProvider>
                 </VaultProvider>
-                {/* <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" /> */}
+                <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
               </QueryClientProvider>
             </PGliteProvider>
           </motion.div>
@@ -99,4 +102,4 @@ export function Providers({ children }: ProvidersProps) {
       </AnimatePresence>
     </>
   )
-}
+})

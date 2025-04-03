@@ -64,15 +64,18 @@ export default function PixelatedLoading({
       controls
         .start({
           opacity: 0,
-          transition: { duration: 0.8, ease: "easeInOut" }, // Slightly faster transition
+          transition: { duration: 0.6, ease: "easeInOut" }, // Slightly faster transition
         })
         .then(() => {
-          setVisible(false)
-          // Only remove the Canvas after the animation completes
-          setCanvasRendered(false)
-          if (onTransitionComplete) {
-            onTransitionComplete()
-          }
+          // Add a small delay before completely removing to avoid flicker with other components
+          setTimeout(() => {
+            setVisible(false)
+            // Only remove the Canvas after the animation completes
+            setCanvasRendered(false)
+            if (onTransitionComplete) {
+              onTransitionComplete()
+            }
+          }, 50) // Short delay to ensure proper handoff between components
         })
     } else if (isLoading && !isExiting.current) {
       setVisible(true)

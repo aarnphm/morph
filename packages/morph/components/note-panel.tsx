@@ -313,7 +313,7 @@ export const NotesPanel = memo(function NotesPanel({
                         scanAnimationComplete &&
                         currentGenerationNotes.length > 0 &&
                         !notesError && (
-                          <AnimatePresence mode="wait">
+                          <AnimatePresence mode="wait" initial={false}>
                             <motion.div
                               className="space-y-4 px-2"
                               initial={{ opacity: 0 }}

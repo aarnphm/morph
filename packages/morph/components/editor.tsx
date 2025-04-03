@@ -8,7 +8,7 @@ import { languages } from "@codemirror/language-data"
 import { Compartment, EditorState } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 import { createId } from "@paralleldrive/cuid2"
-import { CopyIcon, Cross2Icon, GlobeIcon, StackIcon } from "@radix-ui/react-icons"
+import { CopyIcon, Cross2Icon, GlobeIcon } from "@radix-ui/react-icons"
 import { Vim, vim } from "@replit/codemirror-vim"
 import CodeMirror from "@uiw/react-codemirror"
 import { and, eq, inArray } from "drizzle-orm"
@@ -33,7 +33,6 @@ import SteeringPanel from "@/components/steering-panel"
 import { VaultButton } from "@/components/ui/button"
 import { DotIcon } from "@/components/ui/icons"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { TooltipProvider } from "@/components/ui/tooltip"
 
 import { usePGlite } from "@/context/db"
 import { SearchProvider } from "@/context/search"
@@ -1457,194 +1456,192 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <TooltipProvider>
-        <SteeringProvider>
-          <CustomDragLayer />
-          <SearchProvider vault={vault!}>
-            <SidebarProvider defaultOpen={false} className="flex min-h-screen">
-              <Rails
-                vault={vault!}
-                editorViewRef={codeMirrorViewRef}
-                onFileSelect={handleFileSelect}
-                onNewFile={onNewFile}
-                onContentUpdate={updatePreview}
-              />
-              <SidebarInset className="flex flex-col h-screen flex-1 overflow-hidden">
-                <Playspace vaultId={vaultId}>
+      <SteeringProvider>
+        <CustomDragLayer />
+        <SearchProvider vault={vault!}>
+          <SidebarProvider defaultOpen={false} className="flex min-h-screen">
+            <Rails
+              vault={vault!}
+              editorViewRef={codeMirrorViewRef}
+              onFileSelect={handleFileSelect}
+              onNewFile={onNewFile}
+              onContentUpdate={updatePreview}
+            />
+            <SidebarInset className="flex flex-col h-screen flex-1 overflow-hidden">
+              <Playspace vaultId={vaultId}>
+                <AnimatePresence initial={false}>
+                  {showEphemeralBanner && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.3 }}
+                      className="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-50 bg-yellow-100 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-md shadow-md text-xs flex items-center space-x-2"
+                    >
+                      <span>
+                        📝 Suggestions are ephemeral and will be{" "}
+                        <span className="text-red-400">lost</span> unless the file is saved (
+                        <kbd>⌘ s</kbd>)
+                      </span>
+                      <button
+                        onClick={() => setShowEphemeralBanner(false)}
+                        className="text-yellow-800 hover:text-yellow-900 hover:cursor-pointer"
+                        aria-label="Dismiss notification"
+                      >
+                        <Cross2Icon className="w-3 h-3" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <EditorDropTarget handleNoteDropped={handleNoteDropped}>
                   <AnimatePresence initial={false}>
-                    {showEphemeralBanner && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ duration: 0.3 }}
-                        className="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-50 bg-yellow-100 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-md shadow-md text-xs flex items-center space-x-2"
-                      >
-                        <span>
-                          📝 Suggestions are ephemeral and will be{" "}
-                          <span className="text-red-400">lost</span> unless the file is saved (
-                          <kbd>⌘ s</kbd>)
-                        </span>
-                        <button
-                          onClick={() => setShowEphemeralBanner(false)}
-                          className="text-yellow-800 hover:text-yellow-900 hover:cursor-pointer"
-                          aria-label="Dismiss notification"
-                        >
-                          <Cross2Icon className="w-3 h-3" />
-                        </button>
-                      </motion.div>
+                    {memoizedDroppedNotes.length > 0 && (
+                      <DroppedNoteGroup
+                        droppedNotes={memoizedDroppedNotes}
+                        isStackExpanded={isStackExpanded}
+                        onExpandStack={toggleStackExpand}
+                        onDragBackToPanel={handleNoteDragBackToPanel}
+                        className="before:mix-blend-multiply before:bg-noise-pattern"
+                      />
                     )}
                   </AnimatePresence>
-                  <EditorDropTarget handleNoteDropped={handleNoteDropped}>
-                    <AnimatePresence initial={false}>
-                      {memoizedDroppedNotes.length > 0 && (
-                        <DroppedNoteGroup
-                          droppedNotes={memoizedDroppedNotes}
-                          isStackExpanded={isStackExpanded}
-                          onExpandStack={toggleStackExpand}
-                          onDragBackToPanel={handleNoteDragBackToPanel}
-                          className="before:mix-blend-multiply before:bg-noise-pattern"
-                        />
-                      )}
-                    </AnimatePresence>
-                    {showNotes && <SteeringPanel />}
-                    <div className="flex flex-col items-center space-y-2 absolute bottom-4 right-4 z-20">
-                      <VaultButton
-                        className={cn(
-                          isClient &&
-                            (isNotesLoading || !isOnline) &&
-                            "opacity-50 cursor-not-allowed",
-                        )} // Conditionally apply style based on isClient
-                        onClick={toggleNotes}
-                        disabled={!isClient || isNotesLoading || !isOnline} // Disable if not client, loading, or offline
-                        size="small"
-                        // Adjust title based on client state as well
-                        title={
-                          showNotes
-                            ? "Hide Notes"
-                            : isClient && isOnline
-                              ? "Show Notes"
-                              : isClient && !isOnline
-                                ? "Notes unavailable offline"
-                                : "Loading..."
-                        }
-                      >
-                        <CopyIcon className="w-3 h-3" />
-                      </VaultButton>
-                    </div>
-                    <div className="absolute top-4 left-4 text-sm/7 z-10 flex flex-col items-center gap-2">
-                      {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
-                      {isClient && !isOnline && <GlobeIcon className="w-4 h-4 text-destructive" />}
-                      {/* {isEmbeddingInProgress && ( */}
-                      {/*   <> */}
-                      {/*     {eyeIconState === "open" ? ( */}
-                      {/*       <EyeOpenIcon className="w-4 h-4 text-blue-400 animate-pulse" /> */}
-                      {/*     ) : ( */}
-                      {/*       <EyeClosedIcon className="w-4 h-4 text-blue-400/70" /> */}
-                      {/*     )} */}
-                      {/*   </> */}
-                      {/* )} */}
-                    </div>
-                    <div
-                      className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
-                    >
-                      <div className="h-full scrollbar-hidden relative">
-                        <CodeMirror
-                          value={markdownContent}
-                          height="100%"
-                          autoFocus
-                          placeholder={"What's on your mind?"}
-                          basicSetup={{
-                            rectangularSelection: true,
-                            indentOnInput: true,
-                            syntaxHighlighting: true,
-                            searchKeymap: true,
-                            highlightActiveLine: false,
-                            highlightSelectionMatches: false,
-                          }}
-                          indentWithTab={false}
-                          extensions={memoizedExtensions}
-                          onChange={onContentChange}
-                          className="overflow-auto h-full mx-8 scrollbar-hidden pt-4"
-                          theme={theme === "dark" ? "dark" : editorTheme}
-                          onCreateEditor={(view) => {
-                            codeMirrorViewRef.current = view
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <div
-                      className={`reading-mode absolute inset-0 ${isEditMode ? "hidden" : "block overflow-hidden"}`}
-                      ref={readingModeRef}
-                    >
-                      <div className="prose dark:prose-invert h-full mr-8 overflow-auto scrollbar-hidden">
-                        <article className="@container h-full max-w-5xl mx-auto scrollbar-hidden mt-4">
-                          {previewNode && toJsx(previewNode)}
-                        </article>
-                      </div>
-                    </div>
-                  </EditorDropTarget>
-                  <AnimatePresence mode="wait" initial={false}>
-                    {showNotes && (
-                      <motion.div
-                        key="notes-panel"
-                        initial={{ width: 0, opacity: 0, overflow: "hidden" }}
-                        animate={{
-                          width: "22rem",
-                          opacity: 1,
-                          overflow: "visible",
-                        }}
-                        exit={{
-                          width: 0,
-                          opacity: 0,
-                          overflow: "hidden",
-                        }}
-                        transition={{
-                          type: "tween",
-                          duration: 0.2,
-                          ease: "easeOut",
-                        }}
-                        layout
-                      >
-                        <NotesPanel
-                          notes={notes}
-                          isNotesLoading={isNotesLoading}
-                          notesError={notesError}
-                          currentlyGeneratingDateKey={currentlyGeneratingDateKey}
-                          currentGenerationNotes={currentGenerationNotes}
-                          droppedNotes={droppedNotes}
-                          streamingReasoning={streamingReasoning}
-                          reasoningComplete={reasoningComplete}
-                          currentFile={currentFile}
-                          vaultId={vault?.id}
-                          currentReasoningId={currentReasoningId}
-                          reasoningHistory={reasoningHistory}
-                          handleNoteDropped={handleNoteDropped}
-                          handleNoteRemoved={handleNoteRemoved}
-                          handleCurrentGenerationNote={handleCurrentGenerationNote}
-                          formatDate={formatDate}
-                          isNotesRecentlyGenerated={isNotesRecentlyGenerated}
-                          currentReasoningElapsedTime={currentReasoningElapsedTime}
-                          generateNewSuggestions={generateNewSuggestions}
-                          noteGroupsData={noteGroupsData}
-                          notesContainerRef={notesContainerRef}
-                          streamingNotes={streamingNotes}
-                          scanAnimationComplete={scanAnimationComplete}
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </Playspace>
-                <SearchCommand
-                  maps={flattenedFileIds}
-                  vault={vault!}
-                  onFileSelect={handleFileSelect}
-                />
-              </SidebarInset>
-            </SidebarProvider>
-          </SearchProvider>
-        </SteeringProvider>
-      </TooltipProvider>
+                {showNotes && <SteeringPanel />}
+                <div className="flex flex-col items-center space-y-2 absolute bottom-4 right-4 z-20">
+                  <VaultButton
+                    className={cn(
+                      isClient &&
+                        (isNotesLoading || !isOnline) &&
+                        "opacity-50 cursor-not-allowed",
+                    )} // Conditionally apply style based on isClient
+                    onClick={toggleNotes}
+                    disabled={!isClient || isNotesLoading || !isOnline} // Disable if not client, loading, or offline
+                    size="small"
+                    // Adjust title based on client state as well
+                    title={
+                      showNotes
+                        ? "Hide Notes"
+                        : isClient && isOnline
+                          ? "Show Notes"
+                          : isClient && !isOnline
+                            ? "Notes unavailable offline"
+                            : "Loading..."
+                    }
+                  >
+                    <CopyIcon className="w-3 h-3" />
+                  </VaultButton>
+                </div>
+                <div className="absolute top-4 left-4 text-sm/7 z-10 flex flex-col items-center gap-2">
+                  {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
+                  {isClient && !isOnline && <GlobeIcon className="w-4 h-4 text-destructive" />}
+                  {/* {isEmbeddingInProgress && ( */}
+                  {/*   <> */}
+                  {/*     {eyeIconState === "open" ? ( */}
+                  {/*       <EyeOpenIcon className="w-4 h-4 text-blue-400 animate-pulse" /> */}
+                  {/*     ) : ( */}
+                  {/*       <EyeClosedIcon className="w-4 h-4 text-blue-400/70" /> */}
+                  {/*     )} */}
+                  {/*   </> */}
+                  {/* )} */}
+                </div>
+                <div
+                  className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
+                >
+                  <div className="h-full scrollbar-hidden relative">
+                    <CodeMirror
+                      value={markdownContent}
+                      height="100%"
+                      autoFocus
+                      placeholder={"What's on your mind?"}
+                      basicSetup={{
+                        rectangularSelection: true,
+                        indentOnInput: true,
+                        syntaxHighlighting: true,
+                        searchKeymap: true,
+                        highlightActiveLine: false,
+                        highlightSelectionMatches: false,
+                      }}
+                      indentWithTab={false}
+                      extensions={memoizedExtensions}
+                      onChange={onContentChange}
+                      className="overflow-auto h-full mx-8 scrollbar-hidden pt-4"
+                      theme={theme === "dark" ? "dark" : editorTheme}
+                      onCreateEditor={(view) => {
+                        codeMirrorViewRef.current = view
+                      }}
+                    />
+                  </div>
+                </div>
+                <div
+                  className={`reading-mode absolute inset-0 ${isEditMode ? "hidden" : "block overflow-hidden"}`}
+                  ref={readingModeRef}
+                >
+                  <div className="prose dark:prose-invert h-full mr-8 overflow-auto scrollbar-hidden">
+                    <article className="@container h-full max-w-5xl mx-auto scrollbar-hidden mt-4">
+                      {previewNode && toJsx(previewNode)}
+                    </article>
+                  </div>
+                </div>
+              </EditorDropTarget>
+              <AnimatePresence mode="wait" initial={false}>
+                {showNotes && (
+                  <motion.div
+                    key="notes-panel"
+                    initial={{ width: 0, opacity: 0, overflow: "hidden" }}
+                    animate={{
+                      width: "22rem",
+                      opacity: 1,
+                      overflow: "visible",
+                    }}
+                    exit={{
+                      width: 0,
+                      opacity: 0,
+                      overflow: "hidden",
+                    }}
+                    transition={{
+                      type: "tween",
+                      duration: 0.2,
+                      ease: "easeOut",
+                    }}
+                    layout
+                  >
+                    <NotesPanel
+                      notes={notes}
+                      isNotesLoading={isNotesLoading}
+                      notesError={notesError}
+                      currentlyGeneratingDateKey={currentlyGeneratingDateKey}
+                      currentGenerationNotes={currentGenerationNotes}
+                      droppedNotes={droppedNotes}
+                      streamingReasoning={streamingReasoning}
+                      reasoningComplete={reasoningComplete}
+                      currentFile={currentFile}
+                      vaultId={vault?.id}
+                      currentReasoningId={currentReasoningId}
+                      reasoningHistory={reasoningHistory}
+                      handleNoteDropped={handleNoteDropped}
+                      handleNoteRemoved={handleNoteRemoved}
+                      handleCurrentGenerationNote={handleCurrentGenerationNote}
+                      formatDate={formatDate}
+                      isNotesRecentlyGenerated={isNotesRecentlyGenerated}
+                      currentReasoningElapsedTime={currentReasoningElapsedTime}
+                      generateNewSuggestions={generateNewSuggestions}
+                      noteGroupsData={noteGroupsData}
+                      notesContainerRef={notesContainerRef}
+                      streamingNotes={streamingNotes}
+                      scanAnimationComplete={scanAnimationComplete}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Playspace>
+            <SearchCommand
+              maps={flattenedFileIds}
+              vault={vault!}
+              onFileSelect={handleFileSelect}
+            />
+          </SidebarInset>
+        </SidebarProvider>
+        </SearchProvider>
+      </SteeringProvider>
     </DndProvider>
   )
 })
