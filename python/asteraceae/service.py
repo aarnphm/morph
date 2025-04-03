@@ -69,7 +69,7 @@ EMBED_ID: str = (embed_ := EmbeddingModels[EMBED_TYPE])['model_id']
 SupportedBackend = t.Literal['vllm']
 SUPPORTED_BACKENDS: t.Sequence[SupportedBackend] = ['vllm']
 
-AUTHORS = ['Raymond Carver', 'Franz Kafka', 'Albert Camus', 'Iain McGilchrist', 'Ian McEwan']
+DEFAULT_AUTHORS = ['Raymond Carver', 'Franz Kafka', 'Albert Camus', 'Iain McGilchrist', 'Ian McEwan']
 
 CORS = dict(
   allow_origins=['*'],
@@ -93,7 +93,7 @@ SERVICE_CONFIG: ServiceOpts = {
 
 class SuggestRequest(pydantic.BaseModel):
   essay: str
-  authors: t.Optional[list[str]] = pydantic.Field(AUTHORS)
+  authors: t.Optional[list[str]] = pydantic.Field(DEFAULT_AUTHORS)
   tonality: t.Optional[Tonality] = None
   notes: t.Optional[list[NotesRequest]] = None
   num_suggestions: t.Annotated[int, at.Ge(1)] = 3
@@ -109,7 +109,7 @@ class AuthorRequest(pydantic.BaseModel):
   top_p: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['top_p']
   temperature: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['temperature']
   max_tokens: t.Annotated[int, at.Ge(256), at.Le(MAX_TOKENS)] = MAX_TOKENS
-  authors: t.Optional[list[str]] = pydantic.Field(AUTHORS)
+  authors: t.Optional[list[str]] = None
   search_backend: t.Optional[t.Literal['exa']] = None
 
 
@@ -522,7 +522,7 @@ class API:
     logger.info('Using search backend: %s', search_backend)
 
     # Define the search tool specifications
-    search_tools = [
+    tools = [
       {
         'type': 'function',
         'function': {
@@ -545,24 +545,29 @@ class API:
     # Initial message to analyze the text and consider authors
     messages = [
       {
-        'role': 'user',
+        'role': 'system',
         'content': self.templater.get_template('TOOL_CALLING.md').render(
           excerpt=request.essay, num_authors=request.num_authors, authors=request.authors
         ),
-      }
+      },
+      {
+        'role': 'user',
+        'content': 'Find similar authors that matches the given criteria. Consider key terms, themes, and style elements that would yield relevant results.',
+      },
     ]
 
     try:
-      logger.info('Making initial completion request')
+      logger.info('Synthesize search query')
       # First call: Let the model analyze and potentially use search tools
       tool_caller = await self.llm_client.chat.completions.create(
         model=LLM_ID,
         messages=messages,
-        tools=search_tools,
+        tools=tools,
         temperature=request.temperature,
         top_p=request.top_p,
         max_tokens=request.max_tokens,
-        tool_choice='auto',
+        tool_choice={'type': 'function', 'function': {'name': 'search_tool'}},
+        extra_body={'repetition_penalty': 1.05},
       )
 
       assistant_message = tool_caller.choices[0].message
@@ -580,15 +585,15 @@ class API:
               logger.info('Executing search for: "%s"', search_query)
 
               # Execute the search using the configured backend
-              search_results = await self.search(search_query, backend=search_backend)
-              logger.info('Found %d search results', len(search_results))
+              search_results = await self.search(search_query, backend=search_backend, num_results=5)
+              logger.info('Found %d search results', len(search_results.results))
 
               # Add the tool response to messages
               messages.append({
                 'role': 'tool',
                 'tool_call_id': tool_call.id,
                 'name': 'search_tool',
-                'content': json.dumps(search_results),
+                'content': str(search_results),
               })
 
             except Exception as e:
@@ -616,7 +621,7 @@ class API:
           model=LLM_ID,
           messages=messages,
           temperature=request.temperature * 0.8,  # Slightly lower temperature for more consistent output
-          max_tokens=1024,
+          max_tokens=request.max_tokens,
           extra_body={'guided_json': Authors.model_json_schema()},
         )
 
@@ -632,7 +637,7 @@ class API:
           return Authors(authors=authors_list)
         except Exception as e:
           logger.error('Error parsing final authors response: %s', e)
-          return Authors(authors=[])
+          return Authors(authors=DEFAULT_AUTHORS)
       else:
         logger.info('No tool calls, parsing initial response')
         # The model already generated a response without using tools
@@ -657,8 +662,8 @@ class API:
           completions = await self.llm_client.chat.completions.create(
             model=LLM_ID,
             messages=messages,
-            temperature=0.2,  # Low temperature for consistent output
-            max_tokens=1024,
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
             extra_body={'guided_json': Authors.model_json_schema()},
           )
 
@@ -674,26 +679,22 @@ class API:
             return Authors(authors=authors_list)
           except Exception as inner_e:
             logger.error('Error generating final authors list: %s', inner_e)
-            return Authors(authors=[])
+            return Authors(authors=DEFAULT_AUTHORS)
 
     except Exception as e:
       logger.error('Error in authors function: %s', e)
       logger.error(traceback.format_exc())
-      return Authors(authors=[])
+      return Authors(authors=DEFAULT_AUTHORS)
 
-  async def search(
-    self, query: str, backend: t.Literal['exa'] | str = 'exa', num_results: int = 5
-  ) -> list[dict[str, str]]:
+  async def search(self, query: str, backend: t.Literal['exa'] | str = 'exa', num_results: int = 10):
     if backend == 'exa':
-      return await self.exa_search(query, num_results)
+      if self.exa is None:
+        raise ValueError('Currently only exa is supported')
+      return self.exa.search_and_contents(
+        query, num_results=num_results, use_autoprompt=True, text=True, type='auto', highlights=True
+      )
     else:
       raise ValueError(f'Unsupported search backend: {backend}')
-
-  async def exa_search(self, query: str, max_results: int = 5) -> list[dict[str, str]]:
-    """Perform a search using the Exa API for high-quality semantic search results."""
-    if self.exa is None:
-      raise ValueError('Currently only exa is supported')
-    return self.exa.search_and_contents(query, num_results=max_results, text=True, type='auto')
 
   @bentoml.api
   async def suggests(self, request: SuggestRequest, /) -> t.AsyncGenerator[str, None]:
