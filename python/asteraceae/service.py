@@ -95,6 +95,7 @@ class SuggestRequest(pydantic.BaseModel):
   essay: str
   authors: t.Optional[list[str]] = pydantic.Field(AUTHORS)
   tonality: t.Optional[Tonality] = None
+  notes: t.Optional[list[NotesRequest]] = None
   num_suggestions: t.Annotated[int, at.Ge(1)] = 3
   top_p: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['top_p']
   temperature: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['temperature']
@@ -703,6 +704,7 @@ class API:
         role='user',
         content=self.templater.get_template('SYSTEM_PROMPT.md').render(
           num_suggestions=request.num_suggestions,
+          notes=request.notes,
           authors=request.authors,
           tonality=request.tonality,
           excerpt=request.essay,

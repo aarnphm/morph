@@ -39,6 +39,14 @@ Before generating your suggestions, please analyze the excerpt in detail and add
 7. How the tonality preferences (if provided) might influence potential suggestions
 8. How each potential suggestion might alter the emotional impact of the piece
 
+{%- if notes %}
+There are also included a list of most relevant notes that you might want to consider into your analysis:
+
+{% for note in notes %}
+<notes>{{ note['content'] }}</notes>
+{% endfor %}
+{%- endif %}
+
 After your analysis, provide your suggestions outside of the thinking block. Each suggestion should:
 
 1. Be concise yet insightful, typically two to three sentences

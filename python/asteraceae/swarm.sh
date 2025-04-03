@@ -212,7 +212,7 @@ elif [[ "$DEBUG" == "2" ]]; then
   API_RELOAD_FLAG="--reload"
   API_DEBUG_FLAG="--debug"
   LLM_DEBUG_FLAG="--debug"
-  EMBEDDINGS_DEBUG_FLAG="--debug"
+  EMBEDDINGS_DEBUG_FLAG="--reload --debug"
   echo -e "${SYS_COLOR}[SYS]${RESET_COLOR} Debug mode level 2 enabled. API service will use hot reload and all services will log debug information."
   # When DEBUG=2, automatically keep logs
   KEEP_LOGS="1"
