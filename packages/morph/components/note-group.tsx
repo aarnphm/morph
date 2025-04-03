@@ -265,6 +265,19 @@ export const DroppedNoteGroup = memo(
 
         // Use our batched update function
         updateNotesInDB(noteIds)
+        
+        // Also scroll to the bottom of the container whenever expanded
+        if (scrollContainerRef.current) {
+          // Use setTimeout to ensure the DOM has updated after expansion
+          setTimeout(() => {
+            if (lastNoteRef.current) {
+              lastNoteRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" })
+            } else if (scrollContainerRef.current) {
+              // Fallback to scrolling the container to the bottom if lastNoteRef isn't available
+              scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight
+            }
+          }, 100)
+        }
       }
     }, [isStackExpanded, droppedNotes, updateNotesInDB])
 

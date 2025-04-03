@@ -336,18 +336,6 @@ export const NotesPanel = memo(function NotesPanel({
                     </div>
                   )}
                 <div className="flex-1 min-h-0">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={`note-list-container-${currentFile}`}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{
-                        duration: 0.4,
-                        ease: [0.4, 0.0, 0.2, 1],
-                      }}
-                      className="h-full"
-                    >
                       <Virtuoso
                         key={`note-list-${currentFile}-${noteGroupsData.length}`}
                         style={{ height: "100%", width: "100%" }}
@@ -364,8 +352,6 @@ export const NotesPanel = memo(function NotesPanel({
                         }}
                         customScrollParent={notesContainerRef.current!}
                       />
-                    </motion.div>
-                  </AnimatePresence>
                 </div>
               </div>
             )}

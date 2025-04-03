@@ -134,6 +134,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const client = usePGlite()
   const db = drizzle({ client, schema })
 
+  const vault = vaults.find((v) => v.id === vaultId)
+
   const toggleStackExpand = useCallback(() => {
     setIsStackExpanded((prev) => !prev)
   }, [])
@@ -180,16 +182,113 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
 
     setShowNotes((prev) => {
-      // Reset reasoning state when hiding notes panel
+      // When hiding the notes panel (prev is true)
       if (prev) {
+        // Reset reasoning state
         setStreamingReasoning("")
         setReasoningComplete(false)
+        
+        // Synchronize current generation notes with history if they exist
+        if (currentGenerationNotes.length > 0 && currentlyGeneratingDateKey) {
+          // Move current generation notes to main notes array
+          setNotes((prevNotes) => {
+            // Filter out any duplicates that might already exist
+            const notesToAdd = currentGenerationNotes.filter(
+              (note) => !prevNotes.some((existingNote) => existingNote.id === note.id)
+            )
+            
+            if (notesToAdd.length === 0) return prevNotes
+            
+            // Add to notes and sort by creation date
+            const combined = [...notesToAdd, ...prevNotes]
+            return combined.sort(
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            )
+          })
+          
+          // Save notes to database if the file isn't "Untitled" and we have a vault
+          if (currentFile !== "Untitled" && vault) {
+            // We use a self-executing async function to avoid making the whole callback async
+            (async () => {
+              try {
+                // Find the file in database
+                const dbFile = await db.query.files.findFirst({
+                  where: (files, { and, eq }) => 
+                    and(eq(files.name, currentFile), eq(files.vaultId, vault.id))
+                })
+                
+                if (!dbFile) {
+                  console.error("Failed to find file in database when synchronizing notes")
+                  return
+                }
+                
+                // Get the current reasoning for these notes
+                const currentReasoning = reasoningHistory.find(r => r.id === currentReasoningId)
+                if (currentReasoning && currentReasoningId) {
+                  // Check if reasoning exists in database
+                  const existingReasoning = await db.query.reasonings.findFirst({
+                    where: eq(schema.reasonings.id, currentReasoningId)
+                  })
+                  
+                  // If reasoning doesn't exist yet, create it
+                  if (!existingReasoning && currentReasoning) {
+                    // Get note IDs for the reasoning
+                    const noteIds = currentGenerationNotes.map(note => note.id)
+                    
+                    // Insert reasoning
+                    await db.insert(schema.reasonings).values({
+                      id: currentReasoningId,
+                      fileId: dbFile.id,
+                      vaultId: vault.id,
+                      content: currentReasoning.content,
+                      noteIds: noteIds,
+                      createdAt: currentReasoning.timestamp,
+                      accessedAt: new Date(),
+                      duration: currentReasoning.reasoningElapsedTime,
+                      steering: currentGenerationNotes[0]?.steering || null,
+                    })
+                  }
+                }
+                
+                // For each note, ensure it's saved to database if not already
+                for (const note of currentGenerationNotes) {
+                  // Check if note exists in database
+                  const existingNote = await db.query.notes.findFirst({
+                    where: eq(schema.notes.id, note.id)
+                  })
+                  
+                  if (!existingNote) {
+                    // Insert new note
+                    await db.insert(schema.notes).values({
+                      id: note.id,
+                      content: note.content,
+                      color: note.color,
+                      createdAt: note.createdAt,
+                      accessedAt: new Date(),
+                      dropped: note.dropped ?? false,
+                      fileId: dbFile.id,
+                      vaultId: note.vaultId,
+                      reasoningId: note.reasoningId!,
+                      steering: note.steering!,
+                      embeddingStatus: "in_progress",
+                      embeddingTaskId: null,
+                    })
+                  }
+                }
+              } catch (error) {
+                console.error("Failed to sync notes to database:", error)
+              }
+            })()
+          }
+          
+          // Reset current generation state to prevent duplication when reopening
+          setCurrentGenerationNotes([])
+          setCurrentlyGeneratingDateKey(null)
+        }
       }
       return !prev
     })
-  }, [isOnline, isClient, toast])
-
-  const vault = vaults.find((v) => v.id === vaultId)
+  }, [isOnline, isClient, toast, currentGenerationNotes, currentlyGeneratingDateKey, currentFile, vault, db, currentReasoningId, reasoningHistory])
 
   const contentRef = useRef({ content: "", filename: "" })
 
