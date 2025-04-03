@@ -1070,9 +1070,15 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         setCurrentlyGeneratingDateKey(null)
 
         // Only show toast if not already shown by specific error handlers
-        if (!error.message || (!error.message.includes("Service") && !error.message.includes("Connection") &&
-            !error.message.includes("Health") && !error.message.includes("Suggestion") &&
-            !error.message.includes("Empty") && !error.message.includes("Parsing"))) {
+        if (
+          !error.message ||
+          (!error.message.includes("Service") &&
+            !error.message.includes("Connection") &&
+            !error.message.includes("Health") &&
+            !error.message.includes("Suggestion") &&
+            !error.message.includes("Empty") &&
+            !error.message.includes("Parsing"))
+        ) {
           toast({
             title: "Error",
             description: errorMsg,
@@ -1512,7 +1518,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       streamingSuggestionColors,
       db,
       currentGenerationNotes,
-      toast,
     ],
   )
 

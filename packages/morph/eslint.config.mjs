@@ -1,4 +1,7 @@
 import { FlatCompat } from "@eslint/eslintrc"
+import tsParser from "@typescript-eslint/parser"
+import drizzle from "eslint-plugin-drizzle"
+import { defineConfig } from "eslint/config"
 import { dirname } from "path"
 import { fileURLToPath } from "url"
 
@@ -9,7 +12,7 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 })
 
-const eslintConfig = [
+export default defineConfig([
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   ...compat.config({
     extends: ["next"],
@@ -19,17 +22,26 @@ const eslintConfig = [
       "@typescript-eslint/no-explicit-any": "off",
     },
   }),
-  ...compat.config({
-    extends: ["plugin:drizzle/recommended"],
-    parser: "@typescript-eslint/parser",
+  {
+    plugins: {
+      drizzle,
+    },
+    languageOptions: {
+      parser: tsParser,
+      ecmaVersion: 5,
+      sourceType: "script",
+
+      parserOptions: {
+        project: "./tsconfig.json",
+      },
+    },
     rules: {
-      "drizzle/enforce-update-with-where": [
+      "drizzle/enforce-delete-with-where": [
         "error",
         {
-          drizzleObjectName: "db",
+          drizzleObjectName: ["db"],
         },
       ],
     },
-  }),
-]
-export default eslintConfig
+  },
+])
