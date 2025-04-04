@@ -59,7 +59,7 @@ logger = logging.getLogger('bentoml.service')
 WORKING_DIR = pathlib.Path(__file__).parent
 IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
 
-MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'qwq'))
+MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
 LLM_ID: str = (llm_ := ReasoningModels[MODEL_TYPE])['model_id']
 EMBED_TYPE = t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen-fast'))
 EMBED_ID: str = (embed_ := EmbeddingModels[EMBED_TYPE])['model_id']
@@ -584,7 +584,7 @@ class API:
         top_p=request.top_p,
         max_tokens=request.max_tokens,
         # tool_choice={'type': 'function', 'function': {'name': 'search_tool'}},
-        tool_choice='auto',  # ok, doesn't work for now, but the generated lists looks cool afaict
+        tool_choice='auto',  # ok, doesn't work for deepseek, but the generated lists looks cool afaict
         extra_body={'repetition_penalty': 1.05},
       )
 
