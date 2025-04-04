@@ -4,7 +4,12 @@ import { API_ENDPOINT } from "@/services/constants"
 export interface SuggestionRequest {
   essay: string
   authors?: string[]
-  notes?: any[] // Replace with proper type if needed
+  notes?: {
+    vault_id: string
+    file_id: string
+    note_id: string
+    content: string
+  }[]
   tonality?: { [key: string]: number }
   num_suggestions?: number
   temperature?: number

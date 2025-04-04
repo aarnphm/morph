@@ -594,6 +594,9 @@ importers:
       '@types/three':
         specifier: ^0.174.0
         version: 0.174.0
+      '@uiw/codemirror-extensions-hyper-link':
+        specifier: ^4.23.10
+        version: 4.23.10(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)
       '@uiw/codemirror-themes':
         specifier: ^4.23.10
         version: 4.23.10(@codemirror/language@6.11.0)(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)
@@ -3549,6 +3552,12 @@ packages:
       '@codemirror/language': '>=6.0.0'
       '@codemirror/lint': '>=6.0.0'
       '@codemirror/search': '>=6.0.0'
+      '@codemirror/state': '>=6.0.0'
+      '@codemirror/view': '>=6.0.0'
+
+  '@uiw/codemirror-extensions-hyper-link@4.23.10':
+    resolution: {integrity: sha512-fwpIzbufHqLDBZCDcVEIjx3nNaD/mB/8CPZmWf05YRAze6ejZZL8quU8xGegXyiJwKKMLgKl5qll+ZT+djf62g==}
+    peerDependencies:
       '@codemirror/state': '>=6.0.0'
       '@codemirror/view': '>=6.0.0'
 
@@ -9485,6 +9494,11 @@ snapshots:
       '@codemirror/language': 6.11.0
       '@codemirror/lint': 6.8.5
       '@codemirror/search': 6.5.10
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.36.5
+
+  '@uiw/codemirror-extensions-hyper-link@4.23.10(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)':
+    dependencies:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.36.5
 

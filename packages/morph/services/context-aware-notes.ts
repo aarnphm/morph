@@ -1,12 +1,12 @@
 import { API_ENDPOINT } from "@/services/constants"
-import { and, eq, inArray, sql, cosineDistance } from "drizzle-orm"
+import { and, cosineDistance, eq, inArray, sql } from "drizzle-orm"
 import { PgliteDatabase, drizzle } from "drizzle-orm/pglite"
+import { useCallback } from "react"
 
 import { usePGlite } from "@/context/db"
 
 import type { Note } from "@/db/interfaces"
 import * as schema from "@/db/schema"
-import { useCallback } from "react"
 
 // Define the structure for context-aware note results
 export interface ContextNote {
@@ -32,46 +32,29 @@ export async function findSimilarNotesForFile(
   db: PgliteDatabase<typeof schema>,
   fileId: string,
   vaultId: string,
-  noteIds: string[]
+  noteIds: string[],
 ): Promise<ContextNote[]> {
   try {
     if (!fileId || !vaultId || noteIds.length === 0) {
       return []
     }
 
-    console.log(`[ContextNotes] Checking embeddings for ${noteIds.length} notes`)
-
     // First, get all note embeddings for the specified notes
     const noteEmbeddings = await db.query.noteEmbeddings.findMany({
       where: inArray(schema.noteEmbeddings.noteId, noteIds),
     })
 
-    console.log(`[ContextNotes] Found ${noteEmbeddings.length} note embeddings out of ${noteIds.length} notes`)
-
-    if (noteEmbeddings.length === 0) {
-      console.log("[ContextNotes] No embeddings found for specified notes")
-      return []
-    }
+    if (noteEmbeddings.length === 0) return []
 
     // Get all file chunk embeddings for the current file
     const fileEmbeddings = await db.query.fileEmbeddings.findMany({
       where: and(
         eq(schema.fileEmbeddings.fileId, fileId),
-        eq(schema.fileEmbeddings.vaultId, vaultId)
+        eq(schema.fileEmbeddings.vaultId, vaultId),
       ),
     })
 
-    console.log(`[ContextNotes] Found ${fileEmbeddings.length} file chunk embeddings for file ${fileId}`)
-
-    if (fileEmbeddings.length === 0) {
-      console.log(`[ContextNotes] No file chunk embeddings found for file ${fileId}`)
-      return []
-    }
-
-    // Log the first few chunks for debugging
-    if (fileEmbeddings.length > 0) {
-      console.log(`[ContextNotes] First chunk starts at line ${fileEmbeddings[0].startLine}, ends at ${fileEmbeddings[0].endLine}`)
-    }
+    if (fileEmbeddings.length === 0) return []
 
     // Map to store best similarity scores for each note
     const bestMatches = new Map<string, ContextNote>()
@@ -80,12 +63,10 @@ export async function findSimilarNotesForFile(
     for (const noteEmb of noteEmbeddings) {
       // Get the full note object to include in results
       const note = await db.query.notes.findFirst({
-        where: eq(schema.notes.id, noteEmb.noteId)
+        where: eq(schema.notes.id, noteEmb.noteId),
       })
 
       if (!note) continue
-
-      console.log(`[ContextNotes] Processing note: ${note.id.substring(0, 8)}...`)
 
       // For this note, find the best matching file chunk using Drizzle's cosineDistance helper
       // This calculates similarity more effectively using the vector operations
@@ -96,13 +77,12 @@ export async function findSimilarNotesForFile(
           nodeId: schema.fileEmbeddings.nodeId,
           startLine: schema.fileEmbeddings.startLine,
           endLine: schema.fileEmbeddings.endLine,
-          similarity
+          similarity,
         })
         .from(schema.fileEmbeddings)
-        .where(and(
-          eq(schema.fileEmbeddings.fileId, fileId),
-          eq(schema.fileEmbeddings.vaultId, vaultId)
-        ))
+        .where(
+          and(eq(schema.fileEmbeddings.fileId, fileId), eq(schema.fileEmbeddings.vaultId, vaultId)),
+        )
         .orderBy(cosineDistance(schema.fileEmbeddings.embedding, noteEmb.embedding))
         .limit(1)
 
@@ -111,27 +91,19 @@ export async function findSimilarNotesForFile(
         const similarityScore = result.similarity
 
         if (similarityScore >= SIMILARITY_THRESHOLD) {
-          console.log(`[ContextNotes] Found match for note ${note.id.substring(0, 8)}... with similarity ${similarityScore.toFixed(2)}`)
-          console.log(`[ContextNotes] Match is at line ${result.startLine || 'unknown'}`)
-
           bestMatches.set(noteEmb.noteId, {
             note,
             similarity: similarityScore,
             startLine: result.startLine,
             endLine: result.endLine,
-            lineNumber: result.startLine // Default to start line for positioning
+            lineNumber: result.startLine, // Default to start line for positioning
           })
-        } else {
-          console.log(`[ContextNotes] No match found for note ${note.id.substring(0, 8)}... (best similarity: ${similarityScore.toFixed(2)})`)
         }
-      } else {
-        console.log(`[ContextNotes] No match found for note ${note.id.substring(0, 8)}...`)
       }
     }
 
     // Convert map to array and sort by similarity descending
     const results = Array.from(bestMatches.values()).sort((a, b) => b.similarity - a.similarity)
-    console.log(`[ContextNotes] Returning ${results.length} matching notes`)
     return results
   } catch (error) {
     console.error("[ContextNotes] Error finding similar notes:", error)
@@ -153,7 +125,7 @@ export async function getEmbedding(text: string): Promise<number[]> {
       },
       body: JSON.stringify({
         input: text,
-        model: "text-embedding-3-small"
+        model: "text-embedding-3-small",
       }),
     })
 
@@ -171,19 +143,14 @@ export async function getEmbedding(text: string): Promise<number[]> {
 
 // Add a retry wrapper function and improve the useContextAwareNotes hook
 // Add a function to retry operations
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  retries = 3,
-  delay = 500
-): Promise<T> {
+async function withRetry<T>(operation: () => Promise<T>, retries = 3, delay = 500): Promise<T> {
   try {
-    return await operation();
+    return await operation()
   } catch (error) {
-    if (retries <= 1) throw error;
+    if (retries <= 1) throw error
 
-    console.log(`[ContextNotes] Operation failed, retrying in ${delay}ms...`);
-    await new Promise(resolve => setTimeout(resolve, delay));
-    return withRetry(operation, retries - 1, delay * 1.5);
+    await new Promise((resolve) => setTimeout(resolve, delay))
+    return withRetry(operation, retries - 1, delay * 1.5)
   }
 }
 
@@ -197,19 +164,14 @@ async function withRetry<T>(
 export function useContextAwareNotes(
   fileId: string | undefined,
   vaultId: string | undefined,
-  noteIds: string[]
+  noteIds: string[],
 ) {
   const client = usePGlite()
   const db = drizzle({ client, schema })
 
   // Use useCallback to memoize the function to prevent infinite rerenders
   const getSimilarNotes = useCallback(async () => {
-    if (!fileId || !vaultId || noteIds.length === 0) {
-      console.log("[ContextNotes] No file, vault, or notes to search for")
-      return []
-    }
-
-    console.log(`[ContextNotes] Searching for similar notes for ${noteIds.length} notes in file ${fileId}`)
+    if (!fileId || !vaultId || noteIds.length === 0) return []
 
     try {
       // Use the retry wrapper to handle transient failures
@@ -221,7 +183,7 @@ export function useContextAwareNotes(
   }, [db, fileId, vaultId, noteIds])
 
   return {
-    getSimilarNotes
+    getSimilarNotes,
   }
 }
 
@@ -231,14 +193,14 @@ export function useContextAwareNotes(
 export async function debugVectorSimilarity(
   db: PgliteDatabase<typeof schema>,
   fileId: string,
-  noteId: string
+  noteId: string,
 ): Promise<void> {
   try {
     console.log(`[Vector Debug] Testing similarity between file ${fileId} and note ${noteId}`)
 
     // Get note embedding
     const noteEmb = await db.query.noteEmbeddings.findFirst({
-      where: eq(schema.noteEmbeddings.noteId, noteId)
+      where: eq(schema.noteEmbeddings.noteId, noteId),
     })
 
     if (!noteEmb) {
@@ -248,7 +210,7 @@ export async function debugVectorSimilarity(
 
     // Get file embeddings
     const fileEmbs = await db.query.fileEmbeddings.findMany({
-      where: eq(schema.fileEmbeddings.fileId, fileId)
+      where: eq(schema.fileEmbeddings.fileId, fileId),
     })
 
     if (fileEmbs.length === 0) {
@@ -257,7 +219,9 @@ export async function debugVectorSimilarity(
     }
 
     // Test different similarity metrics
-    console.log(`[Vector Debug] Testing different similarity metrics for ${fileEmbs.length} file chunks:`)
+    console.log(
+      `[Vector Debug] Testing different similarity metrics for ${fileEmbs.length} file chunks:`,
+    )
 
     for (let i = 0; i < Math.min(3, fileEmbs.length); i++) {
       const fileEmb = fileEmbs[i]

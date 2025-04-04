@@ -106,24 +106,11 @@ export const sanitizeStreamingContent = (content: string): string => {
     sanitized = sanitized.slice(0, -1)
   }
 
-  // Handle multiple patterns of reasoning tags that might appear
-  // Pattern 1: Standard JSON format with quotes - `", "reasoning": "content"`
-  sanitized = sanitized.replace(/,\s*"reasoning"\s*:\s*".*?$/s, "")
-
-  // Pattern 2: Without quotes around reasoning key - `", reasoning: "content"`
-  sanitized = sanitized.replace(/,\s*reasoning\s*:\s*".*?$/s, "")
-
-  // Pattern 3: With quotes but no comma - `" "reasoning": "content"`
-  sanitized = sanitized.replace(/\s+"reasoning"\s*:\s*".*?$/s, "")
-
-  // Pattern 4: Any remaining fragments starting with reasoning
-  sanitized = sanitized.replace(/reasoning\s*:.*?$/s, "")
-
   // Remove any trailing JSON syntax characters
-  sanitized = sanitized.replace(/["},\]\s]+$/, "")
+  sanitized = sanitized.replace(/[\"\}\,\]\s]+$/, "")
 
   // Also handle cases where there might be escaped quotes
-  sanitized = sanitized.replace(/"$/, "")
+  sanitized = sanitized.replace(/\\\"$/, "")
 
   return sanitized
 }
@@ -205,6 +192,6 @@ export function formatDateString(dateStr: string): FormattedDateResult {
   return {
     formattedDate,
     formattedTime,
-    relativeTime
+    relativeTime,
   }
 }

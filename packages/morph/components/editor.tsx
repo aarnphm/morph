@@ -11,6 +11,7 @@ import {
   checkAgentAvailability,
   checkAgentHealth,
 } from "@/services/agents"
+import { submitContentForAuthors } from "@/services/authors"
 import { checkFileHasEmbeddings, useProcessPendingEssayEmbeddings } from "@/services/essays"
 import {
   checkNoteHasEmbedding,
@@ -18,14 +19,15 @@ import {
   useProcessPendingEmbeddings,
 } from "@/services/notes"
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands"
-import { keymap } from "@codemirror/view"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
 import { Compartment, EditorState } from "@codemirror/state"
+import { keymap } from "@codemirror/view"
 import { EditorView } from "@codemirror/view"
 import { createId } from "@paralleldrive/cuid2"
 import { CopyIcon, Cross2Icon, GlobeIcon } from "@radix-ui/react-icons"
 import { Vim, vim } from "@replit/codemirror-vim"
+import { hyperLink } from "@uiw/codemirror-extensions-hyper-link"
 import CodeMirror from "@uiw/react-codemirror"
 import { and, eq, inArray } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/pglite"
@@ -37,24 +39,26 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { DndProvider } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
 
+import { AuthorProcessor } from "@/components/author-processor"
+import ContextNotes from "@/components/context-notes"
 import { CustomDragLayer, EditorDropTarget, Playspace } from "@/components/dnd"
 import { EmbeddingStatus } from "@/components/embedding-status"
 import { EssayEmbeddingProcessor } from "@/components/essay-embedding-processor"
 import { fileField, mdToHtml } from "@/components/markdown-inline"
 import { setFile } from "@/components/markdown-inline"
-import { search } from "@/components/parser/codemirror"
 import { NoteEmbeddingProcessor } from "@/components/note-embedding-processor"
 import { DroppedNoteGroup } from "@/components/note-group"
 import { NotesPanel, StreamingNote } from "@/components/note-panel"
 import { theme as editorTheme, frontmatter, md, syntaxHighlighting } from "@/components/parser"
+import { search } from "@/components/parser/codemirror"
 import Rails from "@/components/rails"
 import { SearchCommand } from "@/components/search-command"
 import { SettingsPanel } from "@/components/settings-panel"
 import { VaultButton } from "@/components/ui/button"
 import { DotIcon } from "@/components/ui/icons"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { AuthorProcessor } from "@/components/author-processor"
 
+import { useAuthorTasks } from "@/context/authors"
 import { usePGlite } from "@/context/db"
 import { useEmbeddingTasks, useEssayEmbeddingTasks } from "@/context/embedding"
 import { useRestoredFile } from "@/context/file-restoration"
@@ -62,7 +66,6 @@ import { SearchProvider } from "@/context/search"
 import { SteeringProvider, SteeringSettings } from "@/context/steering"
 import { useVaultContext } from "@/context/vault"
 import { verifyHandle } from "@/context/vault-reducer"
-import { useAuthorTasks } from "@/context/authors"
 
 import useFsHandles from "@/hooks/use-fs-handles"
 import usePersistedSettings from "@/hooks/use-persisted-settings"
@@ -70,8 +73,6 @@ import { useToast } from "@/hooks/use-toast"
 
 import type { FileSystemTreeNode, Note, Vault } from "@/db/interfaces"
 import * as schema from "@/db/schema"
-import { submitContentForAuthors } from "@/services/authors"
-import { ContextNotes } from "@/components/context-notes"
 
 interface EditorProps {
   vaultId: string
@@ -530,6 +531,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       // Reset reasoning state
       setStreamingReasoning("")
       setReasoningComplete(false)
+      setNotesError(null) // Reset error state when closing panel
 
       // Synchronize current generation notes with history if they exist
       if (currentGenerationNotes.length > 0 && currentlyGeneratingDateKey) {
@@ -877,6 +879,16 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           ...(steeringOptions?.authors && { authors: steeringOptions.authors }),
           ...(steeringOptions?.tonality && { tonality: steeringOptions.tonality }),
           usage: true,
+        }
+
+        // Add dropped notes to the request if there are any
+        if (droppedNotes.length > 0) {
+          request.notes = droppedNotes.map(note => ({
+            vault_id: note.vaultId,
+            file_id: note.fileId,
+            note_id: note.id,
+            content: note.content
+          }))
         }
 
         // Start timing reasoning phase
@@ -1336,6 +1348,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       }),
       syntaxHighlighting(),
       search(),
+      hyperLink,
     ]
 
     if (vimMode) exts.push(vim())
@@ -1378,17 +1391,17 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   // Create a function to toggle settings that we can pass to Rails
   const toggleSettings = useCallback(() => {
-    setIsSettingsOpen(prev => !prev);
-  }, []);
+    setIsSettingsOpen((prev) => !prev)
+  }, [])
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       // Special handling for settings shortcut - high priority
       if ((event.metaKey || event.ctrlKey) && event.key === ",") {
-        event.preventDefault();
-        event.stopPropagation(); // Stop event from bubbling up
-        toggleSettings();
-        return;
+        event.preventDefault()
+        event.stopPropagation() // Stop event from bubbling up
+        toggleSettings()
+        return
       }
 
       // Other keyboard shortcuts
@@ -1409,11 +1422,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   // Separate effect specifically for global keyboard shortcuts
   useEffect(() => {
     // Add event listener for keyboard shortcuts
-    const handler = (e: KeyboardEvent) => handleKeyDown(e);
-    window.addEventListener("keydown", handler, { capture: true }); // Use capture to get event before other handlers
+    const handler = (e: KeyboardEvent) => handleKeyDown(e)
+    window.addEventListener("keydown", handler, { capture: true }) // Use capture to get event before other handlers
 
-    return () => window.removeEventListener("keydown", handler, { capture: true });
-  }, [handleKeyDown]);
+    return () => window.removeEventListener("keydown", handler, { capture: true })
+  }, [handleKeyDown])
 
   // Effect for vim mode and vim-specific keybindings
   useEffect(() => {
@@ -1422,7 +1435,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     Vim.map(";", ":", "normal")
     Vim.map("jj", "<Esc>", "insert")
     Vim.map("jk", "<Esc>", "insert")
-  }, [handleSave]);
+  }, [handleSave])
 
   const generateNewSuggestions = useCallback(
     async (steeringSettings: SteeringSettings) => {
@@ -1500,123 +1513,138 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           }
         }
 
-        // Now that we have the file, generate the suggestions
-        const { generatedNotes, reasoningId, reasoningElapsedTime, reasoningContent } =
-          await fetchNewNotes(
-            markdownContent,
-            steeringSettings.numSuggestions,
-            steeringSettings
-              ? {
-                  authors: steeringSettings.authors,
-                  tonality: steeringSettings.tonalityEnabled
-                    ? steeringSettings.tonality
-                    : undefined,
-                  temperature: steeringSettings.temperature,
-                }
-              : undefined,
-          )
+        try {
+          // Now that we have the file, generate the suggestions
+          const { generatedNotes, reasoningId, reasoningElapsedTime, reasoningContent } =
+            await fetchNewNotes(
+              markdownContent,
+              steeringSettings.numSuggestions,
+              steeringSettings
+                ? {
+                    authors: steeringSettings.authors,
+                    tonality: steeringSettings.tonalityEnabled
+                      ? steeringSettings.tonality
+                      : undefined,
+                    temperature: steeringSettings.temperature,
+                  }
+                : undefined,
+            )
 
-        const newNoteIds: string[] = []
-        const newNotes: Note[] = generatedNotes.map((note, index) => {
-          const id = createId()
-          newNoteIds.push(id)
-          return {
-            id,
-            content: note.content,
-            color: streamingSuggestionColors[index] || generatePastelColor(),
-            fileId: dbFile!.id, // Use the actual DB file ID here
-            vaultId: vault.id,
-            isInEditor: false,
-            createdAt: new Date(),
-            lastModified: new Date(),
-            reasoningId: reasoningId,
-            steering: {
-              authors: steeringSettings.authors,
-              tonality: steeringSettings.tonalityEnabled ? steeringSettings.tonality : undefined,
-              temperature: steeringSettings.temperature,
-              numSuggestions: steeringSettings.numSuggestions,
-            },
-            embeddingStatus: "in_progress",
-            embeddingTaskId: null,
-          }
-        })
-
-        // Add note IDs to reasoning history
-        setReasoningHistory((prev) =>
-          prev.map((r) => (r.id === reasoningId ? { ...r, noteIds: newNoteIds } : r)),
-        )
-
-        // Only save if the file is not "Untitled" and we have notes to save
-        if (currentFile !== "Untitled" && vault && newNotes.length > 0) {
-          try {
-            await db.insert(schema.reasonings).values({
-              id: reasoningId,
-              fileId: dbFile!.id,
+          const newNoteIds: string[] = []
+          const newNotes: Note[] = generatedNotes.map((note, index) => {
+            const id = createId()
+            newNoteIds.push(id)
+            return {
+              id,
+              content: note.content,
+              color: streamingSuggestionColors[index] || generatePastelColor(),
+              fileId: dbFile!.id, // Use the actual DB file ID here
               vaultId: vault.id,
-              content: reasoningContent,
-              noteIds: newNoteIds,
-              createdAt: now,
-              accessedAt: now,
-              duration: reasoningElapsedTime,
+              isInEditor: false,
+              createdAt: new Date(),
+              lastModified: new Date(),
+              reasoningId: reasoningId,
               steering: {
                 authors: steeringSettings.authors,
                 tonality: steeringSettings.tonalityEnabled ? steeringSettings.tonality : undefined,
                 temperature: steeringSettings.temperature,
                 numSuggestions: steeringSettings.numSuggestions,
               },
-            })
-
-            // Insert notes into database
-            for (const note of newNotes) {
-              await db.insert(schema.notes).values({
-                id: note.id,
-                content: note.content,
-                color: note.color,
-                createdAt: note.createdAt,
-                accessedAt: new Date(),
-                dropped: note.dropped ?? false,
-                fileId: dbFile!.id,
-                vaultId: note.vaultId,
-                reasoningId: note.reasoningId!,
-                steering: note.steering || null,
-                embeddingStatus: "in_progress",
-                embeddingTaskId: null,
-              })
+              embeddingStatus: "in_progress",
+              embeddingTaskId: null,
             }
+          })
 
-            // Add the newly created notes to our state
-            setNotes((prev) => {
-              const combined = [...newNotes, ...prev]
-              return combined.sort(
-                (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-              )
-            })
+          // Add note IDs to reasoning history
+          setReasoningHistory((prev) =>
+            prev.map((r) => (r.id === reasoningId ? { ...r, noteIds: newNoteIds } : r)),
+          )
 
-            // Set current generation notes for UI
-            setCurrentGenerationNotes(newNotes)
+          // Only save if the file is not "Untitled" and we have notes to save
+          if (currentFile !== "Untitled" && vault && newNotes.length > 0) {
+            try {
+              await db.insert(schema.reasonings).values({
+                id: reasoningId,
+                fileId: dbFile!.id,
+                vaultId: vault.id,
+                content: reasoningContent,
+                noteIds: newNoteIds,
+                createdAt: now,
+                accessedAt: now,
+                duration: reasoningElapsedTime,
+                steering: {
+                  authors: steeringSettings.authors,
+                  tonality: steeringSettings.tonalityEnabled
+                    ? steeringSettings.tonality
+                    : undefined,
+                  temperature: steeringSettings.temperature,
+                  numSuggestions: steeringSettings.numSuggestions,
+                },
+              })
 
-            // Submit each note for embedding individually and track task IDs for polling
-            for (const note of newNotes) {
-              const result = await submitNoteForEmbedding(db, note)
-
-              // If successful and we have a task ID, add it for polling
-              if (result) {
-                // Wait a small amount of time to ensure DB updates are complete
-                await new Promise((resolve) => setTimeout(resolve, 100))
-
-                // Then get the updated note with task ID
-                const updatedNote = await db.query.notes.findFirst({
-                  where: eq(schema.notes.id, note.id),
+              // Insert notes into database
+              for (const note of newNotes) {
+                await db.insert(schema.notes).values({
+                  id: note.id,
+                  content: note.content,
+                  color: note.color,
+                  createdAt: note.createdAt,
+                  accessedAt: new Date(),
+                  dropped: note.dropped ?? false,
+                  fileId: dbFile!.id,
+                  vaultId: note.vaultId,
+                  reasoningId: note.reasoningId!,
+                  steering: note.steering || null,
+                  embeddingStatus: "in_progress",
+                  embeddingTaskId: null,
                 })
+              }
 
-                if (updatedNote?.embeddingTaskId) {
-                  addTask(updatedNote.embeddingTaskId)
+              // Add the newly created notes to our state
+              setNotes((prev) => {
+                const combined = [...newNotes, ...prev]
+                return combined.sort(
+                  (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+                )
+              })
+
+              // Set current generation notes for UI
+              setCurrentGenerationNotes(newNotes)
+
+              // Submit each note for embedding individually and track task IDs for polling
+              for (const note of newNotes) {
+                const result = await submitNoteForEmbedding(db, note)
+
+                // If successful and we have a task ID, add it for polling
+                if (result) {
+                  // Wait a small amount of time to ensure DB updates are complete
+                  await new Promise((resolve) => setTimeout(resolve, 100))
+
+                  // Then get the updated note with task ID
+                  const updatedNote = await db.query.notes.findFirst({
+                    where: eq(schema.notes.id, note.id),
+                  })
+
+                  if (updatedNote?.embeddingTaskId) {
+                    addTask(updatedNote.embeddingTaskId)
+                  }
                 }
               }
+            } catch (dbError) {
+              console.error("Failed to save notes to database:", dbError)
+              // Still show notes in UI even if DB fails
+              setCurrentGenerationNotes(newNotes)
+              setNotes((prev) => {
+                const combined = [...newNotes, ...prev]
+                return combined.sort(
+                  (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+                )
+              })
             }
-          } catch (dbError) {
-            console.error("Failed to save notes to database:", dbError)
-            // Still show notes in UI even if DB fails
+          } else {
+            // For unsaved files, just display in UI without saving to DB
+            setShowEphemeralBanner(true)
+            setTimeout(() => setShowEphemeralBanner(false), 7000)
             setCurrentGenerationNotes(newNotes)
             setNotes((prev) => {
               const combined = [...newNotes, ...prev]
@@ -1625,27 +1653,16 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               )
             })
           }
-        } else {
-          // For unsaved files, just display in UI without saving to DB
-          setShowEphemeralBanner(true)
-          setTimeout(() => setShowEphemeralBanner(false), 7000)
-          setCurrentGenerationNotes(newNotes)
-          setNotes((prev) => {
-            const combined = [...newNotes, ...prev]
-            return combined.sort(
-              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-            )
-          })
+        } catch (error: any) {
+          const errorMessage =
+            error.message || "Notes not available for this generation, try again later"
+          setNotesError(errorMessage)
+          setCurrentlyGeneratingDateKey(null)
+          console.error("Failed to generate notes:", error)
+        } finally {
+          setIsNotesLoading(false)
         }
-      } catch (error: any) {
-        const errorMessage =
-          error.message || "Notes not available for this generation, try again later"
-        setNotesError(errorMessage)
-        setCurrentlyGeneratingDateKey(null)
-        console.error("Failed to generate notes:", error)
-      } finally {
-        setIsNotesLoading(false)
-      }
+      } catch {}
     },
     [
       currentFile,
@@ -2118,9 +2135,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         doc: codeMirrorViewRef.current.state.doc,
         selection: codeMirrorViewRef.current.state.selection,
         extensions: [
-          ...memoizedExtensions.filter(ext => ext !== vim()),
+          ...memoizedExtensions.filter((ext) => ext !== vim()),
           ...(vimMode ? [vim()] : []),
-        ]
+        ],
       })
 
       // Update the view with the new state
@@ -2131,26 +2148,26 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   // Effect to check for vim mode change notification in localStorage
   useEffect(() => {
     // Only run on the client side
-    if (!isClient) return;
+    if (!isClient) return
 
     // Check if there's a vim mode change notification in localStorage
-    const vimModeChanged = localStorage.getItem('morph:vim-mode-changed') === 'true';
+    const vimModeChanged = localStorage.getItem("morph:vim-mode-changed") === "true"
 
     if (vimModeChanged) {
       // Show the notification
-      setShowVimModeChangeNotification(true);
+      setShowVimModeChangeNotification(true)
 
       // Clear the notification flag from localStorage
-      localStorage.removeItem('morph:vim-mode-changed');
+      localStorage.removeItem("morph:vim-mode-changed")
 
       // Set a timeout to dismiss the notification after a few seconds
       const timer = setTimeout(() => {
-        setShowVimModeChangeNotification(false);
-      }, 5000);
+        setShowVimModeChangeNotification(false)
+      }, 5000)
 
-      return () => clearTimeout(timer);
+      return () => clearTimeout(timer)
     }
-  }, [isClient]); // Add isClient as a dependency
+  }, [isClient]) // Add isClient as a dependency
 
   // Add a ref to track if we've processed authors for the current file
   const authorsProcessedRef = useRef(false)
@@ -2261,7 +2278,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       className="absolute top-2 left-1/2 transform -translate-x-1/2 z-50 bg-blue-400/70 border border-blue-300 text-blue-800 px-4 py-2 rounded-md shadow-md text-xs flex items-center space-x-2"
                     >
                       <span>
-                        ⚠️ Turning {localStorage.getItem('morph:vim-mode-value') === 'true' ? "on" : "off"} Vim mode requires a page refresh to take effect
+                        ⚠️ Turning{" "}
+                        {localStorage.getItem("morph:vim-mode-value") === "true" ? "on" : "off"} Vim
+                        mode requires a page refresh to take effect
                       </span>
                       <button
                         onClick={() => setShowVimModeChangeNotification(false)}
@@ -2314,7 +2333,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     {isClient && !isOnline && <GlobeIcon className="w-4 h-4 text-destructive" />}
                     {embeddingStatus && <EmbeddingStatus status={embeddingStatus} />}
                   </div>
-                  {vault && currentFileId && memoizedDroppedNotes.length > 0 && (
+                  {vault && currentFileId && memoizedDroppedNotes.length > 0 && !isNotesLoading && (
                     <ContextNotes
                       className={`${isEditMode ? "block" : "hidden"}`}
                       editorViewRef={codeMirrorViewRef}
