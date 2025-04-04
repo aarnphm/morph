@@ -319,7 +319,7 @@ All documentation-related issues are to be completed prior to the Final Document
 
 The below outlines the implementation timeline:
 
-### Phase: Revision 0 Demo (due February 3rd, 2025)
+### Phase 1: Revision 0 Demo (due February 3rd, 2025)
 #### M2: Editor Module
 - UI interaction refinement & contextual suggestion logic — Lucas
 
@@ -381,6 +381,10 @@ The below outlines the implementation timeline:
 - Export-to-Markdown logic — Lucas
 
 - Testing Markdown integrity — Waleed
+
+### Phase 2: Final Demo (due March 15th, 2025)
+Further refinement and testing of all modules (All team members)
+
 
 ## Appendix
 
