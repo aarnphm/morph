@@ -16,6 +16,7 @@ export interface AuthorRequest {
   authors?: string[]
   search_backend?: "exa"
   num_search_results?: number
+  use_tool?: boolean
 }
 
 export interface AuthorResponse {
@@ -59,6 +60,7 @@ async function submitAuthorTask(
     num_authors?: number
     temperature?: number
     max_tokens?: number
+    use_tool?: boolean
   } = {},
 ): Promise<TaskStatusResponse> {
   const req: AuthorRequest = {
@@ -68,6 +70,7 @@ async function submitAuthorTask(
     max_tokens: options.max_tokens || 16384,
     search_backend: "exa",
     num_search_results: 3,
+    use_tool: options.use_tool || false,
   }
 
   const response = await fetch(`${API_ENDPOINT}/authors/submit`, {
