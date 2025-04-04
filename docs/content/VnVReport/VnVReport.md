@@ -26,6 +26,14 @@ title: Verification and Validation Report
 | morph      | the text editor that helps you to become better writer |
 | UC         | Unlikely Change                                        |
 | VnV        | Verification and Validation                            |
+| TTFT        | Time-to-First-Token                            |
+| CPU           | Central Processing Unit                            |
+| NSFW           | Not Safe For Work                            |
+| UI/UX          | User Interface / User Experience                            |
+| DNS           | Domain Name System                            |
+| DNSSEC           | Domain Name System Security Extensions                            |
+| HNSW           | Hierarchical Navigable Small World                            |
+| LTR        | Learning To Rank                           |
 
 ![[SRS/SRS#7.2 Data Dictionary|Data Dictionary]]
 
@@ -775,7 +783,7 @@ test_rebuild_index_with_data: Passed - Rebuild index with data returns valid lab
 
 ## Automated Testing
 
-The testing was does automatically run on Github Actions whenever a commit was pushed to the main branch. The configuration of the CI/CD environment can be foind at https://github.com/aarnphm/morph/actions/workflows/ci.yml.
+The testing was does automatically run on Github Actions whenever a commit was pushed to the main branch. The configuration of the CI/CD environment can be found at https://github.com/aarnphm/morph/actions/workflows/ci.yml.
 
 ## Trace to Requirements
 
