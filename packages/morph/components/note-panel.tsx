@@ -169,7 +169,7 @@ const DriversBar = memo(
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0 }}
-              className="px-4 pb-4 overflow-hidden border-b border-border"
+              className="px-4 pb-2 overflow-hidden border-b border-border"
             >
               <div className="pt-4 flex justify-between items-center">
                 <h2 className="text-base font-semibold">Interpreter</h2>
@@ -378,7 +378,7 @@ export const NotesPanel = memo(function NotesPanel({
         isOver && "border-red-200 border rounded-e-md rounded-n-md",
       )}
     >
-      <div className="flex-1 overflow-auto scrollbar-hidden px-2 pt-4 gap-4">
+      <div className="flex-1 overflow-auto scrollbar-hidden px-2 pt-2 gap-4">
         {!isNotesLoading && notes.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground p-4">
             <p className="mb-4">

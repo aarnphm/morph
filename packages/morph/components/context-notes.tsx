@@ -211,7 +211,7 @@ export default memo(function ContextNotes({
     <div
       ref={containerRef}
       className={cn(
-        "relative z-40 h-full pointer-events-none w-52 md:w-56 lg:w-60 xl:w-64 xl:top-4 xl:left-20 xl:translate-x-1/2 left-2 md:left-4",
+        "relative z-40 h-full pointer-events-none w-52 md:w-56 lg:w-60 xl:w-64 xl:top-2 xl:left-20 xl:translate-x-1/2 left-2 md:left-4",
         className,
       )}
       {...props}

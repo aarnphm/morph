@@ -2313,7 +2313,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       />
                     )}
                   </AnimatePresence>
-                  <div className="flex flex-col items-center space-y-2 absolute bottom-2 right-4 z-20">
+                  <div className="flex flex-col items-center space-y-2 absolute bottom-2 right-2 z-20">
                     <VaultButton
                       className={cn(
                         isClient &&
@@ -2336,7 +2336,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       <CopyIcon className="w-3 h-3" />
                     </VaultButton>
                   </div>
-                  <div className="absolute top-4 left-4 text-sm/7 z-10 flex flex-col items-start justify-self gap-2">
+                  <div className="absolute top-2 left-2 text-sm/7 z-10 flex flex-col items-start justify-self gap-2">
                     {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
                     {isClient && !isOnline && <GlobeIcon className="w-4 h-4 text-destructive" />}
                     {embeddingStatus && <EmbeddingStatus status={embeddingStatus} />}
@@ -2372,7 +2372,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                         indentWithTab={true}
                         extensions={memoizedExtensions}
                         onChange={onContentChange}
-                        className="overflow-auto h-full mx-8 scrollbar-hidden pt-4"
+                        className="overflow-auto h-full mx-8 scrollbar-hidden pt-2"
                         theme={theme === "dark" ? "dark" : editorTheme}
                         onCreateEditor={(view) => {
                           codeMirrorViewRef.current = view

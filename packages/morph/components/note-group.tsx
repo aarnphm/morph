@@ -341,7 +341,7 @@ export const DroppedNoteGroup = memo(
       <motion.div
         ref={containerRef}
         className={cn(
-          "absolute top-4 right-4 z-40",
+          "absolute top-2 right-2 z-40",
           isStackExpanded && "bg-background/80 backdrop-blur-sm border rounded-md shadow-md p-2",
         )}
         key={`dropped-notes-${droppedNotes.length}-${safeVisibleContextNoteIds.length}`}
