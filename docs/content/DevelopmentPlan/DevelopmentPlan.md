@@ -79,6 +79,7 @@ Given that `tinymorph` consists of both a web-based editor and an ML inference s
 Code reviewers will be assigned based on ownership of the component in question. Team members are encouraged to collaborate across components as needed.
 
 > [!note] Assignment
+>
 > While responsibilities are divided for clarity, all members are free to contribute across components depending on project needs.
 
 ## Workflow Plan
