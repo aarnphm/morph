@@ -398,6 +398,18 @@ The automated testing strategy for `morph` is divided into two main components: 
 | Static Analysis | ruff                         | Code quality checks             | - Type checking<br>- Import sorting<br>- Code complexity limits                                 |
 | Security        | Bandit                       | Security vulnerability scanning | - Known vulnerability checks<br>- Security best practices<br>- Dependency scanning              |
 
+#### Critical Paths
+
+Critical paths refer to components whose failure or malfunction would significantly compromise the system’s core functionality, user experience, or data integrity. These include but are not limited to:
+
+- Handles login flows, token generation, and access control.
+- Responsible for data exchange between the Morph frontend and Asteraceae backend, especially those processing user-generated input or returning AI-generated text.
+- Modules in Morph that manage file states, local storage, or editing buffers crucial for preserving user content.
+- Code that performs text generation, steering operations, or data validation in Asteraceae.
+- Interfaces that facilitate or transform information passed between Morph and Asteraceae.
+
+These components are considered *mission-critical* and must meet **100% test coverage** as per the code coverage requirements outlined in section 3.6.5. This classification helps ensure that all high-risk paths are thoroughly validated through automated testing.
+
 #### CI Pipeline
 
 ```mermaid
@@ -1395,10 +1407,10 @@ graduate attribute of Lifelong Learning.
 
 <div class="blob">
 
-1. Polishing documents, refine contents, and ensure the deliverables are coherent and aligned with other related
-   documents.
-2. Too much writing
-3. Refers to others' response
+1. One of the most successful aspects of writing this deliverable was refining and polishing the overall structure of the document. I focused on ensuring that the contents were clearly articulated, logically ordered, and stylistically consistent with our other project documents such as the SRS and Hazard Analysis. This alignment helped maintain a unified tone and made the V&V plan easier to follow. I also contributed to ensuring that terminology and references across different sections were cross-checked and synchronized, which improved clarity and cohesion.
+2. The main challenge I experienced was the sheer volume of writing involved. Due to the document’s length and depth, it was easy to lose track of structural consistency and test coverage balance across sections. It was also difficult to find the right balance between technical specificity and readability for a diverse audience that includes supervisors, peers, and external reviewers. To address this, I used collaborative writing tools and relied on peer feedback sessions to prioritize clarity and completeness. I also coordinated with team members to divide responsibilities and reduce redundancy, which helped streamline the workload and improve section quality.
+3. To complete the V&V process for morph, our team needs skills in dynamic testing to validate responsiveness and functional behavior under real user scenarios. Static analysis is also important for catching performance or security issues early, particularly in the backend. Accessibility testing is essential to ensure the UI meets WCAG standards and is fully keyboard-navigable. Familiarity with CI/CD pipelines is needed to automate testing and enforce quality gates. Finally, proficiency with tools like Jest, Playwright, Postman, axe-core, and Ruff is crucial for implementing tests efficiently across both the frontend and backend.
+4. Aaron will focus on dynamic testing by applying tools like k6 directly to components during development, allowing for real-time feedback and iteration. Waleed will strengthen his static analysis skills through tutorials on tools like Ruff and Bandit, providing structured learning for backend quality. Nebras chose to enroll in a web accessibility course to gain a comprehensive foundation before conducting audits. Lucas is using GitHub documentation and example workflows to build and tune the CI/CD pipeline directly in our repo. Across the team, we’ll combine reading tool documentation with pair programming to share knowledge and ensure consistent testing practices.
 
 </div>
 
