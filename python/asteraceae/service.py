@@ -51,7 +51,6 @@ with bentoml.importing():
 
 if t.TYPE_CHECKING:
   from _bentoml_impl.client import RemoteProxy
-  from _bentoml_sdk.service.config import HTTPCorsSchema
   from vllm.entrypoints.openai.serving_embedding import OpenAIServingEmbedding
 
 logger = logging.getLogger('bentoml.service')
@@ -72,19 +71,18 @@ SUPPORTED_BACKENDS: t.Sequence[SupportedBackend] = ['vllm']
 
 DEFAULT_AUTHORS = ['Raymond Carver', 'Franz Kafka', 'Albert Camus', 'Iain McGilchrist', 'Ian McEwan']
 
-CORS = dict(
-  allow_origins=['*'],
-  allow_methods=['GET', 'OPTIONS', 'POST', 'HEAD', 'PUT'],
-  allow_credentials=True,
-  allow_headers=['*'],
-  max_age=3600,
-  expose_headers=['Content-Length'],
-)
-
 SERVICE_CONFIG: ServiceOpts = {
   'tracing': {'sample_rate': 1.0},
   'traffic': {'timeout': 1000, 'concurrency': 128},
-  'http': {'cors': t.cast('HTTPCorsSchema', {'enabled': True, **{f'access_control_{k}': v for k, v in CORS.items()}})},
+  'http': {
+    'cors': {
+      'enabled': True,
+      'access_control_allow_origins': ['*'],
+      'access_control_allow_methods': ['*'],
+      'access_control_allow_headers': ['*'],
+      'access_control_max_age': 1200,
+    }
+  },
   'image': bentoml.images.PythonImage(python_version='3.11')
   .system_packages('curl', 'git', 'build-essential', 'clang')
   .pyproject_toml('pyproject.toml')
