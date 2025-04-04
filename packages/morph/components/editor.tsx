@@ -7,6 +7,7 @@ import {
   GeneratedNote,
   NewlyGeneratedNotes,
   SuggestionRequest,
+  SuggestionResponse,
   checkAgentAvailability,
   checkAgentHealth,
 } from "@/services/agents"
@@ -39,6 +40,7 @@ import { EmbeddingStatus } from "@/components/embedding-status"
 import { EssayEmbeddingProcessor } from "@/components/essay-embedding-processor"
 import { fileField, mdToHtml } from "@/components/markdown-inline"
 import { setFile } from "@/components/markdown-inline"
+import { search } from "@/components/parser/codemirror"
 import { NoteEmbeddingProcessor } from "@/components/note-embedding-processor"
 import { DroppedNoteGroup } from "@/components/note-group"
 import { NotesPanel, StreamingNote } from "@/components/note-panel"
@@ -1086,9 +1088,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
         // Run scan animation after a small delay
         const runScanAnimation = async () => {
-          // Wait a moment before starting the animation
-          await new Promise((resolve) => setTimeout(resolve, 300))
-
           const noteCount = initialStreamingNotes.length
           let currentDelay = 100
           for (let i = 0; i < noteCount; i++) {
@@ -1104,17 +1103,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               }
               return updatedNotes
             })
-
             // Gradually reduce the delay for a smooth acceleration effect
-            currentDelay = Math.max(20, currentDelay * 0.85)
-
-            // Add a decreasing delay for a smoother animation
-            await new Promise((resolve) => setTimeout(resolve, currentDelay))
+            currentDelay = Math.max(10, currentDelay * 0.85)
           }
-
-          // Short delay before showing final notes
-          await new Promise((resolve) => setTimeout(resolve, 100))
-
           // Set loading to false which will trigger showing the final notes
           setIsNotesLoading(false)
           setScanAnimationComplete(true)
@@ -1135,11 +1126,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
         if (suggestionString.trim()) {
           try {
-            // Assuming 'Suggestions' interface was defined elsewhere or inline
-            interface SuggestionsResponse {
-              suggestions: { suggestion: string }[]
-            }
-            const suggestionData: SuggestionsResponse = JSON.parse(suggestionString.trim())
+            const suggestionData: SuggestionResponse = JSON.parse(suggestionString.trim())
 
             if (suggestionData.suggestions && Array.isArray(suggestionData.suggestions)) {
               generatedNotes = suggestionData.suggestions.map((suggestion) => ({
@@ -1295,11 +1282,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       EditorView.updateListener.of((update) => {
         if (update.docChanged || update.selectionSet) {
           // We only update the filename if it explicitly changes via the effect
-          // const newFilename = update.state.field(fileField)
-          // setCurrentFile(newFilename)
+          const newFilename = update.state.field(fileField)
+          setCurrentFile(newFilename)
         }
       }),
       syntaxHighlighting(),
+      search(),
     ]
     if (vimMode) exts.push(vim())
     return exts
@@ -2091,7 +2079,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       />
                     )}
                   </AnimatePresence>
-                  <div className="flex flex-col items-center space-y-2 absolute bottom-4 right-4 z-20">
+                  <div className="flex flex-col items-center space-y-2 absolute bottom-2 right-4 z-20">
                     <VaultButton
                       className={cn(
                         isClient &&
@@ -2114,7 +2102,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       <CopyIcon className="w-3 h-3" />
                     </VaultButton>
                   </div>
-                  <div className="absolute top-4 left-4 text-sm/7 z-10 flex flex-col items-center justify-start gap-2">
+                  <div className="absolute top-4 left-4 text-sm/7 z-10 flex flex-col items-start justify-self gap-2">
                     {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
                     {isClient && !isOnline && <GlobeIcon className="w-4 h-4 text-destructive" />}
                     {embeddingStatus && <EmbeddingStatus status={embeddingStatus} />}
@@ -2129,14 +2117,13 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                         autoFocus
                         placeholder={"What's on your mind?"}
                         basicSetup={{
-                          rectangularSelection: true,
+                          rectangularSelection: false,
                           indentOnInput: true,
                           syntaxHighlighting: true,
-                          searchKeymap: true,
                           highlightActiveLine: false,
                           highlightSelectionMatches: false,
                         }}
-                        indentWithTab={false}
+                        indentWithTab={true}
                         extensions={memoizedExtensions}
                         onChange={onContentChange}
                         className="overflow-auto h-full mx-8 scrollbar-hidden pt-4"
@@ -2162,24 +2149,10 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   {showNotes && (
                     <motion.div
                       key="notes-panel"
-                      initial={{ width: 0, opacity: 0, overflow: "hidden" }}
-                      animate={{
-                        width: "22rem",
-                        opacity: 1,
-                        overflow: "visible",
-                      }}
-                      exit={{
-                        width: 0,
-                        height: 0,
-                        opacity: 0,
-                        overflow: "hidden",
-                      }}
-                      transition={{
-                        type: "tween",
-                        duration: 0.2,
-                        ease: "easeOut",
-                      }}
-                      layout
+                      initial={{ width: "22rem", opacity: 1, overflow: "visible" }}
+                      animate={{ width: "22rem", opacity: 1, overflow: "visible" }}
+                      exit={{ width: 0, opacity: 0, overflow: "hidden" }}
+                      transition={{ duration: 0 }}
                     >
                       <NotesPanel
                         notes={notes}

@@ -1155,13 +1155,57 @@ body {
   }
 }
 
+/* Search panel styling (Ctrl+G) */
+.cm-panel {
+  @apply bg-background border-border font-mono text-xs/6 overflow-hidden z-0;
+}
+
+.cm-search {
+  @apply !p-2 flex items-center gap-2 flex-wrap;
+}
+
+.cm-textfield {
+  @apply bg-muted border border-border rounded-sm px-2 py-1 outline-none text-foreground;
+  font-family: var(--font-berkeley-mono);
+  &:focus {
+    @apply border-ring ring-1 ring-ring/50;
+  }
+}
+
+.cm-button {
+  @apply bg-muted border border-border rounded-sm px-2 py-1 text-foreground font-mono;
+  font-family: var(--font-berkeley-mono);
+  &:hover {
+    @apply bg-accent;
+  }
+}
+
+.cm-button[name="next"],
+.cm-button[name="prev"] {
+  @apply px-3;
+}
+
+.cm-panel.cm-search label {
+  @apply !mr-1 flex items-center justify-center gap-1;
+}
+
+.cm-panel.cm-search [name="close"] {
+  @apply !relative;
+}
+
+.cm-panel.cm-search-diagnostics {
+  @apply p-2 border-t border-border;
+}
+
 .cm-placeholder {
   @apply italic pointer-events-none select-none text-gray-400 dark:text-slate-300;
 }
 
-.cm-panels-bottom {
+.cm-panels-bottom,
+.cm-panels-top {
   @apply flex relative !bg-background !z-0;
   border-top: 0px !important;
+  border-bottom: 0px !important;
 }
 
 .cm-vim-panel {
@@ -1683,12 +1727,12 @@ p.quotes {
   }
 
   &:before {
-    content: "“";
+    content: "" ";
     margin-right: 0.25em;
   }
 
   &:after {
-    content: "”";
+    content: " "";
     margin-left: 0.25em;
   }
 }
@@ -1766,102 +1810,6 @@ section[data-references] {
 
   & > ul {
     margin-bottom: 2rem;
-  }
-}
-
-.mermaid-viewer {
-  @apply fixed z-1000 left-0 top-0 w-screen h-screen hidden;
-
-  &.active {
-    @apply flex;
-  }
-
-  & > .mermaid-backdrop {
-    @apply absolute top-0 left-0 w-screen h-screen backdrop-blur-2xl;
-  }
-
-  & > #mermaid-space {
-    @apply relative grid ml-auto mr-auto mt-[7vh] max-h-[80vh] max-w-[80vw] w-[75%] z-1001 bg-background rounded overflow-hidden;
-    box-shadow:
-      0 14px 50px rgba(27, 33, 48, 0.12),
-      0 10px 30px rgba(27, 33, 48, 0.16);
-
-    & > .mermaid-header {
-      @apply flex justify-end p-4 border-b-[1px] border-accent bg-background z-2 max-h-8;
-
-      & > .close-button {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        padding: 0;
-      }
-    }
-
-    & > .mermaid-content {
-      padding: 2rem;
-      position: relative;
-      transform-origin: 0 0;
-      overflow: visible;
-      min-height: 200px;
-      min-width: 200px;
-
-      pre {
-        @apply border-none m-0;
-      }
-
-      svg {
-        @apply max-w-none h-auto;
-
-        p {
-          margin: 0;
-        }
-      }
-    }
-
-    & > .mermaid-controls {
-      position: absolute;
-      bottom: 20px;
-      right: 20px;
-      display: flex;
-      gap: 8px;
-      padding: 8px;
-      background: var(--flexoki-paper);
-      border: 1px solid var(--color-accent);
-      border-radius: 6px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      z-index: 2;
-
-      .mermaid-control-button {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        padding: 0;
-        border: 1px solid var(--color-accent);
-        background: var(--flexoki-paper);
-        color: var(--dark);
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 16px;
-        font-family: var(--bodyFont);
-
-        & > svg {
-          fill: var(--flexoki-paper);
-          filter: contrast(0.3);
-        }
-
-        &:hover {
-          background: var(--color-accent);
-        }
-
-        &:active {
-          transform: translateY(1px);
-        }
-      }
-    }
   }
 }
 
@@ -1988,4 +1936,47 @@ canvas {
     opacity: 0;
     transform: translateX(8px);
   }
+}
+
+/* Add these search result highlight styles */
+.cm-searchMatch {
+  background-color: rgba(255, 213, 79, 0.3);
+  outline: 1px solid rgba(255, 213, 79, 0.4);
+  border-radius: 2px;
+}
+
+.cm-searchMatch-selected {
+  background-color: rgba(255, 213, 79, 0.5);
+  outline: 1px solid rgba(255, 213, 79, 0.7);
+}
+
+/* Floating search panel styles */
+.cm-search-floating-container {
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.07)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.05));
+  transition: opacity 0.15s ease-in-out;
+}
+
+/* Search panel container and positioning */
+.cm-search-panel-container {
+  position: relative;
+  width: 100%;
+  height: 0;
+  overflow: visible;
+  z-index: 999;
+}
+
+/* The actual panel gets absolute positioning from the component */
+.cm-search-panel {
+  max-width: 300px;
+  min-width: 260px;
+  width: auto;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 5px 10px -5px rgba(0, 0, 0, 0.05);
+}
+
+/* Hide the default CodeMirror search panel */
+.cm-panel.cm-search {
+  display: none !important;
 }

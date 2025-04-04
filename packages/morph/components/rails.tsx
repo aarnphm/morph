@@ -761,7 +761,7 @@ export default memo(function Rails({
       },
       transition: {
         type: "tween",
-        duration: shouldAnimate ? 0.2 : 0.1, // Almost instant when not visible or reduced motion preferred
+        duration: shouldAnimate ? 0.2 : 0.01, // Almost instant when not visible or reduced motion preferred
         ease: "easeOut",
         layoutDependency: false,
         willChange: "width",

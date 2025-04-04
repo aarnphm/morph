@@ -165,10 +165,10 @@ const DriversBar = memo(
           {isSteeringExpanded && (
             <motion.div
               key="steering-controls"
-              initial={{ height: 0, opacity: 0 }}
+              initial={{ height: "auto", opacity: 1 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0 }}
               className="px-4 pb-4 overflow-hidden border-b border-border"
             >
               <div className="pt-4 flex justify-between items-center">
@@ -447,9 +447,9 @@ export const NotesPanel = memo(function NotesPanel({
                           <AnimatePresence mode="wait" initial={false}>
                             <motion.div
                               className="space-y-4 px-2"
-                              initial={{ opacity: 0 }}
+                              initial={{ opacity: 1 }}
                               animate={{ opacity: 1 }}
-                              transition={{ duration: 0.3 }}
+                              transition={{ duration: 0 }}
                             >
                               {currentGenerationNotes.map((note) => (
                                 <DraggableNoteCard

@@ -12,6 +12,10 @@ export interface SuggestionRequest {
   usage?: boolean
 }
 
+export interface SuggestionResponse {
+  suggestions: { suggestion: string }[]
+}
+
 export interface StreamingNote {
   id: string
   content: string
