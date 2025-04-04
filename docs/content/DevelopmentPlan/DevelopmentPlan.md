@@ -69,7 +69,7 @@ A[Aaron Pham] --> B[Waleed Malik] --> C[Nebras Khan] --> D[Lucas Li]
 > [!note] Meeting chair assignment
 > Follow the schedule for notetakers.
 
-Given that `tinymorph` consists of both a web-based editor and an ML inference server, the following team members will take primary responsibility for each area:
+Given that `morph` consists of both a web-based editor and an ML inference server, the following team members will take primary responsibility for each area:
 
 - Interface design: Collaborative design process led by [Aaron Pham](https://aarnphm.xyz).
 - Web-based editor: [Nebras Khan](https://github.com/nebrask).
@@ -151,7 +151,7 @@ See also [[Scratch|brain dump]] for more detailed features development.
 
 ## Proof of Concept Demonstration Plan
 
-The following outlines the proof-of-concept (POC) plan for `tinymorph` leading up to the November deadline:
+The following outlines the proof-of-concept (POC) plan for `morph` leading up to the November deadline:
 
 - A functional web-based text editor with initial support for feature steering and interactive suggestions
 - Use of [Gemma 2](https://ai.google.dev/gemma?authuser=2) with pretrained [[glossary#sparse autoencoders|SAEs]] (see [GemmaScope](https://ai.google.dev/gemma/docs/gemma_scope)) to demonstrate early feature-steering capabilities
@@ -166,7 +166,7 @@ The following risks may impact the success or performance of the POC:
 - Degradation in generation quality if feature steering is poorly configured, resulting in irrelevant or incoherent suggestions
 - Performance issues when rendering live inlays directly in the text editor, potentially affecting responsiveness
 - Incomplete or non-functional modal editing (Vim-mode) by the POC deadline
-- Complexity of full-system (end-to-end) testing, due to the multiple moving parts in `tinymorph` (frontend, backend, and model control logic)
+- Complexity of full-system (end-to-end) testing, due to the multiple moving parts in `morph` (frontend, backend, and model control logic)
 - Slow initial response from the model server (cold starts), especially in remote deployment
 - Possible memory leak from KV cache when handling with long context queries
 
@@ -310,9 +310,9 @@ A variation of Google style guide for Python will be used.
 
 <div class="blob">
 
-1. Creating a development plan was crucial for us because it gave the project direction and helped us identify unknowns early on. We were able to break down a pretty ambitious idea like tinymorph into manageable parts, each with clear owners. It also helped the team align on expectations around responsibilities and workflows. Without this step, we could’ve easily drifted or miscommunicated, especially with a project that combines frontend UX and backend ML infrastructure. Having it all written down gave us similar to a shared guidebook.
+1. Creating a development plan was crucial for us because it gave the project direction and helped us identify unknowns early on. We were able to break down a pretty ambitious idea like morph into manageable parts, each with clear owners. It also helped the team align on expectations around responsibilities and workflows. Without this step, we could’ve easily drifted or miscommunicated, especially with a project that combines frontend UX and backend ML infrastructure. Having it all written down gave us similar to a shared guidebook.
 
-2. CI/CD brings a lot of structure and confidence to our workflow. Every time we push, we get immediate feedback through automated tests and formatting checks, which is especially important with a project as modular as tinymorph. It also makes merging and deploying smoother since we’re never sitting on untested code. The downside is the initial time investment. Setting up the pipelines to work across the editor and ML inference layers wasn’t trivial. Also when the pipelines break, it can block progress temporarily until we debug them.
+2. CI/CD brings a lot of structure and confidence to our workflow. Every time we push, we get immediate feedback through automated tests and formatting checks, which is especially important with a project as modular as morph. It also makes merging and deploying smoother since we’re never sitting on untested code. The downside is the initial time investment. Setting up the pipelines to work across the editor and ML inference layers wasn’t trivial. Also when the pipelines break, it can block progress temporarily until we debug them.
 
 3. We had a bit of debate around how to define roles in the document. At first, we used the term “BDFL” to describe project leadership, but not everyone felt that term was appropriate for a formal academic deliverable. Some saw it as potentially off-putting or unclear to non-technical readers. After discussing it together, we switched to clearer language like “project lead” and emphasized shared ownership across components. That small change made the roles more understandable and professional without changing the actual structure of the team.
 
@@ -330,7 +330,7 @@ A variation of Google style guide for Python will be used.
 
 <div class="blob">
 
-1. A development plan sets the foundation for everything that follows. For tinymorph, we have both technical depth and user-facing complexity, and without planning ahead we might’ve prioritized the wrong things. Writing it all down forced us to clarify who is doing what, how our components talk to each other, and where potential risks lie. It also helped us have discussions early about scope, feasibility, and user expectations. I think having this plan will make future collaboration smoother and help when we check back in during project milestones.
+1. A development plan sets the foundation for everything that follows. For morph, we have both technical depth and user-facing complexity, and without planning ahead we might’ve prioritized the wrong things. Writing it all down forced us to clarify who is doing what, how our components talk to each other, and where potential risks lie. It also helped us have discussions early about scope, feasibility, and user expectations. I think having this plan will make future collaboration smoother and help when we check back in during project milestones.
 
 2. CI/CD is amazing for speeding up collaboration. It lets us validate work continuously, rather than relying on big manual testing rounds. For example, documentation gets built automatically, and model-related checks run on every pull request. It gives us trust in our changes. That said, it takes work to maintain. We had to split the pipelines for different components and set guardrails so nothing breaks unexpectedly. It’s also easy to underestimate how much debugging CI issues can slow us down, especially if you're trying to fix a flaky test or inconsistent runtime.
 
@@ -350,7 +350,7 @@ A variation of Google style guide for Python will be used.
 
 <div class="blob">
 
-1. Without a plan, a project like tinymorph would be way harder to manage. We have machine learning components, real-time UI interactions, and infrastructure decisions all happening in parallel. The plan helped us map out how everything fits together and what needs to happen first. It also helped reduce misunderstandings, especially around responsibilities. For instance, once we wrote out who was handling the editor vs. the ML inference server, it helped people focus on their parts while still being able to contribute to other areas.
+1. Without a plan, a project like morph would be way harder to manage. We have machine learning components, real-time UI interactions, and infrastructure decisions all happening in parallel. The plan helped us map out how everything fits together and what needs to happen first. It also helped reduce misunderstandings, especially around responsibilities. For instance, once we wrote out who was handling the editor vs. the ML inference server, it helped people focus on their parts while still being able to contribute to other areas.
 
 2. The main advantage is that it catches problems early and keeps the team from stepping on each other’s toes. If a change breaks the build or causes formatting issues, we find out right away. That’s huge when you're working across frontend and backend. On the downside, CI/CD systems can be a bit opaque when they fail. It sometimes takes longer than expected to track down the root cause of a failing pipeline, especially if it’s something that works locally but not in the cloud environment. Still, the benefits outweigh the setup cost in the long run.
 

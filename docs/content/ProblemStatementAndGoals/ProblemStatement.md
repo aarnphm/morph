@@ -18,7 +18,7 @@ See also: [[ProblemStatementAndGoals/ProblemStatement#Revision|this document rev
   <i>To know the world one must construct it.</i> -- Pavese
 </p>
 
-With software deeply embedded in everyday life and the rapid advancement of large language models (LLMs), there is a growing need for interfaces that amplify user agency and encourage personalized interaction, rather than mere automation. Existing conversational interfaces (CUIs) often struggle with complex tasks and the structuring of extensive information, especially affecting creative writers like engineers who seek coherent, non-linear thought exploration. To address this challenge, `tinymorph` aims to introduce novel spatial and visual interfaces for text generation to enhance cognitive exploration and creativity in writing.
+With software deeply embedded in everyday life and the rapid advancement of large language models (LLMs), there is a growing need for interfaces that amplify user agency and encourage personalized interaction, rather than mere automation. Existing conversational interfaces (CUIs) often struggle with complex tasks and the structuring of extensive information, especially affecting creative writers like engineers who seek coherent, non-linear thought exploration. To address this challenge, `morph` aims to introduce novel spatial and visual interfaces for text generation to enhance cognitive exploration and creativity in writing.
 
 ## Inputs and Outputs
 
@@ -36,11 +36,11 @@ Outputs from `morph`:
 
 ## Stakeholders
 
-The main stakeholders of `tinymorph` include writers and engineers who write. The tool seeks to help writers become more productive and overcome creative blocks. It also aims to encourage engineers who write to be more creative and structured in their writing, while staying true to their tone. Writing at the end of the day is very personal, which means a tool should not dictate how one should write.
+The main stakeholders of `morph` include writers and engineers who write. The tool seeks to help writers become more productive and overcome creative blocks. It also aims to encourage engineers who write to be more creative and structured in their writing, while staying true to their tone. Writing at the end of the day is very personal, which means a tool should not dictate how one should write.
 
 ## Environment
 
-`tinymorph` is designed to operate as a cross-platform web-based text editor that functions reliably across modern desktop operating systems. It supports both online and offline modes, allowing users to interact with language models through local or remote inference. The system prioritizes lightweight deployment with minimal dependencies and an intuitive interface.
+`morph` is designed to operate as a cross-platform web-based text editor that functions reliably across modern desktop operating systems. It supports both online and offline modes, allowing users to interact with language models through local or remote inference. The system prioritizes lightweight deployment with minimal dependencies and an intuitive interface.
 
 The environment supports modular experimentation with text generation features, steering mechanisms, and user feedback loops, enabling adaptability to various user contexts and writing workflows.
 
@@ -82,15 +82,15 @@ It aims to deliver a web-based text editor that is intuitive, responsive, and gr
 
 ## Challenge Level and Extras
 
-Challenge level for `tinymorph` is advanced, since the project is exploring what is possible to build AI-native
+Challenge level for `morph` is advanced, since the project is exploring what is possible to build AI-native
 interfaces. It involves the field of [[glossary#mechanistic interpretability]], which is a relatively new field in alignment research that involves a lot of domain knowledge into the inner workings of transformer circuits.
 
 Extras that we wish to pursue: User Manual, Usability Testing.
 
 Reasoning:
 
-1. User Manual: We plan to document the functionality and usage of `tinymorph` to ensure that users can effectively understand and navigate the tool. This includes clear instructions, visual examples, and troubleshooting tips to make the tool more accessible.
-2. Usability Testing: As `tinymorph` aims to explore new interactions for writing, it is important to validate our design and interaction patterns through user testing. Gathering feedback from real users will help refine our interface and ensure it supports a smooth and intuitive experience.
+1. User Manual: We plan to document the functionality and usage of `morph` to ensure that users can effectively understand and navigate the tool. This includes clear instructions, visual examples, and troubleshooting tips to make the tool more accessible.
+2. Usability Testing: As `morph` aims to explore new interactions for writing, it is important to validate our design and interaction patterns through user testing. Gathering feedback from real users will help refine our interface and ensure it supports a smooth and intuitive experience.
 
 ## Appendix
 
@@ -135,7 +135,7 @@ Reasoning:
 
 <div class="blob">
 
-1. I think we did a good job distilling the overall vision of tinymorph into something focused and compelling. Everyone contributed ideas that helped shape the goals into more than just features. They became value-driven statements. The revision of the problem statement also flowed smoothly once we got feedback. We all aligned on tone and clarity pretty quickly.
+1. I think we did a good job distilling the overall vision of morph into something focused and compelling. Everyone contributed ideas that helped shape the goals into more than just features. They became value-driven statements. The revision of the problem statement also flowed smoothly once we got feedback. We all aligned on tone and clarity pretty quickly.
 
 2. Initially, our writing was too verbose and implementation-heavy, especially in the problem statement and environment sections. It was difficult to step back and abstract things to the appropriate level. We resolved it by reviewing each section against the feedback and asking, “Is this what the reader needs to know at this point?” That helped guide clearer edits.
 
