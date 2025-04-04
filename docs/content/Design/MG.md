@@ -399,4 +399,4 @@ Further refinement and testing of all modules (All team members)
 | Jan. 16 2024  | 0.4         | Finished Module Decomposition           |
 | Jan. 17 2024  | 0.4         | Completed Document                      |
 | March 31 2025 | 0.5         | Rename to `morph` for consistency       |
-| April 04 2025 | 1.          | Rev 1                                   |
+| April 04 2025 | 1.0         | Rev 1                                   |
