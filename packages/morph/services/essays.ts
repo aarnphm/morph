@@ -1,6 +1,8 @@
+import { safeDate } from "@/lib"
 import { API_ENDPOINT, ESAAY_POLLING_INTERVAL } from "@/services/constants"
 import { TaskStatusResponse } from "@/services/constants"
 import { useMutation, useQuery } from "@tanstack/react-query"
+import axios from "axios"
 import { and, eq, isNull, not } from "drizzle-orm"
 import { PgliteDatabase, drizzle } from "drizzle-orm/pglite"
 
@@ -85,101 +87,69 @@ async function submitFileEmbeddingTask(
   fileId: string,
   content: string,
 ): Promise<TaskStatusResponse> {
-  const req: EssayEmbeddingRequest = {
-    vault_id: vaultId,
-    file_id: fileId,
-    content,
-  }
-
-  const response = await fetch(`${API_ENDPOINT}/essays/submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
-  })
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }))
-    console.error(
-      `[EssayEmbedding] Failed to submit file ${fileId}:`,
-      error.error || response.statusText,
+  return axios
+    .post<EssayEmbeddingRequest, { data: TaskStatusResponse }>(
+      `${API_ENDPOINT}/essays/submit`,
+      { vault_id: vaultId, file_id: fileId, content },
     )
-    throw new Error(`Failed to submit file: ${error.error || response.statusText}`)
-  }
-
-  const responseData = await response.json()
-  return responseData
+    .then((resp) => resp.data)
+    .catch((err) => {
+      console.error(
+        `[EssayEmbedding] Failed to submit file ${fileId}:`,
+        err.response?.data?.error || err.message,
+      )
+      throw new Error(`Failed to submit file: ${err.response?.data?.error || err.message}`)
+    })
 }
 
 // Check the status of an embedding task
 async function checkFileEmbeddingTask(taskId: string): Promise<TaskStatusResponse> {
-  try {
-    const response = await fetch(`${API_ENDPOINT}/essays/status?task_id=${taskId}`)
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: "Unknown error" }))
+  return axios
+    .get<TaskStatusResponse>(`${API_ENDPOINT}/essays/status`, {
+      params: { task_id: taskId },
+    })
+    .then((resp) => resp.data)
+    .catch((error) => {
       console.error(
         `[EssayEmbedding] Status check failed for task ${taskId}:`,
-        error.error || response.statusText,
+        error.response?.data?.error || error.message,
       )
-      throw new Error(`Failed to check status: ${error.error || response.statusText}`)
-    }
-
-    const statusData = await response.json()
-    return statusData
-  } catch (error) {
-    console.error(`[EssayEmbedding] Error checking task status for ${taskId}:`, error)
-    // Return a failure status for any errors
-    return {
-      task_id: taskId,
-      status: "failure" as const,
-      created_at: new Date().toISOString(),
-      executed_at: new Date().toISOString(),
-    }
-  }
+      return {
+        task_id: taskId,
+        status: "failure" as const,
+        created_at: new Date().toISOString(),
+        executed_at: new Date().toISOString(),
+      }
+    })
 }
 
 // Get embedding results for a completed task
 async function getFileEmbeddingTask(taskId: string): Promise<EssayEmbeddingResponse> {
-  const response = await fetch(`${API_ENDPOINT}/essays/get?task_id=${taskId}`)
+  return axios
+    .get<EssayEmbeddingResponse>(`${API_ENDPOINT}/essays/get`, {
+      params: { task_id: taskId },
+    })
+    .then((resp) => {
+      const embedData = resp.data
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }))
-    console.error(
-      `[EssayEmbedding] Failed to get embedding for task ${taskId}:`,
-      error.error || response.statusText,
-    )
-    throw new Error(`Failed to get embedding: ${error.error || response.statusText}`)
-  }
+      // Verify we received the correct type of response
+      if (!embedData.nodes || !Array.isArray(embedData.nodes)) {
+        console.error(
+          `[EssayEmbedding] Invalid response format for task ${taskId}, missing nodes array:`,
+          embedData,
+        )
+        throw new Error(`Invalid response format: missing nodes array`)
+      }
 
-  const embedData = await response.json()
-
-  // Verify we received the correct type of response
-  if (!embedData.nodes || !Array.isArray(embedData.nodes)) {
-    console.error(
-      `[EssayEmbedding] Invalid response format for task ${taskId}, missing nodes array:`,
-      embedData,
-    )
-    throw new Error(`Invalid response format: missing nodes array`)
-  }
-
-  return embedData
-}
-
-// Add a helper function to safely create dates
-function safeDate(dateStr: string | null | undefined): Date | null {
-  if (!dateStr) return null
-
-  try {
-    const date = new Date(dateStr)
-    // Check if date is valid
-    if (isNaN(date.getTime())) {
-      return null
-    }
-    return date
-  } catch (error) {
-    console.error(`Failed to parse date string: ${dateStr}`, error)
-    return null
-  }
+      return embedData
+    })
+    .catch((error) => {
+      console.error(
+        `[EssayEmbedding] Failed to get embedding for task ${taskId}:`,
+        error.response?.data?.error || error.message,
+      )
+      throw new Error(`Failed to get embedding: ${error.response?.data?.error || error.message}`)
+    })
 }
 
 // Save embeddings to database

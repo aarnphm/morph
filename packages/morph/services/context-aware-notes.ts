@@ -1,4 +1,3 @@
-import { API_ENDPOINT } from "@/services/constants"
 import { and, cosineDistance, eq, inArray, sql } from "drizzle-orm"
 import { PgliteDatabase, drizzle } from "drizzle-orm/pglite"
 import { useCallback } from "react"
@@ -108,36 +107,6 @@ export async function findSimilarNotesForFile(
   } catch (error) {
     console.error("[ContextNotes] Error finding similar notes:", error)
     return []
-  }
-}
-
-/**
- * Get embeddings from OpenAI-compatible endpoint
- * @param text Text to get embeddings for
- * @returns Embedding vector
- */
-export async function getEmbedding(text: string): Promise<number[]> {
-  try {
-    const response = await fetch(`${API_ENDPOINT}/v1/embeddings`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        input: text,
-        model: "text-embedding-3-small",
-      }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`Failed to get embedding: ${response.statusText}`)
-    }
-
-    const data = await response.json()
-    return data.data[0].embedding
-  } catch (error) {
-    console.error("Error getting embedding:", error)
-    throw error
   }
 }
 

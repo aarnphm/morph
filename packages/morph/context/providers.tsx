@@ -3,6 +3,7 @@
 import { applyPgLiteMigrations, initializeDb } from "@/db"
 import migrations from "@/generated/migrations.json"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { AnimatePresence, motion } from "motion/react"
 import type React from "react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -10,13 +11,13 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import PixelatedLoading from "@/components/landing/pixelated-loading"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
+import { AuthorTasksProvider } from "@/context/authors"
 import { MorphPgLite, PGliteProvider } from "@/context/db"
 import { EmbeddingProvider } from "@/context/embedding"
 import { FileRestorationProvider, useRestoredFile } from "@/context/file-restoration"
 import { ThemeProvider } from "@/context/theme"
 import { VaultProvider } from "@/context/vault"
 import { verifyHandle } from "@/context/vault-reducer"
-import { AuthorTasksProvider } from "@/context/authors"
 
 import useFsHandles from "@/hooks/use-fs-handles"
 import { SettingsProvider } from "@/hooks/use-persisted-settings"
@@ -220,6 +221,12 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
                     </AuthorTasksProvider>
                   </EmbeddingProvider>
                 </FileRestorationProvider>
+                <ReactQueryDevtools
+                  initialIsOpen={false}
+                  buttonPosition="bottom-left"
+                  position="bottom"
+                  client={queryClient}
+                />
               </QueryClientProvider>
             </PGliteProvider>
           </motion.div>
