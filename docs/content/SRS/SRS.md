@@ -48,6 +48,7 @@ _The following Software Requirements Specification for `morph` is using [Volere 
 | LTR       | Left-to-Right                                                                              |
 | LoRA      | Low-Rank Adaptation                                                                        |
 | ReLU      | rectified linear unit                                                                        |
+| ReLU      | rectified linear unit                                                                        |
 | MC        | Mandated Constraint                                                                        |
 | MLP       | Multi-Layer Perceptron                                                                     |
 | NSFW      | Not Safe For Work                                                                          |
