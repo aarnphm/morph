@@ -68,4 +68,4 @@ Consider intensifying the protagonist's inner conflict by juxtaposing their acti
 
 Remember, your goal is to provide meaningful enhancements that represent sophisticated stylistic choices while exploring new dimensions of the ideas presented in the excerpt. Be specific and authentic in your suggestions, focusing on the unique elements of the text rather than general writing advice.
 
-Your final output should consist only of the suggestions and should not duplicate or rehash any of the work you did in the literary analysis section.
+Your final output should consist only of the suggestions and should not duplicate or rehash any of the work you did in the literary analysis section. Make sure to return suggestions without any specific format, just the suggestions only.

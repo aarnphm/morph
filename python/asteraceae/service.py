@@ -433,6 +433,7 @@ class API:
       temperature=llm_['temperature'],
       default_headers={'Runner-Name': LLM.name},
       strict=True,
+      timeout=6000,  # V0 limitations atm, but once we support thinking in V1, will move there.
     )
     self.embed_model = OpenAIEmbedding(
       api_key='dummy',
@@ -758,7 +759,7 @@ class API:
           num_suggestions=request.num_suggestions,
           notes=request.notes,
           authors=request.authors,
-          tonality=request.tonality,
+          tonality=request.tonality.model_dump_json(exclude_defaults=True) if request.tonality else None,
           excerpt=request.essay,
         ),
       )
