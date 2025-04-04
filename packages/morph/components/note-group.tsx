@@ -9,6 +9,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { AttachedNoteCard, DraggableNoteCard } from "@/components/note-card"
 import { ReasoningPanel } from "@/components/reasoning-panel"
+import { FormattedDate } from "@/components/formatted-date"
 
 import { usePGlite } from "@/context/db"
 
@@ -17,13 +18,12 @@ import * as schema from "@/db/schema"
 
 interface DateDisplayProps {
   dateStr: string
-  formatDate: (dateStr: string) => React.ReactNode
 }
 
-export const DateDisplay = memo(function DateDisplay({ dateStr, formatDate }: DateDisplayProps) {
+export const DateDisplay = memo(function DateDisplay({ dateStr }: DateDisplayProps) {
   return (
     <div className="bg-muted px-3 py-1.5 text-xs text-muted-foreground font-medium border rounded-md border-border">
-      {formatDate(dateStr)}
+      <FormattedDate dateString={dateStr} />
     </div>
   )
 })
@@ -40,7 +40,6 @@ interface NoteGroupProps {
   vaultId?: string
   handleNoteDropped: (note: Note) => void
   onNoteRemoved: (noteId: string) => void
-  formatDate: (dateStr: string) => React.ReactNode
   isGenerating?: boolean
 }
 
@@ -53,7 +52,6 @@ export const NoteGroup = memo(
     vaultId,
     handleNoteDropped,
     onNoteRemoved,
-    formatDate,
     isGenerating = false,
   }: NoteGroupProps) {
     const [isExpanded, setIsExpanded] = useState<boolean>(false)
@@ -137,7 +135,7 @@ export const NoteGroup = memo(
     return (
       <div className="mb-3">
         <div className="mb-2 space-y-4 bg-background">
-          <DateDisplay dateStr={dateStr} formatDate={formatDate} />
+          <DateDisplay dateStr={dateStr} />
           {MemoizedReasoningPanel}
         </div>
 

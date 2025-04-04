@@ -3,13 +3,19 @@
 import { cn, sanitizeStreamingContent, toJsx } from "@/lib"
 import { generatePastelColor } from "@/lib/notes"
 import { groupNotesByDate } from "@/lib/notes"
+import {
+  GeneratedNote,
+  NewlyGeneratedNotes,
+  SuggestionRequest,
+  checkAgentAvailability,
+  checkAgentHealth,
+} from "@/services/agents"
 import { checkFileHasEmbeddings, useProcessPendingEssayEmbeddings } from "@/services/essays"
 import {
   checkNoteHasEmbedding,
   submitNoteForEmbedding,
   useProcessPendingEmbeddings,
 } from "@/services/notes"
-import { NoteEmbeddingRequest } from "@/services/notes"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
 import { Compartment, EditorState } from "@codemirror/state"
@@ -58,10 +64,6 @@ import { useToast } from "@/hooks/use-toast"
 import type { FileSystemTreeNode, Note, Vault } from "@/db/interfaces"
 import * as schema from "@/db/schema"
 
-interface GeneratedNote {
-  content: string
-}
-
 interface EditorProps {
   vaultId: string
   vaults: Vault[]
@@ -79,17 +81,6 @@ interface ReasoningHistory {
   numSuggestions?: number
 }
 
-interface SuggestionRequest {
-  essay: string
-  authors?: string[]
-  notes?: NoteEmbeddingRequest[]
-  tonality?: { [key: string]: number }
-  num_suggestions?: number
-  temperature?: number
-  max_tokens?: number
-  usage?: boolean
-}
-
 export interface AuthorRequest {
   essay: string
   authors?: string[]
@@ -98,19 +89,6 @@ export interface AuthorRequest {
   max_tokens?: number
   search_backend?: "exa"
   num_search_results?: number
-}
-
-interface ReadinessResponse {
-  healthy: boolean
-  services: { name: string; healthy: boolean; latency_ms: number; error: string }[]
-  timestamp: string
-}
-
-interface NewlyGeneratedNotes {
-  generatedNotes: GeneratedNote[]
-  reasoningId: string
-  reasoningElapsedTime: number
-  reasoningContent: string
 }
 
 // Replace the wrapper component with a direct export of EditorComponent
@@ -366,7 +344,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       } catch (error) {
         // If loading fails, remove from the loaded set so we can try again
         loadedFiles.current.delete(fileKey)
-        console.error("Error loading file metadata:", error)
+        console.error(`[Debug] Error loading file metadata for ${fileName}:`, error)
       }
     },
     [vaultId, loadFileMetadata],
@@ -449,6 +427,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     isOnline,
     vault,
     db,
+    processEmbeddings,
     processEssayEmbeddings,
     addTask,
     addEssayTask,
@@ -793,59 +772,24 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       try {
         const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:8000"
 
-        try {
-          const readyz = await fetch(`${apiEndpoint}/readyz`)
-          if (!readyz.ok) {
-            const errorMsg = "Notes functionality is currently unavailable"
-            toast({
-              title: "Service Unavailable",
-              description: errorMsg,
-              variant: "destructive",
-              duration: 5000,
-            })
-            throw new Error(errorMsg)
-          }
-        } catch (readyzError: any) {
-          const errorMsg = `Cannot connect to notes service: ${readyzError.message || "Unknown error"}`
-          toast({
-            title: "Connection Error",
-            description: errorMsg,
-            variant: "destructive",
-            duration: 5000,
-          })
-          throw new Error(errorMsg)
+        const isAgentAvailable = await checkAgentAvailability()
+        if (!isAgentAvailable) {
+          throw new Error("Agent service is not available. Please try again later.")
         }
 
-        let serviceReadiness: ReadinessResponse
-        try {
-          serviceReadiness = await fetch(`${apiEndpoint}/health`, {
-            method: "POST",
-            headers: { Accept: "application/json", "Content-Type": "application/json" },
-            body: JSON.stringify({ timeout: 30 }),
-          }).then((data) => data.json())
-        } catch (healthError: any) {
-          const errorMsg = `Health check failed: ${healthError.message || "Unknown error"}`
-          toast({
-            title: "Health Check Error",
-            description: errorMsg,
-            variant: "destructive",
-            duration: 5000,
-          })
-          throw new Error(errorMsg)
-        }
-
-        // Validate service health status with detailed information
-        if (!serviceReadiness.healthy) {
-          const unhealthyServices = serviceReadiness.services
+        // Check agent health to ensure it's functioning properly
+        const healthStatus = await checkAgentHealth()
+        if (!healthStatus.healthy) {
+          const unhealthyServices = healthStatus.services
             .filter((service) => !service.healthy)
             .map((service) => `${service.name} (${service.error || "Unknown error"})`)
             .join(", ")
 
           console.error("Service health check failed:", {
-            timestamp: serviceReadiness.timestamp,
-            overallHealth: serviceReadiness.healthy,
+            timestamp: healthStatus.timestamp,
+            overallHealth: healthStatus.healthy,
             unhealthyServices,
-            allServices: serviceReadiness.services,
+            allServices: healthStatus.services,
           })
 
           const errorMsg = `Services unavailable: ${unhealthyServices}`
@@ -1274,78 +1218,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [toast],
   )
 
-  // Format date for display
-  const formatDate = useCallback((dateStr: string) => {
-    // Split the dateStr to get the date part, hour part, minute part, and second interval part
-    const [datePart, hourPart, minutePart, secondsPart] = dateStr.split("-")
-    const date = new Date(datePart)
-    const hour = parseInt(hourPart)
-    const minute = parseInt(minutePart)
-    const seconds = secondsPart ? parseInt(secondsPart) : 0
-
-    const today = new Date()
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-
-    // Format as MM/DD/YYYY
-    const formattedDate = `${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getDate().toString().padStart(2, "0")}/${date.getFullYear()}`
-
-    // Format hour and minute (12-hour format with AM/PM)
-    const formattedTime = `${hour % 12 === 0 ? 12 : hour % 12}:${minute.toString().padStart(2, "0")}${seconds > 0 ? `:${seconds}` : ""}${hour < 12 ? "AM" : "PM"}`
-
-    // Calculate relative time indicator
-    let relativeTime = ""
-    if (date.toDateString() === today.toDateString()) {
-      if (today.getHours() === hour) {
-        if (today.getMinutes() === minute) {
-          const secondsDiff = today.getSeconds() - seconds
-          if (secondsDiff < 60) {
-            if (secondsDiff <= 1) {
-              // Consider 0 or 1 second as "just now"
-              relativeTime = "just now"
-            } else {
-              relativeTime = `${secondsDiff} seconds ago`
-            }
-          } else {
-            relativeTime = "this minute" // If secondsDiff >= 60 but minute is same
-          }
-        } else {
-          const minuteDiff = today.getMinutes() - minute
-          if (minuteDiff === 1 && today.getSeconds() < seconds) {
-            // Less than a full minute ago
-            relativeTime = "just now"
-          } else if (minuteDiff === 1) {
-            relativeTime = "1 minute ago"
-          } else {
-            relativeTime = `${minuteDiff} minutes ago`
-          }
-        }
-      } else if (today.getHours() - hour === 1 && 60 - minute + today.getMinutes() < 60) {
-        // Less than an hour ago
-        relativeTime = `${60 - minute + today.getMinutes()} minutes ago`
-      } else if (today.getHours() - hour === 1) {
-        relativeTime = "1 hour ago"
-      } else {
-        relativeTime = `${today.getHours() - hour} hours ago`
-      }
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      relativeTime = "yesterday"
-    } else {
-      const diffTime = Math.abs(today.getTime() - date.getTime())
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-      relativeTime = `${diffDays} days ago`
-    }
-
-    return (
-      <div className="flex justify-between items-center w-full">
-        <span>
-          {formattedDate} {formattedTime}
-        </span>
-        <span className="text-xs text-muted-foreground italic">{relativeTime}</span>
-      </div>
-    )
-  }, [])
-
   const handleSave = useCallback(async () => {
     try {
       let targetHandle = currentFileHandle
@@ -1535,6 +1407,13 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       setCurrentlyGeneratingDateKey(dateKey)
 
       try {
+        // Check if we're online before attempting to generate suggestions
+        if (!isOnline) {
+          throw new Error(
+            "Cannot generate suggestions while offline. Please check your internet connection.",
+          )
+        }
+
         // First, find or create the file in the database to ensure proper ID reference
         let dbFile = await db.query.files.findFirst({
           where: (files, { and, eq }) =>
@@ -1702,8 +1581,10 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             )
           })
         }
-      } catch (error) {
-        setNotesError("Notes not available for this generation, try again later")
+      } catch (error: any) {
+        const errorMessage =
+          error.message || "Notes not available for this generation, try again later"
+        setNotesError(errorMessage)
         setCurrentlyGeneratingDateKey(null)
         console.error("Failed to generate notes:", error)
       } finally {
@@ -1712,13 +1593,14 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     },
     [
       currentFile,
-      vault,
-      markdownContent,
       fetchNewNotes,
+      vault,
       streamingSuggestionColors,
+      markdownContent,
       db,
       currentGenerationNotes,
       addTask,
+      isOnline,
     ],
   )
 
@@ -1978,6 +1860,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       db,
       addEssayTask,
       addTask,
+      processEmbeddings,
       processEssayEmbeddings,
     ],
   )
@@ -1993,9 +1876,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   // Add an effect to process all notes in the editor for embeddings
   useEffect(() => {
     if (!isClient || !isOnline || notes.length === 0) return
-
-    // Use a stable reference to the notes length to prevent excessive processing
-    const notesCount = notes.length
 
     // Check and process notes for embeddings after a short delay to avoid performance issues
     const timeoutId = setTimeout(async () => {
@@ -2051,7 +1931,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }, 2000) // 2 second delay
 
     return () => clearTimeout(timeoutId)
-  }, [isClient, isOnline, currentFile]) // Only depend on stable values, not notes array itself
+  }, [isClient, isOnline, currentFile, addTask, db, notes]) // Only depend on stable values, not notes array itself
 
   // Use the embedding status hook
   // This hooks has some side-effects, and must be called at the very last.
@@ -2290,6 +2170,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       }}
                       exit={{
                         width: 0,
+                        height: 0,
                         opacity: 0,
                         overflow: "hidden",
                       }}
@@ -2316,7 +2197,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                         handleNoteDropped={handleNoteDropped}
                         handleNoteRemoved={handleNoteRemoved}
                         handleCurrentGenerationNote={handleCurrentGenerationNote}
-                        formatDate={formatDate}
                         isNotesRecentlyGenerated={isNotesRecentlyGenerated}
                         currentReasoningElapsedTime={currentReasoningElapsedTime}
                         generateNewSuggestions={generateNewSuggestions}

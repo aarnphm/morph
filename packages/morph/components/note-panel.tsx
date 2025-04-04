@@ -44,7 +44,6 @@ interface NotesPanelProps {
   handleNoteDropped: (note: Note) => void
   handleNoteRemoved: (noteId: string) => void
   handleCurrentGenerationNote: (note: Note) => void
-  formatDate: (dateStr: string) => React.ReactNode
   isNotesRecentlyGenerated: boolean
   currentReasoningElapsedTime: number
   generateNewSuggestions: (steeringSettings: SteeringSettings) => void
@@ -269,7 +268,6 @@ export const NotesPanel = memo(function NotesPanel({
   handleNoteDropped,
   handleNoteRemoved,
   handleCurrentGenerationNote,
-  formatDate,
   isNotesRecentlyGenerated,
   currentReasoningElapsedTime,
   generateNewSuggestions,
@@ -340,7 +338,6 @@ export const NotesPanel = memo(function NotesPanel({
             vaultId={vaultId}
             handleNoteDropped={handleNoteDropped}
             onNoteRemoved={handleNoteRemoved}
-            formatDate={formatDate}
             isGenerating={false}
           />
         </div>
@@ -352,7 +349,6 @@ export const NotesPanel = memo(function NotesPanel({
       vaultId,
       handleNoteDropped,
       handleNoteRemoved,
-      formatDate,
       reasoningHistory,
     ],
   )
@@ -396,7 +392,6 @@ export const NotesPanel = memo(function NotesPanel({
                       <div className="mb-2 space-y-4 bg-background">
                         <DateDisplay
                           dateStr={currentlyGeneratingDateKey!}
-                          formatDate={formatDate}
                         />
 
                         <ReasoningPanel
