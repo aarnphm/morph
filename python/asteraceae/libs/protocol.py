@@ -23,15 +23,17 @@ def random_uuid() -> str:
   return str(uuid.uuid4().hex)
 
 
-class LLMMetadata(t.TypedDict):
+class ModelForCausalLM(t.TypedDict):
   model_id: str
   structured_output_backend: str
   temperature: float
   top_p: float
+  max_model_len: int
+  max_tokens: int
   resources: ResourceSchema
 
 
-class EmbeddingModelMetadata(t.TypedDict):
+class ModelForClassification(t.TypedDict):
   model_id: str
   dimensions: int
   max_model_len: int
@@ -48,75 +50,89 @@ class ServiceOpts(t.TypedDict, total=False):
   http: HTTPSchema
 
 
-ReasoningModels: dict[ModelType, LLMMetadata] = {
-  'r1-qwen': LLMMetadata(
+ReasoningModels: dict[ModelType, ModelForCausalLM] = {
+  'r1-qwen': ModelForCausalLM(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-32B',
     structured_output_backend='xgrammar:disable-any-whitespace',
     temperature=0.6,
     top_p=0.95,
+    max_model_len=48 * 1024,
+    max_tokens=32 * 1024,
     # TODO: switch to 2 for longer context generations
     resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
   ),
-  'r1-qwen-small': LLMMetadata(
+  'r1-qwen-small': ModelForCausalLM(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-14B',
     structured_output_backend='xgrammar:disable-any-whitespace',
     temperature=0.6,
     top_p=0.95,
+    max_model_len=48 * 1024,
+    max_tokens=32 * 1024,
     resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
   ),
-  'r1-qwen-fast': LLMMetadata(
+  'r1-qwen-fast': ModelForCausalLM(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B',
     structured_output_backend='xgrammar:disable-any-whitespace',
     temperature=0.6,
     top_p=0.95,
+    max_model_len=48 * 1024,
+    max_tokens=32 * 1024,
     resources={'gpu': 1, 'gpu_type': 'nvidia-tesla-a100'},
   ),
-  'r1-qwen-tiny': LLMMetadata(
+  'r1-qwen-tiny': ModelForCausalLM(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B',
     structured_output_backend='xgrammar:disable-any-whitespace',
     temperature=0.6,
     top_p=0.95,
+    max_model_len=48 * 1024,
+    max_tokens=32 * 1024,
     resources={'gpu': 1, 'gpu_type': 'nvidia-l4'},
   ),
-  'r1-llama': LLMMetadata(
+  'r1-llama': ModelForCausalLM(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Llama-70B',
     structured_output_backend='xgrammar',
     temperature=0.6,
     top_p=0.95,
+    max_model_len=48 * 1024,
+    max_tokens=32 * 1024,
     resources={'gpu': 2, 'gpu_type': 'nvidia-a100-80gb'},
   ),
-  'r1-llama-small': LLMMetadata(
+  'r1-llama-small': ModelForCausalLM(
     model_id='deepseek-ai/DeepSeek-R1-Distill-Llama-8B',
     structured_output_backend='xgrammar',
     temperature=0.6,
     top_p=0.95,
+    max_model_len=48 * 1024,
+    max_tokens=32 * 1024,
     resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
   ),
-  'qwq': LLMMetadata(
+  'qwq': ModelForCausalLM(
     model_id='Qwen/QwQ-32B',
     structured_output_backend='xgrammar',
     temperature=0.6,
     top_p=0.95,
+    max_model_len=32 * 1024,
+    max_tokens=20 * 1024,
     resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
   ),
 }
 
-EmbeddingModels: dict[EmbedType, EmbeddingModelMetadata] = {
-  'gte-qwen': EmbeddingModelMetadata(
+EmbeddingModels: dict[EmbedType, ModelForClassification] = {
+  'gte-qwen': ModelForClassification(
     model_id='Alibaba-NLP/gte-Qwen2-7B-instruct',
     dimensions=3584,
     max_model_len=8192,
     trust_remote_code=True,
     resources={'gpu': 1, 'gpu_type': 'nvidia-l4'},
   ),
-  'gte-qwen-fast': EmbeddingModelMetadata(
+  'gte-qwen-fast': ModelForClassification(
     model_id='Alibaba-NLP/gte-Qwen2-1.5B-instruct',
     dimensions=1536,
     max_model_len=8192,
     trust_remote_code=True,
     resources={'gpu': 1, 'gpu_type': 'nvidia-l4'},
   ),
-  'gte-modernbert': EmbeddingModelMetadata(
+  'gte-modernbert': ModelForClassification(
     model_id='Alibaba-NLP/gte-modernbert-base',
     dimensions=786,
     max_model_len=8192,

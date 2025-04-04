@@ -58,13 +58,13 @@ logger = logging.getLogger('bentoml.service')
 
 WORKING_DIR = pathlib.Path(__file__).parent
 IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
-MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 48 * 1024))
-MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 32 * 1024))
 
 MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
 LLM_ID: str = (llm_ := ReasoningModels[MODEL_TYPE])['model_id']
 EMBED_TYPE = t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen-fast'))
 EMBED_ID: str = (embed_ := EmbeddingModels[EMBED_TYPE])['model_id']
+MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', llm_['max_model_len']))
+MAX_TOKENS = int(os.environ.get('MAX_TOKENS', llm_['max_tokens']))
 
 SupportedBackend = t.Literal['vllm']
 SUPPORTED_BACKENDS: t.Sequence[SupportedBackend] = ['vllm']
@@ -205,10 +205,6 @@ def make_args(
   )
   if task == 'generate' and (tp := llm_.get('resources', {}).get('gpu', 1)) > 1:
     variables['tensor_parallel_size'] = int(tp)
-  if MODEL_TYPE == 'qwq':
-    variables['hf_overrides'] = {
-      'rope_scaling': {'factor': 4.0, 'original_max_position_embeddings': 32768, 'rope_type': 'yarn'}
-    }
   args = make_arg_parser(FlexibleArgumentParser()).parse_args([])
   for k, v in variables.items():
     setattr(args, k, v)
