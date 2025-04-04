@@ -123,6 +123,7 @@
     "to-vfile": "^8.0.0",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.0.0",
+    "use-debounce": "^10.0.4",
     "vaul": "^1.1.2",
     "vfile": "^6.0.3",
     "zod": "^3.24.2"

@@ -96,7 +96,7 @@ export const EditorDropTarget = memo(function EditorDropTarget({
     <div
       ref={dropRef}
       className={cn(
-        "flex-1 relative transition-all duration-300 ease-in-out",
+        "flex flex-1 relative transition-all duration-300 ease-in-out",
         isOver && "border-teal-300 border rounded-s-md rounded-w-md",
       )}
     >

@@ -71,6 +71,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { FileSystemTreeNode, Note, Vault } from "@/db/interfaces"
 import * as schema from "@/db/schema"
 import { submitContentForAuthors } from "@/services/authors"
+import { ContextNotes } from "@/components/context-notes"
 
 interface EditorProps {
   vaultId: string
@@ -144,6 +145,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const fileRestorationAttempted = useRef(false)
   // Add state to show vim mode change notification
   const [showVimModeChangeNotification, setShowVimModeChangeNotification] = useState(false)
+  const [currentFileId, setCurrentFileId] = useState<string | null>(null)
 
   // Add a ref to track loaded files to prevent duplicate note loading
   const loadedFiles = useRef<Set<string>>(new Set())
@@ -442,12 +444,16 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
             // Also process author recommendations if online
             if (!authorsProcessedRef.current && dbFile) {
-              const content = md(restoredFile.content).content
-
-              const taskId = await submitContentForAuthors(db, dbFile.id, content)
-              if (taskId) {
-                addAuthorTask(taskId, dbFile.id)
-                authorsProcessedRef.current = true
+              try {
+                // Get the file content
+                const fileContent = md(restoredFile.content).content
+                const taskId = await submitContentForAuthors(db, dbFile.id, fileContent)
+                if (taskId) {
+                  addAuthorTask(taskId, dbFile.id)
+                  authorsProcessedRef.current = true
+                }
+              } catch (error) {
+                console.error("[Editor] Error processing authors:", error)
               }
             }
           } catch (error) {
@@ -1879,16 +1885,17 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               }
 
               // Also process author recommendations
-              if (!authorsProcessedRef.current) {
-                const content = md(content).content
-                const processAuthors = await import("@/services/authors").then(
-                  (module) => module.submitContentForAuthors
-                )
-
-                const taskId = await processAuthors(db, dbFile.id, content)
-                if (taskId) {
-                  addAuthorTask(taskId, dbFile.id)
-                  authorsProcessedRef.current = true
+              if (!authorsProcessedRef.current && dbFile) {
+                try {
+                  // Get the file content
+                  const fileContent = content // Use the content variable directly
+                  const taskId = await submitContentForAuthors(db, dbFile.id, fileContent)
+                  if (taskId) {
+                    addAuthorTask(taskId, dbFile.id)
+                    authorsProcessedRef.current = true
+                  }
+                } catch (error) {
+                  console.error("[Editor] Error processing authors:", error)
                 }
               }
             } catch (error) {
@@ -2153,6 +2160,52 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     authorsProcessedRef.current = false
   }, [currentFile])
 
+  // Add a ref to track the current file name to avoid unnecessary database queries
+  // Add near other ref declarations (around line 150)
+  const currentFileRef = useRef<string>("")
+
+  useEffect(() => {
+    // Only attempt to find the file ID if we have a valid vault and a non-default file name
+    if (vault && currentFile && currentFile !== "Untitled") {
+      // Skip if we've already processed this file
+      if (currentFile === currentFileRef.current && currentFileId) {
+        return
+      }
+
+      const caller = async () => {
+        try {
+          // Find the current file in the database
+          const dbFile = await db.query.files.findFirst({
+            where: (files, { and, eq }) =>
+              and(eq(files.name, currentFile), eq(files.vaultId, vault.id)),
+          })
+
+          // Update the state with the file ID if found
+          if (dbFile) {
+            setCurrentFileId(dbFile.id)
+            currentFileRef.current = currentFile
+            console.log(`[ContextNotes] Found file ID ${dbFile.id} for ${currentFile}`)
+          } else {
+            console.log(`[ContextNotes] No file ID found for ${currentFile}`)
+            setCurrentFileId(null)
+            currentFileRef.current = ""
+          }
+        } catch (error) {
+          console.error(`[ContextNotes] Error finding file ID for ${currentFile}:`, error)
+          setCurrentFileId(null)
+          currentFileRef.current = ""
+        }
+      }
+      const timeout = setTimeout(caller, 1000)
+
+      return () => clearTimeout(timeout)
+    } else {
+      // Reset the file ID if we don't have a valid file
+      setCurrentFileId(null)
+      currentFileRef.current = ""
+    }
+  }, [db, vault, currentFile, currentFileId])
+
   return (
     <DndProvider backend={HTML5Backend}>
       <SteeringProvider>
@@ -2261,6 +2314,17 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     {isClient && !isOnline && <GlobeIcon className="w-4 h-4 text-destructive" />}
                     {embeddingStatus && <EmbeddingStatus status={embeddingStatus} />}
                   </div>
+                  {vault && currentFileId && memoizedDroppedNotes.length > 0 && (
+                    <ContextNotes
+                      className={`${isEditMode ? "block" : "hidden"}`}
+                      editorViewRef={codeMirrorViewRef}
+                      readingModeRef={readingModeRef}
+                      droppedNotes={memoizedDroppedNotes}
+                      isEditMode={isEditMode}
+                      fileId={currentFileId}
+                      vaultId={vault.id}
+                    />
+                  )}
                   <div
                     className={`editor-mode absolute inset-0 ${isEditMode ? "block" : "hidden"}`}
                   >
