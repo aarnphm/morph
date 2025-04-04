@@ -58,14 +58,13 @@ logger = logging.getLogger('bentoml.service')
 
 WORKING_DIR = pathlib.Path(__file__).parent
 IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
+MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 48 * 1024))
+MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 32 * 1024))
 
 MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
 LLM_ID: str = (llm_ := ReasoningModels[MODEL_TYPE])['model_id']
 EMBED_TYPE = t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen-fast'))
 EMBED_ID: str = (embed_ := EmbeddingModels[EMBED_TYPE])['model_id']
-
-MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 32 * 1024 if MODEL_TYPE == 'qwq' else 48 * 1024))
-MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 20 * 1024 if MODEL_TYPE == 'qwq' else 24 * 1024))
 
 SupportedBackend = t.Literal['vllm']
 SUPPORTED_BACKENDS: t.Sequence[SupportedBackend] = ['vllm']
@@ -110,9 +109,9 @@ class AuthorRequest(pydantic.BaseModel):
   top_p: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['top_p']
   temperature: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['temperature']
   max_tokens: t.Annotated[int, at.Ge(256), at.Le(MAX_TOKENS)] = MAX_TOKENS
-  authors: t.Optional[list[str]] = pydantic.Field(DEFAULT_AUTHORS)
+  authors: t.Optional[list[str]] = None
   search_backend: t.Optional[t.Literal['exa']] = 'exa'
-  num_search_results: t.Annotated[int, at.Ge(1), at.Le(15)] = 10
+  num_search_results: t.Annotated[int, at.Ge(1), at.Le(15)] = 3
 
 
 class StreamingCall(pydantic.BaseModel):
@@ -206,6 +205,10 @@ def make_args(
   )
   if task == 'generate' and (tp := llm_.get('resources', {}).get('gpu', 1)) > 1:
     variables['tensor_parallel_size'] = int(tp)
+  if MODEL_TYPE == 'qwq':
+    variables['hf_overrides'] = {
+      'rope_scaling': {'factor': 4.0, 'original_max_position_embeddings': 32768, 'rope_type': 'yarn'}
+    }
   args = make_arg_parser(FlexibleArgumentParser()).parse_args([])
   for k, v in variables.items():
     setattr(args, k, v)

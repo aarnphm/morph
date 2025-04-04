@@ -29,7 +29,11 @@ Before providing your final output, please include the following steps:
 
 4. Brainstorm a list of potential {{num_authors}} authors who meet these criteria, explaining your reasoning for each selection. For each author, number the reasons they match the criteria (e.g., 1. Similar writing style, 2. Expertise in the theme, etc.).
 
-5. Consider the following authors as potential references, but only include them if they fit the criteria exceptionally well: {{authors| map('tojson') | join(", ")}}
+{%- if authors and (authors | length > 0) %}
+
+5. Consider the following authors as potential references, but only include them if they fit the criteria exceptionally well: {{authors | map('tojson') | join(", ")}}
+
+{%- endif %}
 
 Example output structure (do not use this content, it's just to illustrate the format):
 
