@@ -58,7 +58,7 @@ Tinymorph aims to deliver a web-based text editor that is intuitive, responsive,
 - **Efficient activation caching for responsive feature steering**  
   Supports real-time responsiveness during editing by reducing unnecessary recomputation, making interaction smooth even during experimentation.
 
-- **Functional SAE (Steered Activation Editing) mechanisms**  
+- **Steering mechanism through interpreter models**  
   Allows users to guide model behavior at a granular level, introducing a new paradigm for interacting with LLMs beyond prompt engineering.
 
 - **OpenAI-compatible API for LLM server integration**  
