@@ -583,7 +583,7 @@ The software validation process ensures that `morph` meets user requirements and
    - Apply updates in future sprints  
    - Re-test improved features with users  
    - Document changes and close the loop  
-   
+
 #### Validation Schedule
 
 | Stage            | Timeline   | Activities                                                                         | Deliverables             |
@@ -621,7 +621,8 @@ meets user expectations and perform reliably.
 
 ### Tests for Functional Requirements
 
-This section outlines test cases for verifying the core functional requirements of morph as specified in the SRS. The tests are organized by major feature areas, with each test designed to validate specific user interactions and system behaviors.
+This section outlines test cases for verifying the core functional requirements of morph as specified in the SRS. The tests are organized by major feature areas, with each test designed to validate specific user interactions and system behaviors. For detailed input data associated with each test case, refer to ([[VnVPlan/VnVPlan#6.2 Test Input Table]]).
+
 
 #### Planning and Suggestion Features
 
@@ -669,7 +670,7 @@ These tests verify requirements FR-4 through FR-7, focusing on the system's text
    - Input: "Didion" tone selection with prompt "reflection on modern life"
    - Output: Text suggestions matching Didion's writing style under Lexical Constraints.
    - Test Case Derivation: Based on FR-2's requirement for style-specific generation
-   - How test will be performed: Enable steering, select tone, verify style matching.
+   - How test will be performed: Enable steering, select "Didion" tone, and generate output using the prompt. Compare the output to the ([[VnVPlan/VnVPlan#6.3.1 Didion’s Writing Style Validation]]) checklist.
 
 2. **Test-FR-S2**
 
@@ -678,7 +679,9 @@ These tests verify requirements FR-4 through FR-7, focusing on the system's text
    - Input: User's writing sample for style adaptation
    - Output: Customized suggestions within 30 seconds
    - Test Case Derivation: Derived from FR-2's requirement for personalization
-   - How test will be performed: Upload writing sample, measure adaptation time.
+   - How test will be performed: Upload a writing sample (e.g., an excerpt from a Joan Didion essay or similar source). Measure the time from upload to generation, where it must not exceed 30 seconds. Then, evaluate the output using the ([[VnVPlan/VnVPlan#6.3.1 Didion’s Writing Style Validation]]) checklist.
+
+
 
 #### User Interaction Features
 
@@ -704,7 +707,8 @@ These tests verify requirements FR-8 through FR-10, covering the system's user i
    - Input: Preference settings (formal tone, narrative style, passive voice, high formality)
    - Output: Consistent application of preferences across generations
    - Test Case Derivation: Derived from FR-4's requirement for persistent preference application
-   - How test will be performed: Set preferences, generate multiple outputs, verify consistency.
+   - How test will be performed: Enable the desired preferences (e.g., formal tone, narrative style) in the settings panel. Generate at least three outputs using the same prompt. Evaluate formal tone consistency using the ([[VnVPlan/VnVPlan#6.3.2 Formal Tone Generation]]) checklist.
+
 
 #### Profile Management Features
 
@@ -1397,6 +1401,49 @@ _Omitted for now, refer to [[Design/MG|Module Guide]]_ for more information.
 8. Did you encounter any difficulties when resizing text or using keyboard navigation?
 9. How satisfied are you with the responsiveness of the application?
 10. Do you have any suggestions for improving the usability of `morph`?
+
+### Test Input Table
+
+| **Test Case ID** | **Input Description**                                   | **Input Type** | **Sample Input**                             | **Notes** |
+|------------------|----------------------------------------------------------|----------------|----------------------------------------------|-----------|
+| Test-FR-P1       | Prompt entered into planning interface                   | Text           | `environmental sustainability`               | Used to test suggestion generation |
+| Test-FR-P2       | Unintelligible prompt for robustness check               | Text           | `asdh123!@#`                                  | Should trigger input refinement message |
+| Test-FR-P3       | Large block of text for planning                         | Text           | A 500+ word passage on climate change        | Sourced externally and uploaded for testing |
+| Test-FR-S1       | Prompt with \"Didion\" style selection                   | Text + Style   | Prompt: `reflection on modern life`<br>Style: `Didion` | See Checklist B.1 for style validation |
+| Test-FR-S2       | Writing sample upload for personalization                | Text file      | Excerpt from Joan Didion’s essay, e.g., *The White Album* (from published book or verified online source) | Uploaded sample used for tone adaptation |
+| Test-FR-F1       | Feedback on generated suggestion                         | UI Interaction | Tone adjustment, alternate phrasing          | Verifies real-time feedback loop |
+| Test-FR-TG1      | User-defined preferences for generation                  | Settings       | Tone: formal, Style: narrative, Passive voice, High formality | Applied across generations |
+| Test-FR-UP1      | Save creative writing profile                            | Settings       | Informal tone, Narrative style               | Verifies profile retention |
+| Test-FR-UP2      | Create and save academic writing profile                 | Settings       | Formal tone, Analytical style                | Ensures multiple profiles can be saved |
+| Test-FR-RM1      | Navigate document via tree view                          | UI Interaction | Enable tree view navigation                  | Visualizes section hierarchy |
+| Test-FR-VC1      | View previous version of document                        | UI Interaction | Version history menu                         | Shows restore/diff options |
+| Test-FR-VC2      | Revert to earlier document version                       | UI Interaction | Select version to revert                     | Current document updates to selected version |
+| Test-FR-PT1      | Set word count goal for writing                         | Numeric Input  | Goal: 1500 words                             | Progress meter should reflect count |
+| Test-FR-PT2      | Set tone consistency goal                                | Style Setting  | Formal tone goal                             | Alerts when tone deviates |
+| Test-FR-E1       | Export document to PDF                                   | UI Interaction | Select \"Export as PDF\"                       | Output must retain formatting |
+| Test-FR-E2       | Export document to plain text                            | UI Interaction | Select \"Export as Plain Text\"               | Output should be unformatted text only |
+| Test-FR-VT1      | Switch from light to dark theme                          | UI Interaction | Select \"Dark Mode\" in preferences           | Dark mode applies consistently across UI |
+
+
+### Output Evaluation Checklists
+
+#### Didion’s Writing Style Validation
+
+To mark this test as **pass**, at least **4 of 5 criteria** must be met:
+
+- [ ] Uses first-person narrative (e.g., "I think", "I remember")
+- [ ] Reflective or meditative tone with subtle emotional nuance
+- [ ] Unconventional sentence structures or rhythms (e.g., sentence fragments, loose clauses)
+- [ ] Descriptive and personal – includes vivid imagery or self-observation
+- [ ] Stylistic consistency across 3+ generated paragraphs
+
+
+#### Formal Tone Generation
+
+- [ ] Avoids contractions (e.g., "do not" vs. "don’t")
+- [ ] Uses domain-appropriate vocabulary
+- [ ] Maintains neutral and objective tone
+- [ ] Consistent sentence structure without slang or colloquialisms
 
 ### Reflection
 
