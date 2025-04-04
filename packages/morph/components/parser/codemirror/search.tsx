@@ -52,6 +52,15 @@ export function search() {
       const close = () => {
         // Hide panel
         panelOpen = false
+
+        // Dispatch effect to close panel
+        view.dispatch({
+          effects: [toggleSearchPanel.of(false)]
+        })
+
+        // Focus the editor
+        view.focus()
+
         // Return true to indicate panel should be removed
         return true
       }
@@ -119,6 +128,7 @@ export function search() {
         openSearchPanel(view)
         return true
       },
+      preventDefault: true,
     },
     {
       key: "F3",
@@ -151,16 +161,24 @@ export function search() {
     {
       key: "Mod-g",
       run: (view: EditorView) => {
-        // Open panel if not open
-        if (!panelOpen) {
+        // Toggle panel - close if open, open if closed
+        if (panelOpen) {
           view.dispatch({
-            effects: [toggleSearchPanel.of(true)],
+            effects: [toggleSearchPanel.of(false)],
           })
-          openSearchPanel(view)
+          view.focus()
+          return true
         }
+
+        // Open panel if not open
+        view.dispatch({
+          effects: [toggleSearchPanel.of(true)],
+        })
+        openSearchPanel(view)
         findNext(view)
         return true
       },
+      preventDefault: true,
     },
     {
       key: "Shift-Mod-g",
@@ -175,6 +193,7 @@ export function search() {
         findPrevious(view)
         return true
       },
+      preventDefault: true,
     },
     {
       key: "Mod-[",

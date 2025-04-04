@@ -119,7 +119,9 @@ export function SearchPanel({ view, className, isVisible = true, onClose }: Sear
 
   const handleClose = useCallback(() => {
     if (onClose) onClose()
-  }, [onClose])
+    // Focus the editor after closing
+    if (view) view.focus()
+  }, [onClose, view])
 
   // Handle keyboard shortcuts
   const handleKeyDown = useCallback(
@@ -134,6 +136,19 @@ export function SearchPanel({ view, className, isVisible = true, onClose }: Sear
       } else if (e.key === "Escape") {
         handleClose()
         e.preventDefault()
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
+        // Prevent default browser find
+        e.preventDefault()
+        e.stopPropagation()
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "g") {
+        // Handle Cmd+G within the search panel
+        if (e.shiftKey) {
+          handlePrevious()
+        } else {
+          handleNext()
+        }
+        e.preventDefault()
+        e.stopPropagation()
       }
     },
     [handleNext, handlePrevious, handleClose],
@@ -148,12 +163,12 @@ export function SearchPanel({ view, className, isVisible = true, onClose }: Sear
         className,
       )}
     >
-      <div className="p-2 pb-1.5 space-y-1.5">
+      <div className="p-2 space-y-4">
         <div className="flex items-center gap-2">
           <div className="flex-1 relative">
             <Input
               ref={inputRef}
-              className="pl-8 h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm hover:cursor-pointer"
+              className="pl-6 h-6 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm hover:cursor-pointer text-sm/7 font-mono"
               type="text"
               value={searchQuery}
               onChange={handleQueryChange}
@@ -186,7 +201,7 @@ export function SearchPanel({ view, className, isVisible = true, onClose }: Sear
             )}
           </div>
 
-          <div className="flex gap-1">
+          <div className="flex gap-2">
             <VaultButton
               onClick={handlePrevious}
               size="small"
