@@ -247,6 +247,16 @@ Modules are decomposed according to the principle of "information hiding" propos
 - **Implemented By:** LocalStorage APIs.
 - **Type of Module:** Record.
 
+##### Exported Access Programs
+
+| **Routine Name**     | **Input**                | **Output**               | **Description**                                     |
+|----------------------|--------------------------|--------------------------|-----------------------------------------------------|
+| `Authors`            | `Author, string`         | `Author Record `         | Record the selected author style                    |
+| `Tonality`           | `IsEnable, boolean`      | `Boolean`                | Record if the tonality is enable                    |
+| `Vibes`              | `VibeLevel, Value`       | `VibeLevel Record`       | Record the level of vibes                           |
+| `Notes`              | `NotesNumber, Value`     | `NotesNumber`            | Recod the Number of notes generated                 |
+
+
 #### Analytics Module (M10)
 
 - **Secrets:** Algorithms for tracking user progress metrics such as word count, tone consistency, and goal completion rates. Methods for generating insights and visual feedback.
