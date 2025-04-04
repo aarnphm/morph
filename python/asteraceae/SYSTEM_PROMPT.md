@@ -66,6 +66,8 @@ The excerpt touches on the protagonist's internal struggle but doesn't fully exp
 Consider intensifying the protagonist's inner conflict by juxtaposing their actions with their thoughts. This could deepen the reader's understanding of the character's motivations and add layers of complexity to their decision-making process, enhancing the introspective tone of the piece.
 </suggestion>
 
-Remember, your goal is to provide meaningful enhancements that represent sophisticated stylistic choices while exploring new dimensions of the ideas presented in the excerpt. Be specific and authentic in your suggestions, focusing on the unique elements of the text rather than general writing advice.
+Do not include any numbering, titles, or additional formatting within the suggestion text. Focus solely on providing meaningful enhancements that represent sophisticated stylistic choices while exploring new dimensions of the ideas presented in the excerpt.
 
-Your final output should consist only of the suggestions and should not duplicate or rehash any of the work you did in the literary analysis section. Make sure to return suggestions without any specific format, just the suggestions only.
+Remember, be specific and authentic in your suggestions, focusing on the unique elements of the text rather than general writing advice.
+
+Your final output should consist only of the JSON objects containing your suggestions and should not duplicate or rehash any of the work you did in the literary analysis thinking block.
