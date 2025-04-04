@@ -3,5 +3,24 @@
   "quoteProps": "as-needed",
   "trailingComma": "all",
   "tabWidth": 2,
-  "semi": false
+  "semi": false,
+  "importOrderSeparation": true,
+  "importOrderSortSpecifiers": true,
+  "importOrder": [
+    "<THIRD_PARTY_MODULES>",
+    "^@/components/(.*)$",
+    "^@/context/(.*)$",
+    "^@/hooks/(.*)$",
+    "^@/db/(.*)$",
+    "^[./]"
+  ],
+  "plugins": ["@trivago/prettier-plugin-sort-imports"],
+  "overrides": [
+    {
+      "files": "*.d.ts",
+      "options": {
+        "importOrderParserPlugins": ["[\"typescript\", { \"dts\": true }]", "decorators"]
+      }
+    }
+  ]
 }

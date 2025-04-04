@@ -1,67 +1,60 @@
 "use client"
 
-import { useCallback, useEffect } from "react"
-import Editor from "@/components/editor"
-import { useVaultContext } from "@/context/vault-context"
-import { useParams } from "next/navigation"
-import mermaid from "mermaid"
 import { motion } from "motion/react"
+import { useParams } from "next/navigation"
+import { useCallback, useEffect } from "react"
+
+import Editor from "@/components/editor"
+
+import { FilePreloader } from "@/context/providers"
+import { useVaultContext } from "@/context/vault"
+
+// Define page transition variants
+const pageVariants = {
+  initial: {
+    opacity: 0,
+    scale: 0.98,
+  },
+  animate: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      duration: 0.4,
+      ease: [0.25, 0.1, 0.25, 1],
+      staggerChildren: 0.1,
+    },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.98,
+    transition: {
+      duration: 0.3,
+      ease: [0.25, 0.1, 0.25, 1],
+    },
+  },
+};
+
+// Define child element variants for staggered animation
+const childVariants = {
+  initial: { opacity: 0, y: 10 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.3 }
+  },
+};
 
 export default function VaultPage() {
   const params = useParams()
   const vaultId = params.vault as string
   const { vaults } = useVaultContext()
 
+  // Set active vault ID in localStorage whenever the vault ID changes
   useEffect(() => {
-    const handleContentChange = async (event: CustomEventMap["mermaid-content"]) => {
-      if (event.detail) {
-        const cssVars = [
-          "--color-red-400",
-          "--color-orange-400",
-          "--color-gray-400",
-          "--color-slate-50",
-          "--color-gray-200",
-          "--color-accent",
-          "--color-background",
-          "--color-gray-700",
-          "--font-mono",
-        ]
-
-        const cssVariables = cssVars.reduce(
-          (acc, key) => {
-            acc[key] = getComputedStyle(document.documentElement).getPropertyValue(key)
-            return acc
-          },
-          {} as Record<string, string>,
-        )
-        const darkMode = document.documentElement.classList.contains("dark")
-
-        mermaid.initialize({
-          startOnLoad: false,
-          securityLevel: "loose",
-          theme: darkMode ? "dark" : "base",
-          themeVariables: {
-            fontFamily: cssVariables["--font-mono"],
-            primaryColor: cssVariables["--color-slate-50"],
-            primaryTextColor: cssVariables["--color-gray-700"],
-            primaryBorderColor: cssVariables["--color-orange-400"],
-            lineColor: cssVariables["--color-gray-700"],
-            secondaryColor: cssVariables["--color-red-400"],
-            tertiaryColor: cssVariables["--color-orange-400"],
-            clusterBkg: cssVariables["--color-slate-50"],
-            edgeLabelBackground: cssVariables["--color-accent"],
-          },
-        })
-        window.mermaid = mermaid
-
-        const nodes = document.querySelectorAll<HTMLDivElement>("pre > code.mermaid")
-        await mermaid.run({ nodes })
-      }
+    if (vaultId) {
+      localStorage.setItem("morph:active-vault", vaultId)
     }
-
-    window.addEventListener("mermaid-content", handleContentChange)
-    return () => window.removeEventListener("mermaid-content", handleContentChange)
-  }, [])
+  }, [vaultId])
 
   const MemoizedEditor = useCallback(
     () => <Editor vaultId={vaultId} vaults={vaults} />,
@@ -71,21 +64,19 @@ export default function VaultPage() {
   return (
     <motion.main
       className="min-h-screen bg-background overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{
-        opacity: 0,
-        transition: {
-          duration: 0.2,
-          delay: 0.1
-        }
-      }}
-      transition={{
-        duration: 0.3,
-        ease: [0.25, 0.1, 0.25, 1]
-      }}
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      layoutId={`vault-page-${vaultId}`}
     >
-      <MemoizedEditor />
+      <motion.div
+        variants={childVariants}
+        className="w-full h-full"
+      >
+        <FilePreloader />
+        <MemoizedEditor />
+      </motion.div>
     </motion.main>
   )
 }

@@ -1,12 +1,13 @@
-import "./globals.css"
-import type React from "react"
+import { type Metadata, type Viewport } from "next"
 import PlausibleProvider from "next-plausible"
-import { ThemeProvider } from "@/context/theme-provider"
-import { VaultProvider } from "@/context/vault-context"
-import { PgLiteProvider } from "@/context/pglite-context"
 import Script from "next/script"
+import type React from "react"
+
 import { Toaster } from "@/components/ui/toaster"
-import { type Viewport, type Metadata } from "next"
+
+import ClientProvider from "@/context/providers"
+
+import "./globals.css"
 
 export const metadata: Metadata = {
   title: "morph-editor.app",
@@ -29,7 +30,7 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
@@ -46,18 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <PlausibleProvider domain="morph-editor.app" trackOutboundLinks trackFileDownloads>
-          <VaultProvider>
-            <PgLiteProvider>
-              <ThemeProvider
-                attribute="class"
-                defaultTheme="system"
-                enableSystem
-                disableTransitionOnChange
-              >
-                {children}
-              </ThemeProvider>
-            </PgLiteProvider>
-          </VaultProvider>
+          <ClientProvider>{children}</ClientProvider>
         </PlausibleProvider>
         <Toaster />
         {process.env.NODE_ENV === "production" && (

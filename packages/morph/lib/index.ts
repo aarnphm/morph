@@ -93,5 +93,105 @@ export function highlight(searchTerm: string, text: string, trim?: boolean) {
   }`
 }
 
+// Add a helper function to sanitize streaming content by removing trailing JSON syntax
+export const sanitizeStreamingContent = (content: string): string => {
+  if (!content) return ""
+
+  // Remove any trailing JSON syntax characters that might be part of streaming
+  // This handles cases like trailing quotes, braces, commas, etc.
+  let sanitized = content
+
+  // First, check if we have an incomplete escape sequence at the end
+  if (sanitized.endsWith("\\")) {
+    sanitized = sanitized.slice(0, -1)
+  }
+
+  // Remove any trailing JSON syntax characters
+  sanitized = sanitized.replace(/[\"\}\,\]\s]+$/, "")
+
+  // Also handle cases where there might be escaped quotes
+  sanitized = sanitized.replace(/\\\"$/, "")
+
+  return sanitized
+}
+
 export * from "@/lib/utils"
 export * from "@/lib/jsx"
+
+// Date formatting utilities
+export interface FormattedDateResult {
+  formattedDate: string
+  formattedTime: string
+  relativeTime: string
+}
+
+/**
+ * Parse a date string in the format "dateString-hour-minute-seconds" and format it for display
+ */
+export function formatDateString(dateStr: string): FormattedDateResult {
+  // Split the dateStr to get the date part, hour part, minute part, and second interval part
+  const [datePart, hourPart, minutePart, secondsPart] = dateStr.split("-")
+  const date = new Date(datePart)
+  const hour = parseInt(hourPart)
+  const minute = parseInt(minutePart)
+  const seconds = secondsPart ? parseInt(secondsPart) : 0
+
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  // Format as MM/DD/YYYY
+  const formattedDate = `${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getDate().toString().padStart(2, "0")}/${date.getFullYear()}`
+
+  // Format hour and minute (12-hour format with AM/PM)
+  const formattedTime = `${hour % 12 === 0 ? 12 : hour % 12}:${minute.toString().padStart(2, "0")}${seconds > 0 ? `:${seconds}` : ""}${hour < 12 ? "AM" : "PM"}`
+
+  // Calculate relative time indicator
+  let relativeTime = ""
+  if (date.toDateString() === today.toDateString()) {
+    if (today.getHours() === hour) {
+      if (today.getMinutes() === minute) {
+        const secondsDiff = today.getSeconds() - seconds
+        if (secondsDiff < 60) {
+          if (secondsDiff <= 1) {
+            // Consider 0 or 1 second as "just now"
+            relativeTime = "just now"
+          } else {
+            relativeTime = `${secondsDiff} seconds ago`
+          }
+        } else {
+          relativeTime = "this minute" // If secondsDiff >= 60 but minute is same
+        }
+      } else {
+        const minuteDiff = today.getMinutes() - minute
+        if (minuteDiff === 1 && today.getSeconds() < seconds) {
+          // Less than a full minute ago
+          relativeTime = "just now"
+        } else if (minuteDiff === 1) {
+          relativeTime = "1 minute ago"
+        } else {
+          relativeTime = `${minuteDiff} minutes ago`
+        }
+      }
+    } else if (today.getHours() - hour === 1 && 60 - minute + today.getMinutes() < 60) {
+      // Less than an hour ago
+      relativeTime = `${60 - minute + today.getMinutes()} minutes ago`
+    } else if (today.getHours() - hour === 1) {
+      relativeTime = "1 hour ago"
+    } else {
+      relativeTime = `${today.getHours() - hour} hours ago`
+    }
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    relativeTime = "yesterday"
+  } else {
+    const diffTime = Math.abs(today.getTime() - date.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    relativeTime = `${diffDays} days ago`
+  }
+
+  return {
+    formattedDate,
+    formattedTime,
+    relativeTime,
+  }
+}

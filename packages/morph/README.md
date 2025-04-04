@@ -1,6 +1,9 @@
 # [morph-editor.app](https://morph-editor.app)
 
-The web version. See more: [docs](https://tinymorph.aarnphm.xyz)
+The web version.
+
+- For engineering manuals: [site](https://engineering.morph-editor.app)
+- For user manuals: [site](https://docs.morph-editor.app)
 
 ## Development
 

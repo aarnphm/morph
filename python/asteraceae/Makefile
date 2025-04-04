@@ -9,8 +9,5 @@ engine: ## Running the engine
 api: ## Running API gateway
 	VLLM_PLUGINS= bentoml serve service:API --port 3000
 
-stack: ## Running all stacks
-	@make -j 2 engine api
-
 build: ## package the stack
 	@bentoml build service:API --debug
