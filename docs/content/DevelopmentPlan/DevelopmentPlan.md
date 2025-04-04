@@ -166,7 +166,7 @@ The following risks may impact the success or performance of the POC:
 - Incomplete or non-functional modal editing (Vim-mode) by the POC deadline  
 - Complexity of full-system (end-to-end) testing, due to the multiple moving parts in `tinymorph` (frontend, backend, and model control logic)  
 - Slow initial response from the model server (cold starts), especially in remote deployment  
-- Instability from mismanaging KV cache within the `vLLM` block manager when modifying attention activations directly
+- Possible memory leak from KV cache when handling with long context queries
 
 
 ### Mitigation Strategies
