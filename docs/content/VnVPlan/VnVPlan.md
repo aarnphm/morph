@@ -622,7 +622,7 @@ These tests verify requirements FR-1 through FR-3, which specify the system's ca
    - Input: Unintelligible prompt (e.g., "asdh123!@#")
    - Output: Error message requesting input refinement
    - Test Case Derivation: Derived from FR-1's need for robust input handling
-   - How test will be performed: Enter nonsensical characters and verify appropriate error message appears.
+   - How test will be performed: Enter nonsensical characters and verify that an input validation error message appears clearly instructing the user to revise their input due to unrecognized content.
 
 3. **Test-FR-P3**
 
@@ -631,8 +631,8 @@ These tests verify requirements FR-1 through FR-3, which specify the system's ca
    - Input: Large text block (500+ words) on climate change
    - Output: Condensed suggestions or length warning within 10 seconds
    - Test Case Derivation: Based on FR-1's requirement for handling varied input lengths
-   - How test will be performed: Paste large text block and verify system provides appropriate response.
-
+   - How test will be performed: Paste a 500+ word passage and verify that the system responds within 10 seconds with a clear length-related warning message prompting the user to shorten the input.
+   
 #### Text Generation Features
 
 These tests verify requirements FR-4 through FR-7, focusing on the system's text generation and style adaptation capabilities.
@@ -1205,7 +1205,7 @@ _Omitted for now, refer to [[Design/MG|Module Guide]]_ for more information.
 - **Initial State**: The notification system within the UI is implemented.
 - **Input/Condition**: Simulate an inflight request failure in the application.
 - **Output/Result**: A notification toast is displayed to the user informing about the request failure.
-- **How test will be performed**: The unit test will mock a failure in an inflight request by triggering an error condition in the request handling module. It will then verify that the UI displays a notification toast with the appropriate message, confirming that users are promptly informed of request failures.
+- **How test will be performed**: The unit test will mock a failure in an inflight request by triggering an error condition in the request handling module. It will then verify that the UI displays a notification toast with a clear message informing the user of the failure and suggesting a retry or troubleshooting action.
 
 #### Deployment Management
 
@@ -1235,7 +1235,7 @@ _Omitted for now, refer to [[Design/MG|Module Guide]]_ for more information.
 - **Initial State**: The autoscaling configuration is implemented in the deployment environment.
 - **Input/Condition**: Vary the load on the inference server to simulate high and low traffic conditions.
 - **Output/Result**: The inference server scales up during high traffic and scales down to zero during low traffic.
-- **How test will be performed**: The unit test will programmatically generate varying loads on the inference server by simulating user requests at different rates. It will monitor the number of active server instances to verify that the autoscaling mechanism responds appropriately scaling up when the load increases and scaling down when the load decreases. This will confirm that the autoscaling works as intended to optimize resource usage.
+- **How test will be performed**: The unit test will programmatically generate varying loads on the inference server by simulating user requests at different rates. It will monitor the number of active server instances and verify that scaling occurs in response to traffic. It will treat scaling up when request rates exceed a defined threshold, and scaling down to zero after a period of inactivity (e.g., 5 minutes without traffic), confirming that autoscaling optimizes resource usage as configured.
 
 #### Model Integration
 
@@ -1272,7 +1272,7 @@ _Omitted for now, refer to [[Design/MG|Module Guide]]_ for more information.
 - **Type**: Functional, Static, Automatic
 - **Initial State**: RBAC policies are defined and implemented.
 - **Input/Condition**: Attempt to access secrets and resources with different user roles.
-- **Output/Result**: Access is appropriately granted or denied based on the RBAC policies.
+- **Output/Result**: Access is granted only to roles explicitly authorized in the RBAC policy; unauthorized roles are denied access and receive a clear error indicating insufficient permissions.
 - **How test will be performed**: The unit test will simulate users with various roles attempting to access sensitive resources like secrets or configuration files. It will verify that only authorized roles have access, and unauthorized attempts are blocked, ensuring that secrets are protected with proper access controls.
 
 #### Documentation Accessibility
