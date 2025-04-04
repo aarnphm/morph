@@ -58,13 +58,14 @@ logger = logging.getLogger('bentoml.service')
 
 WORKING_DIR = pathlib.Path(__file__).parent
 IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
-MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 48 * 1024))
-MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 32 * 1024))
 
-MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
+MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'qwq'))
 LLM_ID: str = (llm_ := ReasoningModels[MODEL_TYPE])['model_id']
 EMBED_TYPE = t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen-fast'))
 EMBED_ID: str = (embed_ := EmbeddingModels[EMBED_TYPE])['model_id']
+
+MAX_MODEL_LEN = int(os.environ.get('MAX_MODEL_LEN', 32 * 1024 if MODEL_TYPE == 'qwq' else 48 * 1024))
+MAX_TOKENS = int(os.environ.get('MAX_TOKENS', 20 * 1024 if MODEL_TYPE == 'qwq' else 24 * 1024))
 
 SupportedBackend = t.Literal['vllm']
 SUPPORTED_BACKENDS: t.Sequence[SupportedBackend] = ['vllm']
