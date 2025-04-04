@@ -38,5 +38,21 @@
     "bps": true,
     "folderMillis": 1743681605947,
     "hash": "508ee01396189c49987c009823a73a9b1d96ea6c98df332e78a7b7ce90422f68"
+  },
+  {
+    "sql": [
+      "ALTER TABLE \"fileEmbeddings\" RENAME COLUMN \"chunkId\" TO \"nodeId\";",
+      "\nALTER TABLE \"fileEmbeddings\" DROP CONSTRAINT \"fileEmbeddings_vaultId_fileId_chunkId_pk\";",
+      "\nALTER TABLE \"fileEmbeddings\" ADD CONSTRAINT \"fileEmbeddings_vaultId_fileId_nodeId_pk\" PRIMARY KEY(\"vaultId\",\"fileId\",\"nodeId\");",
+      "\nALTER TABLE \"fileEmbeddings\" ADD COLUMN \"metadataSeparator\" text NOT NULL;",
+      "\nALTER TABLE \"fileEmbeddings\" ADD COLUMN \"lineNumbers\" jsonb;",
+      "\nALTER TABLE \"fileEmbeddings\" ADD COLUMN \"startLine\" integer;",
+      "\nALTER TABLE \"fileEmbeddings\" ADD COLUMN \"endLine\" integer;",
+      "\nALTER TABLE \"fileEmbeddings\" ADD COLUMN \"lineMap\" jsonb;",
+      "\nALTER TABLE \"fileEmbeddings\" ADD COLUMN \"documentTitle\" text;"
+    ],
+    "bps": true,
+    "folderMillis": 1743719720059,
+    "hash": "a2473577fc6ae5b50e49aec4ded457ac249bece9583bc772685a0bb55c0c0c5e"
   }
 ]

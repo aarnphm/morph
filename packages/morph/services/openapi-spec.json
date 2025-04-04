@@ -17,9 +17,7 @@
             "description": "Successful Response"
           }
         },
-        "tags": [
-          "Infrastructure"
-        ],
+        "tags": ["Infrastructure"],
         "description": "Health check endpoint. Expecting an empty response with status code \u003Ccode\u003E200\u003C/code\u003E when the service is in health state. The \u003Ccode\u003E/healthz\u003C/code\u003E endpoint is \u003Cb\u003Edeprecated\u003C/b\u003E. (since Kubernetes v1.16)"
       }
     },
@@ -30,9 +28,7 @@
             "description": "Successful Response"
           }
         },
-        "tags": [
-          "Infrastructure"
-        ],
+        "tags": ["Infrastructure"],
         "description": "Health check endpoint for Kubernetes. Healthy endpoint responses with a \u003Ccode\u003E200\u003C/code\u003E OK status."
       }
     },
@@ -43,9 +39,7 @@
             "description": "Successful Response"
           }
         },
-        "tags": [
-          "Infrastructure"
-        ],
+        "tags": ["Infrastructure"],
         "description": "A \u003Ccode\u003E200\u003C/code\u003E OK status from \u003Ccode\u003E/readyz\u003C/code\u003E endpoint indicated the service is ready to accept traffic. From that point and onward, Kubernetes will use \u003Ccode\u003E/livez\u003C/code\u003E endpoint to perform periodic health checks."
       }
     },
@@ -56,9 +50,7 @@
             "description": "Successful Response"
           }
         },
-        "tags": [
-          "Infrastructure"
-        ],
+        "tags": ["Infrastructure"],
         "description": "Prometheus metrics endpoint. The \u003Ccode\u003E/metrics\u003C/code\u003E responses with a \u003Ccode\u003E200\u003C/code\u003E. The output can then be used by a Prometheus sidecar to scrape the metrics of the service."
       }
     },
@@ -72,9 +64,7 @@
                 "schema": {
                   "type": "object",
                   "title": "AuthorsIODescriptor",
-                  "required": [
-                    "authors"
-                  ],
+                  "required": ["authors"],
                   "properties": {
                     "authors": {
                       "description": "A list of suggested authors for given essay excerpt",
@@ -120,9 +110,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "authors",
         "description": "Generate author suggestions based on essay analysis, using function calling and search tools.",
         "requestBody": {
@@ -131,9 +119,7 @@
               "schema": {
                 "type": "object",
                 "title": "AuthorRequestIODescriptor",
-                "required": [
-                  "essay"
-                ],
+                "required": ["essay"],
                 "properties": {
                   "essay": {
                     "title": "Essay",
@@ -246,9 +232,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "authors_status",
         "description": "Get status of task authors",
         "operationId": "asteraceae-inference-api__authors_status",
@@ -275,9 +259,7 @@
                 "schema": {
                   "type": "object",
                   "title": "AuthorsIODescriptor",
-                  "required": [
-                    "authors"
-                  ],
+                  "required": ["authors"],
                   "properties": {
                     "authors": {
                       "description": "A list of suggested authors for given essay excerpt",
@@ -323,9 +305,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "authors_result",
         "description": "Get result of task authors",
         "operationId": "asteraceae-inference-api__authors_result",
@@ -386,9 +366,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "authors_submit",
         "description": "Submit a new task of authors",
         "operationId": "asteraceae-inference-api__authors_submit",
@@ -398,9 +376,7 @@
               "schema": {
                 "type": "object",
                 "title": "AuthorRequestIODescriptor",
-                "required": [
-                  "essay"
-                ],
+                "required": ["essay"],
                 "properties": {
                   "essay": {
                     "title": "Essay",
@@ -512,9 +488,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "authors_retry",
         "description": "Retry a task of authors",
         "operationId": "asteraceae-inference-api__authors_retry",
@@ -575,9 +549,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "authors_retry",
         "description": "Cancel an in-progress task of authors",
         "operationId": "asteraceae-inference-api__authors_retry",
@@ -601,9 +573,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-
-                }
+                "schema": {}
               }
             }
           },
@@ -638,9 +608,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "create_chat_completion",
         "description": "",
         "requestBody": {
@@ -649,9 +617,7 @@
               "schema": {
                 "type": "object",
                 "title": "ChatCompletionRequestIODescriptor",
-                "required": [
-                  "messages"
-                ],
+                "required": ["messages"],
                 "properties": {
                   "messages": {
                     "items": {
@@ -738,8 +704,8 @@
                   "seed": {
                     "default": null,
                     "title": "Seed",
-                    "maximum": 9.223372036854776e+18,
-                    "minimum": -9.223372036854776e+18,
+                    "maximum": 9.223372036854776e18,
+                    "minimum": -9.223372036854776e18,
                     "type": "integer"
                   },
                   "stop": {
@@ -1005,9 +971,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-
-                }
+                "schema": {}
               }
             }
           },
@@ -1042,9 +1006,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "create_embedding",
         "description": "",
         "requestBody": {
@@ -1053,9 +1015,7 @@
               "schema": {
                 "type": "object",
                 "title": "EmbeddingCompletionRequestIODescriptor",
-                "required": [
-                  "input"
-                ],
+                "required": ["input"],
                 "properties": {
                   "model": {
                     "default": null,
@@ -1071,10 +1031,7 @@
                   },
                   "encoding_format": {
                     "default": "float",
-                    "enum": [
-                      "float",
-                      "base64"
-                    ],
+                    "enum": ["float", "base64"],
                     "title": "Encoding Format",
                     "type": "string"
                   },
@@ -1130,11 +1087,7 @@
                 "schema": {
                   "type": "object",
                   "title": "EssayResponseIODescriptor",
-                  "required": [
-                    "vault_id",
-                    "file_id",
-                    "nodes"
-                  ],
+                  "required": ["vault_id", "file_id", "nodes"],
                   "properties": {
                     "vault_id": {
                       "title": "Vault Id",
@@ -1192,9 +1145,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "essays",
         "description": "",
         "requestBody": {
@@ -1203,11 +1154,7 @@
               "schema": {
                 "type": "object",
                 "title": "EssayRequestIODescriptor",
-                "required": [
-                  "vault_id",
-                  "file_id",
-                  "content"
-                ],
+                "required": ["vault_id", "file_id", "content"],
                 "properties": {
                   "vault_id": {
                     "title": "Vault Id",
@@ -1274,9 +1221,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "essays_status",
         "description": "Get status of task essays",
         "operationId": "asteraceae-inference-api__essays_status",
@@ -1303,11 +1248,7 @@
                 "schema": {
                   "type": "object",
                   "title": "EssayResponseIODescriptor",
-                  "required": [
-                    "vault_id",
-                    "file_id",
-                    "nodes"
-                  ],
+                  "required": ["vault_id", "file_id", "nodes"],
                   "properties": {
                     "vault_id": {
                       "title": "Vault Id",
@@ -1365,9 +1306,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "essays_result",
         "description": "Get result of task essays",
         "operationId": "asteraceae-inference-api__essays_result",
@@ -1428,9 +1367,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "essays_submit",
         "description": "Submit a new task of essays",
         "operationId": "asteraceae-inference-api__essays_submit",
@@ -1440,11 +1377,7 @@
               "schema": {
                 "type": "object",
                 "title": "EssayRequestIODescriptor",
-                "required": [
-                  "vault_id",
-                  "file_id",
-                  "content"
-                ],
+                "required": ["vault_id", "file_id", "content"],
                 "properties": {
                   "vault_id": {
                     "title": "Vault Id",
@@ -1510,9 +1443,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "essays_retry",
         "description": "Retry a task of essays",
         "operationId": "asteraceae-inference-api__essays_retry",
@@ -1573,9 +1504,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "essays_retry",
         "description": "Cancel an in-progress task of essays",
         "operationId": "asteraceae-inference-api__essays_retry",
@@ -1602,11 +1531,7 @@
                 "schema": {
                   "type": "object",
                   "title": "HealthResponseIODescriptor",
-                  "required": [
-                    "healthy",
-                    "services",
-                    "timestamp"
-                  ],
+                  "required": ["healthy", "services", "timestamp"],
                   "properties": {
                     "healthy": {
                       "title": "Healthy",
@@ -1659,9 +1584,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "health",
         "description": "",
         "requestBody": {
@@ -1695,12 +1618,7 @@
                 "schema": {
                   "type": "object",
                   "title": "NotesResponseIODescriptor",
-                  "required": [
-                    "vault_id",
-                    "file_id",
-                    "note_id",
-                    "embedding"
-                  ],
+                  "required": ["vault_id", "file_id", "note_id", "embedding"],
                   "properties": {
                     "vault_id": {
                       "title": "Vault Id",
@@ -1765,9 +1683,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "notes",
         "description": "",
         "requestBody": {
@@ -1776,12 +1692,7 @@
               "schema": {
                 "type": "object",
                 "title": "NotesRequestIODescriptor",
-                "required": [
-                  "vault_id",
-                  "file_id",
-                  "note_id",
-                  "content"
-                ],
+                "required": ["vault_id", "file_id", "note_id", "content"],
                 "properties": {
                   "vault_id": {
                     "title": "Vault Id",
@@ -1852,9 +1763,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "notes_status",
         "description": "Get status of task notes",
         "operationId": "asteraceae-inference-api__notes_status",
@@ -1881,12 +1790,7 @@
                 "schema": {
                   "type": "object",
                   "title": "NotesResponseIODescriptor",
-                  "required": [
-                    "vault_id",
-                    "file_id",
-                    "note_id",
-                    "embedding"
-                  ],
+                  "required": ["vault_id", "file_id", "note_id", "embedding"],
                   "properties": {
                     "vault_id": {
                       "title": "Vault Id",
@@ -1951,9 +1855,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "notes_result",
         "description": "Get result of task notes",
         "operationId": "asteraceae-inference-api__notes_result",
@@ -2014,9 +1916,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "notes_submit",
         "description": "Submit a new task of notes",
         "operationId": "asteraceae-inference-api__notes_submit",
@@ -2026,12 +1926,7 @@
               "schema": {
                 "type": "object",
                 "title": "NotesRequestIODescriptor",
-                "required": [
-                  "vault_id",
-                  "file_id",
-                  "note_id",
-                  "content"
-                ],
+                "required": ["vault_id", "file_id", "note_id", "content"],
                 "properties": {
                   "vault_id": {
                     "title": "Vault Id",
@@ -2101,9 +1996,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "notes_retry",
         "description": "Retry a task of notes",
         "operationId": "asteraceae-inference-api__notes_retry",
@@ -2164,9 +2057,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "notes_retry",
         "description": "Cancel an in-progress task of notes",
         "operationId": "asteraceae-inference-api__notes_retry",
@@ -2227,9 +2118,7 @@
             }
           }
         },
-        "tags": [
-          "Service APIs"
-        ],
+        "tags": ["Service APIs"],
         "x-bentoml-name": "suggests",
         "description": "",
         "requestBody": {
@@ -2238,9 +2127,7 @@
               "schema": {
                 "type": "object",
                 "title": "SuggestRequestIODescriptor",
-                "required": [
-                  "essay"
-                ],
+                "required": ["essay"],
                 "properties": {
                   "essay": {
                     "title": "Essay",
@@ -2391,13 +2278,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "model_id",
-          "model_type",
-          "M",
-          "ef_construction",
-          "dimensions"
-        ],
+        "required": ["model_id", "model_type", "M", "ef_construction", "dimensions"],
         "title": "EmbedInfo"
       },
       "LLMInfo": {
@@ -2416,11 +2297,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "model_id",
-          "model_type",
-          "structured_outputs"
-        ],
+        "required": ["model_id", "model_type", "structured_outputs"],
         "title": "LLMInfo"
       },
       "MetadataResponse": {
@@ -2433,10 +2310,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "llm",
-          "embed"
-        ],
+        "required": ["llm", "embed"],
         "title": "MetadataResponse"
       },
       "ModelCard": {
@@ -2502,9 +2376,7 @@
         },
         "additionalProperties": true,
         "type": "object",
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "title": "ModelCard"
       },
       "ModelList": {
@@ -2600,9 +2472,7 @@
       "AuthorRequestIODescriptor": {
         "type": "object",
         "title": "AuthorRequestIODescriptor",
-        "required": [
-          "essay"
-        ],
+        "required": ["essay"],
         "properties": {
           "essay": {
             "title": "Essay",
@@ -2682,9 +2552,7 @@
       "AuthorsIODescriptor": {
         "type": "object",
         "title": "AuthorsIODescriptor",
-        "required": [
-          "authors"
-        ],
+        "required": ["authors"],
         "properties": {
           "authors": {
             "description": "A list of suggested authors for given essay excerpt",
@@ -2699,9 +2567,7 @@
       "ChatCompletionRequestIODescriptor": {
         "type": "object",
         "title": "ChatCompletionRequestIODescriptor",
-        "required": [
-          "messages"
-        ],
+        "required": ["messages"],
         "properties": {
           "messages": {
             "items": {
@@ -2858,8 +2724,8 @@
           "seed": {
             "anyOf": [
               {
-                "maximum": 9.223372036854776e+18,
-                "minimum": -9.223372036854776e+18,
+                "maximum": 9.223372036854776e18,
+                "minimum": -9.223372036854776e18,
                 "type": "integer"
               },
               {
@@ -3337,9 +3203,7 @@
       "Audio": {
         "type": "object",
         "title": "Audio",
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "properties": {
           "id": {
             "title": "Id",
@@ -3350,9 +3214,7 @@
       "AudioURL": {
         "type": "object",
         "title": "AudioURL",
-        "required": [
-          "url"
-        ],
+        "required": ["url"],
         "properties": {
           "url": {
             "title": "Url",
@@ -3363,16 +3225,12 @@
       "BaseModel": {
         "type": "object",
         "title": "BaseModel",
-        "properties": {
-
-        }
+        "properties": {}
       },
       "ChatCompletionAssistantMessageParam": {
         "type": "object",
         "title": "ChatCompletionAssistantMessageParam",
-        "required": [
-          "role"
-        ],
+        "required": ["role"],
         "properties": {
           "role": {
             "const": "assistant",
@@ -3450,10 +3308,7 @@
       "ChatCompletionContentPartAudioParam": {
         "type": "object",
         "title": "ChatCompletionContentPartAudioParam",
-        "required": [
-          "audio_url",
-          "type"
-        ],
+        "required": ["audio_url", "type"],
         "properties": {
           "audio_url": {
             "$ref": "#/components/schemas/AudioURL"
@@ -3468,10 +3323,7 @@
       "ChatCompletionContentPartImageEmbedsParam": {
         "type": "object",
         "title": "ChatCompletionContentPartImageEmbedsParam",
-        "required": [
-          "image_embeds",
-          "type"
-        ],
+        "required": ["image_embeds", "type"],
         "properties": {
           "image_embeds": {
             "anyOf": [
@@ -3497,10 +3349,7 @@
       "ChatCompletionContentPartImageParam": {
         "type": "object",
         "title": "ChatCompletionContentPartImageParam",
-        "required": [
-          "image_url",
-          "type"
-        ],
+        "required": ["image_url", "type"],
         "properties": {
           "image_url": {
             "$ref": "#/components/schemas/ImageURL"
@@ -3515,10 +3364,7 @@
       "ChatCompletionContentPartInputAudioParam": {
         "type": "object",
         "title": "ChatCompletionContentPartInputAudioParam",
-        "required": [
-          "input_audio",
-          "type"
-        ],
+        "required": ["input_audio", "type"],
         "properties": {
           "input_audio": {
             "$ref": "#/components/schemas/InputAudio"
@@ -3533,10 +3379,7 @@
       "ChatCompletionContentPartRefusalParam": {
         "type": "object",
         "title": "ChatCompletionContentPartRefusalParam",
-        "required": [
-          "refusal",
-          "type"
-        ],
+        "required": ["refusal", "type"],
         "properties": {
           "refusal": {
             "title": "Refusal",
@@ -3552,10 +3395,7 @@
       "ChatCompletionContentPartTextParam": {
         "type": "object",
         "title": "ChatCompletionContentPartTextParam",
-        "required": [
-          "text",
-          "type"
-        ],
+        "required": ["text", "type"],
         "properties": {
           "text": {
             "title": "Text",
@@ -3571,10 +3411,7 @@
       "ChatCompletionContentPartVideoParam": {
         "type": "object",
         "title": "ChatCompletionContentPartVideoParam",
-        "required": [
-          "video_url",
-          "type"
-        ],
+        "required": ["video_url", "type"],
         "properties": {
           "video_url": {
             "$ref": "#/components/schemas/VideoURL"
@@ -3589,10 +3426,7 @@
       "ChatCompletionDeveloperMessageParam": {
         "type": "object",
         "title": "ChatCompletionDeveloperMessageParam",
-        "required": [
-          "content",
-          "role"
-        ],
+        "required": ["content", "role"],
         "properties": {
           "content": {
             "anyOf": [
@@ -3622,11 +3456,7 @@
       "ChatCompletionFunctionMessageParam": {
         "type": "object",
         "title": "ChatCompletionFunctionMessageParam",
-        "required": [
-          "content",
-          "name",
-          "role"
-        ],
+        "required": ["content", "name", "role"],
         "properties": {
           "content": {
             "anyOf": [
@@ -3653,11 +3483,7 @@
       "ChatCompletionMessageToolCallParam": {
         "type": "object",
         "title": "ChatCompletionMessageToolCallParam",
-        "required": [
-          "id",
-          "function",
-          "type"
-        ],
+        "required": ["id", "function", "type"],
         "properties": {
           "id": {
             "title": "Id",
@@ -3676,9 +3502,7 @@
       "ChatCompletionNamedFunction": {
         "type": "object",
         "title": "ChatCompletionNamedFunction",
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "properties": {
           "name": {
             "title": "Name",
@@ -3690,9 +3514,7 @@
       "ChatCompletionNamedToolChoiceParam": {
         "type": "object",
         "title": "ChatCompletionNamedToolChoiceParam",
-        "required": [
-          "function"
-        ],
+        "required": ["function"],
         "properties": {
           "function": {
             "$ref": "#/components/schemas/ChatCompletionNamedFunction"
@@ -3709,10 +3531,7 @@
       "ChatCompletionSystemMessageParam": {
         "type": "object",
         "title": "ChatCompletionSystemMessageParam",
-        "required": [
-          "content",
-          "role"
-        ],
+        "required": ["content", "role"],
         "properties": {
           "content": {
             "anyOf": [
@@ -3742,11 +3561,7 @@
       "ChatCompletionToolMessageParam": {
         "type": "object",
         "title": "ChatCompletionToolMessageParam",
-        "required": [
-          "content",
-          "role",
-          "tool_call_id"
-        ],
+        "required": ["content", "role", "tool_call_id"],
         "properties": {
           "content": {
             "anyOf": [
@@ -3776,9 +3591,7 @@
       "ChatCompletionToolsParam": {
         "type": "object",
         "title": "ChatCompletionToolsParam",
-        "required": [
-          "function"
-        ],
+        "required": ["function"],
         "properties": {
           "type": {
             "const": "function",
@@ -3795,10 +3608,7 @@
       "ChatCompletionUserMessageParam": {
         "type": "object",
         "title": "ChatCompletionUserMessageParam",
-        "required": [
-          "content",
-          "role"
-        ],
+        "required": ["content", "role"],
         "properties": {
           "content": {
             "anyOf": [
@@ -3841,9 +3651,7 @@
       "CustomChatCompletionContentSimpleAudioParam": {
         "type": "object",
         "title": "CustomChatCompletionContentSimpleAudioParam",
-        "required": [
-          "audio_url"
-        ],
+        "required": ["audio_url"],
         "properties": {
           "audio_url": {
             "title": "Audio Url",
@@ -3855,9 +3663,7 @@
       "CustomChatCompletionContentSimpleImageParam": {
         "type": "object",
         "title": "CustomChatCompletionContentSimpleImageParam",
-        "required": [
-          "image_url"
-        ],
+        "required": ["image_url"],
         "properties": {
           "image_url": {
             "title": "Image Url",
@@ -3869,9 +3675,7 @@
       "CustomChatCompletionContentSimpleVideoParam": {
         "type": "object",
         "title": "CustomChatCompletionContentSimpleVideoParam",
-        "required": [
-          "video_url"
-        ],
+        "required": ["video_url"],
         "properties": {
           "video_url": {
             "title": "Video Url",
@@ -3883,9 +3687,7 @@
       "CustomChatCompletionMessageParam": {
         "type": "object",
         "title": "CustomChatCompletionMessageParam",
-        "required": [
-          "role"
-        ],
+        "required": ["role"],
         "properties": {
           "role": {
             "title": "Role",
@@ -3977,10 +3779,7 @@
       "File": {
         "type": "object",
         "title": "File",
-        "required": [
-          "file",
-          "type"
-        ],
+        "required": ["file", "type"],
         "properties": {
           "file": {
             "$ref": "#/components/schemas/FileFile"
@@ -4013,10 +3812,7 @@
       "Function": {
         "type": "object",
         "title": "Function",
-        "required": [
-          "arguments",
-          "name"
-        ],
+        "required": ["arguments", "name"],
         "properties": {
           "arguments": {
             "title": "Arguments",
@@ -4031,10 +3827,7 @@
       "FunctionCall": {
         "type": "object",
         "title": "FunctionCall",
-        "required": [
-          "arguments",
-          "name"
-        ],
+        "required": ["arguments", "name"],
         "properties": {
           "arguments": {
             "title": "Arguments",
@@ -4049,9 +3842,7 @@
       "FunctionDefinition": {
         "type": "object",
         "title": "FunctionDefinition",
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "properties": {
           "name": {
             "title": "Name",
@@ -4087,20 +3878,14 @@
       "ImageURL": {
         "type": "object",
         "title": "ImageURL",
-        "required": [
-          "url"
-        ],
+        "required": ["url"],
         "properties": {
           "url": {
             "title": "Url",
             "type": "string"
           },
           "detail": {
-            "enum": [
-              "auto",
-              "low",
-              "high"
-            ],
+            "enum": ["auto", "low", "high"],
             "title": "Detail",
             "type": "string"
           }
@@ -4109,20 +3894,14 @@
       "InputAudio": {
         "type": "object",
         "title": "InputAudio",
-        "required": [
-          "data",
-          "format"
-        ],
+        "required": ["data", "format"],
         "properties": {
           "data": {
             "title": "Data",
             "type": "string"
           },
           "format": {
-            "enum": [
-              "wav",
-              "mp3"
-            ],
+            "enum": ["wav", "mp3"],
             "title": "Format",
             "type": "string"
           }
@@ -4131,9 +3910,7 @@
       "JsonSchemaResponseFormat": {
         "type": "object",
         "title": "JsonSchemaResponseFormat",
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "properties": {
           "name": {
             "title": "Name",
@@ -4181,9 +3958,7 @@
       "LogitsProcessorConstructor": {
         "type": "object",
         "title": "LogitsProcessorConstructor",
-        "required": [
-          "qualname"
-        ],
+        "required": ["qualname"],
         "properties": {
           "qualname": {
             "title": "Qualname",
@@ -4192,9 +3967,7 @@
           "args": {
             "anyOf": [
               {
-                "items": {
-
-                },
+                "items": {},
                 "type": "array"
               },
               {
@@ -4221,16 +3994,10 @@
       "ResponseFormat": {
         "type": "object",
         "title": "ResponseFormat",
-        "required": [
-          "type"
-        ],
+        "required": ["type"],
         "properties": {
           "type": {
-            "enum": [
-              "text",
-              "json_object",
-              "json_schema"
-            ],
+            "enum": ["text", "json_object", "json_schema"],
             "title": "Type",
             "type": "string"
           },
@@ -4282,9 +4049,7 @@
       "VideoURL": {
         "type": "object",
         "title": "VideoURL",
-        "required": [
-          "url"
-        ],
+        "required": ["url"],
         "properties": {
           "url": {
             "title": "Url",
@@ -4295,9 +4060,7 @@
       "EmbeddingCompletionRequestIODescriptor": {
         "type": "object",
         "title": "EmbeddingCompletionRequestIODescriptor",
-        "required": [
-          "input"
-        ],
+        "required": ["input"],
         "properties": {
           "model": {
             "anyOf": [
@@ -4342,10 +4105,7 @@
           },
           "encoding_format": {
             "default": "float",
-            "enum": [
-              "float",
-              "base64"
-            ],
+            "enum": ["float", "base64"],
             "title": "Encoding Format",
             "type": "string"
           },
@@ -4388,9 +4148,7 @@
           },
           "additional_data": {
             "anyOf": [
-              {
-
-              },
+              {},
               {
                 "type": "null"
               }
@@ -4417,11 +4175,7 @@
       "EssayRequestIODescriptor": {
         "type": "object",
         "title": "EssayRequestIODescriptor",
-        "required": [
-          "vault_id",
-          "file_id",
-          "content"
-        ],
+        "required": ["vault_id", "file_id", "content"],
         "properties": {
           "vault_id": {
             "title": "Vault Id",
@@ -4441,11 +4195,7 @@
       "EssayResponseIODescriptor": {
         "type": "object",
         "title": "EssayResponseIODescriptor",
-        "required": [
-          "vault_id",
-          "file_id",
-          "nodes"
-        ],
+        "required": ["vault_id", "file_id", "nodes"],
         "properties": {
           "vault_id": {
             "title": "Vault Id",
@@ -4472,13 +4222,7 @@
       "EssayNode": {
         "type": "object",
         "title": "EssayNode",
-        "required": [
-          "embedding",
-          "node_id",
-          "metadata",
-          "relationships",
-          "metadata_separator"
-        ],
+        "required": ["embedding", "node_id", "metadata", "relationships", "metadata_separator"],
         "properties": {
           "embedding": {
             "anyOf": [
@@ -4531,32 +4275,18 @@
       "NodeRelationship": {
         "type": "string",
         "title": "NodeRelationship",
-        "enum": [
-          "1",
-          "2",
-          "3",
-          "4",
-          "5"
-        ],
+        "enum": ["1", "2", "3", "4", "5"],
         "description": "Node relationships used in `BaseNode` class.\n\nAttributes:\n    SOURCE: The node is the source document.\n    PREVIOUS: The node is the previous node in the document.\n    NEXT: The node is the next node in the document.\n    PARENT: The node is the parent node in the document.\n    CHILD: The node is a child node in the document."
       },
       "ObjectType": {
         "type": "string",
         "title": "ObjectType",
-        "enum": [
-          "1",
-          "2",
-          "3",
-          "4",
-          "5"
-        ]
+        "enum": ["1", "2", "3", "4", "5"]
       },
       "RelatedNodeInfo": {
         "type": "object",
         "title": "RelatedNodeInfo",
-        "required": [
-          "node_id"
-        ],
+        "required": ["node_id"],
         "properties": {
           "node_id": {
             "title": "Node Id",
@@ -4615,11 +4345,7 @@
       "HealthResponseIODescriptor": {
         "type": "object",
         "title": "HealthResponseIODescriptor",
-        "required": [
-          "healthy",
-          "services",
-          "timestamp"
-        ],
+        "required": ["healthy", "services", "timestamp"],
         "properties": {
           "healthy": {
             "title": "Healthy",
@@ -4641,9 +4367,7 @@
       "DependentStatus": {
         "type": "object",
         "title": "DependentStatus",
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "properties": {
           "name": {
             "title": "Name",
@@ -4669,12 +4393,7 @@
       "NotesRequestIODescriptor": {
         "type": "object",
         "title": "NotesRequestIODescriptor",
-        "required": [
-          "vault_id",
-          "file_id",
-          "note_id",
-          "content"
-        ],
+        "required": ["vault_id", "file_id", "note_id", "content"],
         "properties": {
           "vault_id": {
             "title": "Vault Id",
@@ -4698,12 +4417,7 @@
       "NotesResponseIODescriptor": {
         "type": "object",
         "title": "NotesResponseIODescriptor",
-        "required": [
-          "vault_id",
-          "file_id",
-          "note_id",
-          "embedding"
-        ],
+        "required": ["vault_id", "file_id", "note_id", "embedding"],
         "properties": {
           "vault_id": {
             "title": "Vault Id",
@@ -4737,10 +4451,7 @@
       "Usage": {
         "type": "object",
         "title": "Usage",
-        "required": [
-          "prompt_tokens",
-          "total_tokens"
-        ],
+        "required": ["prompt_tokens", "total_tokens"],
         "properties": {
           "prompt_tokens": {
             "title": "Prompt Tokens",
@@ -4756,9 +4467,7 @@
       "SuggestRequestIODescriptor": {
         "type": "object",
         "title": "SuggestRequestIODescriptor",
-        "required": [
-          "essay"
-        ],
+        "required": ["essay"],
         "properties": {
           "essay": {
             "title": "Essay",
@@ -4849,12 +4558,7 @@
       "NotesRequest": {
         "type": "object",
         "title": "NotesRequest",
-        "required": [
-          "vault_id",
-          "file_id",
-          "note_id",
-          "content"
-        ],
+        "required": ["vault_id", "file_id", "note_id", "content"],
         "properties": {
           "vault_id": {
             "title": "Vault Id",
@@ -4904,24 +4608,14 @@
       "TaskStatusResponse": {
         "type": "object",
         "title": "TaskStatusResponse",
-        "required": [
-          "task_id",
-          "status",
-          "created_at",
-          "executed_at"
-        ],
+        "required": ["task_id", "status", "created_at", "executed_at"],
         "properties": {
           "task_id": {
             "title": "Task Id",
             "type": "string"
           },
           "status": {
-            "enum": [
-              "in_progress",
-              "success",
-              "failure",
-              "cancelled"
-            ],
+            "enum": ["in_progress", "success", "failure", "cancelled"],
             "title": "Status",
             "type": "string"
           },
@@ -4945,9 +4639,7 @@
       "InvalidArgument": {
         "type": "object",
         "title": "InvalidArgument",
-        "required": [
-          "error"
-        ],
+        "required": ["error"],
         "properties": {
           "error": {
             "type": "string",
@@ -4963,9 +4655,7 @@
       "NotFound": {
         "type": "object",
         "title": "NotFound",
-        "required": [
-          "error"
-        ],
+        "required": ["error"],
         "properties": {
           "error": {
             "type": "string",
@@ -4981,9 +4671,7 @@
       "InternalServerError": {
         "type": "object",
         "title": "InternalServerError",
-        "required": [
-          "error"
-        ],
+        "required": ["error"],
         "properties": {
           "error": {
             "type": "string",

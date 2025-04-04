@@ -185,12 +185,18 @@ export const fileEmbeddings = p.pgTable(
       .text("fileId")
       .notNull()
       .references(() => files.id, { onDelete: "cascade" }),
-    chunkId: p.uuid("chunkId").notNull(),
+    nodeId: p.text("nodeId").notNull(), // This is uuid, but from the server
     embedding: p.vector("embedding", { dimensions: 1536 }),
+    metadataSeparator: p.text("metadataSeparator").notNull(),
     createdAt: p.timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+    lineNumbers: p.jsonb("lineNumbers").$type<number[]>(),
+    startLine: p.integer("startLine"),
+    endLine: p.integer("endLine"),
+    lineMap: p.jsonb("lineMap").$type<Record<string, string>>(),
+    documentTitle: p.text("documentTitle"),
   },
   (table) => [
-    p.primaryKey({ columns: [table.vaultId, table.fileId, table.chunkId] }),
+    p.primaryKey({ columns: [table.vaultId, table.fileId, table.nodeId] }),
     p.index("file_ipIndex_hnsw").using("hnsw", table.embedding.op("vector_ip_ops")).with({
       m: 16,
       ef_construction: 50,

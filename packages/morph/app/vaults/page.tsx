@@ -3,7 +3,7 @@
 import { ArchiveIcon, CardStackPlusIcon, ClockIcon, InfoCircledIcon } from "@radix-ui/react-icons"
 import { motion } from "motion/react"
 import { usePathname, useRouter } from "next/navigation"
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import type { ComponentPropsWithoutRef } from "react"
 
 import { Button, VaultButton } from "@/components/ui/button"
@@ -117,8 +117,6 @@ const Notch = memo(function Notch({ onClickBanner }: { onClickBanner: () => void
 export default function Home() {
   const router = useRouter()
   const pathname = usePathname()
-  const clockRef = useRef<SVGSVGElement>(null)
-  const searchRef = useRef<SVGSVGElement>(null)
   const [showBannerDetails, setShowBannerDetails] = useState(false)
   const [hasAcknowledged, setHasAcknowledged] = useState(false)
   const { setActiveVaultId, vaults, addVault } = useVaultContext()
@@ -190,21 +188,9 @@ export default function Home() {
 
     if (Array.isArray(vaults) && vaults.length > 0) {
       const uniqueVaults = [...new Map(vaults.map((v) => [v.id, v])).values()]
-      return uniqueVaults.map((vault, index) => (
-        <motion.div
-          key={vault.id}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.3,
-            delay: index * 0.05,
-            ease: [0.25, 0.1, 0.25, 1],
-          }}
-        >
-          <motion.div
-            layoutId={`vault-card-${vault.id}`}
-            className="group rounded-md border border-border overflow-hidden"
-          >
+      return uniqueVaults.map((vault) => (
+        <div key={vault.id}>
+          <div className="group rounded-md border border-border overflow-hidden">
             <Button
               variant="ghost"
               className="w-full h-auto p-0 justify-start cursor-pointer"
@@ -232,21 +218,19 @@ export default function Home() {
                 </div>
               </CardContent>
             </Button>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       ))
     }
 
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
-        <Card className="group rounded-md">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <ArchiveIcon className="w-10 h-10 text-muted-foreground mb-4" />
-            <CardTitle className="mb-2">No Vaults Found</CardTitle>
-            <CardDescription>Get started by opening a new vault.</CardDescription>
-          </CardContent>
-        </Card>
-      </motion.div>
+      <Card className="group rounded-md">
+        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+          <ArchiveIcon className="w-10 h-10 text-muted-foreground mb-4" />
+          <CardTitle className="mb-2">No Vaults Found</CardTitle>
+          <CardDescription>Get started by opening a new vault.</CardDescription>
+        </CardContent>
+      </Card>
     )
   }, [vaults, handleVaultSelect, pathname])
 
@@ -256,7 +240,7 @@ export default function Home() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.2 }}
     >
       <Dialog open={showBannerDetails} onOpenChange={setShowBannerDetails}>
         <CenteredDialogContent>
@@ -331,58 +315,28 @@ export default function Home() {
       </Dialog>
 
       <div className="container max-w-4xl">
-        <motion.div
-          className="relative"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-        >
-          <motion.div
-            className="w-full bg-background border shadow-md border-border rounded-md relative overflow-hidden"
-            style={{ zIndex: 1 }}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: 0.5,
-              ease: [0.34, 1.56, 0.64, 1],
-              delay: 0.1,
-            }}
-          >
+        <div className="relative">
+          <div className="w-full bg-background border shadow-md border-border rounded-md relative overflow-hidden pt-10">
             <Notch onClickBanner={onClickBanner} />
-            <div className="p-8 pt-16">
-              <motion.section
-                className="flex items-center justify-between mb-8"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.7, duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
-              >
-                <motion.hgroup>
-                  <motion.h1 className="text-3xl font-bold tracking-tight">Vaults</motion.h1>
-                </motion.hgroup>
+            <div className="p-8">
+              <section className="flex items-center justify-between mb-8">
+                <hgroup>
+                  <h1 className="text-3xl font-bold tracking-tight">Vaults</h1>
+                </hgroup>
                 <VaultButton onClick={handleOpenDirectory} title="Open New Vault" color="cyan">
-                  <CardStackPlusIcon className="w-4 h-4" ref={searchRef} />
+                  <CardStackPlusIcon className="w-4 h-4" />
                 </VaultButton>
-              </motion.section>
-              <motion.div
-                className="flex items-center gap-2 text-sm text-muted-foreground my-4"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.8, duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
-              >
-                <ClockIcon className="w-4 h-4" ref={clockRef} />
+              </section>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground my-4">
+                <ClockIcon className="w-4 h-4" />
                 <p>recently opened vaults</p>
-              </motion.div>
-              <motion.section
-                className="grid gap-4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.9, duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
-              >
+              </div>
+              <section className="grid gap-4">
                 <div className="grid gap-4">{renderVaults}</div>
-              </motion.section>
+              </section>
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       </div>
     </motion.main>
   )

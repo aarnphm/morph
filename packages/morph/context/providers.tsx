@@ -12,13 +12,13 @@ import PixelatedLoading from "@/components/landing/pixelated-loading"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
 import { MorphPgLite, PGliteProvider } from "@/context/db"
+import { EmbeddingProvider } from "@/context/embedding"
 import { FileRestorationProvider, useRestoredFile } from "@/context/file-restoration"
 import { ThemeProvider } from "@/context/theme"
 import { VaultProvider } from "@/context/vault"
 import { verifyHandle } from "@/context/vault-reducer"
 
 import useFsHandles from "@/hooks/use-fs-handles"
-import { EmbeddingTasksProvider } from "@/context/embedding"
 
 interface ClientProviderProps {
   children: React.ReactNode
@@ -176,22 +176,22 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
             <PGliteProvider db={db}>
               <QueryClientProvider client={queryClient}>
                 <FileRestorationProvider>
-                  <EmbeddingTasksProvider>
-                  <VaultProvider>
-                    <ThemeProvider
-                      attribute="class"
-                      defaultTheme="system"
-                      enableSystem
-                      disableTransitionOnChange
-                    >
-                      <TooltipProvider delayDuration={0} skipDelayDuration={0}>
-                        {children}
-                      </TooltipProvider>
-                    </ThemeProvider>
-                  </VaultProvider>
-</EmbeddingTasksProvider>
+                  <EmbeddingProvider>
+                    <VaultProvider>
+                      <ThemeProvider
+                        attribute="class"
+                        defaultTheme="system"
+                        enableSystem
+                        disableTransitionOnChange
+                      >
+                        <TooltipProvider delayDuration={0} skipDelayDuration={0}>
+                          {children}
+                        </TooltipProvider>
+                      </ThemeProvider>
+                    </VaultProvider>
+                  </EmbeddingProvider>
                 </FileRestorationProvider>
-                  <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+                <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
               </QueryClientProvider>
             </PGliteProvider>
           </motion.div>

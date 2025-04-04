@@ -1,5 +1,6 @@
 import { cn } from "@/lib"
 import { generatePastelColor } from "@/lib/notes"
+import { submitNotesForEmbedding } from "@/services/notes"
 import { ChevronDownIcon, ChevronUpIcon } from "@radix-ui/react-icons"
 import { eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/pglite"
@@ -13,7 +14,6 @@ import { usePGlite } from "@/context/db"
 
 import { Note } from "@/db/interfaces"
 import * as schema from "@/db/schema"
-import { submitNotesForEmbedding } from "@/services/embedding"
 
 interface DateDisplayProps {
   dateStr: string
@@ -247,18 +247,19 @@ export const DroppedNoteGroup = memo(
 
         // Check which notes need embeddings by checking for notes with no embedding status or non-success status
         const notesRequiringEmbedding = visibleNotes.filter(
-          note => note.embeddingStatus !== "success"
+          (note) => note.embeddingStatus !== "success",
         )
 
         // Only process if we have notes that need embeddings
         if (notesRequiringEmbedding.length > 0) {
-          console.log(`[DroppedNotes] Processing ${notesRequiringEmbedding.length} visible notes for embedding`)
+          console.log(
+            `[DroppedNotes] Processing ${notesRequiringEmbedding.length} visible notes for embedding`,
+          )
 
           // Process these notes - use as any to handle type mismatch
-          submitNotesForEmbedding(db, notesRequiringEmbedding as any)
-            .catch(error => {
-              console.error("[DroppedNotes] Error submitting notes for embedding:", error)
-            })
+          submitNotesForEmbedding(db, notesRequiringEmbedding as any).catch((error) => {
+            console.error("[DroppedNotes] Error submitting notes for embedding:", error)
+          })
         }
       }, 500) // Wait 500ms before processing to avoid excessive calls
 
