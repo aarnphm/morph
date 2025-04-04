@@ -59,7 +59,7 @@ logger = logging.getLogger('bentoml.service')
 WORKING_DIR = pathlib.Path(__file__).parent
 IGNORE_PATTERNS = ['*.pth', '*.pt', 'original/**/*']
 
-MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'r1-qwen'))
+MODEL_TYPE = t.cast(ModelType, os.getenv('LLM', 'qwq'))
 LLM_ID: str = (llm_ := ReasoningModels[MODEL_TYPE])['model_id']
 EMBED_TYPE = t.cast(EmbedType, os.getenv('EMBED', 'gte-qwen-fast'))
 EMBED_ID: str = (embed_ := EmbeddingModels[EMBED_TYPE])['model_id']
@@ -123,6 +123,19 @@ class StreamingCall(pydantic.BaseModel):
 class StreamingToolCall(pydantic.BaseModel):
   tool: str
   content: t.Union[str, dict, list]
+
+
+class SearchItem(pydantic.BaseModel):
+  url: str
+  id: str
+  title: str
+  summary: str
+  highlights: str
+
+
+class SearchResults(pydantic.BaseModel):
+  query: str
+  items: list[SearchItem]
 
 
 llm_app = fastapi.FastAPI(title=f'OpenAI Compatible Endpoint for {LLM_ID}')
@@ -593,6 +606,7 @@ class API:
       # Process any tool calls
       if assistant_message.tool_calls:
         logger.info('Processing %d tool calls', len(assistant_message.tool_calls))
+        queries = []
         for tool_call in assistant_message.tool_calls:
           if tool_call.function.name == 'search_tool':
             try:
@@ -600,19 +614,20 @@ class API:
               args = json.loads(tool_call.function.arguments)
               search_query = args.get('query', '')
               logger.info('Executing search for: "%s"', search_query)
+              queries.append(search_query)
 
               # Execute the search using the configured backend
               search_results = await self.search(
                 search_query, backend=search_backend, num_results=request.num_search_results
               )
-              logger.info('Found %d search results', len(search_results.results))
+              logger.info('Found %d search results', len(search_results))
 
               # Add the tool response to messages
               messages.append({
                 'role': 'tool',
                 'tool_call_id': tool_call.id,
                 'name': 'search_tool',
-                'content': str(search_results),
+                'content': search_results.model_dump_json(),
               })
 
             except Exception as e:
@@ -640,7 +655,7 @@ class API:
           model=LLM_ID,
           messages=messages,
           temperature=request.temperature * 0.92,  # Slightly lower temperature for more consistent output
-          max_tokens=request.max_tokens,
+          max_tokens=1024,
           extra_body={'guided_json': Authors.model_json_schema()},
         )
 
@@ -653,7 +668,7 @@ class API:
           authors_data = json.loads(content)
           authors_list = authors_data.get('authors', [])
           logger.info('Found %d authors: %s', len(authors_list), authors_list)
-          return Authors(authors=authors_list)
+          return Authors(authors=authors_list, queries=queries)
         except Exception as e:
           logger.error('Error parsing final authors response: %s', e)
           return Authors(authors=DEFAULT_AUTHORS)
@@ -705,12 +720,18 @@ class API:
       logger.error(traceback.format_exc())
       return Authors(authors=DEFAULT_AUTHORS)
 
-  async def search(self, query: str, backend: t.Literal['exa'] | str = 'exa', num_results: int = 10):
+  async def search(self, query: str, backend: t.Literal['exa'] | str = 'exa', num_results: int = 10) -> SearchResults:
     if backend == 'exa':
       if self.exa is None:
         raise ValueError('Currently only exa is supported')
-      return self.exa.search_and_contents(
-        query, num_results=num_results, use_autoprompt=True, text=True, type='auto', highlights=True
+      results = self.exa.search_and_contents(
+        query, num_results=num_results, use_autoprompt=True, text=True, type='auto', highlights=True, summary=True
+      )
+      return SearchResults(
+        query=query,
+        items=[
+          SearchItem(url=r.url, id=r.id, title=r.title, summary=r.summary, highlights=r.highlights) for r in results
+        ],
       )
     else:
       raise ValueError(f'Unsupported search backend: {backend}')
