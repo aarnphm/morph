@@ -1,7 +1,8 @@
-bento: asteraceae-inference-api:latest
-name: asteraceae-inference-api
-access_authorization: true
+bento: asteraceae-inference-api:zf25vbqrrgcwoyoa
+name: morph-api
+access_authorization: false
 secrets:
+  - exa-aaron
   - huggingface
 envs:
   - name: UV_NO_PROGRESS
@@ -14,15 +15,15 @@ envs:
     value: FLASH_ATTN
   - name: VLLM_USE_V1
     value: "0"
-  - name: VLLM_LOGGING_CONFIG_PATH
-    value: /dev_workspace/bentoml/logging-config.json
+  - name: VLLM_ALLOW_LONG_MAX_MODEL_LEN
+    value: "1"
 services:
   asteraceae-inference-api:
-    instance_type: cpu.8
+    instance_type: cpu.4
     envs: []
     scaling:
-      min_replicas: 1
-      max_replicas: 2
+      min_replicas: 0
+      max_replicas: 1
       policy:
         scale_up_stabilization_window: 0
         scale_down_stabilization_window: 600
@@ -48,7 +49,7 @@ services:
         concurrency: 128
     deployment_strategy: Recreate
   asteraceae-inference-engine:
-    instance_type: gpu.a100.2x80
+    instance_type: gpu.a100.1x80
     envs: []
     scaling:
       min_replicas: 0
