@@ -146,12 +146,6 @@ This section documents the primary design decisions made to satisfy the requirem
 - Storage of user preferences and configurations locally through the Settings Module
 - Integration with SAEs for tone and style customization via the Inference Module
 
-### Document Management (Requirements FR-5 to FR-8)
-
-- Use of local storage for file management to maintain the file-over-app philosophy
-- Implementation of version control through a graph-based data structure
-- Separation of rendering logic from document structure to support multiple export formats
-- Design of an extensible state management system for handling document metadata and user preferences
 
 ### Performance and Scalability (Requirements PR-SLR1, PR-SLR2)
 
@@ -278,17 +272,10 @@ This section shows two traceability matrices: between the modules and the requir
 | **Requirement** | **Modules**         |
 | --------------- | ------------------- |
 | FR-1            | M2, M3, M4, M8      |
-| FR-2            | M8, M9, M3, M5      |
+| FR-2            | M1, M8, M9, M3, M5  |
 | FR-3            | M2, M6, M8          |
-| FR-4            | M8, M9, M5          |
-| FR-5            | M9, M7, M3          |
-| FR-6            | M4, M7, M3, M10     |
-| FR-7            | M3, M8, M9          |
-| FR-8            | M7, M4, M6, M9, M10 |
-| FR-9            | M7, M6, M5          |
+| FR-4            | M8, M9, M5, M10     |
 | FR-10           | M7, M6, M11         |
-| FR-11           | M10, M9, M5, M4     |
-| FR-12           | M4, M9, M3, M8      |
 | FR-13           | M11, M6, M9         |
 | FR-14           | M5, M2, M6          |
 
