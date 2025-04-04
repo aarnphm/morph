@@ -493,6 +493,7 @@ class API:
 
   @bentoml.api(route='/v1/chat/completions')
   async def create_chat_completion(self, request: ChatCompletionRequest, /):
+    request.model = LLM.inner.model_id
     try:
       if request.stream:
         # Use streaming context manager for streaming responses
