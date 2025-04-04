@@ -1455,6 +1455,57 @@ Rationale: Serves as a foundational document that guides the entire development 
 
 Rationale: Video tutorials allow users to visually follow processes at their own pace, which is crucial for understanding complex features that enhance creative writing. It ensures users can fully exploit the text editor's capabilities.
 
+## Functional and Non-Functional Requirements Traceability Matrix
+
+Table 1
+
+| FR \ NFR | LF-A1 | LF-A2 | LF-S1 | LF-S2 | LF-S3 | LF-S4 | LF-S5 | UH-EOU3 | UH-L1 | UH-UP1 | UH-A1 | UH-A2 | UH-A3 |
+|----------| ----- | ----- | ----- | ----- | ----- | ----- | ----- | ------- | ----- | ------ | ----- | ----- | ----- |
+| FR-1     |       |       |       |       |       |       |       |         |       |        |       |       |       |
+| FR-2     |       |       |       |       |       |       |       |         |       |        |       |       |       |
+| FR-3     |       |       |       |       |       |       |       |         |       |        |       |       |       |
+| FR-4     |       |       |       |       |       |       |       |         |       |        |       |       |       |
+| FR-10    |       |       |       |       |       |       |       |         |       |        |       |       |       |
+| FR-13    |       |       |       |       |       |       |       |         |       |        |       |       |       |
+| FR-14    |       |       |       |       |       |       |       |         |       |        |       |       |       |
+
+Table 2
+
+| FR \ NFR | PR-SLR1 | PR-SLR2 | PR-SCR1 | PR-SCR2 | PR-PAR1 | PR-RFR1 | PR-RFR2 | PR-CR1 | PR-CR2 | PR-SER1 | PR-LR1 |
+|----------| ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------ | ------ | ------- | ------ |
+| FR-1     |         |         |         |         |         |         |         |        |        |         |        |
+| FR-2     |         |         |         |         |         |         |         |        |        |         |        |
+| FR-3     |         |         |         |         |         |         |         |        |        |         |        |
+| FR-4     |         |         |         |         |         |         |         |        |        |         |        |
+| FR-10    |         |         |         |         |         |         |         |        |        |         |        |
+| FR-13    |         |         |         |         |         |         |         |        |        |         |        |
+| FR-14    |         |         |         |         |         |         |         |        |        |         |        |
+
+Table 3
+
+| FR \ NFR | OER-EPE1 | OER-EPE2 | OER-RIAS1 | OER-PR1 | OER-PR2 | OER-PR3 | OER-RR1 | OER-RR2 | OER-MR1 | OER-MR2 |
+|----------| -------- | -------- | --------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- |
+| FR-1     |          |          |           |         |         |         |         |         |         |         |
+| FR-2     |          |          |           |         |         |         |         |         |         |         |
+| FR-3     |          |          |           |         |         |         |         |         |         |         |
+| FR-4     |          |          |           |         |         |         |         |         |         |         |
+| FR-10    |          |          |           |         |         |         |         |         |         |         |
+| FR-13    |          |          |           |         |         |         |         |         |         |         |
+| FR-14    |          |          |           |         |         |         |         |         |         |         |
+
+Table 4
+
+| FR \ NFR | OER-AR1 | SR-INT1 | SR-INT2 | SR-INT3 | SR-P1 | SR-AU1 | SR-IM1 | SR-IM2 | CulR-CR1 | CulR-CR3 | CompR-SCR1 |
+|----------| ------- | ------- | ------- | ------- | ----- | ------ | ------ | ------ | -------- | -------- | ---------- |
+| FR-1     |         |         |         |         |       |        |        |        |          |          |            |
+| FR-2     |         |         |         |         |       |        |        |        |          |          |            |
+| FR-3     |         |         |         |         |       |        |        |        |          |          |            |
+| FR-4     |         |         |         |         |       |        |        |        |          |          |            |
+| FR-10    |         |         |         |         |       |        |        |        |          |          |            |
+| FR-13    |         |         |         |         |       |        |        |        |          |          |            |
+| FR-14    |         |         |         |         |       |        |        |        |          |          |            |
+
+
 ## Waiting Room
 
 ### Future Functional Requirements
