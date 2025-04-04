@@ -198,7 +198,7 @@ export const DroppedNoteGroup = memo(
     const hasNotes = droppedNotes.length > 0
 
     // Use empty array if visibleContextNoteIds is undefined
-    const safeVisibleContextNoteIds = visibleContextNoteIds || []
+    const safeVisibleContextNoteIds = useMemo(() => visibleContextNoteIds || [], [visibleContextNoteIds])
 
     // Filter out notes that are visible in context view
     const filteredNotes = useMemo(() => {

@@ -110,6 +110,7 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
   const [isDbLoading, setIsDbLoading] = useState(true)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [transitionComplete, setTransitionComplete] = useState(false)
+  const [contentReady, setContentReady] = useState(false)
 
   useEffect(() => {
     async function setupDbAndMigrate() {
@@ -120,25 +121,31 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
         // Simulate progress updates for 0-70% with faster intervals
         const progressInterval = setInterval(() => {
           setLoadingProgress((prev) => {
-            const newProgress = prev + 0.1 // Faster increment
+            const newProgress = prev + 0.05 // Slower increment to reduce state changes
             return newProgress > 0.7 ? 0.7 : newProgress
           })
-        }, 50) // Much shorter interval
+        }, 100) // Longer interval to reduce state change frequency
 
         const dbInstance = await initializeDb()
         await applyPgLiteMigrations(dbInstance, migrations)
 
         clearInterval(progressInterval)
-        setLoadingProgress(0.8) // DB is ready at 80%
 
-        // Quick transition to finish
+        // Set DB instance first before progressing further
+        setDb(dbInstance)
+
+        // After a short delay, continue progress
         setTimeout(() => {
-          setLoadingProgress(0.9)
+          setLoadingProgress(0.8) // DB is ready at 80%
+
+          // Stagger the remaining progress updates
           setTimeout(() => {
-            setDb(dbInstance)
-            setLoadingProgress(1)
-          }, 50)
-        }, 50)
+            setLoadingProgress(0.9)
+            setTimeout(() => {
+              setLoadingProgress(1)
+            }, 50)
+          }, 100)
+        }, 150)
       } catch (err) {
         console.error("Error initializing database:", err)
         setLoadingProgress(1) // Move to 100% even on error so UI can show
@@ -150,15 +157,32 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
     setupDbAndMigrate()
   }, [])
 
+  // Handle transition from loading to content
   const handleTransitionComplete = useCallback(() => {
-    setTransitionComplete(true)
+    // Use requestIdleCallback to ensure the browser has capacity
+    // to handle the transition before mounting heavy components
+    const prepareContent = () => {
+      setTransitionComplete(true)
+
+      // Small delay before marking content as ready to mount
+      setTimeout(() => {
+        setIsDbLoading(false)
+        setContentReady(true)
+      }, 100)
+    }
+
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(prepareContent)
+    } else {
+      setTimeout(prepareContent, 50)
+    }
   }, [])
 
   const motionProps = useMemo(
     () => ({
       initial: { opacity: 0 },
       animate: { opacity: 1 },
-      transition: { duration: 0.8 },
+      transition: { duration: 0.8, delay: 0.2 }, // Add delay to ensure loading fully completes
       className: "w-full h-full",
     }),
     [],
@@ -172,7 +196,7 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
         onTransitionComplete={handleTransitionComplete}
       />
       <AnimatePresence initial={false}>
-        {!isDbLoading && db && transitionComplete && (
+        {contentReady && db && transitionComplete && (
           <motion.div {...motionProps}>
             <PGliteProvider db={db}>
               <QueryClientProvider client={queryClient}>

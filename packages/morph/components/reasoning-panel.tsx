@@ -241,16 +241,7 @@ export const ReasoningPanel = memo(function ReasoningPanel({
               "text-xs text-muted-foreground",
             )}
           >
-            {renderReasoningText}
-            {isStreaming && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, repeat: Infinity, repeatType: "reverse" }}
-              >
-                █
-              </motion.span>
-            )}
+            <span>{renderReasoningText}</span>
           </motion.div>
         )}
       </AnimatePresence>

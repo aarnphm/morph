@@ -76,12 +76,15 @@ function Scene() {
     gl.setPixelRatio(Math.min(1, window.devicePixelRatio))
     scene.background = new THREE.Color(bgColor)
 
+    // Store reference to current frame for cleanup
+    const currentFrameRef = frameRef.current
+
     return () => {
-      if (frameRef.current) {
-        cancelAnimationFrame(frameRef.current)
+      if (currentFrameRef) {
+        cancelAnimationFrame(currentFrameRef)
       }
     }
-  }, [gl, scene, frameRef])
+  }, [gl, scene])
 
   // Optimize camera animation with throttling
   useFrame(() => {

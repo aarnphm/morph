@@ -63,44 +63,10 @@ export default memo(function ContextNotes({
   }, [debugMode])
 
   // Check if noteIds have changed
-  const haveNoteIdsChanged = () => {
+  const haveNoteIdsChanged = useCallback(() => {
     if (previousNoteIdsRef.current.length !== noteIds.length) return true
     return !previousNoteIdsRef.current.every((id) => noteIds.includes(id))
-  }
-
-  // Load context notes data when dependencies change
-  useEffect(() => {
-    // Only reload if the file ID changed or notes changed
-    const fileChanged = previousFileIdRef.current !== fileId
-    const notesChanged = haveNoteIdsChanged()
-
-    // Skip loading if we don't have needed data
-    if (!fileId || !vaultId || noteIds.length === 0) {
-      loadedRef.current = false
-      return
-    }
-
-    // Reduce unnecessary loads - only load on initial mount or when data changes
-    if (!loadedRef.current || fileChanged || notesChanged) {
-      loadedRef.current = true
-      previousFileIdRef.current = fileId
-      previousNoteIdsRef.current = [...noteIds]
-
-      const loadContextNotes = async () => {
-        try {
-          const similarNotes = await getSimilarNotes()
-          setContextNotes(similarNotes)
-
-          // Update visible notes after loading
-          updateVisibleLines.flush()
-        } catch (error) {
-          console.error("[ContextNotes] Error loading similar notes:", error)
-        }
-      }
-
-      loadContextNotes()
-    }
-  }, [fileId, vaultId, noteIds, getSimilarNotes]) // We must keep getSimilarNotes here because it's memoized now
+  }, [noteIds])
 
   // Function to determine visible line range based on scroll position
   const updateVisibleLines = useDebouncedCallback(() => {
@@ -164,7 +130,44 @@ export default memo(function ContextNotes({
     } catch (error) {
       console.error("[ContextNotes] Error updating visible lines:", error)
     }
-  }, 200) // Increased debounce time for better performance
+  })
+
+  // Load context notes data when dependencies change
+  useEffect(() => {
+    // Only reload if the file ID changed or notes changed
+    const fileChanged = previousFileIdRef.current !== fileId
+    const notesChanged = haveNoteIdsChanged()
+
+    // Skip loading if we don't have needed data
+    if (!fileId || !vaultId || noteIds.length === 0) {
+      loadedRef.current = false
+      return
+    }
+
+    // Reduce unnecessary loads - only load on initial mount or when data changes
+    if (!loadedRef.current || fileChanged || notesChanged) {
+      loadedRef.current = true
+      previousFileIdRef.current = fileId
+      previousNoteIdsRef.current = [...noteIds]
+
+      const loadContextNotes = async () => {
+        try {
+          const similarNotes = await getSimilarNotes()
+          setContextNotes(similarNotes)
+
+          // Update visible notes after loading
+          updateVisibleLines.flush()
+        } catch (error) {
+          console.error("[ContextNotes] Error loading similar notes:", error)
+        }
+      }
+
+      const timeout = setTimeout(() => {
+        loadContextNotes()
+      }, 200)
+      return () => clearTimeout(timeout)
+    }
+  }, [fileId, vaultId, noteIds, getSimilarNotes, updateVisibleLines, haveNoteIdsChanged])
 
   // Set up scroll listeners
   useEffect(() => {
@@ -181,7 +184,7 @@ export default memo(function ContextNotes({
         scrollContainer.removeEventListener("scroll", updateVisibleLines)
       }
     }
-  }, [isEditMode, updateVisibleLines]) // Include updateVisibleLines in dependencies
+  }, [isEditMode, updateVisibleLines, editorViewRef, readingModeRef]) // Include updateVisibleLines in dependencies
 
   // Also update when context notes change
   useEffect(() => {

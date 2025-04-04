@@ -5,7 +5,6 @@ import * as React from "react"
 import { useCallback, useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
@@ -120,12 +119,15 @@ const EditorSettings = React.memo(function EditorSettings() {
   const { settings, updateSettings } = usePersistedSettings()
   const { theme, setTheme } = useTheme()
 
-  const handleVimModeToggle = useCallback((checked: boolean) => {
-    // Always update settings with the new value
-    updateSettings({ vimMode: checked })
+  const handleVimModeToggle = useCallback(
+    (checked: boolean) => {
+      // Always update settings with the new value
+      updateSettings({ vimMode: checked })
 
-    // Note: updateSettings already sets the localStorage flags in use-persisted-settings.tsx
-  }, [updateSettings])
+      // Note: updateSettings already sets the localStorage flags in use-persisted-settings.tsx
+    },
+    [updateSettings],
+  )
 
   return (
     <div className="text-sm">

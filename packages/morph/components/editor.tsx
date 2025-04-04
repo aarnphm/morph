@@ -885,11 +885,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
         // Add dropped notes to the request if there are any
         if (droppedNotes.length > 0) {
-          request.notes = droppedNotes.map(note => ({
+          request.notes = droppedNotes.map((note) => ({
             vault_id: note.vaultId,
             file_id: note.fileId,
             note_id: note.id,
-            content: note.content
+            content: note.content,
           }))
         }
 
@@ -1262,7 +1262,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         return Promise.reject(error)
       }
     },
-    [toast],
+    [toast, droppedNotes],
   )
 
   const handleSave = useCallback(async () => {

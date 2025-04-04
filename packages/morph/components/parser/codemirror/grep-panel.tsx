@@ -70,7 +70,7 @@ export function SearchPanel({ view, className, isVisible = true, onClose }: Sear
           } else {
             setCurrentMatch(0)
           }
-        } catch (e) {
+        } catch {
           // If regex fails, ignore
           setTotalMatches(0)
           setCurrentMatch(0)
