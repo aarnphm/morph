@@ -208,7 +208,7 @@ export default memo(function ContextNotes({
     <div
       ref={containerRef}
       className={cn(
-        "relative top-4 left-20 translate-x-1/2 z-20 w-64 h-full pointer-events-none",
+        "relative z-40 h-full pointer-events-none w-52 md:w-56 lg:w-60 xl:w-64 xl:top-4 xl:left-20 xl:translate-x-1/2 left-2 md:left-4",
         className,
       )}
       {...props}
@@ -237,7 +237,7 @@ export default memo(function ContextNotes({
           return (
             <motion.div
               key={contextNote.note.id}
-              className="relative right-4 top-0 pointer-events-auto transform"
+              className="relative pointer-events-auto transform xl:right-4 xl:top-0"
               initial={{ opacity: 0, x: -100 }}
               animate={{
                 opacity: 1,
