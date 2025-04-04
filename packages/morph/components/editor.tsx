@@ -396,6 +396,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     setCurrentFileHandle(restoredFile.fileHandle)
     setHasUnsavedChanges(false)
 
+    // Update preview immediately with the restored content
+    updatePreview(restoredFile.content)
+
     // Reset all notes states in one batch to ensure clean state for the restored file
     setCurrentGenerationNotes([])
     setCurrentlyGeneratingDateKey(null)
@@ -1365,7 +1368,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   // Add an effect to update preview specifically when a file is restored
   useEffect(() => {
-    if (restoredFile?.content && !fileRestorationAttempted.current) {
+    if (restoredFile?.content) {
       updatePreview(restoredFile.content)
     }
   }, [restoredFile, updatePreview])
@@ -2203,9 +2206,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           if (dbFile) {
             setCurrentFileId(dbFile.id)
             currentFileRef.current = currentFile
-            console.log(`[ContextNotes] Found file ID ${dbFile.id} for ${currentFile}`)
           } else {
-            console.log(`[ContextNotes] No file ID found for ${currentFile}`)
             setCurrentFileId(null)
             currentFileRef.current = ""
           }
