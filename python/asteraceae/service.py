@@ -111,6 +111,7 @@ class AuthorRequest(pydantic.BaseModel):
   temperature: t.Annotated[float, at.Ge(0), at.Le(1)] = llm_['temperature']
   max_tokens: t.Annotated[int, at.Ge(256), at.Le(MAX_TOKENS)] = MAX_TOKENS
   authors: t.Optional[list[str]] = None
+  use_tool: bool = True
   search_backend: t.Optional[t.Literal['exa']] = 'exa'
   num_search_results: t.Annotated[int, at.Ge(1), at.Le(15)] = 3
 
@@ -611,7 +612,7 @@ class API:
       messages.append(assistant_message.model_dump())
 
       # Process any tool calls
-      if assistant_message.tool_calls:
+      if assistant_message.tool_calls and request.use_tool:
         logger.info('Processing %d tool calls', len(assistant_message.tool_calls))
         queries = []
         for tool_call in assistant_message.tool_calls:
