@@ -47,8 +47,7 @@ _The following Software Requirements Specification for `morph` is using [Volere 
 | LLM       | Large Language Model                                                                       |
 | LTR       | Left-to-Right                                                                              |
 | LoRA      | Low-Rank Adaptation                                                                        |
-| ReLU      | rectified linear unit                                                                        |
-| ReLU      | rectified linear unit                                                                        |
+| ReLU      | rectified linear unit                                                                      |
 | MC        | Mandated Constraint                                                                        |
 | MLP       | Multi-Layer Perceptron                                                                     |
 | NSFW      | Not Safe For Work                                                                          |
@@ -65,7 +64,6 @@ _The following Software Requirements Specification for `morph` is using [Volere 
 | PUP       | Potential User Problems                                                                    |
 | RAG       | Retrieval-Augmented Generation                                                             |
 | RBAC      | Role-Based Access Control                                                                  |
-| RELU      | Rectified Linear Unit                                                                      |
 | RTL       | Right-to-Left                                                                              |
 | SAE       | Sparse Autoencoder                                                                         |
 | SOC2      | System and Organization Controls 2                                                         |
