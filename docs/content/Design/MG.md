@@ -83,7 +83,6 @@ Anticipated changes are the source of the information that is to be hidden insid
 - **AC8**: Add tools to compare progress across multiple documents.
 - **AC9**: Use A100 GPU for rendering visualizations and running text generation faster.
 - **AC10**: May not integrate application with Notion and Obsidian.
-- **AC11**: Add tools to compare progress across multiple documents.
 
 ### Unlikely Changes
 
@@ -92,7 +91,7 @@ The module design should be as general as possible. However, a general system is
 - **UC1:**: Core editor interface will stay the same.
 - **UC2**: Maintain real-time updates and context-sensitive suggestions as core features.
 - **UC3**: No downloads or desktop-only application; the system must stay fully web-based.
-- **UC4**: No removal of interactive elements like notes, real-time suggestions, or graph visualizations, which are central to the application.
+- **UC4**: The internal event bus and state management system that supports interactive components (notes, suggestions, graph visualizations) is assumed to remain unchanged. Refactoring this mechanism would require re-architecting major parts of the front-end logic and module interfaces.
 
 ## Module Hierarchy
 
@@ -293,7 +292,6 @@ _Table 2: Trace Between Requirements and Modules_
 | AC8    | M10, M11    |
 | AC9    | M1, M8      |
 | AC10   | M11         |
-| AC11   | M10, M11    |
 
 _Table 3: Trace Between Anticipated Changes and Modules_
 
