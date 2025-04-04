@@ -635,9 +635,9 @@ These tests verify requirements FR-1 through FR-3, which specify the system's ca
    - Control: Manual
    - Initial State: Editor opened, planning mode active
    - Input: Valid prompt (e.g., "environmental sustainability")
-   - Output: Planning suggestions appear within 10 seconds
+   - Output: Planning suggestions appear within `MAX_DISPLAY_TIME`
    - Test Case Derivation: Based on FR-1's requirement for timely suggestion generation
-   - How test will be performed: Enter prompt and start planning. Verify at least one suggestion appears within 10 seconds.
+   - How test will be performed: Enter prompt and start planning. Verify at least one suggestion appears within `MAX_DISPLAY_TIME`.
 
 2. **Test-FR-P2**
 
@@ -652,10 +652,10 @@ These tests verify requirements FR-1 through FR-3, which specify the system's ca
 
    - Control: Manual
    - Initial State: Editor opened, planning mode active
-   - Input: Large text block (500+ words) on climate change
-   - Output: Condensed suggestions or length warning within 10 seconds
+   - Input: Large text block (`LARGE_INPUT_SIZE`) on climate change
+   - Output: Condensed suggestions or length warning within `LENGTH_RESPONSE_TIME`
    - Test Case Derivation: Based on FR-1's requirement for handling varied input lengths
-   - How test will be performed: Paste a 500+ word passage and verify that the system responds within 10 seconds with a clear length-related warning message prompting the user to shorten the input.
+   - How test will be performed: Paste a `LARGE_INPUT_SIZE` word passage and verify that the system responds within `LENGTH_RESPONSE_TIME` with a clear length-related warning message prompting the user to shorten the input.
    
 #### Text Generation Features
 
@@ -677,9 +677,9 @@ These tests verify requirements FR-4 through FR-7, focusing on the system's text
    - Control: Manual
    - Initial State: Editor opened, steering feature enabled
    - Input: User's writing sample for style adaptation
-   - Output: Customized suggestions within 30 seconds
+   - Output: Customized suggestions within `STYLE_MATCH_TIME`
    - Test Case Derivation: Derived from FR-2's requirement for personalization
-   - How test will be performed: Upload a writing sample (e.g., an excerpt from a Joan Didion essay or similar source). Measure the time from upload to generation, where it must not exceed 30 seconds. Then, evaluate the output using the ([[VnVPlan/VnVPlan#6.3.1 Didion’s Writing Style Validation]]) checklist.
+   - How test will be performed: Upload a writing sample (e.g., an excerpt from a Joan Didion essay or similar source). Measure the time from upload to generation, where it must not exceed `STYLE_MATCH_TIME`. Then, evaluate the output using the ([[VnVPlan/VnVPlan#6.3.1 Didion’s Writing Style Validation]]) checklist.
 
 
 
@@ -779,7 +779,7 @@ These tests verify requirements FR-11 and FR-12, focusing on writing goals and p
 
    - Control: Manual
    - Initial State: Progress tracking enabled
-   - Input: Word count goal (1500 words)
+   - Input: Word count goal (WORD_GOAL)
    - Output: Real-time progress meter
    - Test Case Derivation: Based on FR-11's requirement for progress tracking
    - How test will be performed: Set goal, verify meter updates.
@@ -844,7 +844,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Initial State**: The fully developed `morph` application is accessible on various devices.
 - **Input/Condition**: Access the application UI on different devices and screen sizes.
 - **Output/Result**: Confirmation that the UI is unified, non-intrusive, and uncluttered across all interfaces.
-- **How test will be performed**: Conduct a design review by assembling a team of UI/UX experts who will use a predefined checklist based on design guidelines. Usability testing will be conducted with 10 target users representing primary user personas, followed by survey feedback analysis ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]).
+- **How test will be performed**: Conduct a design review by assembling a team of UI/UX experts who will use a predefined checklist based on design guidelines. Usability testing will be conducted with target `USABILITY_TEST_PARTICIPANTS` representing primary user personas, followed by survey feedback analysis ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]).
 
 **Test-LF-A2**
 
@@ -873,7 +873,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Type**: Structural, Dynamic, Manual
 - **Initial State**: The application is ready for first-time use.
 - **Input/Condition**: Provide new users with access to the application without prior instruction.
-- **Output/Result**: Users begin creating or editing content within 10 minutes.
+- **Output/Result**: Users begin creating or editing content within `ONBOARDING_TIME`.
 - **How test will be performed**: Recruit participants unfamiliar with `morph`. Time their process from start to content creation. Note obstacles and gather onboarding feedback. This will then be followed by survey feedback analysis ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]).
 
 #### Verify Keyboard Navigation Accessibility
@@ -904,8 +904,8 @@ These tests verify requirement FR-14, covering visual theme customization.
 
 - **Type**: Structural, Dynamic, Automatic
 - **Initial State**: Inference server is set up with batch processing capabilities.
-- **Input/Condition**: Send batched requests with a batch size of 4.
-- **Output/Result**: Achieve approximately 300 tokens/sec throughput.
+- **Input/Condition**: Send batched requests with the `BATCH_SIZE`.
+- **Output/Result**: Achieve approximately `SUGGESTION_TOKENS` throughput.
 - **How test will be performed**: Load testing tools will automatically send concurrent batched requests to the inference server. The number of tokens processed per second will be measured over multiple test runs. Server resource utilization including CPU, GPU, and memory will be analyzed to identify any bottlenecks. If the throughput is below the desired level, optimizations will be recommended to enhance performance.
 
 #### Ensure Interface Contains Only Safe Content
@@ -1444,6 +1444,23 @@ To mark this test as **pass**, at least **4 of 5 criteria** must be met:
 - [ ] Uses domain-appropriate vocabulary
 - [ ] Maintains neutral and objective tone
 - [ ] Consistent sentence structure without slang or colloquialisms
+
+### Symbolic Parameters
+
+The following symbolic constants are used throughout this document to improve clarity, maintainability, and flexibility. These constants replace hardcoded values in both functional and nonfunctional test cases.
+
+| Variable Name        | Value                 | Description                                                                 |
+|----------------------|-----------------------|-----------------------------------------------------------------------------|
+| `MAX_DISPLAY_TIME`   | 10 seconds            | Maximum time allowed for planning suggestions to appear       |
+| `LENGTH_RESPONSE_TIME`  | 10 seconds            | Time limit for response to long input prompts                 |
+| `LARGE_INPUT_SIZE`   | 500 words             | Threshold for input size triggering condensation or warning   |
+| `STYLE_MATCH_TIME`   | 30 seconds            | Time to generate personalized suggestions from a user sample  |
+| `WORD_GOAL`          | 1500 words            | Word count goal for writing progress tracking                |
+| `ONBOARDING_TIME`    | 10 minutes            | Maximum time expected for new users to begin content creation |
+| `SUGGESTION_TOKENS`  | 300 tokens/sec        | Desired throughput of token generation by inference server  |
+| `TTFT_THRESHOLD`     | 500 ms                | 95th percentile threshold for Time To First Token           |
+| `BATCH_SIZE`         | 4                     | Number of concurrent requests in throughput testing         |
+| `USABILITY_TEST_PARTICIPANTS` | 10 users           | Number of participants for usability testing                  |
 
 ### Reflection
 
