@@ -76,7 +76,9 @@ export function EmbeddingStatus({ status, className }: EmbeddingStatusProps) {
         ) : (
           <EyeClosedIcon className="w-4 h-4 text-blue-400/70" />
         )}
-        <span className="text-xs text-blue-400 hidden sm:inline-block">Indexing...</span>
+        <span className="text-xs text-blue-400 hidden sm:inline-block animate-text-shimmer">
+          Indexing...
+        </span>
       </div>
     )
   }
@@ -92,7 +94,6 @@ export function EmbeddingStatus({ status, className }: EmbeddingStatusProps) {
         title="Indexing complete"
       >
         <CheckIcon className="w-4 h-4 text-green-400" />
-        <span className="text-xs text-green-400 hidden sm:inline-block">Indexing completed</span>
       </div>
     )
   }
@@ -101,7 +102,6 @@ export function EmbeddingStatus({ status, className }: EmbeddingStatusProps) {
     return (
       <div className={cn("relative flex items-center gap-1.5", className)} title="Indexing failed">
         <EyeClosedIcon className="w-4 h-4 text-red-400" />
-        <span className="text-xs text-red-400 hidden sm:inline-block">Indexing failed</span>
       </div>
     )
   }
