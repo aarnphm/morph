@@ -23,7 +23,7 @@ function Icon({ size, className, ...props }: IconProps & { size: number }) {
 export function DotIcon(props: IconProps) {
   return (
     <Icon size={8} {...props}>
-      <circle cx="4" cy="4" r="4" />
+      <circle cx="6" cy="6" r="4" />
     </Icon>
   )
 }
