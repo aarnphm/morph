@@ -40,3 +40,5 @@ Example output structure for constructing search query (do not use this content,
 <search_query>
 (literary OR philosophical) AND ("urban life" OR "identity exploration") AND (innovative OR "unique perspective") AND ("magical realism" OR "cognitive science")
 </search_query>
+
+Remember to focus on authors with diverse perspectives and backgrounds in your recommendations and search query. Your final output should consist only of the recommended authors and search query, and should not duplicate or rehash any of the work you did in the thinking block.

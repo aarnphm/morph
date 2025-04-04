@@ -4,7 +4,6 @@ import logging, argparse, multiprocessing, json, itertools, traceback, asyncio, 
 import bentoml, fastapi, pydantic, jinja2, annotated_types as at
 
 from starlette.responses import JSONResponse, StreamingResponse
-from vllm.entrypoints.openai.serving_embedding import OpenAIServingEmbedding
 
 with bentoml.importing():
   import openai, exa_py
@@ -47,11 +46,13 @@ with bentoml.importing():
     TaskType,
     Tonality,
     NotesRequest,
+    AuthorSchema,
   )
 
 if t.TYPE_CHECKING:
   from _bentoml_impl.client import RemoteProxy
   from _bentoml_sdk.service.config import HTTPCorsSchema
+  from vllm.entrypoints.openai.serving_embedding import OpenAIServingEmbedding
 
 logger = logging.getLogger('bentoml.service')
 
@@ -167,6 +168,8 @@ def make_env(engine_version: t.Literal[0, 1] = 1, *, skip_hf: bool = False, **kw
     {'name': 'VLLM_ATTENTION_BACKEND', 'value': 'FLASH_ATTN'},
     {'name': 'VLLM_USE_V1', 'value': str(engine_version)},
   ])
+  if MODEL_TYPE == 'qwq':
+    results.append({'name': 'VLLM_ALLOW_LONG_MAX_MODEL_LEN', 'value': '1'})
   required_envs = [{'name': k.upper()} for k, v in kwargs.items() if v]
   if all(required_envs):
     results.extend(required_envs)
@@ -180,7 +183,7 @@ def make_args(
   *,
   task: TaskType,
   max_log_len: int = 2000,
-  max_num_seqs: int = 512,
+  max_num_seqs: int = 256,
   max_model_len: int = MAX_MODEL_LEN,
   reasoning: bool = True,
   reasoning_parser: str = 'deepseek_r1',
@@ -218,6 +221,10 @@ def make_args(
   )
   if task == 'generate' and (tp := llm_.get('resources', {}).get('gpu', 1)) > 1:
     variables['tensor_parallel_size'] = int(tp)
+  if MODEL_TYPE == 'qwq':
+    variables['hf_overrides'] = {
+      'rope_scaling': {'factor': 4.0, 'original_max_position_embeddings': 32768, 'rope_type': 'yarn'}
+    }
   args = make_arg_parser(FlexibleArgumentParser()).parse_args([])
   for k, v in variables.items():
     setattr(args, k, v)
@@ -641,10 +648,11 @@ class API:
                 'content': '<empty>',
               })
 
+        section = 'the search results and the excerpt' if queries else 'the excerpt'
         # Add a prompt to use the search results
         messages.append({
           'role': 'user',
-          'content': 'Based on the search results and the excerpt, please provide your final list of authors.',
+          'content': f'Based on {section}, provide the final {request.num_authors} list of authors fitted for this excerpt.',
         })
 
         logger.info('Making final completion with guided_json')
@@ -654,9 +662,9 @@ class API:
         completions = await self.llm_client.chat.completions.create(
           model=LLM_ID,
           messages=messages,
-          temperature=request.temperature * 0.92,  # Slightly lower temperature for more consistent output
-          max_tokens=1024,
-          extra_body={'guided_json': Authors.model_json_schema()},
+          temperature=request.temperature * 0.88,  # Slightly lower temperature for more consistent output
+          max_tokens=request.max_tokens,
+          extra_body={'guided_json': AuthorSchema.model_json_schema()},
         )
 
         # Parse the response which may contain reasoning
@@ -724,13 +732,14 @@ class API:
     if backend == 'exa':
       if self.exa is None:
         raise ValueError('Currently only exa is supported')
-      results = self.exa.search_and_contents(
+      result = self.exa.search_and_contents(
         query, num_results=num_results, use_autoprompt=True, text=True, type='auto', highlights=True, summary=True
       )
       return SearchResults(
         query=query,
         items=[
-          SearchItem(url=r.url, id=r.id, title=r.title, summary=r.summary, highlights=r.highlights) for r in results
+          SearchItem(url=r.url, id=r.id, title=r.title, summary=r.summary, highlights=r.highlights)
+          for r in result.results
         ],
       )
     else:

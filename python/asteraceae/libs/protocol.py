@@ -58,7 +58,6 @@ ReasoningModels: dict[ModelType, ModelForCausalLM] = {
     top_p=0.95,
     max_model_len=48 * 1024,
     max_tokens=32 * 1024,
-    # TODO: switch to 2 for longer context generations
     resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
   ),
   'r1-qwen-small': ModelForCausalLM(
@@ -111,8 +110,8 @@ ReasoningModels: dict[ModelType, ModelForCausalLM] = {
     structured_output_backend='xgrammar',
     temperature=0.6,
     top_p=0.95,
-    max_model_len=32 * 1024,
-    max_tokens=20 * 1024,
+    max_model_len=48 * 1024,
+    max_tokens=32 * 1024,
     resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
   ),
 }
@@ -225,9 +224,12 @@ class Suggestions(pydantic.BaseModel):
   suggestions: list[Suggestion]
 
 
-class Authors(pydantic.BaseModel):
+class AuthorSchema(pydantic.BaseModel):
   authors: list[str] = pydantic.Field(description='A list of suggested authors for given essay excerpt')
-  queries: t.Optional[list[str]] = None
+
+
+class Authors(AuthorSchema):
+  queries: t.Optional[list[str]] = pydantic.Field(description='Optional search queri')
 
 
 class Tonality(pydantic.BaseModel):
