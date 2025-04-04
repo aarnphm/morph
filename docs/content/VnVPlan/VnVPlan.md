@@ -305,6 +305,22 @@ After the SRS review period, design verification will be conducted through itera
 | UI Responsiveness | <50ms input latency        | Input lag measurement    | UI performance testing                |
 | Cache Hit Rate    | >80% for common operations | Cache statistics         | Operation pattern analysis            |
 
+#### Rationale and Benchmark References for Performance Metrics
+
+The selected performance metrics for `morph` are informed by community benchmarks and design considerations typical of real-time LLM-assisted applications. These targets are meant to ensure low-latency interactions without requiring large-scale infrastructure.
+
+- **Time to First Token (TTFT):** The 200–500ms range is consistent with expectations for latency-sensitive tools like chat interfaces and writing assistants. Although OpenAI does not provide exact TTFT values, their [rate limit documentation](https://platform.openai.com/docs/guides/rate-limits) emphasizes prompt, sub-second responses. This threshold ensures users receive suggestions quickly enough to maintain creative flow.
+
+- **Throughput:** A target of approximately 300 tokens/second at batch size 4 reflects typical performance observed in community benchmarks for models like LLaMA 2 and Mistral 7B using optimized inference engines such as [vLLM](https://github.com/vllm-project/vllm#benchmarks). On modern GPUs like the A100 or RTX 4090, these rates are frequently achievable in single-instance deployments without distributed scaling.
+
+These targets are chosen to ensure:
+- Responsive, interactive text generation
+- Compatibility with moderately powerful consumer hardware
+- Support for multiple users or documents without significant delays
+
+They support `morph`'s vision of enabling fast, local-first, and user-centric machine-assisted writing environments.
+
+
 #### Documentation Validation
 
 | Document Type          | Review Focus                  | Validation Method               | Reviewers     |
