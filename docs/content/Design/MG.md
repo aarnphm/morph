@@ -313,9 +313,74 @@ _Figure 1: Use Hierarchy Between Modules_
 
 ## Timeline
 
-See also [Projects](https://github.com/users/aarnphm/projects/4?query=sort:updated-desc+is:open)
+A breakdown of the team’s delegation of tasks and responsibilities can be found in the GitHub repository Issues tab. The delegation of tasks assumes an even distribution amongst team members as outlined in the Development Plan.
 
----
+All documentation-related issues are to be completed prior to the Final Documentation deadline (April 4th, 2025). All feature-related issues (functional and non-functional) are to be completed prior to the Final Demonstration deadline in March.
+
+The below outlines the implementation timeline:
+
+### Phase: Revision 0 Demo (due February 3rd, 2025)
+#### M2: Editor Module
+- UI interaction refinement & contextual suggestion logic — Lucas
+
+- DOM update & formatting rules implementation — Nebras
+
+#### M3: Notes Module
+- Note data structure design — Lucas
+
+- Contextual note linking and real-time updates — Aarnphm
+
+- Basic testing on note consistency — Waleed
+
+#### M4: Graph View Module
+- Graph structure sync implementation — Waleed
+
+- Interactive UI rendering logic — Lucas
+
+- Structural testing with document changes — Aarnphm
+
+#### M5: Settings Module
+- Theme & font customization logic — Lucas
+
+- User preferences state binding — Nebras
+
+- Manual test on dynamic setting application — Waleed
+
+#### M6: Rendering Module
+- Markdown parsing and preview integration — Nebras
+
+- Preview accuracy testing — Lucas
+
+#### M7: Data Fetching and State Management
+- Draft save/load logic via localStorage — Waleed
+
+- Metadata state structure and caching — Lucas
+
+- Regression testing on document persistence — Nebras
+
+#### M8: Inference Module
+- Prompt formatting and response processing — Nebras
+
+- Model interaction pipeline (mocked) — Aarnphm
+
+- Basic input/output testing — Lucas
+
+#### M9: User Configuration Module
+- Preference record handling & interface — Lucas
+
+- Live update of tone/style from config — Waleed
+
+- Preference persistence testing — Nebras
+
+#### M10: Analytics Module
+- Progress tracking logic design — Waleed
+
+- Testing metrics accuracy — Lucas
+
+#### M11: Export & Integration Module
+- Export-to-Markdown logic — Lucas
+
+- Testing Markdown integrity — Waleed
 
 ## Appendix
 
