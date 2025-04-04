@@ -84,7 +84,7 @@ Code reviewers will be assigned based on ownership of the component in question.
 
 ## Workflow Plan
 
-Tinymorph follows a conventional Git workflow. The `main` branch acts as the production-ready branch. All changes must be submitted via pull requests, and PRs will be squash-merged into a single commit to maintain a clean, linear history.
+The project follows a conventional Git workflow. The `main` branch acts as the production-ready branch. All changes must be submitted via pull requests, and PRs will be squash-merged into a single commit to maintain a clean, linear history.
 
 ### Commit and Branch Naming
 
