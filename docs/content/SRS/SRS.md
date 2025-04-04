@@ -1759,3 +1759,4 @@ Cloud infrastructure management (Nebras and Lucas):
 | Sept. 25 2024 | 0.1     | Migration to Volere template      |
 | Oct 10 2024   | 0.2     | SRS first draft                   |
 | March 31 2025 | 0.3     | Rename to `morph` for consistency |
+| Apr 04 2025   | 1.0     | SRS Rev 1                         |
