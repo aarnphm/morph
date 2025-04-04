@@ -34,7 +34,6 @@ Outputs from `morph`:
 1. A text-based [[glossary#inlay hints]] suggestions from models
 2. left-to-right (LTR) sequential panel to get users feedback on [[glossary#manual steering]]
 
-
 ## Stakeholders
 
 The main stakeholders of `tinymorph` include writers and engineers who write. The tool seeks to help writers become more productive and overcome creative blocks. It also aims to encourage engineers who write to be more creative and structured in their writing, while staying true to their tone. Writing at the end of the day is very personal, which means a tool should not dictate how one should write.
@@ -69,7 +68,6 @@ Tinymorph aims to deliver a web-based text editor that is intuitive, responsive,
 
 - **Accessibility and cross-platform usability**  
   Aims for wide accessibility across modern browsers and operating systems, including low-bandwidth or offline scenarios.
-
 
 ## Stretch Goals
 
@@ -110,18 +108,18 @@ Reasoning:
 <div class="blob">
 
 1. Writing this document helps me structure my thoughts surrounding the problem
-definition and somewhat confirm an intuition I have towards this problem. Interfaces for personal computing are
-supposed to be open-ended to surprise ourselves with new ways to create, therefore, I think it is important for me to
-write down these thoughts. At the end of the day, writing is a form of lossiness as mutation, turning a "net into a line".
+   definition and somewhat confirm an intuition I have towards this problem. Interfaces for personal computing are
+   supposed to be open-ended to surprise ourselves with new ways to create, therefore, I think it is important for me to
+   write down these thoughts. At the end of the day, writing is a form of lossiness as mutation, turning a "net into a line".
 
 2. The main pain point I have during writing the problem statement includes declaring the scope for hardware and software
-requirements. We did have an internal discussion whether to build a GUI text-editor or refer to a web-based one. After
-a quick discussion, we decided that given everyone expertise and preference with the web, our main focus for capstone would be a
-web-based interface.
+   requirements. We did have an internal discussion whether to build a GUI text-editor or refer to a web-based one. After
+   a quick discussion, we decided that given everyone expertise and preference with the web, our main focus for capstone would be a
+   web-based interface.
 
 3. We did consult with our supervisor to limit down the scope for both the UX work as well as potential avenue for ML research.
-We established a clear boundaries for UX components we would develop that supplement the core ML work we are going to
-do (which is mechanistic interpretability).
+   We established a clear boundaries for UX components we would develop that supplement the core ML work we are going to
+   do (which is mechanistic interpretability).
 
 </div>
 
@@ -143,7 +141,6 @@ do (which is mechanistic interpretability).
 
 3. Originally, we had some pretty ambitious goals involving mechanistic interpretability, local model support, and UI customizations across multiple devices. After talking with our supervisor and reviewing technical feasibility, we narrowed the scope to focus on the web-based editor and meaningful user feedback loops. These are still technically challenging but more realistic within the timeframe.
 
-
 </div>
 
 </div>
@@ -162,8 +159,7 @@ do (which is mechanistic interpretability).
 
 2. A challenge we ran into was separating “how we’ll build it” from “what we’re building,” particularly in the environment and goals sections. It took several rounds of rewrites and peer edits before we were able to frame things more from a user's perspective rather than a developer's.
 
-3.  We removed some of the stretch elements like native GUI versions and deep research on activation editing. Instead, we added more user-centric goals such as usability testing and a user manual. These still provide value and complexity but are achievable within our team size and timeline.
-
+3. We removed some of the stretch elements like native GUI versions and deep research on activation editing. Instead, we added more user-centric goals such as usability testing and a user manual. These still provide value and complexity but are achievable within our team size and timeline.
 
 </div>
 
@@ -189,7 +185,6 @@ do (which is mechanistic interpretability).
 
 </div>
 
-
 <!-- 1. What went well while writing this deliverable? -->
 <!-- 2. What pain points did you experience during this deliverable, and how did you resolve them? -->
 <!-- 3. How did you and your team adjust the scope of your goals to ensure they are suitable for a Capstone project (not overly ambitious but also of appropriate complexity for a senior design project)? -->
@@ -202,8 +197,7 @@ do (which is mechanistic interpretability).
 | Sept. 19 2024 | 0.1      | Problem Statement definitions                 |
 | Oct. 5 2024   | 0.2      | Update problem statement, adjust stakeholders |
 | March 31 2025 | 0.3      | Renaming project for consistency              |
-| Apr. 1 2025   | 0.4      | Full document revision and restructuring |
-
+| Apr. 1 2025   | 0.4      | Full document revision and restructuring      |
 
 [^1]:
     Historically, the seminar work from Alan Turing laid the foundation for exploring the possibilities of a thinking machine [@10.1093/mind/LIX.236.433].

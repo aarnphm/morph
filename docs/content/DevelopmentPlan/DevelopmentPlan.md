@@ -31,7 +31,7 @@ Meeting will be run into two formats: Standup and Supervisor Meeting
 | Meeting Type              | Frequency | Time (EST)      | Day    | Location                        | Agenda                                                                                                                                                            |
 | ------------------------- | --------- | --------------- | ------ | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Standup                   | Weekly    | **17:30-18:30** | Monday | Online via Teams                | • Round table format<br>• What are you working on<br>• Blockers?<br>• Plan for this week                                                                          |
-| Supervisor (w/ Dr.Mishra) | Monthly | **15:00-16:00** | Friday | In person, at arranged location | • Progress update<br>• Discussion regarding relevant research and potential solutions for UX interaction<br>• Q&A session for any issues during development cycle |
+| Supervisor (w/ Dr.Mishra) | Monthly   | **15:00-16:00** | Friday | In person, at arranged location | • Progress update<br>• Discussion regarding relevant research and potential solutions for UX interaction<br>• Q&A session for any issues during development cycle |
 
 Meeting chairs and notetakes will be responsible for ensuring that given issues are filled out.
 For meeting with supervisors, notes should be taken under [[meetings]].
@@ -88,6 +88,7 @@ Tinymorph follows a conventional Git workflow. The `main` branch acts as the pro
 ### Commit and Branch Naming
 
 Commit messages and branch names will use short, descriptive prefixes based on the type of work. Common tags include:
+
 - `feat:` for new features
 - `docs:` for documentation changes
 - `infra:` for infrastructure or CI updates
@@ -97,13 +98,13 @@ Commit messages and branch names will use short, descriptive prefixes based on t
 
 We use GitHub Issues for all tasks, bugs, planning items, and meetings. The following templates are available to guide issue creation:
 
-- **Bug Report**: For reporting issues and unexpected behavior  
-- **Feature Request**: For proposing and discussing new features  
-- **Lecture**: To track course lecture-related notes  
-- **Peer Review**: To manage external reviews of deliverables  
-- **Supervisor Meeting**: To prepare and document supervisor meetings  
-- **TA Meeting**: For tracking TA check-ins or sync-ups  
-- **Team Meeting**: For internal team meetings and agendas  
+- **Bug Report**: For reporting issues and unexpected behavior
+- **Feature Request**: For proposing and discussing new features
+- **Lecture**: To track course lecture-related notes
+- **Peer Review**: To manage external reviews of deliverables
+- **Supervisor Meeting**: To prepare and document supervisor meetings
+- **TA Meeting**: For tracking TA check-ins or sync-ups
+- **Team Meeting**: For internal team meetings and agendas
 - **Blank**: For anything that doesn’t fit the above categories
 
 Issues will be labeled appropriately (`feat`, `docs`, `infra`, `lecture`, `meeting`, etc.) and assigned to team members as needed. Milestones may be used to track key deliverables.
@@ -112,30 +113,30 @@ Issues will be labeled appropriately (`feat`, `docs`, `infra`, `lecture`, `meeti
 
 Each issue is tracked on the GitHub project board using the following status columns:
 
-- **Backlog**: Task not yet started  
-- **Ready**: Task ready to be picked up  
-- **In progress**: Task currently being worked on  
-- **In review**: Task is under code or design review  
+- **Backlog**: Task not yet started
+- **Ready**: Task ready to be picked up
+- **In progress**: Task currently being worked on
+- **In review**: Task is under code or design review
 - **Done**: Task is completed
 
 This helps visualize team progress and maintain async alignment.
 
 ### Pull Request Process
 
-- All PRs must reference a related issue when applicable  
-- Code reviews are required before merging  
-- PRs must pass CI checks (tests and formatting)  
+- All PRs must reference a related issue when applicable
+- Code reviews are required before merging
+- PRs must pass CI checks (tests and formatting)
 - Small, focused changes are preferred
 
 ### CI/CD via GitHub Actions
 
 CI/CD is automated using GitHub Actions. The setup includes:
-- **Docs Deployment**: Automatically triggered on pushes to `main` and pull requests  
-- **Component CI Pipelines**: Each main module (editor, inference server) has a dedicated workflow for testing and formatting  
+
+- **Docs Deployment**: Automatically triggered on pushes to `main` and pull requests
+- **Component CI Pipelines**: Each main module (editor, inference server) has a dedicated workflow for testing and formatting
 - **Support for A/B Testing**: Will be used for evaluating model variants or steering interventions
 
 This setup ensures transparency, quality, and efficient iteration throughout development.
-
 
 ## Project Decomposition and Scheduling
 
@@ -151,31 +152,30 @@ See also [[Scratch|brain dump]] for more detailed features development.
 
 The following outlines the proof-of-concept (POC) plan for `tinymorph` leading up to the November deadline:
 
-- A functional web-based text editor with initial support for feature steering and interactive suggestions  
-- Use of [Gemma 2](https://ai.google.dev/gemma?authuser=2) with pretrained [[glossary#sparse autoencoders|SAEs]] (see [GemmaScope](https://ai.google.dev/gemma/docs/gemma_scope)) to demonstrate early feature-steering capabilities  
-- Begin training custom SAEs for `Llama 3.1` to support future expansion  
-- Run an OpenAI-compatible inference API server, hosted remotely on BentoCloud  
+- A functional web-based text editor with initial support for feature steering and interactive suggestions
+- Use of [Gemma 2](https://ai.google.dev/gemma?authuser=2) with pretrained [[glossary#sparse autoencoders|SAEs]] (see [GemmaScope](https://ai.google.dev/gemma/docs/gemma_scope)) to demonstrate early feature-steering capabilities
+- Begin training custom SAEs for `Llama 3.1` to support future expansion
+- Run an OpenAI-compatible inference API server, hosted remotely on BentoCloud
 - Introduce optional Vim-mode for advanced users familiar with modal editing
 
 ### Risks and Challenges
 
 The following risks may impact the success or performance of the POC:
 
-- Degradation in generation quality if feature steering is poorly configured, resulting in irrelevant or incoherent suggestions  
-- Performance issues when rendering live inlays directly in the text editor, potentially affecting responsiveness  
-- Incomplete or non-functional modal editing (Vim-mode) by the POC deadline  
-- Complexity of full-system (end-to-end) testing, due to the multiple moving parts in `tinymorph` (frontend, backend, and model control logic)  
-- Slow initial response from the model server (cold starts), especially in remote deployment  
+- Degradation in generation quality if feature steering is poorly configured, resulting in irrelevant or incoherent suggestions
+- Performance issues when rendering live inlays directly in the text editor, potentially affecting responsiveness
+- Incomplete or non-functional modal editing (Vim-mode) by the POC deadline
+- Complexity of full-system (end-to-end) testing, due to the multiple moving parts in `tinymorph` (frontend, backend, and model control logic)
+- Slow initial response from the model server (cold starts), especially in remote deployment
 - Possible memory leak from KV cache when handling with long context queries
-
 
 ### Mitigation Strategies
 
 To reduce the impact of the above risks, we plan to:
 
-- Propose and test a low-fidelity prototype early, followed by iterative design improvements to address usability issues  
-- Focus UX efforts on refining critical interactions to ensure stability during the POC demo  
-- Train a small set of [[glossary#low-rank adapters|LoRA]] as a fallback to merge with `Llama 3.1`, using methods proven in industry for reliability  
+- Propose and test a low-fidelity prototype early, followed by iterative design improvements to address usability issues
+- Focus UX efforts on refining critical interactions to ensure stability during the POC demo
+- Train a small set of [[glossary#low-rank adapters|LoRA]] as a fallback to merge with `Llama 3.1`, using methods proven in industry for reliability
 - Delay low-level memory tuning until a stable version of the model is running, to avoid interrupting key demo features
 
 ## Expected Technology
@@ -259,19 +259,18 @@ A variation of Google style guide for Python will be used.
 
 ### Revision
 
-| Date          | Developer(s) | Change                           |
-| ------------- | ------------ | -------------------------------- |
-| Sept. 16 2024 | 0.0          | Initial skafolding               |
-| Sept. 22 2024 | 0.1          | Initial POC and Development Plan |
-| March 31 2025 | 0.2          | Renaming to `morph` for consistency |
-| Apr. 1 2025   | 0.3      | Full document revision and restructuring |
-
+| Date          | Developer(s) | Change                                   |
+| ------------- | ------------ | ---------------------------------------- |
+| Sept. 16 2024 | 0.0          | Initial skafolding                       |
+| Sept. 22 2024 | 0.1          | Initial POC and Development Plan         |
+| March 31 2025 | 0.2          | Renaming to `morph` for consistency      |
+| Apr. 1 2025   | 0.3          | Full document revision and restructuring |
 
 ### Reflection
+
 1. Why is it important to create a development plan prior to starting the project?
 2. In your opinion, what are the advantages and disadvantages of using CI/CD?
 3. What disagreements did your group have in this deliverable, if any, and how did you resolve them?
-
 
 <div class="reflection-container">
 
@@ -282,15 +281,15 @@ A variation of Google style guide for Python will be used.
 <div class="blob">
 
 1. It is important to create a development plan prior to starting the project to ensure goal alignment, timelines,
-required resources and potential risks are evaluated accordingly. It enables better team coordination and planning on
-feature development, as well as providing a baseline to measure progress against. Additionally, it also helps with
-preventing scope creep by clearly defining goals and objectives to be achieved.
+   required resources and potential risks are evaluated accordingly. It enables better team coordination and planning on
+   feature development, as well as providing a baseline to measure progress against. Additionally, it also helps with
+   preventing scope creep by clearly defining goals and objectives to be achieved.
 
 2. CI/CD, ensures faster development iterations and improve code quality through automated testing. It also
-helps with earlier bug detection and prevent regressions. However, depending on the stage of the project (given that
-morph is relatively new and small), setting CI/CD is a huge hassle as one will have to manage the infrastructure
-as well as complexity of these pipelines. This will actually inversely introduce a lot of technical debt and slow down
-development cycle. This is also known as _premature optimisation_.
+   helps with earlier bug detection and prevent regressions. However, depending on the stage of the project (given that
+   morph is relatively new and small), setting CI/CD is a huge hassle as one will have to manage the infrastructure
+   as well as complexity of these pipelines. This will actually inversely introduce a lot of technical debt and slow down
+   development cycle. This is also known as _premature optimisation_.
 
 > CI/CD is the case of "pick your poison"
 
@@ -336,7 +335,6 @@ development cycle. This is also known as _premature optimisation_.
 
 3. We had different ideas on how much technical detail to include in certain sections, like the Proof of Concept plan. Some of us preferred shorthand to keep it concise, but others argued for more explanation. We ended up rewriting those sections with clarity in mind so that non-technical readers could follow along too.
 
-
 </div>
 
 </div>
@@ -356,7 +354,6 @@ development cycle. This is also known as _premature optimisation_.
 2. The main advantage is that it catches problems early and keeps the team from stepping on each other’s toes. If a change breaks the build or causes formatting issues, we find out right away. That’s huge when you're working across frontend and backend. On the downside, CI/CD systems can be a bit opaque when they fail. It sometimes takes longer than expected to track down the root cause of a failing pipeline, especially if it’s something that works locally but not in the cloud environment. Still, the benefits outweigh the setup cost in the long run.
 
 3. We had some small disagreements about how strict we wanted our Git workflow to be. Some people preferred a looser, more informal style while others wanted structure with squash merges, labels, and issue linking. In the end, we agreed to use structured naming and squash merging to keep our history clean but allowed for flexibility with how issues are created. It was a good compromise that let us be productive without overengineering the process.
-
 
 </div>
 
