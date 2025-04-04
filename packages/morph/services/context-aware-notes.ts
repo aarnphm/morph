@@ -66,7 +66,7 @@ export async function findSimilarNotesForFile(
         where: eq(schema.notes.id, noteEmb.noteId),
       })
 
-      if (!note) continue
+      if (!note || !noteEmb.embedding) continue
 
       // For this note, find the best matching file chunk using Drizzle's cosineDistance helper
       // This calculates similarity more effectively using the vector operations
@@ -94,9 +94,9 @@ export async function findSimilarNotesForFile(
           bestMatches.set(noteEmb.noteId, {
             note,
             similarity: similarityScore,
-            startLine: result.startLine,
-            endLine: result.endLine,
-            lineNumber: result.startLine, // Default to start line for positioning
+            startLine: result.startLine!,
+            endLine: result.endLine!,
+            lineNumber: result.startLine!, // Default to start line for positioning
           })
         }
       }
