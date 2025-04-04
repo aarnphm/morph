@@ -46,7 +46,7 @@ The environment supports modular experimentation with text generation features, 
 
 ## Goals
 
-Tinymorph aims to deliver a web-based text editor that is intuitive, responsive, and grounded in cognitive support for writers. The following goals guide its design and development:
+It aims to deliver a web-based text editor that is intuitive, responsive, and grounded in cognitive support for writers. The following goals guide its design and development:
 
 - **[_File-over-app_](https://stephango.com/file-over-app) editing experience**  
   Prioritizes simplicity and portability by enabling users to treat writing sessions as files rather than bound app sessions, lowering barriers to entry and promoting ease of use.
