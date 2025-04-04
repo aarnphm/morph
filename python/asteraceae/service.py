@@ -620,7 +620,7 @@ class API:
               search_results = await self.search(
                 search_query, backend=search_backend, num_results=request.num_search_results
               )
-              logger.info('Found %d search results', len(search_results))
+              logger.info('Found %d search results', len(search_results.items))
 
               # Add the tool response to messages
               messages.append({
