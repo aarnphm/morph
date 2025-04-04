@@ -12,7 +12,7 @@ import { EditorView, Panel, keymap } from "@codemirror/view"
 import * as React from "react"
 import { createRoot } from "react-dom/client"
 
-import { SearchPanel } from "./search-panel"
+import { SearchPanel } from "./grep-panel"
 
 /**
  * Custom effect to toggle search panel visibility

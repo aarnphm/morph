@@ -17,6 +17,8 @@ import {
   submitNoteForEmbedding,
   useProcessPendingEmbeddings,
 } from "@/services/notes"
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands"
+import { keymap } from "@codemirror/view"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
 import { Compartment, EditorState } from "@codemirror/state"
@@ -47,9 +49,11 @@ import { NotesPanel, StreamingNote } from "@/components/note-panel"
 import { theme as editorTheme, frontmatter, md, syntaxHighlighting } from "@/components/parser"
 import Rails from "@/components/rails"
 import { SearchCommand } from "@/components/search-command"
+import { SettingsPanel } from "@/components/settings-panel"
 import { VaultButton } from "@/components/ui/button"
 import { DotIcon } from "@/components/ui/icons"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { AuthorProcessor } from "@/components/author-processor"
 
 import { usePGlite } from "@/context/db"
 import { useEmbeddingTasks, useEssayEmbeddingTasks } from "@/context/embedding"
@@ -58,6 +62,7 @@ import { SearchProvider } from "@/context/search"
 import { SteeringProvider, SteeringSettings } from "@/context/steering"
 import { useVaultContext } from "@/context/vault"
 import { verifyHandle } from "@/context/vault-reducer"
+import { useAuthorTasks } from "@/context/authors"
 
 import useFsHandles from "@/hooks/use-fs-handles"
 import usePersistedSettings from "@/hooks/use-persisted-settings"
@@ -65,6 +70,7 @@ import { useToast } from "@/hooks/use-toast"
 
 import type { FileSystemTreeNode, Note, Vault } from "@/db/interfaces"
 import * as schema from "@/db/schema"
+import { submitContentForAuthors } from "@/services/authors"
 
 interface EditorProps {
   vaultId: string
@@ -99,10 +105,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const { toast } = useToast()
   const { storeHandle } = useFsHandles()
   const { restoredFile, setRestoredFile } = useRestoredFile()
+  const { settings } = usePersistedSettings()
 
   const { refreshVault, flattenedFileIds } = useVaultContext()
   const [currentFile, setCurrentFile] = useState<string>("Untitled")
   const [isEditMode, setIsEditMode] = useState(true)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [previewNode, setPreviewNode] = useState<Root | null>(null)
   const [isNotesLoading, setIsNotesLoading] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -131,14 +139,15 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   // Add a state to track current generation notes
   const [currentGenerationNotes, setCurrentGenerationNotes] = useState<Note[]>([])
   const [streamingNotes, setStreamingNotes] = useState<StreamingNote[]>([])
-  const [vimMode] = useState(false)
+  const [vimMode, setVimMode] = useState(settings.vimMode ?? false)
   // Add a ref to track if we've already attempted to restore a file
   const fileRestorationAttempted = useRef(false)
+  // Add state to show vim mode change notification
+  const [showVimModeChangeNotification, setShowVimModeChangeNotification] = useState(false)
 
   // Add a ref to track loaded files to prevent duplicate note loading
   const loadedFiles = useRef<Set<string>>(new Set())
 
-  const { settings } = usePersistedSettings()
   const client = usePGlite()
   const db = drizzle({ client, schema })
 
@@ -153,6 +162,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   // Get the task actions for adding tasks
   const { addTask, pendingTaskIds } = useEmbeddingTasks()
   const { addTask: addEssayTask, pendingTaskIds: essayPendingTaskIds } = useEssayEmbeddingTasks()
+  const { addTask: addAuthorTask } = useAuthorTasks()
 
   const toggleStackExpand = useCallback(() => {
     setIsStackExpanded((prev) => !prev)
@@ -162,6 +172,25 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   useEffect(() => {
     setIsClient(true)
   }, [])
+
+  // Add a ref to track initial settings load
+  const initialSettingsLoadComplete = useRef(false)
+
+  // Effect to update vimMode state when settings change
+  useEffect(() => {
+    // Only show notification if this isn't the initial settings load
+    if (settings.vimMode !== vimMode) {
+      setVimMode(settings.vimMode ?? false)
+
+      // Only show notification if initial settings have already been loaded once
+      if (initialSettingsLoadComplete.current) {
+        setShowVimModeChangeNotification(true)
+      } else {
+        // Mark that we've completed the initial settings load
+        initialSettingsLoadComplete.current = true
+      }
+    }
+  }, [settings.vimMode, vimMode])
 
   const updatePreview = useCallback(
     async (value: string) => {
@@ -410,9 +439,19 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               // Process any existing notes for this file
               processEmbeddings.mutate({ addTask })
             }
+
+            // Also process author recommendations if online
+            if (!authorsProcessedRef.current && dbFile) {
+              const content = md(restoredFile.content).content
+
+              const taskId = await submitContentForAuthors(db, dbFile.id, content)
+              if (taskId) {
+                addAuthorTask(taskId, dbFile.id)
+                authorsProcessedRef.current = true
+              }
+            }
           } catch (error) {
-            console.error("Error processing embeddings for restored file:", error)
-            // Non-critical, we can continue without embeddings
+            console.error("Error processing file data:", error)
           }
         }, 1000) // 1 second delay to ensure DB operations are ready
       }
@@ -433,6 +472,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     processEssayEmbeddings,
     addTask,
     addEssayTask,
+    addAuthorTask,
   ])
 
   // Reset loaded files cache when vault changes
@@ -1274,6 +1314,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     const tabSize = new Compartment()
 
     const exts = [
+      history(),
+      keymap.of([...defaultKeymap, ...historyKeymap]),
       markdown({ base: markdownLanguage, codeLanguages: languages }),
       frontmatter(),
       EditorView.lineWrapping,
@@ -1289,6 +1331,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       syntaxHighlighting(),
       search(),
     ]
+
     if (vimMode) exts.push(vim())
     return exts
   }, [settings, currentFile, vimMode])
@@ -1327,34 +1370,53 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
   }, [isClient, vaultId])
 
+  // Create a function to toggle settings that we can pass to Rails
+  const toggleSettings = useCallback(() => {
+    setIsSettingsOpen(prev => !prev);
+  }, []);
+
   const handleKeyDown = useCallback(
-    async (event: KeyboardEvent) => {
+    (event: KeyboardEvent) => {
+      // Special handling for settings shortcut - high priority
+      if ((event.metaKey || event.ctrlKey) && event.key === ",") {
+        event.preventDefault();
+        event.stopPropagation(); // Stop event from bubbling up
+        toggleSettings();
+        return;
+      }
+
+      // Other keyboard shortcuts
       if (event.key === settings.toggleNotes && (event.metaKey || event.ctrlKey)) {
         event.preventDefault()
         toggleNotes()
       } else if (event.key === settings.toggleEditMode && (event.metaKey || event.altKey)) {
         event.preventDefault()
         setIsEditMode((prev) => !prev)
-        // Safely try to render mermaid diagrams if available
       } else if ((event.ctrlKey || event.metaKey) && event.key === "s") {
         event.preventDefault()
         handleSave()
       }
     },
-    [handleSave, toggleNotes, settings],
+    [handleSave, toggleNotes, settings, toggleSettings],
   )
 
-  // Effect to update vim mode when settings change, with keybinds
+  // Separate effect specifically for global keyboard shortcuts
+  useEffect(() => {
+    // Add event listener for keyboard shortcuts
+    const handler = (e: KeyboardEvent) => handleKeyDown(e);
+    window.addEventListener("keydown", handler, { capture: true }); // Use capture to get event before other handlers
+
+    return () => window.removeEventListener("keydown", handler, { capture: true });
+  }, [handleKeyDown]);
+
+  // Effect for vim mode and vim-specific keybindings
   useEffect(() => {
     Vim.defineEx("w", "w", handleSave)
     Vim.defineEx("wa", "w", handleSave)
     Vim.map(";", ":", "normal")
     Vim.map("jj", "<Esc>", "insert")
     Vim.map("jk", "<Esc>", "insert")
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [handleSave, toggleNotes, settings, handleKeyDown])
+  }, [handleSave]);
 
   const generateNewSuggestions = useCallback(
     async (steeringSettings: SteeringSettings) => {
@@ -1815,9 +1877,22 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 // Process any existing notes for this file
                 processEmbeddings.mutate({ addTask })
               }
+
+              // Also process author recommendations
+              if (!authorsProcessedRef.current) {
+                const content = md(content).content
+                const processAuthors = await import("@/services/authors").then(
+                  (module) => module.submitContentForAuthors
+                )
+
+                const taskId = await processAuthors(db, dbFile.id, content)
+                if (taskId) {
+                  addAuthorTask(taskId, dbFile.id)
+                  authorsProcessedRef.current = true
+                }
+              }
             } catch (error) {
-              console.error("Error processing embeddings:", error)
-              // Non-critical, we can continue without embeddings
+              console.error("Error processing file data:", error)
             }
           }
         } else {
@@ -1850,6 +1925,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       addTask,
       processEmbeddings,
       processEssayEmbeddings,
+      addAuthorTask,
     ],
   )
 
@@ -2026,6 +2102,57 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     addEssayTask,
   ])
 
+  // Add an effect to update CodeMirror when vim mode changes
+  useEffect(() => {
+    // Only run if CodeMirror view is available
+    if (codeMirrorViewRef.current) {
+      // Create a new state that either includes or excludes vim() based on vimMode
+      const newState = EditorState.create({
+        doc: codeMirrorViewRef.current.state.doc,
+        selection: codeMirrorViewRef.current.state.selection,
+        extensions: [
+          ...memoizedExtensions.filter(ext => ext !== vim()),
+          ...(vimMode ? [vim()] : []),
+        ]
+      })
+
+      // Update the view with the new state
+      codeMirrorViewRef.current.setState(newState)
+    }
+  }, [vimMode, memoizedExtensions])
+
+  // Effect to check for vim mode change notification in localStorage
+  useEffect(() => {
+    // Only run on the client side
+    if (!isClient) return;
+
+    // Check if there's a vim mode change notification in localStorage
+    const vimModeChanged = localStorage.getItem('morph:vim-mode-changed') === 'true';
+
+    if (vimModeChanged) {
+      // Show the notification
+      setShowVimModeChangeNotification(true);
+
+      // Clear the notification flag from localStorage
+      localStorage.removeItem('morph:vim-mode-changed');
+
+      // Set a timeout to dismiss the notification after a few seconds
+      const timer = setTimeout(() => {
+        setShowVimModeChangeNotification(false);
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isClient]); // Add isClient as a dependency
+
+  // Add a ref to track if we've processed authors for the current file
+  const authorsProcessedRef = useRef(false)
+
+  // Reset the author processed flag when the file changes
+  useEffect(() => {
+    authorsProcessedRef.current = false
+  }, [currentFile])
+
   return (
     <DndProvider backend={HTML5Backend}>
       <SteeringProvider>
@@ -2038,11 +2165,13 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               onFileSelect={handleFileSelect}
               onNewFile={onNewFile}
               onContentUpdate={updatePreview}
+              setIsSettingsOpen={toggleSettings}
             />
             <SidebarInset className="flex flex-col h-screen flex-1 overflow-hidden">
               <Playspace vaultId={vaultId}>
                 <NoteEmbeddingProcessor />
                 <EssayEmbeddingProcessor />
+                <AuthorProcessor />
                 <AnimatePresence initial={false}>
                   {showEphemeralBanner && (
                     <motion.div
@@ -2067,6 +2196,31 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {/* Add vim mode change notification banner */}
+                <AnimatePresence initial={false}>
+                  {showVimModeChangeNotification && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.3 }}
+                      className="absolute top-2 left-1/2 transform -translate-x-1/2 z-50 bg-blue-400/70 border border-blue-300 text-blue-800 px-4 py-2 rounded-md shadow-md text-xs flex items-center space-x-2"
+                    >
+                      <span>
+                        ⚠️ Turning {localStorage.getItem('morph:vim-mode-value') === 'true' ? "on" : "off"} Vim mode requires a page refresh to take effect
+                      </span>
+                      <button
+                        onClick={() => setShowVimModeChangeNotification(false)}
+                        className="text-blue-800 hover:text-blue-900 hover:cursor-pointer"
+                        aria-label="Dismiss notification"
+                      >
+                        <Cross2Icon className="w-3 h-3" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 <EditorDropTarget handleNoteDropped={handleNoteDropped}>
                   <AnimatePresence initial={false} mode="sync">
                     {memoizedDroppedNotes.length > 0 && (
@@ -2120,8 +2274,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                           rectangularSelection: false,
                           indentOnInput: true,
                           syntaxHighlighting: true,
-                          highlightActiveLine: false,
-                          highlightSelectionMatches: false,
+                          highlightActiveLine: true,
+                          highlightSelectionMatches: true,
                         }}
                         indentWithTab={true}
                         extensions={memoizedExtensions}
@@ -2189,6 +2343,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               />
             </SidebarInset>
           </SidebarProvider>
+          <SettingsPanel
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            setIsOpen={setIsSettingsOpen}
+          />
         </SearchProvider>
       </SteeringProvider>
     </DndProvider>

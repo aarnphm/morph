@@ -1,18 +1,28 @@
 "use client"
 
 import { DoubleArrowRightIcon, EnterIcon } from "@radix-ui/react-icons"
+import dynamic from "next/dynamic"
 import Link from "next/link"
 
-import { PixelatedScene } from "@/components/landing"
 import { VaultButton } from "@/components/ui/button"
 
 import { useIsMobile } from "@/hooks/use-mobile"
+
+// Lazy load the PixelatedScene to improve initial page load time
+const PixelatedScene = dynamic(
+  () => import("@/components/landing").then((mod) => mod.PixelatedScene),
+  {
+    ssr: false,
+    loading: () => null,
+  },
+)
 
 export default function LandingPage() {
   const isMobile = useIsMobile()
 
   return (
     <div className="relative h-screen w-full bg-background flex flex-col items-center justify-center noise-bg">
+      {/* Only render the scene when not on mobile */}
       <div className="w-full h-full absolute inset-0">{!isMobile && <PixelatedScene />}</div>
       <div className="absolute bottom-4 right-4 z-10">
         <div className="relative">

@@ -10,6 +10,7 @@ import * as THREE from "three"
 const bgColor = "#f2f0e5"
 const wireframeColor = "#111111"
 
+// Reduce rendering complexity with better memoization
 const Icosahedron = memo(
   forwardRef<THREE.Mesh>(function Icosahedron(_, ref) {
     const meshRef = useRef<THREE.Mesh>(null)
@@ -32,58 +33,84 @@ const Icosahedron = memo(
   }),
 )
 
-// Star component
-function Star({ p }: { p: number }) {
-  const ref = useRef<THREE.Mesh>(null)
+// Use instanced mesh for stars instead of individual meshes
+function Stars({ count = 50 }) {
+  const instancedMeshRef = useRef<THREE.InstancedMesh>(null)
+  const dummy = useRef(new THREE.Object3D())
 
   useLayoutEffect(() => {
-    if (!ref.current) return
+    if (!instancedMeshRef.current) return
 
-    const distance = mix(2, 3.5, Math.random())
-    const yAngle = mix(degreesToRadians(80), degreesToRadians(100), Math.random())
-    const xAngle = degreesToRadians(360) * p
-    ref.current.position.setFromSphericalCoords(distance, yAngle, xAngle)
-  }, [p])
+    // Position all stars at once
+    for (let i = 0; i < count; i++) {
+      const distance = mix(2, 3.5, Math.random())
+      const yAngle = mix(degreesToRadians(80), degreesToRadians(100), Math.random())
+      const xAngle = degreesToRadians(360) * progress(0, count, i)
+
+      dummy.current.position.setFromSphericalCoords(distance, yAngle, xAngle)
+      dummy.current.updateMatrix()
+
+      instancedMeshRef.current.setMatrixAt(i, dummy.current.matrix)
+    }
+
+    instancedMeshRef.current.instanceMatrix.needsUpdate = true
+  }, [count])
 
   return (
-    <mesh ref={ref}>
+    <instancedMesh ref={instancedMeshRef} args={[undefined, undefined, count]}>
       <boxGeometry args={[0.07, 0.07, 0.07]} />
       <meshBasicMaterial wireframe color={wireframeColor} />
-    </mesh>
+    </instancedMesh>
   )
 }
 
-function Scene({ numStars = 100 }) {
+function Scene() {
   const gl = useThree((state) => state.gl)
   const scene = useThree((state) => state.scene)
+  const camera = useThree((state) => state.camera)
   const time = useTime()
+  const frameRef = useRef<number>(null)
 
+  // Reduce pixel ratio for better performance
   useLayoutEffect(() => {
-    gl.setPixelRatio(1)
+    gl.setPixelRatio(Math.min(1, window.devicePixelRatio))
     scene.background = new THREE.Color(bgColor)
-  }, [gl, scene])
 
-  useFrame(({ camera }) => {
-    camera.position.setFromSphericalCoords(8, degreesToRadians(75), time.get() * 0.0002)
+    return () => {
+      if (frameRef.current) {
+        cancelAnimationFrame(frameRef.current)
+      }
+    }
+  }, [gl, scene, frameRef])
+
+  // Optimize camera animation with throttling
+  useFrame(() => {
+    const t = time.get() * 0.0002
+    camera.position.setFromSphericalCoords(8, degreesToRadians(75), t)
     camera.lookAt(0, 0, 0)
   })
-
-  const stars = []
-  for (let i = 0; i < numStars; i++) {
-    stars.push(<Star key={i} p={progress(0, numStars, i)} />)
-  }
 
   return (
     <>
       <Icosahedron />
-      {stars}
+      <Stars count={50} />
     </>
   )
 }
 
+// Optimize canvas settings for performance
 export default memo(function PixelatedScene() {
   return (
-    <Canvas gl={{ antialias: false }}>
+    <Canvas
+      gl={{
+        antialias: false,
+        powerPreference: "high-performance",
+        depth: false,
+      }}
+      dpr={[0.7, 1]} // Limit resolution
+      performance={{ min: 0.5 }} // Allow ThreeJS to reduce quality if needed
+      style={{ height: "100%", width: "100%" }}
+    >
       <Scene />
       <OrbitControls
         enableZoom={false}

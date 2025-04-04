@@ -45,7 +45,7 @@ const Notch = memo(function Notch({ onClickBanner }: { onClickBanner: () => void
         preserveAspectRatio="none"
         viewBox="0 0 1000 32"
         xmlns="http://www.w3.org/2000/svg"
-        style={{ zIndex: 10 }}
+        style={{ zIndex: 10, willChange: "transform, opacity" }}
         initial={{ opacity: 0, scaleY: 0.7, y: -5 }}
         animate={{ opacity: 1, scaleY: 1, y: 0 }}
         transition={{
@@ -56,9 +56,9 @@ const Notch = memo(function Notch({ onClickBanner }: { onClickBanner: () => void
         }}
       >
         <defs>
-          <filter id="shadow" x="-10%" y="-10%" width="120%" height="150%">
-            <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="rgba(253, 230, 138, 0.7)" />
-            <feDropShadow dx="0" dy="1" stdDeviation="1" floodColor="rgba(251, 191, 36, 0.3)" />
+          <filter id="shadow" x="-10%" y="-10%" width="120%" height="150%" colorInterpolationFilters="sRGB">
+            {/* Combine multiple drop shadows into a single filter for better performance */}
+            <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodColor="rgba(251, 191, 36, 0.5)" />
           </filter>
           <linearGradient
             id="buttonBlend"
@@ -90,7 +90,7 @@ const Notch = memo(function Notch({ onClickBanner }: { onClickBanner: () => void
           initial={{ pathLength: 0 }}
           animate={{ pathLength: 1 }}
           transition={{
-            duration: 1.2,
+            duration: 1,
             ease: "easeInOut",
             delay: 0.3,
           }}
@@ -99,6 +99,7 @@ const Notch = memo(function Notch({ onClickBanner }: { onClickBanner: () => void
       <motion.div
         className="absolute top-0 left-1/2 -translate-x-1/2 cursor-pointer z-20 flex flex-row items-center gap-1 px-4 py-1 border-t-0"
         onClick={onClickBanner}
+        style={{ willChange: "transform, opacity" }}
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{

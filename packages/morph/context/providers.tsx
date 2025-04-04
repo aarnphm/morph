@@ -3,7 +3,6 @@
 import { applyPgLiteMigrations, initializeDb } from "@/db"
 import migrations from "@/generated/migrations.json"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { AnimatePresence, motion } from "motion/react"
 import type React from "react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -17,8 +16,10 @@ import { FileRestorationProvider, useRestoredFile } from "@/context/file-restora
 import { ThemeProvider } from "@/context/theme"
 import { VaultProvider } from "@/context/vault"
 import { verifyHandle } from "@/context/vault-reducer"
+import { AuthorTasksProvider } from "@/context/authors"
 
 import useFsHandles from "@/hooks/use-fs-handles"
+import { SettingsProvider } from "@/hooks/use-persisted-settings"
 
 interface ClientProviderProps {
   children: React.ReactNode
@@ -177,21 +178,24 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
               <QueryClientProvider client={queryClient}>
                 <FileRestorationProvider>
                   <EmbeddingProvider>
-                    <VaultProvider>
-                      <ThemeProvider
-                        attribute="class"
-                        defaultTheme="system"
-                        enableSystem
-                        disableTransitionOnChange
-                      >
-                        <TooltipProvider delayDuration={0} skipDelayDuration={0}>
-                          {children}
-                        </TooltipProvider>
-                      </ThemeProvider>
-                    </VaultProvider>
+                    <AuthorTasksProvider>
+                      <VaultProvider>
+                        <SettingsProvider>
+                          <ThemeProvider
+                            attribute="class"
+                            defaultTheme="system"
+                            enableSystem
+                            disableTransitionOnChange
+                          >
+                            <TooltipProvider delayDuration={0} skipDelayDuration={0}>
+                              {children}
+                            </TooltipProvider>
+                          </ThemeProvider>
+                        </SettingsProvider>
+                      </VaultProvider>
+                    </AuthorTasksProvider>
                   </EmbeddingProvider>
                 </FileRestorationProvider>
-                <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
               </QueryClientProvider>
             </PGliteProvider>
           </motion.div>

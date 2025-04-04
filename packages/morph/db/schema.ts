@@ -52,6 +52,27 @@ export const filesRelations = relations(files, ({ one }) => ({
   }),
 }))
 
+export const authors = p.pgTable("authors", {
+  id: p
+    .text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  fileId: p
+    .text("fileId")
+    .notNull()
+    .references(() => files.id, { onDelete: "cascade" }),
+  queries: p.text("queries").array(),
+  recommendedAuthors: p.text("recommendedAuthors").array().notNull(),
+  createdAt: p.timestamp("createdAt", { mode: "date" }).notNull(),
+  authorStatus: p
+    .text("authorStatus", {
+      enum: ["in_progress", "success", "failure", "cancelled"],
+    })
+    .notNull()
+    .default("in_progress"),
+  authorTaskId: p.text("authorTaskId").references(() => tasks.id),
+})
+
 export const notes = p.pgTable(
   "notes",
   {

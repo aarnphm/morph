@@ -5,7 +5,6 @@ import * as React from "react"
 import { useCallback, useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -92,7 +91,7 @@ function SettingsButton({ className, ref, ...props }: React.ComponentProps<typeo
   )
 }
 
-function GeneralSettings() {
+const GeneralSettings = React.memo(function GeneralSettings() {
   return (
     <div className="text-sm">
       <SettingItem name="App" isHeading />
@@ -115,11 +114,18 @@ function GeneralSettings() {
       </SettingItem>
     </div>
   )
-}
+})
 
 const EditorSettings = React.memo(function EditorSettings() {
-  const { updateSettings } = usePersistedSettings()
+  const { settings, updateSettings } = usePersistedSettings()
   const { theme, setTheme } = useTheme()
+
+  const handleVimModeToggle = useCallback((checked: boolean) => {
+    // Always update settings with the new value
+    updateSettings({ vimMode: checked })
+
+    // Note: updateSettings already sets the localStorage flags in use-persisted-settings.tsx
+  }, [updateSettings])
 
   return (
     <div className="text-sm">
@@ -130,14 +136,14 @@ const EditorSettings = React.memo(function EditorSettings() {
           value={theme}
           onValueChange={setTheme}
           defaultValue="comfortable"
-          className="flex gap-4"
+          className="flex gap-4 hover:cursor-pointer"
         >
           {["light", "dark", "system"].map((el, index) => (
-            <div key={index} className="flex items-center space-x-2">
+            <div key={index} className="flex items-center space-x-2 hover:cursor-pointer">
               <RadioGroupItem value={el} id={el} />
-              <Label htmlFor={el} className="capitalize">
+              <label htmlFor={el} className="capitalize">
                 {el}
-              </Label>
+              </label>
             </div>
           ))}
         </RadioGroup>
@@ -149,7 +155,8 @@ const EditorSettings = React.memo(function EditorSettings() {
         <Switch
           className="cursor-pointer"
           id="vim-mode"
-          onCheckedChange={(checked) => updateSettings({ vimMode: checked })}
+          checked={settings.vimMode || false}
+          onCheckedChange={handleVimModeToggle}
         />
       </SettingItem>
     </div>
@@ -177,13 +184,12 @@ const HotkeySettings = React.memo(function HotkeySettings() {
         name="Edit Mode Toggle"
         description="Shortcut to toggle between edit and reading mode (⌘ or Ctrl + key)"
       >
-        <Input
+        <input
           id="edit-mode-shortcut"
           type="text"
           value={settings.toggleEditMode}
           onChange={handleEditModeShortcutChange}
-          className="w-10 text-center border rounded-md"
-          maxLength={1}
+          className="w-10 text-center border"
         />
       </SettingItem>
     </div>
@@ -284,6 +290,7 @@ export const SettingsPanel = React.memo(function SettingsPanel({
   setIsOpen,
 }: SettingsPanelProps) {
   const [activeCategory, setActiveCategory] = useState("general")
+  // We still need isLoaded for the initial render check
   const { isLoaded } = usePersistedSettings()
 
   const handleKeyDown = useCallback(

@@ -7,6 +7,7 @@ import {
   ChevronRightIcon,
   Cross2Icon,
   CrumpledPaperIcon,
+  GearIcon,
   KeyboardIcon,
   LayoutIcon,
   PinLeftIcon,
@@ -468,15 +469,18 @@ interface RailsProps extends React.ComponentProps<typeof Sidebar> {
   onFileSelect?: (node: FileSystemTreeNode) => void
   onNewFile?: () => void
   onContentUpdate?: (content: string) => void
+  setIsSettingsOpen?: () => void
 }
 
 // Create a separate component for keyboard shortcuts
 const KeyboardShortcutsSection = memo(function KeyboardShortcutsSection({
   isExpanded,
   settings,
+  setIsSettingsOpen,
 }: {
   isExpanded: boolean
   settings: any
+  setIsSettingsOpen?: () => void
 }) {
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
 
@@ -495,6 +499,12 @@ const KeyboardShortcutsSection = memo(function KeyboardShortcutsSection({
     }
     // No else case needed - we'll handle expansion elsewhere
   }, [isExpanded])
+
+  const toggleSettings = useCallback(() => {
+    if (setIsSettingsOpen) {
+      setIsSettingsOpen()
+    }
+  }, [setIsSettingsOpen])
 
   // Close keyboard shortcuts panel when sidebar is collapsed
   useEffect(() => {
@@ -552,6 +562,10 @@ const KeyboardShortcutsSection = memo(function KeyboardShortcutsSection({
             <span>{modifierKey} + b</span>
             <span className="text-muted-foreground">Sidebar</span>
           </div>
+          <div className="flex justify-between items-center">
+            <span>{modifierKey} + ,</span>
+            <span className="text-muted-foreground">Settings</span>
+          </div>
         </div>
       </motion.div>
     )
@@ -602,12 +616,58 @@ const KeyboardShortcutsSection = memo(function KeyboardShortcutsSection({
     [isExpanded, toggleKeyboardShortcuts],
   )
 
+  const settingsButton = useMemo(
+    () => (
+      <div className="relative group mb-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <VaultButton
+              color="none"
+              className={cn(
+                "group w-full text-sm rounded-lg transition ease-in-out active:!scale-100 whitespace-nowrap",
+                "flex !justify-start !min-w-0 px-4 py-2 h-9",
+                "hover:bg-cyan-100/20 active:!bg-cyan-200/30",
+              )}
+              onClick={toggleSettings}
+              title="Settings"
+            >
+              <div className="-mx-2 flex flex-row items-center gap-3 text-cyan-600">
+                <div className="size-4 flex items-center justify-center">
+                  <div className="p-1.5 group-active:!scale-[0.98] group-active:!shadow-none group-hover:-rotate-2 group-active:rotate-3 rounded-full transition-all ease-in-out bg-cyan-100 group-hover:shadow-md">
+                    <GearIcon className="h-3 w-3 shrink-0" />
+                  </div>
+                </div>
+                <motion.span
+                  className="text-sm whitespace-nowrap mask-image-text overflow-hidden"
+                  initial={false}
+                  animate={{
+                    opacity: isExpanded ? 1 : 0,
+                  }}
+                  transition={{
+                    opacity: { duration: 0.15 },
+                  }}
+                >
+                  Settings
+                </motion.span>
+              </div>
+            </VaultButton>
+          </TooltipTrigger>
+          <TooltipContent side="right" hidden={isExpanded}>
+            Settings
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    ),
+    [isExpanded, toggleSettings],
+  )
+
   return (
     <div className="mt-auto w-full px-2 relative">
-      {keyboardButton}
       <AnimatePresence initial={false}>
         {showKeyboardShortcuts && keyboardShortcutsPanel}
       </AnimatePresence>
+      {keyboardButton}
+      {settingsButton}
     </div>
   )
 })
@@ -665,6 +725,7 @@ export default memo(function Rails({
   onFileSelect,
   onNewFile,
   onContentUpdate,
+  setIsSettingsOpen,
 }: RailsProps) {
   const { toast } = useToast()
   const { toggleSidebar, state } = useSidebar()
@@ -964,7 +1025,11 @@ export default memo(function Rails({
         </div>
 
         {/* Separate component for keyboard shortcuts */}
-        <KeyboardShortcutsSection isExpanded={isExpanded} settings={settings} />
+        <KeyboardShortcutsSection
+          isExpanded={isExpanded}
+          settings={settings}
+          setIsSettingsOpen={setIsSettingsOpen}
+        />
       </motion.nav>
     </motion.div>
   )

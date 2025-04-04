@@ -278,11 +278,12 @@ export const NotesPanel = memo(function NotesPanel({
 }: NotesPanelProps) {
   const memoizedNoteSkeletons = useMemo(() => <NoteCard variant="skeleton" />, [])
 
-  // Get steering settings from context
-  const { settings } = useSteeringContext()
+  // Get steering settings and fileId update function from context
+  const { settings, updateFileId } = useSteeringContext()
 
   // Track settings changes with a ref to detect actual value changes
   const prevSettingsRef = useRef(settings)
+  const currentFileRef = useRef<string | null>(null)
 
   // Add effect to properly track settings changes
   useEffect(() => {
@@ -290,6 +291,22 @@ export const NotesPanel = memo(function NotesPanel({
       prevSettingsRef.current = settings
     }
   }, [settings])
+
+  // Add effect to update fileId in steering context when it changes
+  useEffect(() => {
+    // Skip for non-persisted files
+    if (currentFile === "Untitled") {
+      updateFileId(null)
+      currentFileRef.current = null
+      return
+    }
+
+    // Find the file ID from notes array
+    if (notes.length > 0 && notes[0].fileId && currentFileRef.current !== notes[0].fileId) {
+      currentFileRef.current = notes[0].fileId
+      updateFileId(notes[0].fileId)
+    }
+  }, [currentFile, notes, updateFileId])
 
   const [{ isOver }, drop] = useDrop(
     () => ({

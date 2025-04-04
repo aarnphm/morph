@@ -1,10 +1,20 @@
-import { useEffect, useState } from "react"
+import { createContext, ReactNode, useContext, useEffect, useState } from "react"
 
 import { useVaultContext } from "@/context/vault"
 
 import { DEFAULT_SETTINGS, Settings } from "@/db/interfaces"
 
-export default function usePersistedSettings() {
+// Create a context for settings
+interface SettingsContextType {
+  settings: Settings
+  updateSettings: (newSettings: Partial<Settings>) => Promise<void>
+  isLoaded: boolean
+}
+
+const SettingsContext = createContext<SettingsContextType | undefined>(undefined)
+
+// Create a provider component
+export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [isLoaded, setIsLoaded] = useState(false)
   const { getActiveVault } = useVaultContext()
@@ -47,6 +57,12 @@ export default function usePersistedSettings() {
       const updated = { ...settings, ...newSettings }
       setSettings(updated)
 
+      // Set a localStorage flag if vim mode is changed
+      if (newSettings.vimMode !== undefined && newSettings.vimMode !== settings.vimMode) {
+        localStorage.setItem('morph:vim-mode-changed', 'true')
+        localStorage.setItem('morph:vim-mode-value', newSettings.vimMode ? 'true' : 'false')
+      }
+
       // Save to .morph/config.json
       const handle = vault.tree.handle as FileSystemDirectoryHandle
       const morphDir = await handle.getDirectoryHandle(".morph", { create: true })
@@ -59,9 +75,18 @@ export default function usePersistedSettings() {
     }
   }
 
-  return {
-    settings,
-    updateSettings,
-    isLoaded,
+  return (
+    <SettingsContext.Provider value={{ settings, updateSettings, isLoaded }}>
+      {children}
+    </SettingsContext.Provider>
+  )
+}
+
+// Export the hook
+export default function usePersistedSettings() {
+  const context = useContext(SettingsContext)
+  if (context === undefined) {
+    throw new Error("usePersistedSettings must be used within a SettingsProvider")
   }
+  return context
 }

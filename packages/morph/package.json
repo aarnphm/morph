@@ -12,6 +12,7 @@
     "migrate": "drizzle-kit generate && tsx compile-migrations.ts"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.3.3",
     "@codemirror/lang-markdown": "^6.3.2",
     "@codemirror/lang-yaml": "^6.1.2",
     "@codemirror/language": "^6.11.0",
@@ -78,8 +79,10 @@
     "katex": "^0.16.21",
     "lodash": "^4.17.21",
     "mdast-util-from-markdown": "^2.0.2",
+    "mdast-util-gfm": "^3.0.0",
     "mdast-util-to-hast": "^13.2.0",
     "mdast-util-to-string": "^4.0.0",
+    "micromark-extension-gfm": "^3.0.0",
     "minimatch": "^10.0.1",
     "motion": "^12.6.3",
     "next": "15.2.2",

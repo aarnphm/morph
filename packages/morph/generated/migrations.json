@@ -54,5 +54,15 @@
     "bps": true,
     "folderMillis": 1743719720059,
     "hash": "a2473577fc6ae5b50e49aec4ded457ac249bece9583bc772685a0bb55c0c0c5e"
+  },
+  {
+    "sql": [
+      "CREATE TABLE \"authors\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"fileId\" text NOT NULL,\n\t\"queries\" text[],\n\t\"recommendedAuthors\" text[] NOT NULL,\n\t\"createdAt\" timestamp NOT NULL,\n\t\"authorStatus\" text DEFAULT 'in_progress' NOT NULL,\n\t\"authorTaskId\" text\n);\n",
+      "\nALTER TABLE \"authors\" ADD CONSTRAINT \"authors_fileId_files_id_fk\" FOREIGN KEY (\"fileId\") REFERENCES \"public\".\"files\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+      "\nALTER TABLE \"authors\" ADD CONSTRAINT \"authors_authorTaskId_tasks_id_fk\" FOREIGN KEY (\"authorTaskId\") REFERENCES \"public\".\"tasks\"(\"id\") ON DELETE no action ON UPDATE no action;"
+    ],
+    "bps": true,
+    "folderMillis": 1743757664263,
+    "hash": "4fd2091520ad005b4d634d692c406d2f86f17700da8e724e1fc887d4fe7eac6e"
   }
 ]
