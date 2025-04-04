@@ -107,7 +107,7 @@ ReasoningModels: dict[ModelType, ModelForCausalLM] = {
   ),
   'qwq': ModelForCausalLM(
     model_id='Qwen/QwQ-32B',
-    structured_output_backend='xgrammar',
+    structured_output_backend='xgrammar:disable-any-whitespace',
     temperature=0.6,
     top_p=0.95,
     max_model_len=48 * 1024,
@@ -214,10 +214,17 @@ class MetadataResponse(pydantic.BaseModel):
   embed: EmbedInfo
 
 
-class Suggestion(pydantic.BaseModel):
+class SuggestionResponseSchema(pydantic.BaseModel):
   suggestion: str
+
+
+class Suggestion(SuggestionResponseSchema):
   reasoning: str = pydantic.Field(default='')
   usage: CompletionUsage | None = None
+
+
+class SuggestionsSchema(pydantic.BaseModel):
+  suggestions: list[SuggestionResponseSchema]
 
 
 class Suggestions(pydantic.BaseModel):

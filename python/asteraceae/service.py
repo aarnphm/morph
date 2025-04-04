@@ -41,7 +41,7 @@ with bentoml.importing():
     HealthResponse,
     LineNumberMetadataExtractor,
     Suggestion,
-    Suggestions,
+    SuggestionsSchema,
     Authors,
     TaskType,
     Tonality,
@@ -300,7 +300,7 @@ class LLM:
           max_tokens=max_tokens,
           messages=messages,
           stream=True,
-          extra_body={'guided_json': Suggestions.model_json_schema()},
+          extra_body={'guided_json': SuggestionsSchema.model_json_schema()},
           stream_options={'continuous_usage_stats': True, 'include_usage': True} if usage else None,
         ),
       )
