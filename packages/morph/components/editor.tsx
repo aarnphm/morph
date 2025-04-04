@@ -147,6 +147,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   // Add state to show vim mode change notification
   const [showVimModeChangeNotification, setShowVimModeChangeNotification] = useState(false)
   const [currentFileId, setCurrentFileId] = useState<string | null>(null)
+  // Add a state for visible context note IDs (around line 150, with other state declarations)
+  const [visibleContextNoteIds, setVisibleContextNoteIds] = useState<string[]>([])
 
   // Add a ref to track loaded files to prevent duplicate note loading
   const loadedFiles = useRef<Set<string>>(new Set())
@@ -2223,6 +2225,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
   }, [db, vault, currentFile, currentFileId])
 
+  // Add the handler function (around line 500, with other handler functions)
+  const handleVisibleContextNotesChange = useCallback((noteIds: string[]) => {
+    setVisibleContextNoteIds(noteIds)
+  }, [])
+
   return (
     <DndProvider backend={HTML5Backend}>
       <SteeringProvider>
@@ -2302,6 +2309,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                         onExpandStack={toggleStackExpand}
                         onDragBackToPanel={handleNoteDragBackToPanel}
                         className="before:mix-blend-multiply before:bg-noise-pattern"
+                        visibleContextNoteIds={visibleContextNoteIds}
                       />
                     )}
                   </AnimatePresence>
@@ -2342,6 +2350,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       isEditMode={isEditMode}
                       fileId={currentFileId}
                       vaultId={vault.id}
+                      onVisibleNotesChange={handleVisibleContextNotesChange}
                     />
                   )}
                   <div

@@ -18,6 +18,7 @@ interface ContextNotesProps extends React.HTMLAttributes<HTMLDivElement> {
   isEditMode: boolean
   fileId: string
   vaultId: string
+  onVisibleNotesChange?: (visibleNoteIds: string[]) => void
 }
 
 export default memo(function ContextNotes({
@@ -28,6 +29,7 @@ export default memo(function ContextNotes({
   isEditMode,
   fileId,
   vaultId,
+  onVisibleNotesChange,
   ...props
 }: ContextNotesProps) {
   const [visibleContextNotes, setVisibleContextNotes] = useState<ContextNote[]>([])
@@ -152,11 +154,17 @@ export default memo(function ContextNotes({
           return noteLine >= startLine - bufferSize && noteLine <= endLine + bufferSize
         })
         setVisibleContextNotes(visibleNotes)
+
+        // Notify parent of visible note IDs
+        if (onVisibleNotesChange) {
+          const visibleNoteIds = visibleNotes.map((note) => note.note.id)
+          onVisibleNotesChange(visibleNoteIds)
+        }
       }
     } catch (error) {
       console.error("[ContextNotes] Error updating visible lines:", error)
     }
-  }, 150) // Increased debounce time for better performance
+  }, 200) // Increased debounce time for better performance
 
   // Set up scroll listeners
   useEffect(() => {
@@ -182,14 +190,25 @@ export default memo(function ContextNotes({
     }
   }, [contextNotes, updateVisibleLines])
 
+  // Effect to call onVisibleNotesChange when visibleContextNotes changes
+  useEffect(() => {
+    if (onVisibleNotesChange) {
+      const visibleNoteIds = visibleContextNotes.map((note) => note.note.id)
+      onVisibleNotesChange(visibleNoteIds)
+    }
+  }, [visibleContextNotes, onVisibleNotesChange])
+
   // No visible notes, no render
-  if (visibleContextNotes.length === 0) return null
+  if (visibleContextNotes.length === 0) {
+    // Don't call onVisibleNotesChange here - that's done in the effect above
+    return null
+  }
 
   return (
     <div
       ref={containerRef}
       className={cn(
-        "absolute left-20 translate-x-1/2 z-20 w-64 h-full pointer-events-none",
+        "relative top-4 left-20 translate-x-1/2 z-20 w-64 h-full pointer-events-none",
         className,
       )}
       {...props}
@@ -218,7 +237,7 @@ export default memo(function ContextNotes({
           return (
             <motion.div
               key={contextNote.note.id}
-              className="relative pointer-events-auto transform"
+              className="relative right-4 top-0 pointer-events-auto transform"
               initial={{ opacity: 0, x: -100 }}
               animate={{
                 opacity: 1,

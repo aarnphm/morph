@@ -177,6 +177,7 @@ interface DroppedNoteGroupProps {
   onExpandStack: () => void
   onDragBackToPanel: (noteId: string) => void
   className?: string
+  visibleContextNoteIds?: string[]
 }
 
 export const DroppedNoteGroup = memo(
@@ -186,6 +187,7 @@ export const DroppedNoteGroup = memo(
     onExpandStack,
     onDragBackToPanel,
     className,
+    visibleContextNoteIds,
   }: DroppedNoteGroupProps) {
     const containerRef = useRef<HTMLDivElement>(null)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -194,6 +196,25 @@ export const DroppedNoteGroup = memo(
     const MAX_VISIBLE_NOTES = 5
     const hasMoreNotes = droppedNotes.length > MAX_VISIBLE_NOTES
     const hasNotes = droppedNotes.length > 0
+
+    // Use empty array if visibleContextNoteIds is undefined
+    const safeVisibleContextNoteIds = visibleContextNoteIds || []
+
+    // Filter out notes that are visible in context view
+    const filteredNotes = useMemo(() => {
+      return droppedNotes.filter(note => !safeVisibleContextNoteIds.includes(note.id))
+    }, [droppedNotes, safeVisibleContextNoteIds])
+
+    // Get the actual notes to display (either filtered or all)
+    const notesToDisplay = useMemo(
+      () => (isStackExpanded ? filteredNotes : filteredNotes.slice(0, MAX_VISIBLE_NOTES)),
+      [filteredNotes, isStackExpanded, MAX_VISIBLE_NOTES],
+    )
+
+    // Keep track of notes currently in context view
+    const inContextNotes = useMemo(() => {
+      return droppedNotes.filter(note => safeVisibleContextNoteIds.includes(note.id))
+    }, [droppedNotes, safeVisibleContextNoteIds])
 
     // Motion values for chevron drag
     const dragY = useMotionValue(0)
@@ -225,12 +246,6 @@ export const DroppedNoteGroup = memo(
     const client = usePGlite()
     const db = useMemo(() => drizzle({ client, schema }), [client])
 
-    // Get notes to display - either first 5 or all (limited to 20 for performance)
-    const notesToDisplay = useMemo(
-      () => (isStackExpanded ? droppedNotes : droppedNotes.slice(0, MAX_VISIBLE_NOTES)),
-      [droppedNotes, isStackExpanded],
-    )
-
     // Process notes for embeddings whenever droppedNotes changes
     useEffect(() => {
       // Skip if no notes to process
@@ -240,8 +255,8 @@ export const DroppedNoteGroup = memo(
       const timeoutId = setTimeout(() => {
         // Only process notes that are visible
         const visibleNotes = isStackExpanded
-          ? droppedNotes
-          : droppedNotes.slice(0, MAX_VISIBLE_NOTES)
+          ? filteredNotes
+          : filteredNotes.slice(0, MAX_VISIBLE_NOTES)
 
         // Check which notes need embeddings by checking for notes with no embedding status or non-success status
         const notesRequiringEmbedding = visibleNotes.filter(
@@ -262,7 +277,7 @@ export const DroppedNoteGroup = memo(
       }, 500) // Wait 500ms before processing to avoid excessive calls
 
       return () => clearTimeout(timeoutId)
-    }, [droppedNotes, isStackExpanded, db, MAX_VISIBLE_NOTES])
+    }, [droppedNotes, isStackExpanded, db, filteredNotes, MAX_VISIBLE_NOTES])
 
     // Update the database when a note is reordered - use batching for efficiency
     const updateNotesInDB = useCallback(
@@ -319,8 +334,8 @@ export const DroppedNoteGroup = memo(
       }
     }, [isStackExpanded, droppedNotes, updateNotesInDB])
 
-    // Render nothing if there are no notes
-    if (!hasNotes) return null
+    // Render nothing if there are no notes or all notes are in context view
+    if (!hasNotes || (filteredNotes.length === 0 && inContextNotes.length > 0)) return null
 
     return (
       <motion.div
@@ -329,7 +344,7 @@ export const DroppedNoteGroup = memo(
           "absolute top-4 right-4 z-40",
           isStackExpanded && "bg-background/80 backdrop-blur-sm border rounded-md shadow-md p-2",
         )}
-        key={`dropped-notes-${droppedNotes.length}`}
+        key={`dropped-notes-${droppedNotes.length}-${safeVisibleContextNoteIds.length}`}
         initial={{ opacity: 0, scale: 0.95, y: 0 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 0 }}
@@ -421,6 +436,18 @@ export const DroppedNoteGroup = memo(
     }
     if (prevProps.onDragBackToPanel !== nextProps.onDragBackToPanel) {
       return false // Re-render if the handler changed
+    }
+
+    // Safe handling of visibleContextNoteIds
+    const prevVisibleIds = prevProps.visibleContextNoteIds || []
+    const nextVisibleIds = nextProps.visibleContextNoteIds || []
+
+    if (prevVisibleIds.length !== nextVisibleIds.length) {
+      return false // Re-render if length of visibleContextNoteIds changed
+    }
+
+    if (!prevVisibleIds.every(id => nextVisibleIds.includes(id))) {
+      return false // Re-render if contents of visibleContextNoteIds changed
     }
 
     // Check if any note content or IDs have changed
