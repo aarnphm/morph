@@ -1117,24 +1117,55 @@ Rationale: Panels will be presented in LTR manner.
 
 Rationale: `morph` will adhere to Hypertext Transfer Protocol (HTTP/1.1) standards as defined by the Internet Engineering Task Force (IETF) in RFC 2616 (for HTTP/1.1).
 
-## Requirements Traceability Matrix
+## Functional and Non-Functional Requirements Traceability Matrix
 
-| Functional Requirement (FR)                                                       | Non-Functional Requirements (NFR) |
-| --------------------------------------------------------------------------------- | --------------------------------- |
-| FR-1: Provide suggestions during the planning phase of creative writing.          | LF-S1, UH-EOU1, PR-SLR1           |
-| FR-2: Enable users to manually control text generation (tone, style, creativity). | UH-EOU3, MC-S5, PR-PAR1           |
-| FR-3: Provide a left-to-right feedback panel for text interaction.                | LF-S4, UH-PI1, PR-SLR2            |
-| FR-4: Allow users to set preferences for tone, style, voice, and formality.       | UH-UP1, MC-S5, PR-SER1            |
-| FR-5: Enable saving of preferred configurations as profiles.                      | UH-EOU2, MC-I2, SR-IM1            |
-| FR-6: Support non-linear text navigation with visual maps or tree views.          | LF-S4, UH-PI2, PR-RFR2            |
-| FR-7: Offer planning steps users can modify, choose, or combine.                  | UH-EOU1, PR-CR1                   |
-| FR-8: Provide version control features for document edits and comparison.         | MC-I3, SR-AU1, PR-LR1             |
-| FR-9: Support an offline mode for writing and saving locally.                     | OER-RR1, SR-AU1                   |
-| FR-10: Allow writing and saving files locally during offline sessions.            | OER-EPE2, PR-RFR2                 |
-| FR-11: Set and track specific writing goals with customizable progress tracking.  | UH-UP1, PR-SLR1                   |
-| FR-12: Categorize and tag sections of text, auto-generate outlines.               | UH-A2, MC-I1                      |
-| FR-13: Export documents in .pdf, .md, and plain text formats.                     | UH-PI2, PR-LR2, CompR-LR1         |
-| FR-14: Customize visual appearance with themes (dark mode, etc.).                 | LF-S3, UH-A1, PR-SCR1             |
+Table 1
+
+| FR \ NFR | LF-A1 | LF-A2 | LF-S1 | LF-S2 | LF-S3 | LF-S4 | LF-S5 | UH-EOU3 | UH-L1 | UH-UP1 | UH-A1 | UH-A2 | UH-A3 |
+|----------| ----- | ----- | ----- | ----- | ----- | ----- | ----- | ------- | ----- | ------ | ----- | ----- | ----- |
+| FR-1     |       |       |   x   |       |       |       |       |         |       |        |       |       |       |
+| FR-2     |       |       |       |       |       |       |       |   x     |       |        |       |       |       |
+| FR-3     |       |       |       |       |       |   x   |       |         |       |        |       |       |       |
+| FR-4     |       |       |       |       |       |       |       |         |       |   x    |       |       |       |
+| FR-10    |       |       |       |       |       |       |       |         |       |        |       |       |       |
+| FR-13    |       |       |       |       |       |       |       |         |       |        |       |       |       |
+| FR-14    |       |       |       |       |   x   |       |       |         |       |        |   x   |       |       |
+
+Table 2
+
+| FR \ NFR | PR-SLR1 | PR-SLR2 | PR-SCR1 | PR-SCR2 | PR-PAR1 | PR-RFR1 | PR-RFR2 | PR-CR1 | PR-CR2 | PR-SER1 | PR-LR1 |
+|----------| ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------ | ------ | ------- | ------ |
+| FR-1     |    x    |         |         |         |         |         |         |        |        |         |        |
+| FR-2     |         |         |         |         |    x    |         |         |        |        |         |        |
+| FR-3     |         |    x    |         |         |         |         |         |        |        |         |        |
+| FR-4     |         |         |         |         |         |         |         |        |        |    x    |        |
+| FR-10    |         |         |         |         |         |         |    x    |        |        |         |        |
+| FR-13    |         |         |         |         |         |         |         |        |        |         |        |
+| FR-14    |         |         |    x    |         |         |         |         |        |        |         |        |
+
+Table 3
+
+| FR \ NFR | OER-EPE1 | OER-EPE2 | OER-RIAS1 | OER-PR1 | OER-PR2 | OER-PR3 | OER-RR1 | OER-RR2 | OER-MR1 | OER-MR2 |
+|----------| -------- | -------- | --------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- |
+| FR-1     |          |          |           |         |         |         |         |         |         |         |
+| FR-2     |          |          |           |         |         |         |         |         |         |         |
+| FR-3     |          |          |           |         |         |         |         |         |         |         |
+| FR-4     |          |          |           |         |         |         |         |         |         |         |
+| FR-10    |          |    x     |           |         |         |         |         |         |         |         |
+| FR-13    |          |          |           |         |         |         |         |         |         |         |
+| FR-14    |          |          |           |         |         |         |         |         |         |         |
+
+Table 4
+
+| FR \ NFR | OER-AR1 | SR-INT1 | SR-INT2 | SR-INT3 | SR-P1 | SR-AU1 | SR-IM1 | SR-IM2 | CulR-CR1 | CulR-CR3 | CompR-SCR1 |
+|----------| ------- | ------- | ------- | ------- | ----- | ------ | ------ | ------ | -------- | -------- | ---------- |
+| FR-1     |         |         |         |         |       |        |        |        |          |          |            |
+| FR-2     |         |         |         |         |       |        |        |        |          |          |            |
+| FR-3     |         |         |         |         |       |        |        |        |          |          |            |
+| FR-4     |         |         |         |         |       |        |        |        |          |          |            |
+| FR-10    |         |         |         |         |       |        |        |        |          |          |            |
+| FR-13    |         |         |         |         |       |        |        |        |          |          |            |
+| FR-14    |         |         |         |         |       |        |        |        |          |          |            |
 
 ## Open Issues
 
@@ -1454,56 +1485,6 @@ Rationale: Serves as a foundational document that guides the entire development 
 > Prepare video tutorials covering detailed use cases that highlight how to leverage advanced editing tools for various writing styles and genres.
 
 Rationale: Video tutorials allow users to visually follow processes at their own pace, which is crucial for understanding complex features that enhance creative writing. It ensures users can fully exploit the text editor's capabilities.
-
-## Functional and Non-Functional Requirements Traceability Matrix
-
-Table 1
-
-| FR \ NFR | LF-A1 | LF-A2 | LF-S1 | LF-S2 | LF-S3 | LF-S4 | LF-S5 | UH-EOU3 | UH-L1 | UH-UP1 | UH-A1 | UH-A2 | UH-A3 |
-|----------| ----- | ----- | ----- | ----- | ----- | ----- | ----- | ------- | ----- | ------ | ----- | ----- | ----- |
-| FR-1     |       |       |       |       |       |       |       |         |       |        |       |       |       |
-| FR-2     |       |       |       |       |       |       |       |         |       |        |       |       |       |
-| FR-3     |       |       |       |       |       |       |       |         |       |        |       |       |       |
-| FR-4     |       |       |       |       |       |       |       |         |       |        |       |       |       |
-| FR-10    |       |       |       |       |       |       |       |         |       |        |       |       |       |
-| FR-13    |       |       |       |       |       |       |       |         |       |        |       |       |       |
-| FR-14    |       |       |       |       |       |       |       |         |       |        |       |       |       |
-
-Table 2
-
-| FR \ NFR | PR-SLR1 | PR-SLR2 | PR-SCR1 | PR-SCR2 | PR-PAR1 | PR-RFR1 | PR-RFR2 | PR-CR1 | PR-CR2 | PR-SER1 | PR-LR1 |
-|----------| ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------ | ------ | ------- | ------ |
-| FR-1     |         |         |         |         |         |         |         |        |        |         |        |
-| FR-2     |         |         |         |         |         |         |         |        |        |         |        |
-| FR-3     |         |         |         |         |         |         |         |        |        |         |        |
-| FR-4     |         |         |         |         |         |         |         |        |        |         |        |
-| FR-10    |         |         |         |         |         |         |         |        |        |         |        |
-| FR-13    |         |         |         |         |         |         |         |        |        |         |        |
-| FR-14    |         |         |         |         |         |         |         |        |        |         |        |
-
-Table 3
-
-| FR \ NFR | OER-EPE1 | OER-EPE2 | OER-RIAS1 | OER-PR1 | OER-PR2 | OER-PR3 | OER-RR1 | OER-RR2 | OER-MR1 | OER-MR2 |
-|----------| -------- | -------- | --------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- |
-| FR-1     |          |          |           |         |         |         |         |         |         |         |
-| FR-2     |          |          |           |         |         |         |         |         |         |         |
-| FR-3     |          |          |           |         |         |         |         |         |         |         |
-| FR-4     |          |          |           |         |         |         |         |         |         |         |
-| FR-10    |          |          |           |         |         |         |         |         |         |         |
-| FR-13    |          |          |           |         |         |         |         |         |         |         |
-| FR-14    |          |          |           |         |         |         |         |         |         |         |
-
-Table 4
-
-| FR \ NFR | OER-AR1 | SR-INT1 | SR-INT2 | SR-INT3 | SR-P1 | SR-AU1 | SR-IM1 | SR-IM2 | CulR-CR1 | CulR-CR3 | CompR-SCR1 |
-|----------| ------- | ------- | ------- | ------- | ----- | ------ | ------ | ------ | -------- | -------- | ---------- |
-| FR-1     |         |         |         |         |       |        |        |        |          |          |            |
-| FR-2     |         |         |         |         |       |        |        |        |          |          |            |
-| FR-3     |         |         |         |         |       |        |        |        |          |          |            |
-| FR-4     |         |         |         |         |       |        |        |        |          |          |            |
-| FR-10    |         |         |         |         |       |        |        |        |          |          |            |
-| FR-13    |         |         |         |         |       |        |        |        |          |          |            |
-| FR-14    |         |         |         |         |       |        |        |        |          |          |            |
 
 
 ## Waiting Room
