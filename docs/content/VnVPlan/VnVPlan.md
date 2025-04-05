@@ -305,6 +305,22 @@ After the SRS review period, design verification will be conducted through itera
 | UI Responsiveness | <50ms input latency        | Input lag measurement    | UI performance testing                |
 | Cache Hit Rate    | >80% for common operations | Cache statistics         | Operation pattern analysis            |
 
+#### Rationale and Benchmark References for Performance Metrics
+
+The selected performance metrics for `morph` are informed by community benchmarks and design considerations typical of real-time LLM-assisted applications. These targets are meant to ensure low-latency interactions without requiring large-scale infrastructure.
+
+- **Time to First Token (TTFT):** The 200–500ms range is consistent with expectations for latency-sensitive tools like chat interfaces and writing assistants. Although OpenAI does not provide exact TTFT values, their [rate limit documentation](https://platform.openai.com/docs/guides/rate-limits) emphasizes prompt, sub-second responses. This threshold ensures users receive suggestions quickly enough to maintain creative flow.
+
+- **Throughput:** A target of approximately 300 tokens/second at batch size 4 reflects typical performance observed in community benchmarks for models like LLaMA 2 and Mistral 7B using optimized inference engines such as [vLLM](https://github.com/vllm-project/vllm#benchmarks). On modern GPUs like the A100 or RTX 4090, these rates are frequently achievable in single-instance deployments without distributed scaling.
+
+These targets are chosen to ensure:
+- Responsive, interactive text generation
+- Compatibility with moderately powerful consumer hardware
+- Support for multiple users or documents without significant delays
+
+They support `morph`'s vision of enabling fast, local-first, and user-centric machine-assisted writing environments.
+
+
 #### Documentation Validation
 
 | Document Type          | Review Focus                  | Validation Method               | Reviewers     |
@@ -397,6 +413,18 @@ The automated testing strategy for `morph` is divided into two main components: 
 | API Testing     | [locust](https://locust.io/) | API endpoint validation         | - OpenAI compatibility testing<br>- Response schema validation<br>- Error handling verification |
 | Static Analysis | ruff                         | Code quality checks             | - Type checking<br>- Import sorting<br>- Code complexity limits                                 |
 | Security        | Bandit                       | Security vulnerability scanning | - Known vulnerability checks<br>- Security best practices<br>- Dependency scanning              |
+
+#### Critical Paths
+
+Critical paths refer to components whose failure or malfunction would significantly compromise the system’s core functionality, user experience, or data integrity. These include but are not limited to:
+
+- Handles login flows, token generation, and access control.
+- Responsible for data exchange between the Morph frontend and Asteraceae backend, especially those processing user-generated input or returning AI-generated text.
+- Modules in Morph that manage file states, local storage, or editing buffers crucial for preserving user content.
+- Code that performs text generation, steering operations, or data validation in Asteraceae.
+- Interfaces that facilitate or transform information passed between Morph and Asteraceae.
+
+These components are considered *mission-critical* and must meet **100% test coverage** as per the code coverage requirements outlined in section 3.6.5. This classification helps ensure that all high-risk paths are thoroughly validated through automated testing.
 
 #### CI Pipeline
 
@@ -549,6 +577,13 @@ The software validation process ensures that `morph` meets user requirements and
    - Issue categorization
    - Improvement recommendations
 
+5. **Feedback Integration and Iteration**
+   - Prioritize fixes from analyzed feedback  
+   - Assign tasks to relevant team members  
+   - Apply updates in future sprints  
+   - Re-test improved features with users  
+   - Document changes and close the loop  
+
 #### Validation Schedule
 
 | Stage            | Timeline   | Activities                                                                         | Deliverables             |
@@ -586,7 +621,8 @@ meets user expectations and perform reliably.
 
 ### Tests for Functional Requirements
 
-This section outlines test cases for verifying the core functional requirements of morph as specified in the SRS. The tests are organized by major feature areas, with each test designed to validate specific user interactions and system behaviors.
+This section outlines test cases for verifying the core functional requirements of morph as specified in the SRS. The tests are organized by major feature areas, with each test designed to validate specific user interactions and system behaviors. For detailed input data associated with each test case, refer to ([[VnVPlan/VnVPlan#6.2 Test Input Table]]).
+
 
 #### Planning and Suggestion Features
 
@@ -599,9 +635,9 @@ These tests verify requirements FR-1 through FR-3, which specify the system's ca
    - Control: Manual
    - Initial State: Editor opened, planning mode active
    - Input: Valid prompt (e.g., "environmental sustainability")
-   - Output: Planning suggestions appear within 10 seconds
+   - Output: Planning suggestions appear within `MAX_DISPLAY_TIME`
    - Test Case Derivation: Based on FR-1's requirement for timely suggestion generation
-   - How test will be performed: Enter prompt and start planning. Verify at least one suggestion appears within 10 seconds.
+   - How test will be performed: Enter prompt and start planning. Verify at least one suggestion appears within `MAX_DISPLAY_TIME`.
 
 2. **Test-FR-P2**
 
@@ -610,17 +646,17 @@ These tests verify requirements FR-1 through FR-3, which specify the system's ca
    - Input: Unintelligible prompt (e.g., "asdh123!@#")
    - Output: Error message requesting input refinement
    - Test Case Derivation: Derived from FR-1's need for robust input handling
-   - How test will be performed: Enter nonsensical characters and verify appropriate error message appears.
+   - How test will be performed: Enter nonsensical characters and verify that an input validation error message appears clearly instructing the user to revise their input due to unrecognized content.
 
 3. **Test-FR-P3**
 
    - Control: Manual
    - Initial State: Editor opened, planning mode active
-   - Input: Large text block (500+ words) on climate change
-   - Output: Condensed suggestions or length warning within 10 seconds
+   - Input: Large text block (`LARGE_INPUT_SIZE`) on climate change
+   - Output: Condensed suggestions or length warning within `LENGTH_RESPONSE_TIME`
    - Test Case Derivation: Based on FR-1's requirement for handling varied input lengths
-   - How test will be performed: Paste large text block and verify system provides appropriate response.
-
+   - How test will be performed: Paste a `LARGE_INPUT_SIZE` word passage and verify that the system responds within `LENGTH_RESPONSE_TIME` with a clear length-related warning message prompting the user to shorten the input.
+   
 #### Text Generation Features
 
 These tests verify requirements FR-4 through FR-7, focusing on the system's text generation and style adaptation capabilities.
@@ -634,16 +670,18 @@ These tests verify requirements FR-4 through FR-7, focusing on the system's text
    - Input: "Didion" tone selection with prompt "reflection on modern life"
    - Output: Text suggestions matching Didion's writing style under Lexical Constraints.
    - Test Case Derivation: Based on FR-2's requirement for style-specific generation
-   - How test will be performed: Enable steering, select tone, verify style matching.
+   - How test will be performed: Enable steering, select "Didion" tone, and generate output using the prompt. Compare the output to the ([[VnVPlan/VnVPlan#6.3.1 Didion’s Writing Style Validation]]) checklist.
 
 2. **Test-FR-S2**
 
    - Control: Manual
    - Initial State: Editor opened, steering feature enabled
    - Input: User's writing sample for style adaptation
-   - Output: Customized suggestions within 30 seconds
+   - Output: Customized suggestions within `STYLE_MATCH_TIME`
    - Test Case Derivation: Derived from FR-2's requirement for personalization
-   - How test will be performed: Upload writing sample, measure adaptation time.
+   - How test will be performed: Upload a writing sample (e.g., an excerpt from a Joan Didion essay or similar source). Measure the time from upload to generation, where it must not exceed `STYLE_MATCH_TIME`. Then, evaluate the output using the ([[VnVPlan/VnVPlan#6.3.1 Didion’s Writing Style Validation]]) checklist.
+
+
 
 #### User Interaction Features
 
@@ -669,7 +707,8 @@ These tests verify requirements FR-8 through FR-10, covering the system's user i
    - Input: Preference settings (formal tone, narrative style, passive voice, high formality)
    - Output: Consistent application of preferences across generations
    - Test Case Derivation: Derived from FR-4's requirement for persistent preference application
-   - How test will be performed: Set preferences, generate multiple outputs, verify consistency.
+   - How test will be performed: Enable the desired preferences (e.g., formal tone, narrative style) in the settings panel. Generate at least three outputs using the same prompt. Evaluate formal tone consistency using the ([[VnVPlan/VnVPlan#6.3.2 Formal Tone Generation]]) checklist.
+
 
 #### Profile Management Features
 
@@ -740,7 +779,7 @@ These tests verify requirements FR-11 and FR-12, focusing on writing goals and p
 
    - Control: Manual
    - Initial State: Progress tracking enabled
-   - Input: Word count goal (1500 words)
+   - Input: Word count goal (WORD_GOAL)
    - Output: Real-time progress meter
    - Test Case Derivation: Based on FR-11's requirement for progress tracking
    - How test will be performed: Set goal, verify meter updates.
@@ -805,7 +844,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Initial State**: The fully developed `morph` application is accessible on various devices.
 - **Input/Condition**: Access the application UI on different devices and screen sizes.
 - **Output/Result**: Confirmation that the UI is unified, non-intrusive, and uncluttered across all interfaces.
-- **How test will be performed**: Conduct a design review by assembling a team of UI/UX experts who will use a predefined checklist based on design guidelines. Usability testing will be conducted with 10 target users representing primary user personas, followed by survey feedback analysis ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]).
+- **How test will be performed**: Conduct a design review by assembling a team of UI/UX experts who will use a predefined checklist based on design guidelines. Usability testing will be conducted with target `USABILITY_TEST_PARTICIPANTS` representing primary user personas, followed by survey feedback analysis ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]).
 
 **Test-LF-A2**
 
@@ -834,7 +873,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 - **Type**: Structural, Dynamic, Manual
 - **Initial State**: The application is ready for first-time use.
 - **Input/Condition**: Provide new users with access to the application without prior instruction.
-- **Output/Result**: Users begin creating or editing content within 10 minutes.
+- **Output/Result**: Users begin creating or editing content within `ONBOARDING_TIME`.
 - **How test will be performed**: Recruit participants unfamiliar with `morph`. Time their process from start to content creation. Note obstacles and gather onboarding feedback. This will then be followed by survey feedback analysis ([[VnVPlan/VnVPlan#6.1 Usability Survey Questions]]).
 
 #### Verify Keyboard Navigation Accessibility
@@ -865,8 +904,8 @@ These tests verify requirement FR-14, covering visual theme customization.
 
 - **Type**: Structural, Dynamic, Automatic
 - **Initial State**: Inference server is set up with batch processing capabilities.
-- **Input/Condition**: Send batched requests with a batch size of 4.
-- **Output/Result**: Achieve approximately 300 tokens/sec throughput.
+- **Input/Condition**: Send batched requests with the `BATCH_SIZE`.
+- **Output/Result**: Achieve approximately `SUGGESTION_TOKENS` throughput.
 - **How test will be performed**: Load testing tools will automatically send concurrent batched requests to the inference server. The number of tokens processed per second will be measured over multiple test runs. Server resource utilization including CPU, GPU, and memory will be analyzed to identify any bottlenecks. If the throughput is below the desired level, optimizations will be recommended to enhance performance.
 
 #### Ensure Interface Contains Only Safe Content
@@ -1034,10 +1073,6 @@ These tests verify requirement FR-14, covering visual theme customization.
 | [[SRS/SRS#9.1 Functional Requirements\|FR2]]                                   | morph shall provide users with manual control over text generation, enabling them to select advanced steering options such as tone, style, or creativity level.               | Test-FR-S1, Test-FR-S2                    |
 | [[SRS/SRS#9.1 Functional Requirements\|FR3]]                                   | Users shall be able to interact with generated text through a left-to-right (LTR) feedback panel, allowing them to provide real-time feedback on model-generated suggestions. | Test-FR-F1                                |
 | [[SRS/SRS#9.1 Functional Requirements\|FR4]]                                   | Users shall be able to set preferences for tone, style, voice, and formality, which morph will apply to all future generations of text.                                       | Test-FR-TG1                               |
-| [[SRS/SRS#9.1 Functional Requirements\|FR5]]                                   | Users shall be able to save their preferred configurations as profiles, enabling them to switch between different writing styles or goals.                                    | Test-FR-UP1, Test-FR-UP2                  |
-| [[SRS/SRS#9.1 Functional Requirements\|FR6]]                                   | morph shall allow users to navigate through their text non-linearly by providing a visual map or tree view that displays key points, topics, sections, and revision history.  | Test-FR-RM1                               |
-| [[SRS/SRS#9.1 Functional Requirements\|FR8]]                                   | morph shall offer version control features that allow users to navigate through previous edits, revert to earlier document versions, and compare different drafts visually.   | Test-FR-VC1, Test-FR-VC2                  |
-| [[SRS/SRS#9.1 Functional Requirements\|FR11]]                                  | Users shall be able to set and track specific writing goals (e.g., word count, tone consistency, argument development) through customizable progress tracking features.       | Test-FR-PT1, Test-FR-PT2                  |
 | [[SRS/SRS#9.1 Functional Requirements\|FR13]]                                  | morph shall allow users to export their documents in .pdf, .md (Markdown), and plain text formats, ensuring compatibility with external platforms.                            | Test-FR-E1, Test-FR-E2                    |
 | [[SRS/SRS#9.1 Functional Requirements\|FR14]]                                  | morph shall allow users to customize the visual appearance of the editor by choosing from different themes, such as dark mode, light mode, and high-contrast options.         | Test-FR-VT1                               |
 | [[SRS/SRS#10.1 Appearance Requirements\|LF-A1]]                                | morph shall adopt a unified, non-intrusive, and uncluttered visual design.                                                                                                    | Test-LF-A1                                |
@@ -1047,11 +1082,7 @@ These tests verify requirement FR-14, covering visual theme customization.
 | [[SRS/SRS#10.2 Style Requirements\|LF-S3]]                                     | Interactive elements such as buttons and links must contrast significantly with the background to ensure visibility and accessibility.                                        | Test-LF-S3                                |
 | [[SRS/SRS#10.2 Style Requirements\|LF-S4]]                                     | The user interface should enable smooth transitions and intuitive animations across various sections and features.                                                            | Test-LF-S4                                |
 | [[SRS/SRS#10.2 Style Requirements\|LF-S5]]                                     | The application should include visual cues and feedback for user interactions to reinforce usability.                                                                         | Test-LF-S5                                |
-| [[SRS/SRS#11.1 Ease of Use Requirements\|UH-EOU1]]                             | morph shall include a session history feature that records and displays the user’s most recent editing activities such as document accesses and text modifications.           | Test-UH-EOU1                              |
-| [[SRS/SRS#11.1 Ease of Use Requirements\|UH-EOU2]]                             | morph must allow users to interactively review and manually accept or reject changes suggested by the system after their inputs are submitted.                                | Test-UH-EOU2                              |
 | [[SRS/SRS#11.1 Ease of Use Requirements\|UH-EOU3]]                             | The application shall include a planning interface to assist users in organizing and debugging their creative writing steps.                                                  | Test-UH-EOU3                              |
-| [[SRS/SRS#11.2 Personalization and Internationalization Requirements\|UH-PI1]] | morph interface must include multilingual support to cater to an international audience.                                                                                      | Test-UH-PI1, Test-CulR-CR1, Test-CulR-CR3 |
-| [[SRS/SRS#11.2 Personalization and Internationalization Requirements\|UH-PI2]] | The application shall provide options for users to select between light or dark mode based on their system settings or preference.                                            | Test-UH-PI2                               |
 | [[SRS/SRS#11.3 Learning Requirements\|UH-L1]]                                  | New users should be able to understand basic functionalities and start creating or editing content within 10 minutes of initial use.                                          | Test-UH-L1                                |
 | [[SRS/SRS#11.4 Understandability and Politeness Requirements\|UH-UP1]]         | The application should utilize clear and concise language for all instructions, feedback, and user interface elements.                                                        | Test-UH-UP1, Test-OER-PR2                 |
 | [[SRS/SRS#11.5 Accessibility Requirements\|UH-A1]]                             | morph should support text resizing without loss of content or functionality.                                                                                                  | Test-UH-A1                                |
@@ -1068,7 +1099,6 @@ These tests verify requirement FR-14, covering visual theme customization.
 | [[SRS/SRS#12.5 Capacity Requirements\|PR-CR2]]                                 | Input should not show any certain delay                                                                                                                                       | Test-PR-CR2, Test-OER-EPE2                |
 | [[SRS/SRS#12.6 Scalability or Extensibility Requirements\|PR-SER1]]            | morph inference server must include scale-to-zero and concurrency-based autoscaling.                                                                                          | Test-PR-SER1, Test-OER-EPE2               |
 | [[SRS/SRS#12.7 Longevity Requirements\|PR-LR1]]                                | Future integration with other language model architecture                                                                                                                     | Test-PR-LR1, Test-OER-RIAS1               |
-| [[SRS/SRS#12.7 Longevity Requirements\|PR-LR2]]                                | Support different distribution platforms.                                                                                                                                     | Test-PR-LR2, Test-OER-AR1                 |
 | [[SRS/SRS#13.1 Expected Physical Environment\|OER-EPE1]]                       | morph will be able to run on different hardware environment, given it can run modern browser.                                                                                 | Test-OER-AR1                              |
 | [[SRS/SRS#13.1 Expected Physical Environment\|OER-EPE2]]                       | morph should have minimal increase in power consumption                                                                                                                       | Test-PR-SER1, Test-PR-CR2                 |
 | [[SRS/SRS#13.3 Requirements for Interfacing with Adjacent Systems\|OER-RIAS1]] | morph inference server should provide an OpenAI-compatible endpoints.                                                                                                         | Test-PR-LR1                               |
@@ -1079,23 +1109,16 @@ These tests verify requirement FR-14, covering visual theme customization.
 | [[SRS/SRS#13.5 Release Requirements\|OER-RR2]]                                 | End-to-end tests should pass before deploying to production.                                                                                                                  | Test-OER-MR2                              |
 | [[SRS/SRS#14.1 Maintenance Requirements\|OER-MR1]]                             | Security updates must be done periodically                                                                                                                                    | Test-OER-MR1, Test-SR-IM1                 |
 | [[SRS/SRS#14.1 Maintenance Requirements\|OER-MR2]]                             | Feature integrations must pass existing tests                                                                                                                                 | Test-OER-MR2                              |
-| [[SRS/SRS#14.2 Supportability Requirements\|OER-SR1]]                          | User feedback loop must be present.                                                                                                                                           | Test-OER-SR1                              |
 | [[SRS/SRS#14.3 Adaptability Requirements\|OER-AR1]]                            | morph must be able to run with existing users’ environment                                                                                                                    | Test-PR-LR2                               |
 | [[SRS/SRS#15.2 Integrity Requirements\|SR-INT1]]                               | All communication between the client UI, backend services, and external APIs must be encrypted using HTTPS.                                                                   | Test-SR-INT1                              |
 | [[SRS/SRS#15.2 Integrity Requirements\|SR-INT2]]                               | Implement DNS security measures to ensure that DNS queries and responses are protected against tampering and spoofing.                                                        | Test-SR-INT2                              |
 | [[SRS/SRS#15.2 Integrity Requirements\|SR-INT3]]                               | The application will use content security policies to mitigate the risk of XSS attacks.                                                                                       | Test-SR-INT3                              |
-| [[SRS/SRS#15.2 Integrity Requirements\|SR-INT4]]                               | Implement JWT and short-lived tokens to secure session communications.                                                                                                        | Test-SR-INT4, Test-OER-PR1                |
 | [[SRS/SRS#15.3 Privacy Requirements\|SR-P1]]                                   | The application must ensure that it does not collect or store personal information, adhering strictly to privacy by design principles.                                        | Test-SR-P1                                |
 | [[SRS/SRS#15.4 Audit Requirements\|SR-AU1]]                                    | Implement monitoring of interactions with external service providers to ensure their use complies with security policies and performance expectations.                        | Test-OER-MR1                              |
 | [[SRS/SRS#15.5 Immunity Requirements\|SR-IM1]]                                 | Employ up to date security measures to protect against known threats and vulnerabilities, including regular updates and patches to the software components.                   | Test-OER-MR1                              |
 | [[SRS/SRS#15.5 Immunity Requirements\|SR-IM2]]                                 | Configure the application to minimize the surface area for attacks by disabling unused services and endpoints.                                                                | Test-SR-INT4                              |
 | [[SRS/SRS#16.1 Cultural Requirements\|CulR-CR1]]                               | English supports                                                                                                                                                              | Test-UH-PI1                               |
-| [[SRS/SRS#16.1 Cultural Requirements\|CulR-CR2]]                               | Cultural reference must be factual                                                                                                                                            | Test-PR-PAR1                              |
 | [[SRS/SRS#16.1 Cultural Requirements\|CulR-CR3]]                               | Support left-to-right (LTR) reading flow                                                                                                                                      | Test-UH-PI1                               |
-| [[SRS/SRS#17.1 Legal Requirements\|CompR-LR1]]                                 | Suggestion must follow strict US copyright law.                                                                                                                               | Test-CompR-LR1                            |
-| [[SRS/SRS#17.1 Legal Requirements\|CompR-LR2]]                                 | SOC2 compliance                                                                                                                                                               | Test-CompR-LR2                            |
-| [[SRS/SRS#17.1 Legal Requirements\|CompR-LR3]]                                 | Users permission to run inference against their content                                                                                                                       | Test-CompR-LR3                            |
-| [[SRS/SRS#17.1 Legal Requirements\|CompR-LR4]]                                 | Follows standard HTTP protocol for client-server communication                                                                                                                | Test-CompR-SCR1                           |
 
 ## Unit Test Description
 
@@ -1193,7 +1216,7 @@ _Omitted for now, refer to [[Design/MG|Module Guide]]_ for more information.
 - **Initial State**: The notification system within the UI is implemented.
 - **Input/Condition**: Simulate an inflight request failure in the application.
 - **Output/Result**: A notification toast is displayed to the user informing about the request failure.
-- **How test will be performed**: The unit test will mock a failure in an inflight request by triggering an error condition in the request handling module. It will then verify that the UI displays a notification toast with the appropriate message, confirming that users are promptly informed of request failures.
+- **How test will be performed**: The unit test will mock a failure in an inflight request by triggering an error condition in the request handling module. It will then verify that the UI displays a notification toast with a clear message informing the user of the failure and suggesting a retry or troubleshooting action.
 
 #### Deployment Management
 
@@ -1223,7 +1246,7 @@ _Omitted for now, refer to [[Design/MG|Module Guide]]_ for more information.
 - **Initial State**: The autoscaling configuration is implemented in the deployment environment.
 - **Input/Condition**: Vary the load on the inference server to simulate high and low traffic conditions.
 - **Output/Result**: The inference server scales up during high traffic and scales down to zero during low traffic.
-- **How test will be performed**: The unit test will programmatically generate varying loads on the inference server by simulating user requests at different rates. It will monitor the number of active server instances to verify that the autoscaling mechanism responds appropriately scaling up when the load increases and scaling down when the load decreases. This will confirm that the autoscaling works as intended to optimize resource usage.
+- **How test will be performed**: The unit test will programmatically generate varying loads on the inference server by simulating user requests at different rates. It will monitor the number of active server instances and verify that scaling occurs in response to traffic. It will treat scaling up when request rates exceed a defined threshold, and scaling down to zero after a period of inactivity (e.g., 5 minutes without traffic), confirming that autoscaling optimizes resource usage as configured.
 
 #### Model Integration
 
@@ -1260,7 +1283,7 @@ _Omitted for now, refer to [[Design/MG|Module Guide]]_ for more information.
 - **Type**: Functional, Static, Automatic
 - **Initial State**: RBAC policies are defined and implemented.
 - **Input/Condition**: Attempt to access secrets and resources with different user roles.
-- **Output/Result**: Access is appropriately granted or denied based on the RBAC policies.
+- **Output/Result**: Access is granted only to roles explicitly authorized in the RBAC policy; unauthorized roles are denied access and receive a clear error indicating insufficient permissions.
 - **How test will be performed**: The unit test will simulate users with various roles attempting to access sensitive resources like secrets or configuration files. It will verify that only authorized roles have access, and unauthorized attempts are blocked, ensuring that secrets are protected with proper access controls.
 
 #### Documentation Accessibility
@@ -1363,6 +1386,66 @@ _Omitted for now, refer to [[Design/MG|Module Guide]]_ for more information.
 9. How satisfied are you with the responsiveness of the application?
 10. Do you have any suggestions for improving the usability of `morph`?
 
+### Test Input Table
+
+| **Test Case ID** | **Input Description**                                   | **Input Type** | **Sample Input**                             | **Notes** |
+|------------------|----------------------------------------------------------|----------------|----------------------------------------------|-----------|
+| Test-FR-P1       | Prompt entered into planning interface                   | Text           | `environmental sustainability`               | Used to test suggestion generation |
+| Test-FR-P2       | Unintelligible prompt for robustness check               | Text           | `asdh123!@#`                                  | Should trigger input refinement message |
+| Test-FR-P3       | Large block of text for planning                         | Text           | A 500+ word passage on climate change        | Sourced externally and uploaded for testing |
+| Test-FR-S1       | Prompt with \"Didion\" style selection                   | Text + Style   | Prompt: `reflection on modern life`<br>Style: `Didion` | See Checklist B.1 for style validation |
+| Test-FR-S2       | Writing sample upload for personalization                | Text file      | Excerpt from Joan Didion’s essay, e.g., *The White Album* (from published book or verified online source) | Uploaded sample used for tone adaptation |
+| Test-FR-F1       | Feedback on generated suggestion                         | UI Interaction | Tone adjustment, alternate phrasing          | Verifies real-time feedback loop |
+| Test-FR-TG1      | User-defined preferences for generation                  | Settings       | Tone: formal, Style: narrative, Passive voice, High formality | Applied across generations |
+| Test-FR-UP1      | Save creative writing profile                            | Settings       | Informal tone, Narrative style               | Verifies profile retention |
+| Test-FR-UP2      | Create and save academic writing profile                 | Settings       | Formal tone, Analytical style                | Ensures multiple profiles can be saved |
+| Test-FR-RM1      | Navigate document via tree view                          | UI Interaction | Enable tree view navigation                  | Visualizes section hierarchy |
+| Test-FR-VC1      | View previous version of document                        | UI Interaction | Version history menu                         | Shows restore/diff options |
+| Test-FR-VC2      | Revert to earlier document version                       | UI Interaction | Select version to revert                     | Current document updates to selected version |
+| Test-FR-PT1      | Set word count goal for writing                         | Numeric Input  | Goal: 1500 words                             | Progress meter should reflect count |
+| Test-FR-PT2      | Set tone consistency goal                                | Style Setting  | Formal tone goal                             | Alerts when tone deviates |
+| Test-FR-E1       | Export document to PDF                                   | UI Interaction | Select \"Export as PDF\"                       | Output must retain formatting |
+| Test-FR-E2       | Export document to plain text                            | UI Interaction | Select \"Export as Plain Text\"               | Output should be unformatted text only |
+| Test-FR-VT1      | Switch from light to dark theme                          | UI Interaction | Select \"Dark Mode\" in preferences           | Dark mode applies consistently across UI |
+
+
+### Output Evaluation Checklists
+
+#### Didion’s Writing Style Validation
+
+To mark this test as **pass**, at least **4 of 5 criteria** must be met:
+
+- [ ] Uses first-person narrative (e.g., "I think", "I remember")
+- [ ] Reflective or meditative tone with subtle emotional nuance
+- [ ] Unconventional sentence structures or rhythms (e.g., sentence fragments, loose clauses)
+- [ ] Descriptive and personal – includes vivid imagery or self-observation
+- [ ] Stylistic consistency across 3+ generated paragraphs
+
+
+#### Formal Tone Generation
+
+- [ ] Avoids contractions (e.g., "do not" vs. "don’t")
+- [ ] Uses domain-appropriate vocabulary
+- [ ] Maintains neutral and objective tone
+- [ ] Consistent sentence structure without slang or colloquialisms
+
+### Symbolic Parameters
+
+The following symbolic constants are used throughout this document to improve clarity, maintainability, and flexibility. These constants replace hardcoded values in both functional and nonfunctional test cases.
+
+| Variable Name        | Value                 | Description                                                                 |
+|----------------------|-----------------------|-----------------------------------------------------------------------------|
+| `MAX_DISPLAY_TIME`   | 10 seconds            | Maximum time allowed for planning suggestions to appear       |
+| `LENGTH_RESPONSE_TIME`  | 10 seconds            | Time limit for response to long input prompts                 |
+| `LARGE_INPUT_SIZE`   | 500 words             | Threshold for input size triggering condensation or warning   |
+| `STYLE_MATCH_TIME`   | 30 seconds            | Time to generate personalized suggestions from a user sample  |
+| `WORD_GOAL`          | 1500 words            | Word count goal for writing progress tracking                |
+| `ONBOARDING_TIME`    | 10 minutes            | Maximum time expected for new users to begin content creation |
+| `SUGGESTION_TOKENS`  | 300 tokens/sec        | Desired throughput of token generation by inference server  |
+| `TTFT_THRESHOLD`     | 500 ms                | 95th percentile threshold for Time To First Token           |
+| `BATCH_SIZE`         | 4                     | Number of concurrent requests in throughput testing         |
+| `USABILITY_TEST_PARTICIPANTS` | 10 users           | Number of participants for usability testing                  |
+
 ### Reflection
 
 <!--
@@ -1395,10 +1478,10 @@ graduate attribute of Lifelong Learning.
 
 <div class="blob">
 
-1. Polishing documents, refine contents, and ensure the deliverables are coherent and aligned with other related
-   documents.
-2. Too much writing
-3. Refers to others' response
+1. One of the most successful aspects of writing this deliverable was refining and polishing the overall structure of the document. I focused on ensuring that the contents were clearly articulated, logically ordered, and stylistically consistent with our other project documents such as the SRS and Hazard Analysis. This alignment helped maintain a unified tone and made the V&V plan easier to follow. I also contributed to ensuring that terminology and references across different sections were cross-checked and synchronized, which improved clarity and cohesion.
+2. The main challenge I experienced was the sheer volume of writing involved. Due to the document’s length and depth, it was easy to lose track of structural consistency and test coverage balance across sections. It was also difficult to find the right balance between technical specificity and readability for a diverse audience that includes supervisors, peers, and external reviewers. To address this, I used collaborative writing tools and relied on peer feedback sessions to prioritize clarity and completeness. I also coordinated with team members to divide responsibilities and reduce redundancy, which helped streamline the workload and improve section quality.
+3. To complete the V&V process for morph, our team needs skills in dynamic testing to validate responsiveness and functional behavior under real user scenarios. Static analysis is also important for catching performance or security issues early, particularly in the backend. Accessibility testing is essential to ensure the UI meets WCAG standards and is fully keyboard-navigable. Familiarity with CI/CD pipelines is needed to automate testing and enforce quality gates. Finally, proficiency with tools like Jest, Playwright, Postman, axe-core, and Ruff is crucial for implementing tests efficiently across both the frontend and backend.
+4. Aaron will focus on dynamic testing by applying tools like k6 directly to components during development, allowing for real-time feedback and iteration. Waleed will strengthen his static analysis skills through tutorials on tools like Ruff and Bandit, providing structured learning for backend quality. Nebras chose to enroll in a web accessibility course to gain a comprehensive foundation before conducting audits. Lucas is using GitHub documentation and example workflows to build and tune the CI/CD pipeline directly in our repo. Across the team, we’ll combine reading tool documentation with pair programming to share knowledge and ensure consistent testing practices.
 
 </div>
 
@@ -1508,3 +1591,4 @@ Front-End Testing and Accessibility:
 | Nov. 4 2024   | 0.0     | initial VnV                       |
 | Feb. 3 2024   | 0.1     | Rev0                              |
 | March 31 2025 | 0.2     | Rename to `morph` for consistency |
+| Apr. 3 2025   | 0.4     | Full document revision and restructuring |
