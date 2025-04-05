@@ -1,5 +1,5 @@
 import { cn } from "@/lib"
-import { CheckIcon, EyeClosedIcon, EyeOpenIcon } from "@radix-ui/react-icons"
+import { CheckIcon, Cross2Icon, EyeClosedIcon, EyeOpenIcon } from "@radix-ui/react-icons"
 import { useEffect, useState } from "react"
 
 interface EmbeddingStatusProps {
@@ -72,12 +72,12 @@ export function EmbeddingStatus({ status, className }: EmbeddingStatusProps) {
         title="Processing embeddings"
       >
         {eyeIconState === "open" ? (
-          <EyeOpenIcon className="w-4 h-4 text-blue-400 animate-pulse" />
+          <EyeOpenIcon className="w-4 h-4 text-blue-300 animate-pulse" />
         ) : (
-          <EyeClosedIcon className="w-4 h-4 text-blue-400/70" />
+          <EyeClosedIcon className="w-4 h-4 text-blue-300/70" />
         )}
-        <span className="text-xs text-blue-400 hidden sm:inline-block animate-text-shimmer">
-          Indexing...
+        <span className="text-xs text-blue-300 hidden sm:inline-block animate-text-shimmer">
+          indexing
         </span>
       </div>
     )
@@ -93,7 +93,7 @@ export function EmbeddingStatus({ status, className }: EmbeddingStatusProps) {
         )}
         title="Indexing complete"
       >
-        <CheckIcon className="w-4 h-4 text-green-400" />
+        <CheckIcon className="w-4 h-4 text-green-300" />
       </div>
     )
   }
@@ -101,7 +101,7 @@ export function EmbeddingStatus({ status, className }: EmbeddingStatusProps) {
   if (status === "failure" || status === "cancelled") {
     return (
       <div className={cn("relative flex items-center gap-1.5", className)} title="Indexing failed">
-        <EyeClosedIcon className="w-4 h-4 text-red-400" />
+        <Cross2Icon className="w-4 h-4 text-red-300" />
       </div>
     )
   }

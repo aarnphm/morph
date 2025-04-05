@@ -195,3 +195,19 @@ export function formatDateString(dateStr: string): FormattedDateResult {
     relativeTime,
   }
 }
+
+export function safeDate(dateStr: string | null | undefined): Date | null {
+  if (!dateStr) return null
+
+  try {
+    const date = new Date(dateStr)
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return null
+    }
+    return date
+  } catch (error) {
+    console.error(`Failed to parse date string: ${dateStr}`, error)
+    return null
+  }
+}

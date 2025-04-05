@@ -161,58 +161,48 @@ const DriversBar = memo(
 
     return (
       <div className="flex flex-col border-t bg-background/95 backdrop-blur-sm shadow-md z-10 relative">
-        <AnimatePresence initial={false}>
-          {isSteeringExpanded && (
-            <motion.div
-              key="steering-controls"
-              initial={{ height: "auto", opacity: 1 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0 }}
-              className="px-4 pb-2 overflow-hidden border-b border-border"
-            >
-              <div className="pt-4 flex justify-between items-center">
-                <h2 className="text-base font-semibold">Interpreter</h2>
-                <button
-                  onClick={() => setIsSteeringExpanded(false)}
-                  className="flex items-center justify-center h-5 w-5 hover:bg-muted rounded-sm"
-                >
-                  <Cross2Icon className="h-3 w-3" />
-                </button>
+        {isSteeringExpanded && (
+          <div className="px-4 pb-2 overflow-hidden border-b border-border">
+            <div className="pt-4 flex justify-between items-center">
+              <h2 className="text-base font-semibold">Interpreter</h2>
+              <button
+                onClick={() => setIsSteeringExpanded(false)}
+                className="flex items-center justify-center h-5 w-5 hover:bg-muted rounded-sm"
+              >
+                <Cross2Icon className="h-3 w-3" />
+              </button>
+            </div>
+
+            <div className="space-y-6 pt-4 max-h-[60vh] overflow-y-auto pr-2">
+              <div className="pb-4 border-b border-border">
+                <AuthorsSelector value={settings.authors} onChange={handleUpdateAuthors} />
               </div>
 
-              <div className="space-y-6 pt-4 max-h-[60vh] overflow-y-auto pr-2">
-                <div className="pb-4 border-b border-border">
-                  <AuthorsSelector value={settings.authors} onChange={handleUpdateAuthors} />
-                </div>
-
-                <div className="pb-4 border-b border-border">
-                  <TonalityRadar
-                    value={settings.tonality}
-                    onChange={handleUpdateTonality}
-                    enabled={settings.tonalityEnabled}
-                    onToggle={handleToggleTonality}
-                  />
-                </div>
-
-                <div className="pb-4 border-b border-border">
-                  <TemperatureSlider
-                    value={settings.temperature}
-                    onChange={handleUpdateTemperature}
-                  />
-                </div>
-
-                <div>
-                  <SuggestionsSlider
-                    value={settings.numSuggestions}
-                    onChange={handleUpdateNumSuggestions}
-                  />
-                </div>
+              <div className="pb-4 border-b border-border">
+                <TonalityRadar
+                  value={settings.tonality}
+                  onChange={handleUpdateTonality}
+                  enabled={settings.tonalityEnabled}
+                  onToggle={handleToggleTonality}
+                />
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
+              <div className="pb-4 border-b border-border">
+                <TemperatureSlider
+                  value={settings.temperature}
+                  onChange={handleUpdateTemperature}
+                />
+              </div>
+
+              <div>
+                <SuggestionsSlider
+                  value={settings.numSuggestions}
+                  onChange={handleUpdateNumSuggestions}
+                />
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-end gap-3 p-2">
           <VaultButton
             onClick={toggleSteeringPanel}
@@ -380,129 +370,138 @@ export const NotesPanel = memo(function NotesPanel({
     >
       <div className="flex-1 overflow-auto scrollbar-hidden px-2 pt-2 gap-4">
         {!isNotesLoading && notes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground p-4">
-            <p className="mb-4">
-              {droppedNotes.length !== 0
-                ? "All notes are currently in the stack."
-                : "No notes found for this document"}
-            </p>
-          </div>
+          <NoteCard
+            className="w-full h-16"
+            note={{
+              id: "na",
+              color: "bg-orange-100",
+              content:
+                droppedNotes.length !== 0
+                  ? "All notes are currently in the stack."
+                  : "No notes found for this document",
+              fileId: currentFile,
+              vaultId: vaultId || "",
+              createdAt: new Date(),
+              embeddingStatus: null,
+              embeddingTaskId: null,
+            }}
+            isGenerating={false}
+            isStreaming={false}
+            isScanComplete={false}
+          />
         ) : (
           <div className="space-y-6 h-full">
-            {notesError ? (
-              <div className="px-4 py-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive">
-                {notesError}
-              </div>
-            ) : (
-              <div
-                className={cn("h-full flex flex-col overflow-auto scrollbar-hidden scroll-smooth")}
-                ref={notesContainerRef}
-              >
-                {/* Only show current generation section if there are active notes in it */}
-                {currentlyGeneratingDateKey &&
-                  (isNotesLoading ||
-                    (!scanAnimationComplete && reasoningComplete) ||
-                    (scanAnimationComplete &&
+            <div
+              className={cn("h-full flex flex-col overflow-auto scrollbar-hidden scroll-smooth")}
+              ref={notesContainerRef}
+            >
+              {notesError && (
+                <div className="px-4 py-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive">
+                  {notesError}
+                </div>
+              )}
+              {/* Only show current generation section if there are active notes in it */}
+              {!notesError &&
+                currentlyGeneratingDateKey &&
+                (isNotesLoading ||
+                  (!scanAnimationComplete && reasoningComplete) ||
+                  (scanAnimationComplete &&
+                    currentGenerationNotes.length > 0 &&
+                    !droppedNotes.some((d) => d.id === currentGenerationNotes[0]?.id))) && (
+                  <div className="space-y-4 flex-shrink-0 mb-6">
+                    <div className="mb-2 space-y-4 bg-background">
+                      <DateDisplay dateStr={currentlyGeneratingDateKey!} />
+
+                      <ReasoningPanel
+                        reasoning={streamingReasoning}
+                        isStreaming={isNotesLoading && !reasoningComplete}
+                        isComplete={reasoningComplete}
+                        currentFile={currentFile}
+                        vaultId={vaultId}
+                        reasoningId={currentReasoningId}
+                        shouldExpand={isNotesLoading || currentGenerationNotes.length > 0}
+                        elapsedTime={currentReasoningElapsedTime}
+                      />
+                    </div>
+
+                    {/* Show streaming notes during generation phase */}
+                    {reasoningComplete &&
+                      !scanAnimationComplete &&
+                      streamingNotes &&
+                      streamingNotes.length > 0 && (
+                        <div className="grid gap-4">
+                          {streamingNotes.map((note) => (
+                            <NoteCard
+                              key={note.id}
+                              color={generatePastelColor()}
+                              className={cn(
+                                "w-full h-full",
+                                !note.isComplete && "will-change-contents",
+                              )}
+                              note={{
+                                id: note.id,
+                                content: note.content,
+                                color: generatePastelColor(),
+                                fileId: currentFile,
+                                vaultId: vaultId || "",
+                                createdAt: new Date(),
+                                embeddingStatus: null,
+                                embeddingTaskId: null,
+                              }}
+                              isGenerating={!note.isComplete}
+                              isStreaming={!note.isComplete}
+                              isScanComplete={note.isScanComplete}
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                    {/* Show actual generated notes when complete */}
+                    {!isNotesLoading &&
+                      scanAnimationComplete &&
                       currentGenerationNotes.length > 0 &&
-                      !droppedNotes.some((d) => d.id === currentGenerationNotes[0]?.id))) && (
-                    <div className="space-y-4 flex-shrink-0 mb-6">
-                      <div className="mb-2 space-y-4 bg-background">
-                        <DateDisplay
-                          dateStr={currentlyGeneratingDateKey!}
-                        />
-
-                        <ReasoningPanel
-                          reasoning={streamingReasoning}
-                          isStreaming={isNotesLoading && !reasoningComplete}
-                          isComplete={reasoningComplete}
-                          currentFile={currentFile}
-                          vaultspace-y-4
-                          px-2Id={vaultId}
-                          reasoningId={currentReasoningId}
-                          shouldExpand={isNotesLoading || currentGenerationNotes.length > 0}
-                          elapsedTime={currentReasoningElapsedTime}
-                        />
-                      </div>
-
-                      {/* Show streaming notes during generation phase */}
-                      {reasoningComplete &&
-                        !scanAnimationComplete &&
-                        streamingNotes &&
-                        streamingNotes.length > 0 && (
-                          <div className="grid gap-4">
-                            {streamingNotes.map((note) => (
-                              <NoteCard
+                      !notesError && (
+                        <AnimatePresence mode="wait" initial={false}>
+                          <motion.div
+                            className="space-y-4 px-2"
+                            initial={{ opacity: 1 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0 }}
+                          >
+                            {currentGenerationNotes.map((note) => (
+                              <DraggableNoteCard
                                 key={note.id}
-                                color={generatePastelColor()}
-                                className={cn(
-                                  "w-full h-full",
-                                  !note.isComplete && "will-change-contents",
-                                )}
-                                note={{
-                                  id: note.id,
-                                  content: note.content,
-                                  color: generatePastelColor(),
-                                  fileId: currentFile,
-                                  vaultId: vaultId || "",
-                                  createdAt: new Date(),
-                                  embeddingStatus: null,
-                                  embeddingTaskId: null,
-                                }}
-                                isGenerating={!note.isComplete}
-                                isStreaming={!note.isComplete}
-                                isScanComplete={note.isScanComplete}
+                                note={note}
+                                handleNoteDropped={handleNoteDropped}
+                                onNoteRemoved={handleNoteRemoved}
+                                onCurrentGenerationNote={handleCurrentGenerationNote}
+                                isGenerating={false}
                               />
                             ))}
-                          </div>
-                        )}
-
-                      {/* Show actual generated notes when complete */}
-                      {!isNotesLoading &&
-                        scanAnimationComplete &&
-                        currentGenerationNotes.length > 0 &&
-                        !notesError && (
-                          <AnimatePresence mode="wait" initial={false}>
-                            <motion.div
-                              className="space-y-4 px-2"
-                              initial={{ opacity: 1 }}
-                              animate={{ opacity: 1 }}
-                              transition={{ duration: 0 }}
-                            >
-                              {currentGenerationNotes.map((note) => (
-                                <DraggableNoteCard
-                                  key={note.id}
-                                  note={note}
-                                  handleNoteDropped={handleNoteDropped}
-                                  onNoteRemoved={handleNoteRemoved}
-                                  onCurrentGenerationNote={handleCurrentGenerationNote}
-                                  isGenerating={false}
-                                />
-                              ))}
-                            </motion.div>
-                          </AnimatePresence>
-                        )}
-                    </div>
-                  )}
-                <div className="flex-1 min-h-0">
-                  <Virtuoso
-                    key={`note-list-${currentFile}-${noteGroupsData.length}`}
-                    style={{ height: "100%", width: "100%" }}
-                    totalCount={noteGroupsData.length}
-                    data={noteGroupsData}
-                    overscan={5}
-                    components={{ ScrollSeekPlaceholder }}
-                    itemContent={itemContent}
-                    initialItemCount={1}
-                    increaseViewportBy={{ top: 100, bottom: 100 }}
-                    scrollSeekConfiguration={{
-                      enter: (velocity) => Math.abs(velocity) > 1000,
-                      exit: (velocity) => Math.abs(velocity) < 100,
-                    }}
-                    customScrollParent={notesContainerRef.current!}
-                  />
-                </div>
+                          </motion.div>
+                        </AnimatePresence>
+                      )}
+                  </div>
+                )}
+              <div className="flex-1 min-h-0">
+                <Virtuoso
+                  key={`note-list-${currentFile}-${noteGroupsData.length}`}
+                  style={{ height: "100%", width: "100%" }}
+                  totalCount={noteGroupsData.length}
+                  data={noteGroupsData}
+                  overscan={5}
+                  components={{ ScrollSeekPlaceholder }}
+                  itemContent={itemContent}
+                  initialItemCount={1}
+                  increaseViewportBy={{ top: 100, bottom: 100 }}
+                  scrollSeekConfiguration={{
+                    enter: (velocity) => Math.abs(velocity) > 1000,
+                    exit: (velocity) => Math.abs(velocity) < 100,
+                  }}
+                  customScrollParent={notesContainerRef.current!}
+                />
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>
