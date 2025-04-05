@@ -67,7 +67,6 @@ Traceability table between FR and NFR
 
 Introduction Section:
 
-
 - The introduction section will be revised to provide a clear, concise overview of the Hazard Analysis document. This includes clearly stating its purpose, scope, and relationship to the overall system safety planning. The introduction will also briefly describe the methodology used (e.g., FMEA, fault tree analysis), helping readers understand the structure and context before diving into technical content. Aligning the introduction with the document’s intent improves readability and sets proper expectations for stakeholders.
 
 Tables:
@@ -118,15 +117,62 @@ diagram Removed and Updated:
 
 ### VnV Plan and Report
 
+#### VnV Plan
+
+Expanded Reflection Section with Clearer Reasoning on Critical Paths
+- The reflection section has been expanded to include detailed reasoning behind identified critical paths in the system. This includes discussion of how modules such as Inference, Editor, and Config interact during high-priority operations (e.g., suggestion generation), and why their performance and reliability are essential to overall system correctness. These insights provide a stronger foundation for prioritization in testing and risk analysis.
+
+Rewrote Test Case Outputs with Specific, Verifiable Results
+- All test cases have been revised to replace vague or subjective output descriptions with measurable, binary-verifiable results. This ensures that each test can be conclusively passed or failed, enhancing the objectivity of the validation process and reducing room for misinterpretation during quality assurance.
+
+Added Symbolic Constants Section for FR and NFR Test Parameters
+- A new section defines symbolic constants (e.g., MAX_TTFT_MS, MIN_THROUGHPUT_TOKENS) used throughout the FR and NFR testing documentation. These constants promote consistency across test cases, simplify updates, and ensure alignment between performance expectations and their formal evaluation.
+
+Added Justification for TTFT and Throughput Metrics in Performance Section
+- The performance section now includes a rationale for the selected Time-To-First-Token (TTFT) and throughput thresholds. Justifications are based on user experience goals, comparative benchmarks for AI assistants, and responsiveness targets in interactive writing environments. This strengthens the case for the system’s responsiveness requirements.
+
+Included Feedback Iteration Step in the Validation Process
+- The validation methodology now explicitly includes a feedback loop from users or reviewers after initial testing phases. This iterative process supports refinement of test strategies, captures usability issues not addressed by automated tests, and ensures alignment with user expectations across style, tone, and interaction flows.
+
+Added Complete Input Test Table for All Functional Requirements
+- A comprehensive input test matrix has been added, covering all defined Functional Requirements (FRs). Each entry specifies valid and invalid input cases, edge conditions, and expected system behavior. This addition improves test coverage and aids in verification planning.
+
+Introduced Output Evaluation Checklists for Style and Tone Validation
+- To support qualitative assessment of stylistic steering (e.g., author style, tonality, vibe), structured output evaluation checklists have been added. These checklists include criteria for voice consistency, tone adherence, and user-configured parameters, enabling a semi-formal review process that complements automated validation.
+
+
+#### VnV Report
+
+Expanded the Symbols, Abbreviations, and Acronyms Table
+- The table of symbols, abbreviations, and acronyms has been expanded to include all technical terms, test metrics, tool references, and system-specific shorthand used throughout the report. This update improves clarity and ensures that both technical and non-technical readers can follow the document without ambiguity.
+
+Added Evidence Snippets from Tools like coverage.py
+- To strengthen the credibility of verification activities, evidence snippets from tools such as coverage.py, pytest, and output logs were added. These include screenshots or excerpts showing line-by-line coverage, test passes/failures, and runtime assertions, providing concrete proof of system behavior and test completeness.
+
+Inserted Code Snippets and Formatted Outputs to Justify Evaluation
+- Throughout the report, additional code samples and formatted outputs were embedded to support validation claims. These examples help demonstrate not only functional correctness but also stylistic and structural outcomes from modules like Inference and Editor, aligning evaluation results directly with observable system behavior.
+
+Revised Comparison to Existing Implementations
+- The comparison section now includes a deeper analysis contrasting the current system’s performance and features with tools like ChatGPT and ProWritingAid. This includes references to specific test scenarios, highlighting unique advantages (e.g., local inference, customizable tone control) and contextual limitations of mainstream alternatives.
+
+Added Detailed Unit Test Explanations
+- Each unit test is now accompanied by a clear explanation of its purpose, what it validates, and what constitutes a pass/fail outcome. This breakdown improves traceability between the tests and the functional requirements, while also demonstrating the system’s stability across core components like configuration management, input parsing, and suggestion generation.
+
 ## Challenge Level and Extras
 
 ### Challenge Level
 
-State the challenge level (advanced, general, basic) for your project. Your challenge level should exactly match what is included in your problem statement. This should be the challenge level agreed on between you and the course instructor.
+The challenge level for our project is General. While the project introduced several concepts in AI and large language models that were initially unfamiliar to many team members, we agreed with our course instructor and TA that a general challenge level was appropriate. This decision allowed us to explore innovative technologies without overcomplicating the project, striking a balance between advanced capabilities and user accessibility.
 
 ### Extras
 
-Summarize the extras (if any) that were tackled by this project. Extras can include usability testing, code walkthroughs, user documentation, formal proof, GenderMag personas, Design Thinking, etc. Extras should have already been approved by the course instructor as included in your problem statement.
+In addition to the core functionality of Morph, we implemented two extra components to enhance the overall project:
+
+Usability Testing:
+- We conducted comprehensive usability testing sessions using a think-aloud protocol with a diverse group of stakeholders. This included law students, software engineering students, machine learning/AI engineers, and writers with non-technical backgrounds. The feedback gathered from these sessions was instrumental in refining the interface and ensuring that our application met user needs effectively.
+
+User Manual:
+- We developed a detailed user manual to guide new users through Morph’s features and troubleshooting processes. The manual provides step-by-step instructions on how to use the application, making it easier for users to navigate and resolve common issues, thereby enhancing the overall user experience.
 
 ## Design Iteration (LO11 (PrototypeIterate))
 
@@ -148,19 +194,43 @@ This question focuses on processes and tools used for project management.
 
 ### How Does Your Project Management Compare to Your Development Plan
 
-Did you follow your Development plan, with respect to the team meeting plan, team communication plan, team member roles and workflow plan. Did you use the technology you planned on using?
+Overall, our project management closely followed the structure outlined in our original development plan. We maintained our team meeting schedule, holding both regular standups and milestone-based planning sessions. This helped us stay aligned across phases and quickly adjust priorities as needed.
+
+In terms of team communication, we followed the planned approach of combining synchronous meetings with asynchronous updates via chat platforms. This allowed for fast issue resolution and kept all members in the loop, even when schedules didn’t perfectly align.
+
+Each member largely stuck to their assigned role as outlined in the workflow plan, but we also remained flexible—occasionally shifting responsibilities based on workload or availability. This adaptability helped maintain progress without overloading any one team member.
+
+We also implemented the workflow plan effectively, using a shared Kanban board to assign and track tasks. This gave us a clear overview of what was in progress, completed, or blocked.
+
+Finally, we stayed consistent with our planned technology stack, using the intended libraries, frameworks, and tools throughout the project. Any changes were minimal and carefully justified, often in response to implementation constraints or performance considerations.
 
 ### What Went Well?
 
-What went well for your project management in terms of processes and technology?
+One of the most successful aspects of our project management was our consistent and timely internal communication. We maintained a strong feedback loop within the team by holding regular check-ins and using asynchronous updates through messaging tools. This helped us clarify blockers early, stay aligned on priorities, and quickly iterate on tasks without waiting for formal meetings.
+
+In addition, the use of time management tools like a shared Kanban board (e.g., Trello or GitHub Projects) helped us track progress effectively. We broke down major milestones into smaller, manageable tasks with clear deadlines and ownership. This made it easier to stay on schedule and adapt when scope changes occurred.
+
+Overall, combining proactive communication with lightweight scheduling tools kept the team organized and responsive throughout the development cycle.
 
 ### What Went Wrong?
 
-What went wrong in terms of processes and technology?
+One challenge we encountered was overestimating the clarity of early task definitions. In some cases, tasks were assigned before all requirements were fully understood, leading to rework or misalignment with the intended functionality. This highlighted the need for clearer scoping discussions before task breakdown.
+
+On the process side, while our communication was generally strong, there were occasional delays in decision-making when coordination across submodules was required. These bottlenecks could have been reduced by designating clearer escalation paths or setting firmer async deadlines.
+
+From a technology perspective, some tooling setup (e.g., formatting or coverage tools) took longer than anticipated due to compatibility issues across local environments. We also had to make minor adjustments to our original tech stack when edge cases or performance bottlenecks arose that weren’t fully anticipated in the planning phase.
+
+Lastly, while our Kanban board helped track task status, task granularity wasn’t always ideal, making it harder to estimate progress in certain sprints.
 
 ### What Would you Do Differently Next Time?
 
-What will you do differently for your next project?
+For future projects, we would place more emphasis on early-stage task refinement and requirement clarification before implementation begins. Ensuring that each task is well-scoped and that dependencies are clearly identified would help reduce ambiguity and avoid rework.
+
+We would also implement a more structured approach to cross-module integration planning, including dedicated sync points where teams align on shared interfaces or timing-sensitive features. This would help reduce coordination delays and improve overall system cohesion.
+
+On the tooling side, we would allocate time at the beginning of the project to standardize local environments and verify that all tools (e.g., testing, formatting, coverage) are fully operational for everyone. This proactive setup would minimize compatibility issues down the line.
+
+Finally, we would experiment with more granular task tracking and timeboxing in our workflow tools to improve visibility into individual progress and better estimate workload across sprints.
 
 ## Reflection on Capstone
 
