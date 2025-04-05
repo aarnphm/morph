@@ -5,7 +5,7 @@ tags:
 author: aarnphm,waleedmalik7,nebrask,lucas-lizhiwei
 counter: true
 date: "2025-03-10"
-modified: 2025-03-31 14:56:27 GMT-04:00
+modified: 2025-04-05 00:31:30 GMT-04:00
 title: Verification and Validation Report
 ---
 
@@ -26,6 +26,14 @@ title: Verification and Validation Report
 | morph      | the text editor that helps you to become better writer |
 | UC         | Unlikely Change                                        |
 | VnV        | Verification and Validation                            |
+| TTFT       | Time-to-First-Token                                    |
+| CPU        | Central Processing Unit                                |
+| NSFW       | Not Safe For Work                                      |
+| UI/UX      | User Interface / User Experience                       |
+| DNS        | Domain Name System                                     |
+| DNSSEC     | Domain Name System Security Extensions                 |
+| HNSW       | Hierarchical Navigable Small World                     |
+| LTR        | Learning To Rank                                       |
 
 ![[SRS/SRS#7.2 Data Dictionary|Data Dictionary]]
 
@@ -78,6 +86,7 @@ title: Verification and Validation Report
 | Figure 4   | audit_output               |
 | Figure 5   | generated_text_suggestions |
 | Figure 6   | plagarism_check            |
+| Figure 7   | Coverage Output Terminal   |
 
 This document is intended to provide an overview of the testing that performed throughout the development of the project `morph`, including the obtained results and the relevant discussions. The tests are under the guidance from [[VnVPlan/VnVPlan|VnVplan]].
 
@@ -492,8 +501,8 @@ Deployment strategy successfully maintains availability in the event of node or 
 
 ##### **Deployment Configuration Screenshot**
 
-**Figure 2: deployment_strategy**
 ![[VnVReport/deployment_strategy.png]]
+**Figure 2: deployment_strategy**
 
 ##### **Performance Checklist**
 
@@ -584,8 +593,9 @@ Automated security testing tools were used to monitor network traffic to verify 
 | **Mixed Content Prevention** | No browser warnings for mixed content.                                                  | ✅ Pass       |
 
 **Table:Test-20**
-**Figure 3: cloudflare**
+
 ![[VnVReport/cloudflare.png]]
+**Figure 3: cloudflare**
 
 #### **Evaluation of Test-21**
 
@@ -665,8 +675,10 @@ To ensure `morph` remains secure and updated, a security audit was conducted usi
 - **Patched Versions Available:** `>=3.2.4` for `dompurify`, `>=0.25.0` for `esbuild`
 
 **Security Audit Report Output:**
-**Figure 4: audit_output**
+
 ![[VnVReport/audit_output.png]]
+<br>
+**Figure 4: audit_output**
 
 #### **Observations & Findings**
 
@@ -713,17 +725,23 @@ The system generated multiple suggestions, all of which were reviewed for copyri
 
 ## Comparison to Existing Implementation
 
-This section provides some comparisions between the two existing solutions and the current implementation of project `morph`, focusing on funtionality and usability.
+This section compares the current implementation of `morph` with two other widely used solutions: OpenAI's ChatGPT and ProWritingAid. The goal is to highlight where `morph` differs, performs better, or provides more targeted value based on functionality, usability, and testing outcomes.
 
-First solution: OpenAI's Chatgpt
+**First solution: OpenAI's ChatGPT**
 
-- Functionality: have good performance on prompt-based conversation. Canvas feature make it easier for editing but project `morph` provides suggestions as appliable notes to do selective modification on the content.
-- Usability: the UI from OpenAI's Chatgpt's UI is imformative and organised to support conversation interface, and `morph` put an emphasis on text-editor tailored interface to better support writing purpose
+ChatGPT performs well for prompt-based generation and conversation-style interactions. It includes a canvas feature that supports flexible editing, but it lacks structured support for long-form writing workflows. `morph`, on the other hand, focuses specifically on creative and narrative writing. It provides targeted notes that suggest improvements to specific sections of text. These suggestions are mapped to exact chunks of writing, as demonstrated in Test-1 and Test-4, where the system successfully generated relevant, personalized suggestions that aligned with the user’s tone and content.
 
-Second solution: prowritingaid
+ChatGPT’s interface is clean and informative, optimized for quick conversational exchanges. However, it is not designed for structured editing or multi-stage planning. `morph` offers a minimal, editor-focused interface that supports distraction-free writing. According to the results in Test-8 and Test-10, users appreciated how the interface kept them focused, gave real-time feedback, and allowed for easy refinement of ideas. This feedback suggests that `morph` offers stronger usability for tasks involving focused content creation compared to ChatGPT’s chat-centric layout.
 
-- Functionality: prowritingaid provides suggestions based on the text input for user as reference to make improvement, but `morph` provides direct modification to the text content.
-- Usability: prowritingaid currently supports more delicate unser interface on webserver compared to `morph` to provide better user experience.
+**Second solution: ProWritingAid**
+
+ProWritingAid provides detailed grammar and style suggestions based on text analysis. These suggestions help improve writing but must be manually reviewed and applied. `morph` takes this a step further by allowing users to directly apply or reject system-generated notes with a single action. In Test-5, users provided feedback through a learning-to-rank panel and observed immediate updates to the suggestions, streamlining the editing process and improving the user experience.
+
+ProWritingAid’s interface is feature-rich but can be overwhelming due to its dense layout and the number of popups and toggles. In contrast, `morph` prioritizes clarity and simplicity. Test-8 shows that users rated `morph` highly for being non-intrusive and visually consistent. Additionally, in Test-12, the system passed all keyboard accessibility checks, which supports a wider range of users and improves workflow efficiency compared to ProWritingAid’s mostly mouse-based navigation.
+
+**Summary**
+
+While ChatGPT is effective for conversational prompts and ProWritingAid excels in grammar checking, neither tool is tailored for focused, iterative creative writing. `morph` fills this gap by combining in-context suggestions, direct editing actions, and a clean writing interface. Across multiple tests, `morph` demonstrated its strength in usability, content relevance, and responsiveness, making it a more suitable option for users who prioritize thoughtful writing improvement and fluid editing workflows.
 
 ## Unit Testing
 
@@ -765,6 +783,58 @@ test_rebuild_index_with_data: Passed - Rebuild index with data returns valid lab
 ======================================================================== 15 passed in 8.24s =========================================================================
 ```
 
+**Unit Tests Explanation**
+
+`notes_test.py`
+These tests validate whether the system-generated writing notes are contextually matched to appropriate text chunks:
+
+- `test_note_suggestion_childhood_magic`: Suggests elaboration where nostalgic imagery is weak.
+- `test_note_suggestion_village_beauty`: Suggests adding sensory detail to environment descriptions.
+- `test_note_suggestion_environment_detail`: Prompts for visual and spatial enhancement.
+- `test_note_suggestion_narrative_depth`: Identifies superficial storytelling and calls for depth.
+- `test_note_suggestion_emotional_intensity`: Flags weak emotional passages.
+- `test_note_suggestion_modern_critique`: Detects vague social commentary.
+- `test_note_suggestion_final_twist`: Highlights overly predictable endings.
+- `test_note_suggestion_overall_improvement`: Offers general refinement suggestions.
+
+These ensure each note the user sees has clear relevance to a specific section in their draft.
+
+`service_test.py`
+Validates the embedding service that transforms text into numerical arrays for semantic comparison:
+
+- `test_encode_returns_numpy_array`: Confirms output is a valid NumPy array.
+- `test_encode_default_sentences`: Checks proper shape for known inputs.
+
+These are critical for ensuring that search, similarity, and vector operations behave as expected.
+
+`storage_test.py`
+Checks the logic for saving and retrieving writing chunks:
+
+- `test_numpy_blob_conversion`: Ensures reversible binary storage for vectors.
+- `test_add_and_get_chunk`: Verifies chunks are stored and retrieved accurately.
+- `test_remove_chunk`: Confirms deletion removes the correct entry.
+
+These are essential for maintaining consistency between user input and saved data.
+
+`indexes_test.py`
+Tests the semantic indexing functionality:
+
+- `test_rebuild_index_empty`: Ensures empty rebuilds return no unexpected data.
+- `test_rebuild_index_with_data`: Confirms that valid stored chunks return the correct index label.
+
+These tests ensure that the system can retrieve and relate suggestions with high accuracy and performance.
+
+**Summary**
+
+All 15 backend unit tests passed successfully within 8.24 seconds. The tests verify:
+
+- Semantic correctness of generated suggestions
+- Reliable storage and retrieval of chunked data
+- Proper shape and structure of vectorized text
+- Indexing behavior for real-time editing support
+
+By isolating each subsystem and clearly defining expected behavior, these unit tests ensure backend stability and give confidence that `morph` performs as intended under real-world usage.
+
 ## Changes Due to Testing
 
 - Interface structure improved for mobile use
@@ -775,7 +845,7 @@ test_rebuild_index_with_data: Passed - Rebuild index with data returns valid lab
 
 ## Automated Testing
 
-The testing was does automatically run on Github Actions whenever a commit was pushed to the main branch. The configuration of the CI/CD environment can be foind at https://github.com/aarnphm/morph/actions/workflows/ci.yml.
+The testing was does automatically run on Github Actions whenever a commit was pushed to the main branch. The configuration of the CI/CD environment can be found at https://github.com/aarnphm/morph/actions/workflows/ci.yml.
 
 ## Trace to Requirements
 
@@ -795,26 +865,24 @@ The testing was does automatically run on Github Actions whenever a commit was p
 
 ### Non-Functional Requirements
 
-| Requirements | LF-A1 | LF-A2 | UH-EOU3 | UH-L1 | UH-A2 | PR-SLR1 | PR-SLR2 | PR-SCR2 | PR-PAR1 | PR-RFR2 | PR-CR1 | PR-CR2 | SR-INT1 | SR-INT2 | SR-INT3 | SR-INT4 | OER-MR1 | CompR-LR1 |
-| ------------ | ----- | ----- | ------- | ----- | ----- | ------- | ------- | ------- | ------- | ------- | ------ | ------ | ------- | ------- | ------- | ------- | ------- | --------- |
-| Test-8       | X     |       |         |       |       |         |         |         |         |         |        |        |         |         |         |         |         |           |
-| Test-9       |       | X     |         |       |       |         |         |         |         |         |        |        |         |         |         |         |         |           |
-| Test-10      |       |       | X       |       |       |         |         |         |         |         |        |        |         |         |         |         |         |           |
-| Test-11      |       |       |         | X     |       |         |         |         |         |         |        |        |         |         |         |         |         |           |
-| Test-12      |       |       |         |       | X     |         |         |         |         |         |        |        |         |         |         |         |         |           |
-| Test-13      |       |       |         |       |       | X       |         |         |         |         |        |        |         |         |         |         |         |           |
-| Test-14      |       |       |         |       |       |         | X       |         |         |         |        |        |         |         |         |         |         |           |
-| Test-15      |       |       |         |       |       |         |         | X       |         |         |        |        |         |         |         |         |         |           |
-| Test-16      |       |       |         |       |       |         |         |         | X       |         |        |        |         |         |         |         |         |           |
-| Test-17      |       |       |         |       |       |         |         |         |         | X       |        |        |         |         |         |         |         |           |
-| Test-18      |       |       |         |       |       |         |         |         |         |         | X      |        |         |         |         |         |         |           |
-| Test-19      |       |       |         |       |       |         |         |         |         |         |        | X      |         |         |         |         |         |           |
-| Test-20      |       |       |         |       |       |         |         |         |         |         |        |        | X       |         |         |         |         |           |
-| Test-21      |       |       |         |       |       |         |         |         |         |         |        |        |         | X       |         |         |         |           |
-| Test-22      |       |       |         |       |       |         |         |         |         |         |        |        |         |         | X       |         |         |           |
-| Test-23      |       |       |         |       |       |         |         |         |         |         |        |        |         |         |         | X       |         |           |
-| Test-24      |       |       |         |       |       |         |         |         |         |         |        |        |         |         |         |         | X       |           |
-| Test-25      |       |       |         |       |       |         |         |         |         |         |        |        |         |         |         |         |         | X         |
+| Requirements | LF-A1 | LF-A2 | UH-EOU3 | UH-L1 | UH-A2 | PR-SLR1 | PR-SLR2 | PR-SCR2 | PR-PAR1 | PR-RFR2 | PR-CR1 | PR-CR2 | SR-INT1 | SR-INT2 | SR-INT3 | OER-MR1 |
+| ------------ | ----- | ----- | ------- | ----- | ----- | ------- | ------- | ------- | ------- | ------- | ------ | ------ | ------- | ------- | ------- | ------- |
+| Test-8       | X     |       |         |       |       |         |         |         |         |         |        |        |         |         |         |         |
+| Test-9       |       | X     |         |       |       |         |         |         |         |         |        |        |         |         |         |         |
+| Test-10      |       |       | X       |       |       |         |         |         |         |         |        |        |         |         |         |         |
+| Test-11      |       |       |         | X     |       |         |         |         |         |         |        |        |         |         |         |         |
+| Test-12      |       |       |         |       | X     |         |         |         |         |         |        |        |         |         |         |         |
+| Test-13      |       |       |         |       |       | X       |         |         |         |         |        |        |         |         |         |         |
+| Test-14      |       |       |         |       |       |         | X       |         |         |         |        |        |         |         |         |         |
+| Test-15      |       |       |         |       |       |         |         | X       |         |         |        |        |         |         |         |         |
+| Test-16      |       |       |         |       |       |         |         |         | X       |         |        |        |         |         |         |         |
+| Test-17      |       |       |         |       |       |         |         |         |         | X       |        |        |         |         |         |         |
+| Test-18      |       |       |         |       |       |         |         |         |         |         | X      |        |         |         |         |         |
+| Test-19      |       |       |         |       |       |         |         |         |         |         |        | X      |         |         |         |         |
+| Test-20      |       |       |         |       |       |         |         |         |         |         |        |        | X       |         |         |         |
+| Test-21      |       |       |         |       |       |         |         |         |         |         |        |        |         | X       |         |         |
+| Test-22      |       |       |         |       |       |         |         |         |         |         |        |        |         |         | X       |         |
+| Test-24      |       |       |         |       |       |         |         |         |         |         |        |        |         |         |         | X       |
 
 **Table: Traceability of Testing to Non-Functional Requirements**
 
@@ -870,6 +938,12 @@ The coverage data generated by coverage.py and coverage.tsx can be shown in the 
 | components/explorer.tsx       | 292   | 29   | 90%   |
 | **TOTAL**                     | 1944  | 200  | 90%   |
 
+**Table: Code Coverage Data**
+
+![[VnVReport/coverage_output_terminal.png]]
+<br>
+**Figure 7: Coverage Output Terminal**
+
 The coverage for `.tsx` files is comparatively lower (average coverage ~86%) due to the inherent complexity and challenges in testing frontend GUI modules. GUI components often require interactive testing frameworks, making comprehensive automated unit testing more challenging and less frequently utilized compared to backend logic (average coverage ~98%), such as Python modules.
 
 ## Conclusions
@@ -886,11 +960,12 @@ Overall, the underlying technology of `morph` is robust and scalable, effectivel
 
 ### Revision
 
-| Date          | Version | Notes                             |
-| ------------- | ------- | --------------------------------- |
-| Sept. 16 2024 | 0.0     | Initial skafolding                |
-| Mar. 10 2025  | 0.1     | Rev0                              |
-| March 31 2025 | 0.2     | Rename to `morph` for consistency |
+| Date          | Version | Notes                                    |
+| ------------- | ------- | ---------------------------------------- |
+| Sept. 16 2024 | 0.0     | Initial skafolding                       |
+| Mar. 10 2025  | 0.1     | Rev0                                     |
+| March 31 2025 | 0.2     | Rename to `morph` for consistency        |
+| Apr. 4 2025   | 0.3     | Full document revision and restructuring |
 
 ### Reflection
 

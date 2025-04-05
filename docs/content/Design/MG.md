@@ -4,7 +4,7 @@ tags:
   - design
 author: aarnphm,waleedmalik7,nebrask,lucas-lizhiwei
 date: "2024-09-16"
-modified: 2025-03-31 14:56:34 GMT-04:00
+modified: 2025-04-05 00:36:06 GMT-04:00
 title: Module Guide
 ---
 
@@ -83,7 +83,6 @@ Anticipated changes are the source of the information that is to be hidden insid
 - **AC8**: Add tools to compare progress across multiple documents.
 - **AC9**: Use A100 GPU for rendering visualizations and running text generation faster.
 - **AC10**: May not integrate application with Notion and Obsidian.
-- **AC11**: Add tools to compare progress across multiple documents.
 
 ### Unlikely Changes
 
@@ -92,7 +91,7 @@ The module design should be as general as possible. However, a general system is
 - **UC1:**: Core editor interface will stay the same.
 - **UC2**: Maintain real-time updates and context-sensitive suggestions as core features.
 - **UC3**: No downloads or desktop-only application; the system must stay fully web-based.
-- **UC4**: No removal of interactive elements like notes, real-time suggestions, or graph visualizations, which are central to the application.
+- **UC4**: The internal event bus and state management system that supports interactive components (notes, suggestions, graph visualizations) is assumed to remain unchanged. Refactoring this mechanism would require re-architecting major parts of the front-end logic and module interfaces.
 
 ## Module Hierarchy
 
@@ -145,13 +144,6 @@ This section documents the primary design decisions made to satisfy the requirem
 - Implementation of real-time planning suggestions through dedicated Notes Module and Graph View Module
 - Storage of user preferences and configurations locally through the Settings Module
 - Integration with SAEs for tone and style customization via the Inference Module
-
-### Document Management (Requirements FR-5 to FR-8)
-
-- Use of local storage for file management to maintain the file-over-app philosophy
-- Implementation of version control through a graph-based data structure
-- Separation of rendering logic from document structure to support multiple export formats
-- Design of an extensible state management system for handling document metadata and user preferences
 
 ### Performance and Scalability (Requirements PR-SLR1, PR-SLR2)
 
@@ -247,6 +239,15 @@ Modules are decomposed according to the principle of "information hiding" propos
 - **Implemented By:** LocalStorage APIs.
 - **Type of Module:** Record.
 
+##### Exported Access Programs
+
+| **Routine Name** | **Input**            | **Output**         | **Description**                     |
+| ---------------- | -------------------- | ------------------ | ----------------------------------- |
+| `Authors`        | `Author, string`     | `Author Record `   | Record the selected author style    |
+| `Tonality`       | `IsEnable, boolean`  | `Boolean`          | Record if the tonality is enable    |
+| `Vibes`          | `VibeLevel, Value`   | `VibeLevel Record` | Record the level of vibes           |
+| `Notes`          | `NotesNumber, Value` | `NotesNumber`      | Recod the Number of notes generated |
+
 #### Analytics Module (M10)
 
 - **Secrets:** Algorithms for tracking user progress metrics such as word count, tone consistency, and goal completion rates. Methods for generating insights and visual feedback.
@@ -265,22 +266,15 @@ Modules are decomposed according to the principle of "information hiding" propos
 
 This section shows two traceability matrices: between the modules and the requirements and between the modules and the anticipated changes.
 
-| **Requirement** | **Modules**         |
-| --------------- | ------------------- |
-| FR-1            | M2, M3, M4, M8      |
-| FR-2            | M8, M9, M3, M5      |
-| FR-3            | M2, M6, M8          |
-| FR-4            | M8, M9, M5          |
-| FR-5            | M9, M7, M3          |
-| FR-6            | M4, M7, M3, M10     |
-| FR-7            | M3, M8, M9          |
-| FR-8            | M7, M4, M6, M9, M10 |
-| FR-9            | M7, M6, M5          |
-| FR-10           | M7, M6, M11         |
-| FR-11           | M10, M9, M5, M4     |
-| FR-12           | M4, M9, M3, M8      |
-| FR-13           | M11, M6, M9         |
-| FR-14           | M5, M2, M6          |
+| **Requirement** | **Modules**        |
+| --------------- | ------------------ |
+| FR-1            | M2, M3, M4, M8     |
+| FR-2            | M1, M8, M9, M3, M5 |
+| FR-3            | M2, M6, M8         |
+| FR-4            | M8, M9, M5, M10    |
+| FR-10           | M7, M6, M11        |
+| FR-13           | M11, M6, M9        |
+| FR-14           | M5, M2, M6         |
 
 _Table 2: Trace Between Requirements and Modules_
 
@@ -296,7 +290,6 @@ _Table 2: Trace Between Requirements and Modules_
 | AC8    | M10, M11    |
 | AC9    | M1, M8      |
 | AC10   | M11         |
-| AC11   | M10, M11    |
 
 _Table 3: Trace Between Anticipated Changes and Modules_
 
@@ -316,9 +309,89 @@ _Figure 1: Use Hierarchy Between Modules_
 
 ## Timeline
 
-See also [Projects](https://github.com/users/aarnphm/projects/4?query=sort:updated-desc+is:open)
+A breakdown of the team’s delegation of tasks and responsibilities can be found in the GitHub repository Issues tab. The delegation of tasks assumes an even distribution amongst team members as outlined in the Development Plan.
 
----
+All documentation-related issues are to be completed prior to the Final Documentation deadline (April 4th, 2025). All feature-related issues (functional and non-functional) are to be completed prior to the Final Demonstration deadline in March.
+
+The below outlines the implementation timeline:
+
+### Phase 1: Revision 0 Demo (due February 3rd, 2025)
+
+#### M2: Editor Module
+
+- UI interaction refinement & contextual suggestion logic — Lucas
+
+- DOM update & formatting rules implementation — Nebras
+
+#### M3: Notes Module
+
+- Note data structure design — Lucas
+
+- Contextual note linking and real-time updates — Aarnphm
+
+- Basic testing on note consistency — Waleed
+
+#### M4: Graph View Module
+
+- Graph structure sync implementation — Waleed
+
+- Interactive UI rendering logic — Lucas
+
+- Structural testing with document changes — Aarnphm
+
+#### M5: Settings Module
+
+- Theme & font customization logic — Lucas
+
+- User preferences state binding — Nebras
+
+- Manual test on dynamic setting application — Waleed
+
+#### M6: Rendering Module
+
+- Markdown parsing and preview integration — Nebras
+
+- Preview accuracy testing — Lucas
+
+#### M7: Data Fetching and State Management
+
+- Draft save/load logic via localStorage — Waleed
+
+- Metadata state structure and caching — Lucas
+
+- Regression testing on document persistence — Nebras
+
+#### M8: Inference Module
+
+- Prompt formatting and response processing — Nebras
+
+- Model interaction pipeline (mocked) — Aarnphm
+
+- Basic input/output testing — Lucas
+
+#### M9: User Configuration Module
+
+- Preference record handling & interface — Lucas
+
+- Live update of tone/style from config — Waleed
+
+- Preference persistence testing — Nebras
+
+#### M10: Analytics Module
+
+- Progress tracking logic design — Waleed
+
+- Testing metrics accuracy — Lucas
+
+#### M11: Export & Integration Module
+
+- Export-to-Markdown logic — Lucas
+
+- Testing Markdown integrity — Waleed
+
+### Phase 2: Final Demo (due March 15th, 2025)
+
+Further refinement and testing of all modules (All team members)
 
 ## Appendix
 
@@ -335,3 +408,4 @@ See also [Projects](https://github.com/users/aarnphm/projects/4?query=sort:updat
 | Jan. 16 2024  | 0.4         | Finished Module Decomposition           |
 | Jan. 17 2024  | 0.4         | Completed Document                      |
 | March 31 2025 | 0.5         | Rename to `morph` for consistency       |
+| April 04 2025 | 1.0         | Rev 1                                   |
