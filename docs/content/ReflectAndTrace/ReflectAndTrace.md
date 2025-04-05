@@ -26,6 +26,41 @@ If the feedback is general or incomplete, the TA (or instructor) will not be abl
 
 ### SRS and Hazard Analysis
 
+#### SRS 
+
+- Update PUCs to align with recent feature changes
+- FR and NFR adjustment
+- BUC diagram
+- link to development plan doc under Section 21 - Tasks
+- Traceability table between FR and NFR
+
+#### Harzrd Analysis
+
+Introduction Section:
+
+
+- Properly fill out the introduction section with a clear and concise overview.
+
+- Ensure the introduction aligns with the intended purpose and structure of the Hazard Analysis document.
+
+Tables:
+
+- Number all tables in the document for better organization and reference.
+
+Markdown Formatting:
+
+- Fix clarity and readability issues caused by incorrect Markdown commands.
+
+- Ensure that all Markdown commands render properly in the document.
+
+PDF Version:
+
+- Generate and submit a PDF version of the document to prevent formatting issues when reviewed.
+
+Traceability:
+
+- Add hyperlinks to the requirements for better traceability, especially for the FMEA.
+
 ### Design and Design Documentation
 
 ### VnV Plan and Report
