@@ -675,34 +675,49 @@ _see also [[glossary#logits]] and [[glossary#sparse autoencoders]]_
 
 ### Product Boundary
 
-![[SRS/product-boundary.png]]
+![[SRS/product-boundary-diagram.drawio.png]]
 
 ### Product Use Case Table
 
-| PUC # | Name                                    | Actor(s) | Inputs & Outputs                                       |
-| ----- | --------------------------------------- | -------- | ------------------------------------------------------ |
-| 1     | Receive user writings                   | User     | Original writing artefacts (in)                        |
-| 2     | Generate suggestions and planning steps | LLM      | Original writing artefacts (in), suggestions (out)<br> |
-| 3     | Show metrics                            | User     | Writing metrics (out)                                  |
+| PUC # | Name                                    | Actor(s) | Inputs & Outputs                                            |
+| ----- | --------------------------------------- | -------- | ----------------------------------------------------------- |
+| 1     | Receive user writings                   | User     | Original writing artefacts (in)                             |
+| 2     | Generate suggestions and planning steps | LLM      | Original writing artefacts (in), suggestions (out)<br>      |
+| 3     | Show metrics                            | User     | Writing metrics (out)                                       |
+| 4     | Configure Stylistic Steering Settings   | User     | Selected stylistic preferences, Updated local configuration |
+
 
 ### Individual Product Use Cases (PUC's)
 
 #### PUC-1: Receive user writings
 
-Trigger: User press "Plan" button on the interface
+Trigger: User begins typing in the editor.
 
 Precondition:
 
-- User has a document already loaded into `morph`
-- The inference server is ready from cold-start
+- A document is open in the editor (new or existing).
+- User is in an active editing session.
+- Local vault directory is accessible and writable.
 
 Actor: User
 
-Outcome: Original writing artefacts are received by `morph`
+Outcome: 
+
+- The user's writing is received by the morph application.
+
+- The content is parsed and stored locally in the vault directory.
+
+- An internal representation (e.g., tokenized format or tensor embedding) is prepared for downstream planning/suggestion components.
+
+- No content is transmitted until the user explicitly initiates a request (e.g., by clicking "Get Suggestions").
 
 Input: Original writing artefacts
 
-Output: Internal representation of the document in tensor format (internal)
+Output: 
+
+- Saved file locally in vault (e.g., /vault/current_draft.md)
+
+- Internal tensor representation held in memory for inference server request
 
 #### PUC-2: Generate suggestions and planning steps
 
@@ -731,6 +746,29 @@ Precondition:
 Outcome: Show writing metrics to users, including tonality, score, similarity
 
 Output: Writing metrics
+
+#### PUC-4: Configure Stylistic Steering Settings
+
+Trigger: User accesses the settings panel and adjusts stylistic parameters (e.g., author style, tonality, vibes, notes quantity)
+
+Precondition:
+
+- User is interacting with an active document
+- morph UI has rendered settings controls
+- Local vault config is writable
+
+Actor: User
+
+Outcome: User preferences are saved locally and applied in the next inference request to steer generation
+
+Input: Selected stylistic preferences:
+
+- Author style
+- Tonality
+- Vibes
+- Notes quantity
+
+Output: Updated local configuration stored in IndexDB
 
 ## Functional Requirements
 
