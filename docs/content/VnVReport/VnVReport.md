@@ -5,7 +5,7 @@ tags:
 author: aarnphm,waleedmalik7,nebrask,lucas-lizhiwei
 counter: true
 date: "2025-03-10"
-modified: 2025-03-31 14:56:27 GMT-04:00
+modified: 2025-04-05 00:31:30 GMT-04:00
 title: Verification and Validation Report
 ---
 
@@ -26,14 +26,14 @@ title: Verification and Validation Report
 | morph      | the text editor that helps you to become better writer |
 | UC         | Unlikely Change                                        |
 | VnV        | Verification and Validation                            |
-| TTFT        | Time-to-First-Token                            |
-| CPU           | Central Processing Unit                            |
-| NSFW           | Not Safe For Work                            |
-| UI/UX          | User Interface / User Experience                            |
-| DNS           | Domain Name System                            |
-| DNSSEC           | Domain Name System Security Extensions                            |
-| HNSW           | Hierarchical Navigable Small World                            |
-| LTR        | Learning To Rank                           |
+| TTFT       | Time-to-First-Token                                    |
+| CPU        | Central Processing Unit                                |
+| NSFW       | Not Safe For Work                                      |
+| UI/UX      | User Interface / User Experience                       |
+| DNS        | Domain Name System                                     |
+| DNSSEC     | Domain Name System Security Extensions                 |
+| HNSW       | Hierarchical Navigable Small World                     |
+| LTR        | Learning To Rank                                       |
 
 ![[SRS/SRS#7.2 Data Dictionary|Data Dictionary]]
 
@@ -86,7 +86,7 @@ title: Verification and Validation Report
 | Figure 4   | audit_output               |
 | Figure 5   | generated_text_suggestions |
 | Figure 6   | plagarism_check            |
-| Figure 7   | Coverage Output Terminal            |
+| Figure 7   | Coverage Output Terminal   |
 
 This document is intended to provide an overview of the testing that performed throughout the development of the project `morph`, including the obtained results and the relevant discussions. The tests are under the guidance from [[VnVPlan/VnVPlan|VnVplan]].
 
@@ -501,7 +501,6 @@ Deployment strategy successfully maintains availability in the event of node or 
 
 ##### **Deployment Configuration Screenshot**
 
-
 ![[VnVReport/deployment_strategy.png]]
 **Figure 2: deployment_strategy**
 
@@ -786,8 +785,9 @@ test_rebuild_index_with_data: Passed - Rebuild index with data returns valid lab
 
 **Unit Tests Explanation**
 
-`notes_test.py`  
+`notes_test.py`
 These tests validate whether the system-generated writing notes are contextually matched to appropriate text chunks:
+
 - `test_note_suggestion_childhood_magic`: Suggests elaboration where nostalgic imagery is weak.
 - `test_note_suggestion_village_beauty`: Suggests adding sensory detail to environment descriptions.
 - `test_note_suggestion_environment_detail`: Prompts for visual and spatial enhancement.
@@ -795,39 +795,43 @@ These tests validate whether the system-generated writing notes are contextually
 - `test_note_suggestion_emotional_intensity`: Flags weak emotional passages.
 - `test_note_suggestion_modern_critique`: Detects vague social commentary.
 - `test_note_suggestion_final_twist`: Highlights overly predictable endings.
-- `test_note_suggestion_overall_improvement`: Offers general refinement suggestions.  
+- `test_note_suggestion_overall_improvement`: Offers general refinement suggestions.
 
 These ensure each note the user sees has clear relevance to a specific section in their draft.
 
-`service_test.py`  
+`service_test.py`
 Validates the embedding service that transforms text into numerical arrays for semantic comparison:
+
 - `test_encode_returns_numpy_array`: Confirms output is a valid NumPy array.
-- `test_encode_default_sentences`: Checks proper shape for known inputs.  
+- `test_encode_default_sentences`: Checks proper shape for known inputs.
 
 These are critical for ensuring that search, similarity, and vector operations behave as expected.
 
-`storage_test.py`  
+`storage_test.py`
 Checks the logic for saving and retrieving writing chunks:
+
 - `test_numpy_blob_conversion`: Ensures reversible binary storage for vectors.
 - `test_add_and_get_chunk`: Verifies chunks are stored and retrieved accurately.
-- `test_remove_chunk`: Confirms deletion removes the correct entry.  
+- `test_remove_chunk`: Confirms deletion removes the correct entry.
 
 These are essential for maintaining consistency between user input and saved data.
 
-`indexes_test.py`  
+`indexes_test.py`
 Tests the semantic indexing functionality:
+
 - `test_rebuild_index_empty`: Ensures empty rebuilds return no unexpected data.
-- `test_rebuild_index_with_data`: Confirms that valid stored chunks return the correct index label.  
+- `test_rebuild_index_with_data`: Confirms that valid stored chunks return the correct index label.
 
 These tests ensure that the system can retrieve and relate suggestions with high accuracy and performance.
 
 **Summary**
 
 All 15 backend unit tests passed successfully within 8.24 seconds. The tests verify:
-- Semantic correctness of generated suggestions  
-- Reliable storage and retrieval of chunked data  
-- Proper shape and structure of vectorized text  
-- Indexing behavior for real-time editing support  
+
+- Semantic correctness of generated suggestions
+- Reliable storage and retrieval of chunked data
+- Proper shape and structure of vectorized text
+- Indexing behavior for real-time editing support
 
 By isolating each subsystem and clearly defining expected behavior, these unit tests ensure backend stability and give confidence that `morph` performs as intended under real-world usage.
 
@@ -956,12 +960,12 @@ Overall, the underlying technology of `morph` is robust and scalable, effectivel
 
 ### Revision
 
-| Date          | Version | Notes                             |
-| ------------- | ------- | --------------------------------- |
-| Sept. 16 2024 | 0.0     | Initial skafolding                |
-| Mar. 10 2025  | 0.1     | Rev0                              |
-| March 31 2025 | 0.2     | Rename to `morph` for consistency |
-| Apr. 4 2025   | 0.3      | Full document revision and restructuring      |
+| Date          | Version | Notes                                    |
+| ------------- | ------- | ---------------------------------------- |
+| Sept. 16 2024 | 0.0     | Initial skafolding                       |
+| Mar. 10 2025  | 0.1     | Rev0                                     |
+| March 31 2025 | 0.2     | Rename to `morph` for consistency        |
+| Apr. 4 2025   | 0.3     | Full document revision and restructuring |
 
 ### Reflection
 
