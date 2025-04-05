@@ -1,8 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { createContext, useCallback, useContext, useEffect, useState } from "react"
-import { useRecommendedAuthors } from "@/services/authors"
+import { createContext, useCallback, useContext, useState } from "react"
+
+// import { useRecommendedAuthors } from "@/services/authors"
 
 // Default steering parameters
 export const DEFAULT_AUTHORS = [
@@ -58,19 +59,6 @@ export function SteeringProvider({ children }: SteeringProviderProps) {
     numSuggestions: DEFAULT_NUM_SUGGESTIONS,
     tonalityEnabled: false,
   })
-
-  // Fetch recommended authors if fileId is available
-  const { data: recommendedAuthors } = useRecommendedAuthors(fileId)
-
-  // Update authors when recommendations are available
-  useEffect(() => {
-    if (recommendedAuthors?.authors && recommendedAuthors.authors.length > 0) {
-      setSettings(prev => ({
-        ...prev,
-        authors: [...recommendedAuthors.authors]
-      }))
-    }
-  }, [recommendedAuthors])
 
   const updateSettings = useCallback(
     <K extends keyof SteeringSettings>(key: K, value: SteeringSettings[K]) => {

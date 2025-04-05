@@ -11,7 +11,6 @@ import {
   checkAgentAvailability,
   checkAgentHealth,
 } from "@/services/agents"
-import { submitContentForAuthors } from "@/services/authors"
 import { checkFileHasEmbeddings, useProcessPendingEssayEmbeddings } from "@/services/essays"
 import {
   checkNoteHasEmbedding,
@@ -25,7 +24,7 @@ import { Compartment, EditorState } from "@codemirror/state"
 import { keymap } from "@codemirror/view"
 import { EditorView } from "@codemirror/view"
 import { createId } from "@paralleldrive/cuid2"
-import { CopyIcon, Cross2Icon, GlobeIcon } from "@radix-ui/react-icons"
+import { CopyIcon, Cross2Icon } from "@radix-ui/react-icons"
 import { Vim, vim } from "@replit/codemirror-vim"
 import { hyperLink } from "@uiw/codemirror-extensions-hyper-link"
 import CodeMirror from "@uiw/react-codemirror"
@@ -58,7 +57,6 @@ import { VaultButton } from "@/components/ui/button"
 import { DotIcon } from "@/components/ui/icons"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
-import { useAuthorTasks } from "@/context/authors"
 import { usePGlite } from "@/context/db"
 import { useEmbeddingTasks, useEssayEmbeddingTasks } from "@/context/embedding"
 import { useRestoredFile } from "@/context/file-restoration"
@@ -119,8 +117,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [currentFileHandle, setCurrentFileHandle] = useState<FileSystemFileHandle | null>(null)
   const [scanAnimationComplete, setScanAnimationComplete] = useState(false)
   const [showEphemeralBanner, setShowEphemeralBanner] = useState(false)
-  const [isOnline, setIsOnline] = useState(true)
-  const [isClient, setIsClient] = useState(false)
   const codeMirrorViewRef = useRef<EditorView | null>(null)
   const readingModeRef = useRef<HTMLDivElement>(null)
   const [showNotes, setShowNotes] = useState(false)
@@ -149,6 +145,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [currentFileId, setCurrentFileId] = useState<string | null>(null)
   // Add a state for visible context note IDs (around line 150, with other state declarations)
   const [visibleContextNoteIds, setVisibleContextNoteIds] = useState<string[]>([])
+  // Add state for author understanding indicator
+  const [isAuthorProcessing, setIsAuthorProcessing] = useState(false)
 
   // Add a ref to track loaded files to prevent duplicate note loading
   const loadedFiles = useRef<Set<string>>(new Set())
@@ -167,15 +165,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   // Get the task actions for adding tasks
   const { addTask, pendingTaskIds } = useEmbeddingTasks()
   const { addTask: addEssayTask, pendingTaskIds: essayPendingTaskIds } = useEssayEmbeddingTasks()
-  const { addTask: addAuthorTask } = useAuthorTasks()
 
   const toggleStackExpand = useCallback(() => {
     setIsStackExpanded((prev) => !prev)
-  }, [])
-
-  // Effect to set isClient to true after component mounts
-  useEffect(() => {
-    setIsClient(true)
   }, [])
 
   // Add a ref to track initial settings load
@@ -320,12 +312,19 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               lastModified: new Date(note.accessedAt),
             }))
 
-            // Update the state with fetched notes in a non-blocking way
+            // Reset note states before updating to avoid merging with previous file's notes
+            setCurrentGenerationNotes([])
+            setCurrentlyGeneratingDateKey(null)
+            setNotesError(null)
+
+            // Update the state with fetched notes atomically to prevent flicker
             setNotes(uiReadyRegularNotes)
             setDroppedNotes(uiReadyDroppedNotes)
 
             // In parallel, fetch and process reasoning if needed
-            const reasoningIds = [...new Set(fileNotes.map((note) => note.reasoningId))]
+            const reasoningIds = [
+              ...new Set(fileNotes.map((note) => note.reasoningId).filter(Boolean)),
+            ]
             if (reasoningIds.length > 0) {
               const reasonings = await db
                 .select()
@@ -346,18 +345,43 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   numSuggestions: r.steering?.numSuggestions,
                 }))
 
-                // Update reasoning history state in a non-blocking way
-                React.startTransition(() => {
-                  setReasoningHistory(reasoningHistory)
-                })
+                // Update reasoning history state atomically
+                setReasoningHistory(reasoningHistory)
+              } else {
+                // Reset reasoning history if no reasonings found
+                setReasoningHistory([])
               }
+            } else {
+              // Reset reasoning history if no reasoning IDs
+              setReasoningHistory([])
             }
+          } else {
+            // No notes found for this file, reset all note states
+            setCurrentGenerationNotes([])
+            setCurrentlyGeneratingDateKey(null)
+            setNotesError(null)
+            setNotes([])
+            setDroppedNotes([])
+            setReasoningHistory([])
           }
+
+          // Reset embedding processing flags for the new file
+          embeddingProcessedRef.current = false
+          essayEmbeddingProcessedRef.current = false
         } catch (error) {
           console.error("Error fetching notes for file:", error)
+          // Reset note states on error
+          setCurrentGenerationNotes([])
+          setCurrentlyGeneratingDateKey(null)
+          setNotesError(null)
+          setNotes([])
+          setDroppedNotes([])
+          setReasoningHistory([])
+          throw error
         }
       } catch (dbError) {
         console.error("Error with database operations:", dbError)
+        throw dbError
       }
     },
     [db, vault],
@@ -388,7 +412,10 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   // Effect to use preloaded file from context if available
   useEffect(() => {
-    if (!isClient || !restoredFile || fileRestorationAttempted.current) return
+    if (!restoredFile || fileRestorationAttempted.current) return
+
+    // Mark file as restored so we don't try again
+    fileRestorationAttempted.current = true
 
     // Update local state even before CodeMirror is ready
     setCurrentFile(restoredFile.fileName)
@@ -399,85 +426,99 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     // Update preview immediately with the restored content
     updatePreview(restoredFile.content)
 
-    // Reset all notes states in one batch to ensure clean state for the restored file
-    setCurrentGenerationNotes([])
-    setCurrentlyGeneratingDateKey(null)
-    setNotesError(null)
-    setNotes([])
-    setDroppedNotes([])
-    setReasoningHistory([])
-
-    // Reset the processing flags to ensure new embeddings are processed
-    embeddingProcessedRef.current = false
-    essayEmbeddingProcessedRef.current = false
+    // Create flags to track processing status
+    let embeddingProcessingStarted = false
 
     // If CodeMirror is ready, also update it
     if (codeMirrorViewRef.current) {
       loadFileContent(restoredFile.fileName, restoredFile.fileHandle, restoredFile.content)
 
-      // Load file metadata once
-      loadFileMetadataOnce(restoredFile.fileName)
-
-      // Process essay embeddings for restored file (only if online)
-      if (isOnline && vault) {
-        // Use a small timeout to let the file load completely first
-        setTimeout(async () => {
+      // Load file metadata - we'll reset note states only after we've loaded the metadata
+      if (vault && restoredFile.fileName !== "Untitled") {
+        // Load file metadata
+        ;(async () => {
           try {
-            // Find the file in the database to get its ID
-            const dbFile = await db.query.files.findFirst({
-              where: (files, { and, eq }) =>
-                and(eq(files.name, restoredFile.fileName), eq(files.vaultId, vault.id)),
-            })
+            await loadFileMetadata(restoredFile.fileName)
 
-            if (dbFile) {
-              // Check if this file already has embeddings
-              const hasEmbeddings = await checkFileHasEmbeddings(db, dbFile.id)
-
-              if (!hasEmbeddings) {
-                // Process essay embeddings asynchronously using the md content function
-                const content = md(restoredFile.content).content
-                processEssayEmbeddings.mutate({
-                  addTask: addEssayTask,
-                  currentContent: content,
-                  currentVaultId: vault.id,
-                  currentFileId: dbFile.id,
-                })
-              }
-
-              // Process any existing notes for this file
-              processEmbeddings.mutate({ addTask })
-            }
-
-            // Also process author recommendations if online
-            if (!authorsProcessedRef.current && dbFile) {
+            // Process essay embeddings for restored file (only if online)
+            // Use a small timeout to let the file load completely first
+            setTimeout(async () => {
               try {
-                // Get the file content
-                const fileContent = md(restoredFile.content).content
-                const taskId = await submitContentForAuthors(db, dbFile.id, fileContent)
-                if (taskId) {
-                  addAuthorTask(taskId, dbFile.id)
-                  authorsProcessedRef.current = true
+                // Skip if processing has already started or if file is already processed
+                if (embeddingProcessingStarted || essayEmbeddingProcessedRef.current) {
+                  console.log(
+                    "[Debug] Skipping duplicate essay embedding processing for restored file",
+                  )
+                  return
+                }
+
+                // Mark as processing immediately
+                embeddingProcessingStarted = true
+                essayEmbeddingProcessedRef.current = true
+
+                // Find the file in the database to get its ID
+                const dbFile = await db.query.files.findFirst({
+                  where: (files, { and, eq }) =>
+                    and(eq(files.name, restoredFile.fileName), eq(files.vaultId, vault.id)),
+                })
+
+                if (dbFile) {
+                  // Check if this file already has embeddings
+                  const hasEmbeddings = await checkFileHasEmbeddings(db, dbFile.id)
+
+                  if (!hasEmbeddings) {
+                    console.log("[Debug] Processing embeddings for restored file")
+                    // Process essay embeddings asynchronously using the md content function
+                    const content = md(restoredFile.content).content
+                    processEssayEmbeddings.mutate({
+                      addTask: addEssayTask,
+                      currentContent: content,
+                      currentVaultId: vault.id,
+                      currentFileId: dbFile.id,
+                    })
+                  } else {
+                    console.log("[Debug] Restored file already has embeddings")
+                  }
+
+                  // Process any existing notes for this file (only once)
+                  if (!embeddingProcessedRef.current) {
+                    embeddingProcessedRef.current = true
+                    processEmbeddings.mutate({ addTask })
+                  }
                 }
               } catch (error) {
-                console.error("[Editor] Error processing authors:", error)
+                console.error("Error processing file data:", error)
+                // Reset flags on error to allow retrying
+                essayEmbeddingProcessedRef.current = false
+                embeddingProcessedRef.current = false
               }
-            }
+            }, 1000) // 1 second delay to ensure DB operations are ready
           } catch (error) {
-            console.error("Error processing file data:", error)
+            console.error("Error loading file metadata:", error)
+            // If metadata loading fails, reset the notes state to avoid stale data
+            setCurrentGenerationNotes([])
+            setCurrentlyGeneratingDateKey(null)
+            setNotesError(null)
+            setNotes([])
+            setDroppedNotes([])
+            setReasoningHistory([])
           }
-        }, 1000) // 1 second delay to ensure DB operations are ready
+        })()
+      } else {
+        // For new/unsaved files, we do want to reset the notes state
+        setCurrentGenerationNotes([])
+        setCurrentlyGeneratingDateKey(null)
+        setNotesError(null)
+        setNotes([])
+        setDroppedNotes([])
+        setReasoningHistory([])
       }
     }
-
-    // Mark file as restored so we don't try again
-    fileRestorationAttempted.current = true
   }, [
-    isClient,
     setRestoredFile,
     restoredFile,
     loadFileContent,
-    loadFileMetadataOnce,
-    isOnline,
+    loadFileMetadata,
     vault,
     db,
     processEmbeddings,
@@ -493,42 +534,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     loadedFiles.current.clear()
   }, [vaultId])
 
-  // Effect to track online/offline status
-  useEffect(() => {
-    // Only run this effect on the client after it has mounted
-    if (!isClient) return
-
-    // Set initial state based on navigator now that we are on the client
-    setIsOnline(navigator.onLine)
-
-    const handleOnline = () => setIsOnline(true)
-    const handleOffline = () => setIsOnline(false)
-
-    window.addEventListener("online", handleOnline)
-    window.addEventListener("offline", handleOffline)
-
-    // Initial check in case the event listeners haven't fired yet
-    setIsOnline(navigator.onLine)
-
-    return () => {
-      window.removeEventListener("online", handleOnline)
-      window.removeEventListener("offline", handleOffline)
-    }
-    // Rerun specifically when isClient becomes true to set initial state
-  }, [isClient])
-
   const toggleNotes = useCallback(() => {
-    // Check isClient here for safety, though interaction implies client-side
-    if (isClient && !isOnline) {
-      toast({
-        title: "Notes panel requires an internet connection.",
-        description: "Please check your connection and try again.",
-        duration: 5000,
-        variant: "destructive",
-      })
-      return // Prevent opening the panel
-    }
-
     // Instead of using setState callback, directly use a variable for performance
     const shouldShowNotes = !showNotes
 
@@ -669,9 +675,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     // Update state after all synchronous operations
     setShowNotes(shouldShowNotes)
   }, [
-    isOnline,
-    isClient,
-    toast,
     currentGenerationNotes,
     currentlyGeneratingDateKey,
     currentFile,
@@ -1223,7 +1226,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             reasoningElapsedTime,
             // Add steering parameters if they exist
             authors: steeringOptions?.authors,
-            tonality: steeringOptions?.tonality && steeringOptions?.tonality,
+            tonality: steeringOptions?.tonality,
             temperature: steeringOptions?.temperature,
             numSuggestions: numSuggestions,
           }
@@ -1304,7 +1307,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       }
 
       // Save the current file info to localStorage for this vault
-      if (isClient && vaultId) {
+      if (vaultId) {
         try {
           const fileName = targetHandle.name
           localStorage.setItem(
@@ -1323,16 +1326,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
       setHasUnsavedChanges(false)
     } catch {}
-  }, [
-    currentFileHandle,
-    markdownContent,
-    currentFile,
-    vault,
-    refreshVault,
-    vaultId,
-    isClient,
-    storeHandle,
-  ])
+  }, [currentFileHandle, markdownContent, currentFile, vault, refreshVault, vaultId, storeHandle])
 
   const memoizedExtensions = useMemo(() => {
     const tabSize = new Compartment()
@@ -1369,13 +1363,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
   }, [markdownContent, updatePreview, restoredFile])
 
-  // Add an effect to update preview specifically when a file is restored
-  useEffect(() => {
-    if (restoredFile?.content) {
-      updatePreview(restoredFile.content)
-    }
-  }, [restoredFile, updatePreview])
-
   const onNewFile = useCallback(() => {
     setCurrentFileHandle(null)
     setCurrentFile("Untitled")
@@ -1388,14 +1375,14 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     setHasUnsavedChanges(false) // Reset unsaved changes
 
     // Clear the last file info from localStorage
-    if (isClient && vaultId) {
+    if (vaultId) {
       try {
         localStorage.removeItem(`morph:last-file:${vaultId}`)
       } catch (storageError) {
         console.error("Failed to clear file info from localStorage:", storageError)
       }
     }
-  }, [isClient, vaultId])
+  }, [vaultId])
 
   // Create a function to toggle settings that we can pass to Rails
   const toggleSettings = useCallback(() => {
@@ -1427,23 +1414,19 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [handleSave, toggleNotes, settings, toggleSettings],
   )
 
-  // Separate effect specifically for global keyboard shortcuts
-  useEffect(() => {
-    // Add event listener for keyboard shortcuts
-    const handler = (e: KeyboardEvent) => handleKeyDown(e)
-    window.addEventListener("keydown", handler, { capture: true }) // Use capture to get event before other handlers
-
-    return () => window.removeEventListener("keydown", handler, { capture: true })
-  }, [handleKeyDown])
-
-  // Effect for vim mode and vim-specific keybindings
+  // Separate effect specifically for global keyboard shortcuts, and vim mode
   useEffect(() => {
     Vim.defineEx("w", "w", handleSave)
     Vim.defineEx("wa", "w", handleSave)
     Vim.map(";", ":", "normal")
     Vim.map("jj", "<Esc>", "insert")
     Vim.map("jk", "<Esc>", "insert")
-  }, [handleSave])
+
+    const handler = (e: KeyboardEvent) => handleKeyDown(e)
+    window.addEventListener("keydown", handler, { capture: true }) // Use capture to get event before other handlers
+
+    return () => window.removeEventListener("keydown", handler, { capture: true })
+  }, [handleKeyDown, handleSave])
 
   const generateNewSuggestions = useCallback(
     async (steeringSettings: SteeringSettings) => {
@@ -1484,13 +1467,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       setCurrentlyGeneratingDateKey(dateKey)
 
       try {
-        // Check if we're online before attempting to generate suggestions
-        if (!isOnline) {
-          throw new Error(
-            "Cannot generate suggestions while offline. Please check your internet connection.",
-          )
-        }
-
         // First, find or create the file in the database to ensure proper ID reference
         let dbFile = await db.query.files.findFirst({
           where: (files, { and, eq }) =>
@@ -1681,7 +1657,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       db,
       currentGenerationNotes,
       addTask,
-      isOnline,
     ],
   )
 
@@ -1811,12 +1786,24 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [droppedNotes, db, currentFile, vault, setNotes],
   )
 
-  // Update handleFileSelect to save the handle ID
+  // Update handleFileSelect to use processAuthors
   const handleFileSelect = useCallback(
     async (node: FileSystemTreeNode) => {
       if (!vault || node.kind !== "file" || !codeMirrorViewRef.current || !node.handle) return
 
       try {
+        // Add a flag to track if processing has already started for this file
+        const fileKey = `${vaultId}:${node.name}`
+        if (loadedFiles.current.has(fileKey)) {
+          console.log(
+            `[Debug] File ${node.name} is already being processed, skipping duplicate processing`,
+          )
+          return
+        }
+
+        // Mark file as being processed immediately to prevent race conditions
+        loadedFiles.current.add(fileKey)
+
         // Only do file I/O once
         const file = await node.handle!.getFile()
         const content = await file.text()
@@ -1846,7 +1833,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         }
 
         // Save the current file info to localStorage for this vault
-        if (isClient && vaultId) {
+        if (vaultId) {
           try {
             localStorage.setItem(
               `morph:last-file:${vaultId}`,
@@ -1866,68 +1853,80 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         const success = loadFileContent(fileName, node.handle as FileSystemFileHandle, content)
 
         if (success) {
-          // Reset all notes states in one batch
-          setCurrentGenerationNotes([])
-          setCurrentlyGeneratingDateKey(null)
-          setNotesError(null)
-          setNotes([])
-          setDroppedNotes([])
-          setReasoningHistory([])
+          try {
+            // Load file metadata - this will handle resetting and updating notes and reasonings
+            await loadFileMetadata(fileName)
 
-          // Reset the processing flags to ensure new embeddings are processed
-          embeddingProcessedRef.current = false
-          essayEmbeddingProcessedRef.current = false
-
-          // Load file metadata once
-          await loadFileMetadataOnce(fileName)
-
-          // Process essay embeddings if we're online
-          if (isClient && isOnline) {
-            try {
-              // Find the file in the database to get its ID
-              const dbFile = await db.query.files.findFirst({
-                where: (files, { and, eq }) =>
-                  and(eq(files.name, fileName), eq(files.vaultId, vault.id)),
-              })
-
-              if (dbFile) {
-                // Check if this file already has embeddings
-                const hasEmbeddings = await checkFileHasEmbeddings(db, dbFile.id)
-
-                if (!hasEmbeddings) {
-                  // Process essay embeddings asynchronously
-                  const cleaned = md(content).content
-                  processEssayEmbeddings.mutate({
-                    addTask: addEssayTask,
-                    currentContent: cleaned,
-                    currentVaultId: vault.id,
-                    currentFileId: dbFile.id,
-                  })
+            // Process essay embeddings for file that's not "Untitled"
+            if (fileName !== "Untitled") {
+              try {
+                // First check if we've already started processing
+                if (essayEmbeddingProcessedRef.current) {
+                  console.log(
+                    `[Debug] Essay embeddings for ${fileName} already being processed, skipping`,
+                  )
+                  return
                 }
 
-                // Process any existing notes for this file
-                processEmbeddings.mutate({ addTask })
-              }
+                // Mark as processing immediately to prevent race conditions
+                essayEmbeddingProcessedRef.current = true
 
-              // Also process author recommendations
-              if (!authorsProcessedRef.current && dbFile) {
-                try {
-                  // Get the file content
-                  const fileContent = content // Use the content variable directly
-                  const taskId = await submitContentForAuthors(db, dbFile.id, fileContent)
-                  if (taskId) {
-                    addAuthorTask(taskId, dbFile.id)
-                    authorsProcessedRef.current = true
+                // Find the file in the database to get its ID
+                const dbFile = await db.query.files.findFirst({
+                  where: (files, { and, eq }) =>
+                    and(eq(files.name, fileName), eq(files.vaultId, vault.id)),
+                })
+
+                if (dbFile) {
+                  // Check if this file already has embeddings
+                  const hasEmbeddings = await checkFileHasEmbeddings(db, dbFile.id)
+
+                  if (!hasEmbeddings) {
+                    // Process essay embeddings asynchronously
+                    console.log(`[Debug] Processing essay embeddings for ${fileName}`)
+                    const cleaned = md(content).content
+                    processEssayEmbeddings.mutate({
+                      addTask: addEssayTask,
+                      currentContent: cleaned,
+                      currentVaultId: vault.id,
+                      currentFileId: dbFile.id,
+                    })
+                  } else {
+                    console.log(
+                      `[Debug] File ${fileName} already has embeddings, skipping processing`,
+                    )
                   }
-                } catch (error) {
-                  console.error("[Editor] Error processing authors:", error)
+
+                  // Process any existing notes for this file only once
+                  if (!embeddingProcessedRef.current) {
+                    embeddingProcessedRef.current = true
+                    processEmbeddings.mutate({ addTask })
+                  }
                 }
+              } catch (error) {
+                console.error("Error processing file data:", error)
+                // Reset flags on error to allow retrying
+                essayEmbeddingProcessedRef.current = false
+                embeddingProcessedRef.current = false
               }
-            } catch (error) {
-              console.error("Error processing file data:", error)
             }
+          } catch (loadError) {
+            console.error("Error loading file metadata:", loadError)
+            // Reset the note states if metadata loading fails
+            setCurrentGenerationNotes([])
+            setCurrentlyGeneratingDateKey(null)
+            setNotesError(null)
+            setNotes([])
+            setDroppedNotes([])
+            setReasoningHistory([])
+
+            // Remove from loaded files to allow retrying
+            loadedFiles.current.delete(fileKey)
           }
         } else {
+          // Remove from loaded files if loading fails
+          loadedFiles.current.delete(fileKey)
+
           toast({
             title: "Error Loading File",
             description: `Could not load file ${node.name}. Please try again.`,
@@ -1936,6 +1935,11 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         }
       } catch (error) {
         console.error("Error handling file selection:", error)
+
+        // Make sure to remove the file from loaded files on error
+        const fileKey = `${vaultId}:${node.name}`
+        loadedFiles.current.delete(fileKey)
+
         toast({
           title: "Error Loading File",
           description: `Could not load file ${node.name}. Please try again.`,
@@ -1946,10 +1950,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [
       vault,
       vaultId,
-      isClient,
-      isOnline,
       loadFileContent,
-      loadFileMetadataOnce,
+      loadFileMetadata,
       toast,
       storeHandle,
       db,
@@ -1957,21 +1959,15 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       addTask,
       processEmbeddings,
       processEssayEmbeddings,
-      addAuthorTask,
     ],
   )
 
   // Add this ref to track if we've processed embeddings for the current file
   const embeddingProcessedRef = useRef(false)
 
-  // Reset the embedding processed flag when the file changes
-  useEffect(() => {
-    embeddingProcessedRef.current = false
-  }, [currentFile])
-
   // Add an effect to process all notes in the editor for embeddings
   useEffect(() => {
-    if (!isClient || !isOnline || notes.length === 0) return
+    if (notes.length === 0) return
 
     // Check and process notes for embeddings after a short delay to avoid performance issues
     const timeoutId = setTimeout(async () => {
@@ -2027,7 +2023,54 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }, 2000) // 2 second delay
 
     return () => clearTimeout(timeoutId)
-  }, [isClient, isOnline, currentFile, addTask, db, notes]) // Only depend on stable values, not notes array itself
+  }, [currentFile, db]) // Only depend on stable values to avoid frequent re-renders
+
+  // Add an effect to process file embeddings on mount and file change
+  useEffect(() => {
+    if (currentFile === "Untitled") return
+
+    // Process only if we haven't already for this file
+    if (essayEmbeddingProcessedRef.current) return
+
+    // Use a timeout to avoid processing immediately on mount
+    const timeoutId = setTimeout(async () => {
+      try {
+        // First check if we've already processed this file (double-check)
+        if (essayEmbeddingProcessedRef.current) return
+
+        // Mark as processed right away to prevent race conditions
+        essayEmbeddingProcessedRef.current = true
+
+        // Find the file in the database
+        const dbFile = await db.query.files.findFirst({
+          where: (files, { and, eq }) =>
+            and(eq(files.name, currentFile), eq(files.vaultId, vault?.id || "")),
+        })
+
+        if (dbFile && markdownContent) {
+          // Check if this file already has embeddings
+          const hasEmbeddings = await checkFileHasEmbeddings(db, dbFile.id)
+
+          if (!hasEmbeddings) {
+            // Process essay embeddings asynchronously
+            const content = md(markdownContent).content
+            processEssayEmbeddings.mutate({
+              addTask: addEssayTask,
+              currentContent: content,
+              currentVaultId: vault?.id || "",
+              currentFileId: dbFile.id,
+            })
+          }
+        }
+      } catch (error) {
+        console.error("[EssayEmbedding] Failed to process file embeddings:", error)
+        // Reset the flag on error so we can try again
+        essayEmbeddingProcessedRef.current = false
+      }
+    }, 3000) // 3 second delay
+
+    return () => clearTimeout(timeoutId)
+  }, [currentFile, db, markdownContent, processEssayEmbeddings, addEssayTask])
 
   // Use the embedding status hook
   // This hooks has some side-effects, and must be called at the very last.
@@ -2085,7 +2128,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   // Add an effect to process file embeddings on mount and file change
   useEffect(() => {
-    if (!isClient || !isOnline || currentFile === "Untitled") return
+    if (currentFile === "Untitled") return
 
     // Process only if we haven't already for this file
     if (essayEmbeddingProcessedRef.current) return
@@ -2093,6 +2136,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     // Use a timeout to avoid processing immediately on mount
     const timeoutId = setTimeout(async () => {
       try {
+        // First check if we've already processed this file (double-check)
+        if (essayEmbeddingProcessedRef.current) return
+
+        // Mark as processed right away to prevent race conditions
+        essayEmbeddingProcessedRef.current = true
+
         // Find the file in the database
         const dbFile = await db.query.files.findFirst({
           where: (files, { and, eq }) =>
@@ -2113,26 +2162,16 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               currentFileId: dbFile.id,
             })
           }
-
-          // Mark as processed
-          essayEmbeddingProcessedRef.current = true
         }
       } catch (error) {
         console.error("[EssayEmbedding] Failed to process file embeddings:", error)
+        // Reset the flag on error so we can try again
+        essayEmbeddingProcessedRef.current = false
       }
     }, 3000) // 3 second delay
 
     return () => clearTimeout(timeoutId)
-  }, [
-    isClient,
-    isOnline,
-    currentFile,
-    vault,
-    db,
-    markdownContent,
-    processEssayEmbeddings,
-    addEssayTask,
-  ])
+  }, [currentFile, db, markdownContent, processEssayEmbeddings, addEssayTask])
 
   // Add an effect to update CodeMirror when vim mode changes
   useEffect(() => {
@@ -2155,9 +2194,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   // Effect to check for vim mode change notification in localStorage
   useEffect(() => {
-    // Only run on the client side
-    if (!isClient) return
-
     // Check if there's a vim mode change notification in localStorage
     const vimModeChanged = localStorage.getItem("morph:vim-mode-changed") === "true"
 
@@ -2175,15 +2211,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
       return () => clearTimeout(timer)
     }
-  }, [isClient]) // Add isClient as a dependency
-
-  // Add a ref to track if we've processed authors for the current file
-  const authorsProcessedRef = useRef(false)
-
-  // Reset the author processed flag when the file changes
-  useEffect(() => {
-    authorsProcessedRef.current = false
-  }, [currentFile])
+  }, [])
 
   // Add a ref to track the current file name to avoid unnecessary database queries
   // Add near other ref declarations (around line 150)
@@ -2278,6 +2306,50 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   )}
                 </AnimatePresence>
 
+                {/* Author processing indicator */}
+                <AnimatePresence initial={false}>
+                  {isAuthorProcessing && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.3 }}
+                      className="absolute top-2 right-2 z-50 bg-blue-100 border border-blue-300 text-blue-800 px-4 py-2 rounded-md shadow-md text-xs flex items-center space-x-2"
+                    >
+                      <span className="flex items-center gap-2">
+                        <svg
+                          className="animate-spin h-4 w-4 text-blue-600"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        Building document context for better suggestions...
+                      </span>
+                      <button
+                        onClick={() => setIsAuthorProcessing(false)}
+                        className="text-blue-600 hover:text-blue-800 hover:cursor-pointer"
+                        aria-label="Dismiss notification"
+                      >
+                        <Cross2Icon className="w-3 h-3" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {/* Add vim mode change notification banner */}
                 <AnimatePresence initial={false}>
                   {showVimModeChangeNotification && (
@@ -2320,21 +2392,13 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   <div className="flex flex-col items-center space-y-2 absolute bottom-2 right-2 z-20">
                     <VaultButton
                       className={cn(
-                        isClient &&
-                          (isNotesLoading || !isOnline) &&
-                          "cursor-not-allowed opacity-50 hover:cursor-not-allowed",
+                        isNotesLoading && "cursor-not-allowed opacity-50 hover:cursor-not-allowed",
                       )}
                       onClick={toggleNotes}
-                      disabled={!isClient || isNotesLoading || !isOnline}
+                      disabled={isNotesLoading}
                       size="small"
                       title={
-                        showNotes
-                          ? "Hide Notes"
-                          : isClient && isOnline
-                            ? "Show Notes"
-                            : isClient && !isOnline
-                              ? "Notes unavailable offline"
-                              : "Loading..."
+                        showNotes ? "Hide Notes" : isNotesLoading ? "Loading..." : "Show Notes"
                       }
                     >
                       <CopyIcon className="w-3 h-3" />
@@ -2342,7 +2406,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   </div>
                   <div className="absolute top-2 left-2 text-sm/7 z-10 flex flex-col items-start justify-self gap-2">
                     {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
-                    {isClient && !isOnline && <GlobeIcon className="w-4 h-4 text-destructive" />}
                     {embeddingStatus && <EmbeddingStatus status={embeddingStatus} />}
                   </div>
                   {vault && currentFileId && memoizedDroppedNotes.length > 0 && !isNotesLoading && (
@@ -2395,42 +2458,34 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     </div>
                   </div>
                 </EditorDropTarget>
-                <AnimatePresence mode="wait" initial={false}>
-                  {showNotes && (
-                    <motion.div
-                      key="notes-panel"
-                      initial={{ width: "22rem", opacity: 1, overflow: "visible" }}
-                      animate={{ width: "22rem", opacity: 1, overflow: "visible" }}
-                      exit={{ width: 0, opacity: 0, overflow: "hidden" }}
-                      transition={{ duration: 0 }}
-                    >
-                      <NotesPanel
-                        notes={notes}
-                        isNotesLoading={isNotesLoading}
-                        notesError={notesError}
-                        currentlyGeneratingDateKey={currentlyGeneratingDateKey}
-                        currentGenerationNotes={currentGenerationNotes}
-                        droppedNotes={droppedNotes}
-                        streamingReasoning={streamingReasoning}
-                        reasoningComplete={reasoningComplete}
-                        currentFile={currentFile}
-                        vaultId={vault?.id}
-                        currentReasoningId={currentReasoningId}
-                        reasoningHistory={reasoningHistory}
-                        handleNoteDropped={handleNoteDropped}
-                        handleNoteRemoved={handleNoteRemoved}
-                        handleCurrentGenerationNote={handleCurrentGenerationNote}
-                        isNotesRecentlyGenerated={isNotesRecentlyGenerated}
-                        currentReasoningElapsedTime={currentReasoningElapsedTime}
-                        generateNewSuggestions={generateNewSuggestions}
-                        noteGroupsData={noteGroupsData}
-                        notesContainerRef={notesContainerRef}
-                        streamingNotes={streamingNotes}
-                        scanAnimationComplete={scanAnimationComplete}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {showNotes && (
+                  <div className={showNotes ? "w-88 visible" : "w-0 hidden"}>
+                    <NotesPanel
+                      notes={notes}
+                      isNotesLoading={isNotesLoading}
+                      notesError={notesError}
+                      currentlyGeneratingDateKey={currentlyGeneratingDateKey}
+                      currentGenerationNotes={currentGenerationNotes}
+                      droppedNotes={droppedNotes}
+                      streamingReasoning={streamingReasoning}
+                      reasoningComplete={reasoningComplete}
+                      currentFile={currentFile}
+                      vaultId={vault?.id}
+                      currentReasoningId={currentReasoningId}
+                      reasoningHistory={reasoningHistory}
+                      handleNoteDropped={handleNoteDropped}
+                      handleNoteRemoved={handleNoteRemoved}
+                      handleCurrentGenerationNote={handleCurrentGenerationNote}
+                      isNotesRecentlyGenerated={isNotesRecentlyGenerated}
+                      currentReasoningElapsedTime={currentReasoningElapsedTime}
+                      generateNewSuggestions={generateNewSuggestions}
+                      noteGroupsData={noteGroupsData}
+                      notesContainerRef={notesContainerRef}
+                      streamingNotes={streamingNotes}
+                      scanAnimationComplete={scanAnimationComplete}
+                    />
+                  </div>
+                )}
               </Playspace>
               <SearchCommand
                 maps={flattenedFileIds}
