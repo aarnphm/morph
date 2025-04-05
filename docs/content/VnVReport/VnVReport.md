@@ -784,6 +784,53 @@ test_rebuild_index_with_data: Passed - Rebuild index with data returns valid lab
 ======================================================================== 15 passed in 8.24s =========================================================================
 ```
 
+**Unit Tests Explanation**
+
+`notes_test.py`  
+These tests validate whether the system-generated writing notes are contextually matched to appropriate text chunks:
+- `test_note_suggestion_childhood_magic`: Suggests elaboration where nostalgic imagery is weak.
+- `test_note_suggestion_village_beauty`: Suggests adding sensory detail to environment descriptions.
+- `test_note_suggestion_environment_detail`: Prompts for visual and spatial enhancement.
+- `test_note_suggestion_narrative_depth`: Identifies superficial storytelling and calls for depth.
+- `test_note_suggestion_emotional_intensity`: Flags weak emotional passages.
+- `test_note_suggestion_modern_critique`: Detects vague social commentary.
+- `test_note_suggestion_final_twist`: Highlights overly predictable endings.
+- `test_note_suggestion_overall_improvement`: Offers general refinement suggestions.  
+
+These ensure each note the user sees has clear relevance to a specific section in their draft.
+
+`service_test.py`  
+Validates the embedding service that transforms text into numerical arrays for semantic comparison:
+- `test_encode_returns_numpy_array`: Confirms output is a valid NumPy array.
+- `test_encode_default_sentences`: Checks proper shape for known inputs.  
+
+These are critical for ensuring that search, similarity, and vector operations behave as expected.
+
+`storage_test.py`  
+Checks the logic for saving and retrieving writing chunks:
+- `test_numpy_blob_conversion`: Ensures reversible binary storage for vectors.
+- `test_add_and_get_chunk`: Verifies chunks are stored and retrieved accurately.
+- `test_remove_chunk`: Confirms deletion removes the correct entry.  
+
+These are essential for maintaining consistency between user input and saved data.
+
+`indexes_test.py`  
+Tests the semantic indexing functionality:
+- `test_rebuild_index_empty`: Ensures empty rebuilds return no unexpected data.
+- `test_rebuild_index_with_data`: Confirms that valid stored chunks return the correct index label.  
+
+These tests ensure that the system can retrieve and relate suggestions with high accuracy and performance.
+
+**Summary**
+
+All 15 backend unit tests passed successfully within 8.24 seconds. The tests verify:
+- Semantic correctness of generated suggestions  
+- Reliable storage and retrieval of chunked data  
+- Proper shape and structure of vectorized text  
+- Indexing behavior for real-time editing support  
+
+By isolating each subsystem and clearly defining expected behavior, these unit tests ensure backend stability and give confidence that `morph` performs as intended under real-world usage.
+
 ## Changes Due to Testing
 
 - Interface structure improved for mobile use
