@@ -2,7 +2,7 @@
 id: DevelopmentPlan
 tags:
   - meta
-author: aarnphm,waleedmalik7,nebrask
+author: aarnphm,nebrask,waleedmalik7,lucas-lizhiwei
 date: "2024-09-16"
 modified: 2025-03-31 14:55:26 GMT-04:00
 title: Development Plan
@@ -30,8 +30,8 @@ Meeting will be run into two formats: Standup and Supervisor Meeting
 
 | Meeting Type              | Frequency | Time (EST)      | Day    | Location                        | Agenda                                                                                                                                                            |
 | ------------------------- | --------- | --------------- | ------ | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Standup                   | Weekly    | **15:30-16:30** | Monday | Online via Teams                | • Round table format<br>• What are you working on<br>• Blockers?<br>• Plan for this week                                                                          |
-| Supervisor (w/ Dr.Mishra) | Bi-weekly | **12:00-13:00** | Friday | In person, at arranged location | • Progress update<br>• Discussion regarding relevant research and potential solutions for UX interaction<br>• Q&A session for any issues during development cycle |
+| Standup                   | Weekly    | **17:30-18:30** | Monday | Online via Teams                | • Round table format<br>• What are you working on<br>• Blockers?<br>• Plan for this week                                                                          |
+| Supervisor (w/ Dr.Mishra) | Monthly   | **15:00-16:00** | Friday | In person, at arranged location | • Progress update<br>• Discussion regarding relevant research and potential solutions for UX interaction<br>• Q&A session for any issues during development cycle |
 
 Meeting chairs and notetakes will be responsible for ensuring that given issues are filled out.
 For meeting with supervisors, notes should be taken under [[meetings]].
@@ -56,8 +56,7 @@ methods, Email should be used to communicate with the rest of the team and the i
 
 The following encapsulates member roles for Hinterland.
 
-[Aaron Pham](https://aarnphm.xyz) will take the lead role for the team and acts as [BDFL](https://en.wikipedia.org/wiki/Benevolent_dictator_for_life) for `morph`.
-They will be responsible for overall project management, communication among course instructors, supervisor, as well as providing support to the rest of the team
+[Aaron Pham](https://aarnphm.xyz) will serve as the Project Lead, responsible for coordinating all aspects of the project. This includes managing communication with course instructors and the project supervisor, setting priorities, facilitating team alignment, and supporting other members across different components.
 
 Notetakers will be responsible for taking notes during meetings, lectures during the working week, and this role will
 be rotated among team members on a four week basis. The following can be used:
@@ -70,37 +69,75 @@ A[Aaron Pham] --> B[Waleed Malik] --> C[Nebras Khan] --> D[Lucas Li]
 > [!note] Meeting chair assignment
 > Follow the schedule for notetakers.
 
-Given that `morph` will include two components (web-based editor and ML inference server), the following include
-a rough draft of each champion's responsibilities:
+Given that `morph` consists of both a web-based editor and an ML inference server, the following team members will take primary responsibility for each area:
 
-- design work: The team will collaborate on general design works for interfaces, lead by [Aaron Pham](https://aarnphm.xyz).
-- web-based editor: [Nebras Khan](https://github.com/nebrask).
+- Interface design: Collaborative design process led by [Aaron Pham](https://aarnphm.xyz).
+- Web-based editor: [Nebras Khan](https://github.com/nebrask).
 - ML inference server: [Waleed Malik](https://github.com/waleedmalik7)
-- SAE intervention: Lead by [Aaron Pham](https://aarnphm.xyz), with [Lucas Li](https://github.com/lucas-lizhiwei)
+- SAE intervention: Led by [Aaron Pham](https://aarnphm.xyz), with support from [Lucas Li](https://github.com/lucas-lizhiwei)
 
-Reviewers will be assigned automatically based on the project they champion.
+Code reviewers will be assigned based on ownership of the component in question. Team members are encouraged to collaborate across components as needed.
 
 > [!note] Assignment
-> Generally, everyone can work simultaneously on any of the three components mentioned above.
+>
+> While responsibilities are divided for clarity, all members are free to contribute across components depending on project needs.
 
 ## Workflow Plan
 
-`morph` will follow a conventional git workflow, with `main` acts as "production" branch.
-This means all changes should be work from a pull requests, and will be squashed into ==one== commit before pushing to
-`main`.
+The project follows a conventional Git workflow. The `main` branch acts as the production-ready branch. All changes must be submitted via pull requests, and PRs will be squash-merged into a single commit to maintain a clean, linear history.
 
-This will ensure linear history.
+### Commit and Branch Naming
 
-`morph` will use conventional commits for all commit messages as well as branch naming.
+Commit messages and branch names will use short, descriptive prefixes based on the type of work. Common tags include:
 
-Issues should be created for all bugs, feature requests, and other work items, from predefined templates (blank
-templates are provided, but only use this if any of the previous templates do not apply.) Issue can be optionally add
-labels, add to milestone and Kaban board for progress checking.
+- `feat:` for new features
+- `docs:` for documentation changes
+- `infra:` for infrastructure or CI updates
+- `chore:` for cleanup, config, or non-functional changes
 
-GitHub Actions will be used for CI/CD. The following enlists an overview of CI/CD for `morph`:
+### Issue Tracking
 
-- Documentation will be built automatically on every push to main as well as PR changes
-- Each component will have its own CI pipeline for styling changes as well as tests (A/B testing)
+We use GitHub Issues for all tasks, bugs, planning items, and meetings. The following templates are available to guide issue creation:
+
+- **Bug Report**: For reporting issues and unexpected behavior
+- **Feature Request**: For proposing and discussing new features
+- **Lecture**: To track course lecture-related notes
+- **Peer Review**: To manage external reviews of deliverables
+- **Supervisor Meeting**: To prepare and document supervisor meetings
+- **TA Meeting**: For tracking TA check-ins or sync-ups
+- **Team Meeting**: For internal team meetings and agendas
+- **Blank**: For anything that doesn’t fit the above categories
+
+Issues will be labeled appropriately (`feat`, `docs`, `infra`, `lecture`, `meeting`, etc.) and assigned to team members as needed. Milestones may be used to track key deliverables.
+
+### Project Board Workflow
+
+Each issue is tracked on the GitHub project board using the following status columns:
+
+- **Backlog**: Task not yet started
+- **Ready**: Task ready to be picked up
+- **In progress**: Task currently being worked on
+- **In review**: Task is under code or design review
+- **Done**: Task is completed
+
+This helps visualize team progress and maintain async alignment.
+
+### Pull Request Process
+
+- All PRs must reference a related issue when applicable
+- Code reviews are required before merging
+- PRs must pass CI checks (tests and formatting)
+- Small, focused changes are preferred
+
+### CI/CD via GitHub Actions
+
+CI/CD is automated using GitHub Actions. The setup includes:
+
+- **Docs Deployment**: Automatically triggered on pushes to `main` and pull requests
+- **Component CI Pipelines**: Each main module (editor, inference server) has a dedicated workflow for testing and formatting
+- **Support for A/B Testing**: Will be used for evaluating model variants or steering interventions
+
+This setup ensures transparency, quality, and efficient iteration throughout development.
 
 ## Project Decomposition and Scheduling
 
@@ -114,27 +151,33 @@ See also [[Scratch|brain dump]] for more detailed features development.
 
 ## Proof of Concept Demonstration Plan
 
-The following entails POC plan for `morph` incoming November deadline:
+The following outlines the proof-of-concept (POC) plan for `morph` leading up to the November deadline:
 
-- functional web-based text-editor, including feature tuning,
-- Uses [Gemma 2](https://ai.google.dev/gemma?authuser=2) with pretrained [[glossary#sparse autoencoders|SAEs]] (see [GemmaScope](https://ai.google.dev/gemma/docs/gemma_scope)) for initial proof-of-concept steering.
-- start training SAEs for Llama 3.1
-- Running a OpenAI-compatible API inference server (remotely first, on BentoCloud).
-- Vim-mode
+- A functional web-based text editor with initial support for feature steering and interactive suggestions
+- Use of [Gemma 2](https://ai.google.dev/gemma?authuser=2) with pretrained [[glossary#sparse autoencoders|SAEs]] (see [GemmaScope](https://ai.google.dev/gemma/docs/gemma_scope)) to demonstrate early feature-steering capabilities
+- Begin training custom SAEs for `Llama 3.1` to support future expansion
+- Run an OpenAI-compatible inference API server, hosted remotely on BentoCloud
+- Introduce optional Vim-mode for advanced users familiar with modal editing
 
-Certain risks that may arise during the POC include:
+### Risks and Challenges
 
-- degradation of the generation quality due to incorrect feature steering.
-- performance rendering with inlay within text buffers
-- Modal editing won't work.
-- e2e testing would be a hassle, given there are multiple components for morph.
-- Cold start for inference server.
-- Mismanaging KV cache from vLLM internal block manager given that we are modifying attention activation directly.
+The following risks may impact the success or performance of the POC:
 
-To adverse given risks, the following will be implemented:
+- Degradation in generation quality if feature steering is poorly configured, resulting in irrelevant or incoherent suggestions
+- Performance issues when rendering live inlays directly in the text editor, potentially affecting responsiveness
+- Incomplete or non-functional modal editing (Vim-mode) by the POC deadline
+- Complexity of full-system (end-to-end) testing, due to the multiple moving parts in `morph` (frontend, backend, and model control logic)
+- Slow initial response from the model server (cold starts), especially in remote deployment
+- Possible memory leak from KV cache when handling with long context queries
 
-- Propose a low-fidelty prototype, followed by a design iteration for specific UX consideration.
-- Trained a small sets of [[glossary#low-rank adapters|LoRA]] as backup to merge with Llama 3.1 on inference server, given that LoRA has been hardened by industry practice.
+### Mitigation Strategies
+
+To reduce the impact of the above risks, we plan to:
+
+- Propose and test a low-fidelity prototype early, followed by iterative design improvements to address usability issues
+- Focus UX efforts on refining critical interactions to ensure stability during the POC demo
+- Train a small set of [[glossary#low-rank adapters|LoRA]] as a fallback to merge with `Llama 3.1`, using methods proven in industry for reliability
+- Delay low-level memory tuning until a stable version of the model is running, to avoid interrupting key demo features
 
 ## Expected Technology
 
@@ -217,13 +260,18 @@ A variation of Google style guide for Python will be used.
 
 ### Revision
 
-| Date          | Developer(s) | Change                              |
-| ------------- | ------------ | ----------------------------------- |
-| Sept. 16 2024 | 0.0          | Initial skafolding                  |
-| Sept. 22 2024 | 0.1          | Initial POC and Development Plan    |
-| March 31 2025 | 0.2          | Renaming to `morph` for consistency |
+| Date          | Developer(s) | Change                                   |
+| ------------- | ------------ | ---------------------------------------- |
+| Sept. 16 2024 | 0.0          | Initial skafolding                       |
+| Sept. 22 2024 | 0.1          | Initial POC and Development Plan         |
+| March 31 2025 | 0.2          | Renaming to `morph` for consistency      |
+| Apr. 1 2025   | 0.3          | Full document revision and restructuring |
 
 ### Reflection
+
+1. Why is it important to create a development plan prior to starting the project?
+2. In your opinion, what are the advantages and disadvantages of using CI/CD?
+3. What disagreements did your group have in this deliverable, if any, and how did you resolve them?
 
 <div class="reflection-container">
 
@@ -233,21 +281,80 @@ A variation of Google style guide for Python will be used.
 
 <div class="blob">
 
-It is important to create a development plan prior to starting the project to ensure goal alignment, timelines,
-required resources and potential risks are evaluated accordingly. It enables better team coordination and planning on
-feature development, as well as providing a baseline to measure progress against. Additionally, it also helps with
-preventing scope creep by clearly defining goals and objectives to be achieved.
+1. It is important to create a development plan prior to starting the project to ensure goal alignment, timelines,
+   required resources and potential risks are evaluated accordingly. It enables better team coordination and planning on
+   feature development, as well as providing a baseline to measure progress against. Additionally, it also helps with
+   preventing scope creep by clearly defining goals and objectives to be achieved.
 
-CI/CD, ensures faster development iterations and improve code quality through automated testing. It also
-helps with earlier bug detection and prevent regressions. However, depending on the stage of the project (given that
-morph is relatively new and small), setting CI/CD is a huge hassle as one will have to manage the infrastructure
-as well as complexity of these pipelines. This will actually inversely introduce a lot of technical debt and slow down
-development cycle. This is also known as _premature optimisation_.
+2. CI/CD, ensures faster development iterations and improve code quality through automated testing. It also
+   helps with earlier bug detection and prevent regressions. However, depending on the stage of the project (given that
+   morph is relatively new and small), setting CI/CD is a huge hassle as one will have to manage the infrastructure
+   as well as complexity of these pipelines. This will actually inversely introduce a lot of technical debt and slow down
+   development cycle. This is also known as _premature optimisation_.
 
 > CI/CD is the case of "pick your poison"
 
-We don't have any disagreements with regards to this deliverable, given that I asked for everyone preferences and let
-the technology stack to be made by project champion.
+3. We had a bit of disagreement around certain parts of the tech stack early on, particularly when choosing between different model-serving options. To resolve it, I made sure to ask for everyone’s input and facilitate a group discussion. In the end, we let the project champion for that component make the final call, which helped move things forward. Once the reasoning was clear, everyone supported the final decision, and it helped us shift focus toward building rather than debating.
+
+</div>
+
+</div>
+
+<br/>
+
+<div class="reflection-container">
+
+<div class="users">
+  <a class="name" href="https://github.com/nebrask">Nebras</a>
+</div>
+
+<div class="blob">
+
+1. Creating a development plan was crucial for us because it gave the project direction and helped us identify unknowns early on. We were able to break down a pretty ambitious idea like morph into manageable parts, each with clear owners. It also helped the team align on expectations around responsibilities and workflows. Without this step, we could’ve easily drifted or miscommunicated, especially with a project that combines frontend UX and backend ML infrastructure. Having it all written down gave us similar to a shared guidebook.
+
+2. CI/CD brings a lot of structure and confidence to our workflow. Every time we push, we get immediate feedback through automated tests and formatting checks, which is especially important with a project as modular as morph. It also makes merging and deploying smoother since we’re never sitting on untested code. The downside is the initial time investment. Setting up the pipelines to work across the editor and ML inference layers wasn’t trivial. Also when the pipelines break, it can block progress temporarily until we debug them.
+
+3. We had a bit of debate around how to define roles in the document. At first, we used the term “BDFL” to describe project leadership, but not everyone felt that term was appropriate for a formal academic deliverable. Some saw it as potentially off-putting or unclear to non-technical readers. After discussing it together, we switched to clearer language like “project lead” and emphasized shared ownership across components. That small change made the roles more understandable and professional without changing the actual structure of the team.
+
+</div>
+
+</div>
+
+<br/>
+
+<div class="reflection-container">
+
+<div class="users">
+  <a class="name" href="https://github.com/waleedmalik7">Waleed</a>
+</div>
+
+<div class="blob">
+
+1. A development plan sets the foundation for everything that follows. For morph, we have both technical depth and user-facing complexity, and without planning ahead we might’ve prioritized the wrong things. Writing it all down forced us to clarify who is doing what, how our components talk to each other, and where potential risks lie. It also helped us have discussions early about scope, feasibility, and user expectations. I think having this plan will make future collaboration smoother and help when we check back in during project milestones.
+
+2. CI/CD is amazing for speeding up collaboration. It lets us validate work continuously, rather than relying on big manual testing rounds. For example, documentation gets built automatically, and model-related checks run on every pull request. It gives us trust in our changes. That said, it takes work to maintain. We had to split the pipelines for different components and set guardrails so nothing breaks unexpectedly. It’s also easy to underestimate how much debugging CI issues can slow us down, especially if you're trying to fix a flaky test or inconsistent runtime.
+
+3. We had different ideas on how much technical detail to include in certain sections, like the Proof of Concept plan. Some of us preferred shorthand to keep it concise, but others argued for more explanation. We ended up rewriting those sections with clarity in mind so that non-technical readers could follow along too.
+
+</div>
+
+</div>
+
+<br/>
+
+<div class="reflection-container">
+
+<div class="users">
+  <a class="name" href="https://github.com/lucas-lizhiwei">Lucas</a>
+</div>
+
+<div class="blob">
+
+1. Without a plan, a project like morph would be way harder to manage. We have machine learning components, real-time UI interactions, and infrastructure decisions all happening in parallel. The plan helped us map out how everything fits together and what needs to happen first. It also helped reduce misunderstandings, especially around responsibilities. For instance, once we wrote out who was handling the editor vs. the ML inference server, it helped people focus on their parts while still being able to contribute to other areas.
+
+2. The main advantage is that it catches problems early and keeps the team from stepping on each other’s toes. If a change breaks the build or causes formatting issues, we find out right away. That’s huge when you're working across frontend and backend. On the downside, CI/CD systems can be a bit opaque when they fail. It sometimes takes longer than expected to track down the root cause of a failing pipeline, especially if it’s something that works locally but not in the cloud environment. Still, the benefits outweigh the setup cost in the long run.
+
+3. We had some small disagreements about how strict we wanted our Git workflow to be. Some people preferred a looser, more informal style while others wanted structure with squash merges, labels, and issue linking. In the end, we agreed to use structured naming and squash merging to keep our history clean but allowed for flexibility with how issues are created. It was a good compromise that let us be productive without overengineering the process.
 
 </div>
 
@@ -329,6 +436,6 @@ For metrics, try to show up for meetings, and push your progress through draft P
 
 ##### Decision Making
 
-The team will follow a concensus voting model with regards features design and implementation decisions.
+The team will follow a consensus-based voting model for feature design and implementation decisions.
 
-Should there be a split vote, BDFL will have the final say.
+In the event of a split vote, a final decision will be made by the team member responsible for that component.
