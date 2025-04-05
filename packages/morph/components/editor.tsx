@@ -485,6 +485,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     addTask,
     addEssayTask,
     addAuthorTask,
+    updatePreview,
   ])
 
   // Reset loaded files cache when vault changes
@@ -1361,10 +1362,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   }, [settings, currentFile, vimMode])
 
   useEffect(() => {
-    if (markdownContent) {
+    if (restoredFile?.content) {
+      updatePreview(restoredFile.content)
+    } else if (markdownContent) {
       updatePreview(markdownContent)
     }
-  }, [markdownContent, updatePreview])
+  }, [markdownContent, updatePreview, restoredFile])
 
   // Add an effect to update preview specifically when a file is restored
   useEffect(() => {
