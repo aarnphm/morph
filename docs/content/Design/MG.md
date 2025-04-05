@@ -4,7 +4,7 @@ tags:
   - design
 author: aarnphm,waleedmalik7,nebrask,lucas-lizhiwei
 date: "2024-09-16"
-modified: 2025-03-31 14:56:34 GMT-04:00
+modified: 2025-04-05 00:36:06 GMT-04:00
 title: Module Guide
 ---
 
@@ -145,7 +145,6 @@ This section documents the primary design decisions made to satisfy the requirem
 - Storage of user preferences and configurations locally through the Settings Module
 - Integration with SAEs for tone and style customization via the Inference Module
 
-
 ### Performance and Scalability (Requirements PR-SLR1, PR-SLR2)
 
 - Integration of GPU acceleration for compute-intensive tasks like inference
@@ -242,13 +241,12 @@ Modules are decomposed according to the principle of "information hiding" propos
 
 ##### Exported Access Programs
 
-| **Routine Name**     | **Input**                | **Output**               | **Description**                                     |
-|----------------------|--------------------------|--------------------------|-----------------------------------------------------|
-| `Authors`            | `Author, string`         | `Author Record `         | Record the selected author style                    |
-| `Tonality`           | `IsEnable, boolean`      | `Boolean`                | Record if the tonality is enable                    |
-| `Vibes`              | `VibeLevel, Value`       | `VibeLevel Record`       | Record the level of vibes                           |
-| `Notes`              | `NotesNumber, Value`     | `NotesNumber`            | Recod the Number of notes generated                 |
-
+| **Routine Name** | **Input**            | **Output**         | **Description**                     |
+| ---------------- | -------------------- | ------------------ | ----------------------------------- |
+| `Authors`        | `Author, string`     | `Author Record `   | Record the selected author style    |
+| `Tonality`       | `IsEnable, boolean`  | `Boolean`          | Record if the tonality is enable    |
+| `Vibes`          | `VibeLevel, Value`   | `VibeLevel Record` | Record the level of vibes           |
+| `Notes`          | `NotesNumber, Value` | `NotesNumber`      | Recod the Number of notes generated |
 
 #### Analytics Module (M10)
 
@@ -268,15 +266,15 @@ Modules are decomposed according to the principle of "information hiding" propos
 
 This section shows two traceability matrices: between the modules and the requirements and between the modules and the anticipated changes.
 
-| **Requirement** | **Modules**         |
-| --------------- | ------------------- |
-| FR-1            | M2, M3, M4, M8      |
-| FR-2            | M1, M8, M9, M3, M5  |
-| FR-3            | M2, M6, M8          |
-| FR-4            | M8, M9, M5, M10     |
-| FR-10           | M7, M6, M11         |
-| FR-13           | M11, M6, M9         |
-| FR-14           | M5, M2, M6          |
+| **Requirement** | **Modules**        |
+| --------------- | ------------------ |
+| FR-1            | M2, M3, M4, M8     |
+| FR-2            | M1, M8, M9, M3, M5 |
+| FR-3            | M2, M6, M8         |
+| FR-4            | M8, M9, M5, M10    |
+| FR-10           | M7, M6, M11        |
+| FR-13           | M11, M6, M9        |
+| FR-14           | M5, M2, M6         |
 
 _Table 2: Trace Between Requirements and Modules_
 
@@ -318,12 +316,15 @@ All documentation-related issues are to be completed prior to the Final Document
 The below outlines the implementation timeline:
 
 ### Phase 1: Revision 0 Demo (due February 3rd, 2025)
+
 #### M2: Editor Module
+
 - UI interaction refinement & contextual suggestion logic — Lucas
 
 - DOM update & formatting rules implementation — Nebras
 
 #### M3: Notes Module
+
 - Note data structure design — Lucas
 
 - Contextual note linking and real-time updates — Aarnphm
@@ -331,6 +332,7 @@ The below outlines the implementation timeline:
 - Basic testing on note consistency — Waleed
 
 #### M4: Graph View Module
+
 - Graph structure sync implementation — Waleed
 
 - Interactive UI rendering logic — Lucas
@@ -338,6 +340,7 @@ The below outlines the implementation timeline:
 - Structural testing with document changes — Aarnphm
 
 #### M5: Settings Module
+
 - Theme & font customization logic — Lucas
 
 - User preferences state binding — Nebras
@@ -345,11 +348,13 @@ The below outlines the implementation timeline:
 - Manual test on dynamic setting application — Waleed
 
 #### M6: Rendering Module
+
 - Markdown parsing and preview integration — Nebras
 
 - Preview accuracy testing — Lucas
 
 #### M7: Data Fetching and State Management
+
 - Draft save/load logic via localStorage — Waleed
 
 - Metadata state structure and caching — Lucas
@@ -357,6 +362,7 @@ The below outlines the implementation timeline:
 - Regression testing on document persistence — Nebras
 
 #### M8: Inference Module
+
 - Prompt formatting and response processing — Nebras
 
 - Model interaction pipeline (mocked) — Aarnphm
@@ -364,6 +370,7 @@ The below outlines the implementation timeline:
 - Basic input/output testing — Lucas
 
 #### M9: User Configuration Module
+
 - Preference record handling & interface — Lucas
 
 - Live update of tone/style from config — Waleed
@@ -371,18 +378,20 @@ The below outlines the implementation timeline:
 - Preference persistence testing — Nebras
 
 #### M10: Analytics Module
+
 - Progress tracking logic design — Waleed
 
 - Testing metrics accuracy — Lucas
 
 #### M11: Export & Integration Module
+
 - Export-to-Markdown logic — Lucas
 
 - Testing Markdown integrity — Waleed
 
 ### Phase 2: Final Demo (due March 15th, 2025)
-Further refinement and testing of all modules (All team members)
 
+Further refinement and testing of all modules (All team members)
 
 ## Appendix
 
