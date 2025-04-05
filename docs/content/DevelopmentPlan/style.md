@@ -2,7 +2,7 @@
 id: style
 tags:
   - meta
-author: aarnphm
+author: aarnphm,nebrask,waleedmalik7,lucas-lizhiwei
 date: "2024-09-23"
 modified: 2025-03-31 14:50:16 GMT-04:00
 title: Python coding style
@@ -20,8 +20,7 @@ experimental development and prototyping.
 Everyone always has their own opinions on style. We believe this is exemplified
 further within the Python community, as it tries to be beginner-friendly, and
 therefore most people hold a very strong opinion on styling. We don't have a
-strong opinion on style either (Aaron: I don't have any issue with PEP8, as I use it
-at my company and other projects), as long as:
+strong opinion on style either, as long as:
 
 - You don't use any linter, formatter that change the style drastically other
   than what specified within the projects' [`pyproject.toml`](https://github.com/aarnphm/morph/blob/main/pyproject.toml).
@@ -43,7 +42,7 @@ rather "compact and flowing"_)
 
 The styling is heavily inspired by Kenneth Iverson's 1979 Turing award lecture, [Notation as a Tool of Thought](https://www.eecg.toronto.edu/~jzhu/csc326/readings/iverson.pdf),
 and a lot of the stylistic inspiration comes from [Jeremy Howard's](https://jeremy.fast.ai/) [fastai](https://docs.fast.ai/). One
-thing that has been stuck with me ever since is the idea of =="brevity facilitates
+thing that has been stuck with us ever since is the idea of =="brevity facilitates
 reasoning"==, as such the tersity of style aren't just for the sake of shortness,
 rather the brevity of expression.
 
@@ -86,7 +85,7 @@ bugs.
 - also just use single quotes for string, and double quotes for within string when needed.
   i.e: `f'hello "{name}"'`
 
-_If you have any suggestions, feel free to send me a message!_
+_If you have any suggestions, feel free to send a message!_
 
 ### Layout.
 
@@ -166,7 +165,7 @@ As you can see, the function calculate the RMSNorm of a given torch tensor.
 
 > [!note] `TYPE_CHECKING` block.
 > As you can see, we also incorporate `TYPE_CHECKING` argument into various places.
-> This will provides some nice in line type checking when development. Usually, I think
+> This will provides some nice in line type checking when development. Usually, we think
 > it is nice to have, but once the files get more and more complex, it is better to just
 > provide a stubs file for it.
 
@@ -186,7 +185,7 @@ PEP8 is great if you are writing library such as this, but we're going to do a l
 of experimenting for implementing papers, so we decided early on that PEP8 is
 probably not fit here, and want to explore more expressive style.
 
-### Editor is complaining about the style, what should i do?
+### Editor is complaining about the style, what should I do?
 
 Kindly ask you to disable formatting for this project 🤗. We will try my best to
 accomodate for ruff, but we don't want to spend too much time on this.

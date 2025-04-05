@@ -56,4 +56,4 @@ export declare global {
     requestPermission(options: { mode: string }): Promise<Readonly<PermissionState>>
     values(): AsyncIterableIterator<FileSystemHandle>
   }
-}
+};

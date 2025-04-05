@@ -1,9 +1,8 @@
 // reference: https://github.com/timlrx/rehype-citation
 // MIT License
-
 import { type Element } from "hast"
-import type { CiteItem, CitationFormat, Mode } from "rehype-citation/node/src/types.js"
 import { fromHtmlIsomorphic } from "hast-util-from-html-isomorphic"
+import type { CitationFormat, CiteItem, Mode } from "rehype-citation/node/src/types.js"
 
 export const getCitationFormat = (citeproc: any): CitationFormat => {
   const info = citeproc.cslXml.dataObj.children[0]

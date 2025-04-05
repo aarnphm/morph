@@ -1,9 +1,14 @@
-import * as React from "react"
-import { useState, useRef, useEffect, memo } from "react"
-import { ChevronRightIcon, TransformIcon } from "@radix-ui/react-icons"
 import { cn } from "@/lib/utils"
-import { db } from "@/db"
-import { motion, AnimatePresence } from "motion/react"
+import { ChevronRightIcon, TransformIcon } from "@radix-ui/react-icons"
+import { eq } from "drizzle-orm"
+import { drizzle } from "drizzle-orm/pglite"
+import { AnimatePresence, motion } from "motion/react"
+import * as React from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+
+import { usePGlite } from "@/context/db"
+
+import * as schema from "@/db/schema"
 
 // Triple dot loading animation component
 const LoadingDots = memo(function LoadingDots() {
@@ -58,30 +63,35 @@ interface ReasoningPanelProps {
   reasoningId: string
   currentFile?: string
   vaultId?: string
-  shouldExpand?: boolean
-  elapsedTime: number
+  shouldExpand: boolean
+  elapsedTime?: number
+  onExpandChange?: (isExpanded: boolean) => void
 }
 
-export function ReasoningPanel({
+export const ReasoningPanel = memo(function ReasoningPanel({
   reasoning,
   className,
   isStreaming,
   isComplete,
+  reasoningId,
   currentFile,
   vaultId,
-  reasoningId,
   shouldExpand = false,
-  elapsedTime,
+  elapsedTime = 0,
+  onExpandChange,
 }: ReasoningPanelProps) {
   const [isExpanded, setIsExpanded] = useState(shouldExpand)
   const [isHovering, setIsHovering] = useState(false)
   const reasoningRef = useRef<HTMLDivElement>(null)
   const startTimeRef = useRef<number | null>(null)
 
+  const client = usePGlite()
+  const db = drizzle({ client, schema })
+
   // Control expansion state from parent
   useEffect(() => {
-    setIsExpanded(shouldExpand || isStreaming)
-  }, [shouldExpand, isStreaming])
+    setIsExpanded(shouldExpand)
+  }, [shouldExpand])
 
   // Auto-collapse after completion
   useEffect(() => {
@@ -102,21 +112,51 @@ export function ReasoningPanel({
     }
   }, [isStreaming])
 
-  // Save reasoning to database when complete
+  // Save reasoning to database when complete - batch updates to reduce database writes
   useEffect(() => {
     if (isStreaming && reasoning && currentFile && vaultId) {
-      db.reasonings.update(reasoningId, { content: reasoning })
+      // Debounce database updates to reduce writes
+      const debouncedUpdate = setTimeout(() => {
+        db.update(schema.reasonings)
+          .set({ content: reasoning })
+          .where(eq(schema.reasonings.id, reasoningId))
+          .execute()
+      }, 500)
+
+      return () => clearTimeout(debouncedUpdate)
     }
-  }, [isStreaming, reasoning, currentFile, vaultId, reasoningId])
+  }, [isStreaming, reasoning, currentFile, vaultId, reasoningId, db])
 
   // Auto-scroll to bottom when content changes and panel is expanded
   useEffect(() => {
     if (isExpanded && reasoningRef.current && isStreaming) {
-      reasoningRef.current.scrollTop = reasoningRef.current.scrollHeight
+      // Use a more gentle scrolling approach
+      const element = reasoningRef.current
+      const currentScrollTop = element.scrollTop
+      const targetScrollTop = element.scrollHeight - element.clientHeight
+
+      // Only scroll if not already at the bottom
+      if (targetScrollTop - currentScrollTop > 5) {
+        // Use a simple smooth scroll that won't interfere with other interactions
+        element.style.scrollBehavior = "smooth"
+        element.scrollTop = targetScrollTop
+
+        // Reset scroll behavior after animation completes
+        const resetTimer = setTimeout(() => {
+          element.style.scrollBehavior = "auto"
+        }, 300)
+
+        return () => clearTimeout(resetTimer)
+      }
     }
   }, [reasoning, isExpanded, isStreaming])
 
-  const toggleExpand = () => setIsExpanded((prev) => !prev)
+  // Notify parent component about expand state changes via callback
+  const toggleExpand = useCallback(() => {
+    const newExpandState = !isExpanded
+    setIsExpanded(newExpandState)
+    onExpandChange?.(newExpandState)
+  }, [isExpanded, onExpandChange])
 
   // Format the duration nicely
   const formattedDuration = (seconds: number) => {
@@ -128,6 +168,27 @@ export function ReasoningPanel({
       return `${minutes} minute${minutes !== 1 ? "s" : ""} ${remainingSeconds} second${remainingSeconds !== 1 ? "s" : ""}`
     }
   }
+
+  // Virtualized text rendering for performance
+  const renderReasoningText = useMemo(() => {
+    if (!reasoning) return null
+
+    // For larger text, split into paragraphs for better performance
+    if (reasoning.length > 3000) {
+      const paragraphs = reasoning
+        .split("\n\n")
+        .filter(Boolean)
+        .map((para, index) => (
+          <p key={index} className="mb-2">
+            {para}
+          </p>
+        ))
+
+      return paragraphs
+    }
+
+    return <span>{reasoning}</span>
+  }, [reasoning])
 
   return (
     <div
@@ -174,16 +235,16 @@ export function ReasoningPanel({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
             className={cn(
-              "text-xs whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72 transition-colors duration-200",
-              isHovering ? "text-foreground" : "text-muted-foreground",
+              "whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72 transition-colors duration-200 will-change-transform",
+              "text-xs text-muted-foreground",
             )}
           >
-            <span>{reasoning}</span>
+            <span>{renderReasoningText}</span>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   )
-}
+})

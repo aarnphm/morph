@@ -7,7 +7,7 @@
     "morph:docs:build": "pnpm --filter morph-docs run quartz build -v",
     "morph:man": "pnpm --filter morph-manuals run quartz build --serve -v",
     "morph:man:build": "pnpm --filter morph-manuals run quartz build -v",
-    "morph:inference": "cd ./python/asteraceae/ && make stack",
+    "morph:inference": "cd ./python/asteraceae/ && bash swarm.sh",
     "morph:inference:build": "cd ./python/asteraceae/ && make build",
     "morph:dev": "pnpm --filter morph-web run dev",
     "morph:build": "pnpm --filter morph-web run build",
