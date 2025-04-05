@@ -726,17 +726,23 @@ The system generated multiple suggestions, all of which were reviewed for copyri
 
 ## Comparison to Existing Implementation
 
-This section provides some comparisions between the two existing solutions and the current implementation of project `morph`, focusing on funtionality and usability.
+This section compares the current implementation of `morph` with two other widely used solutions: OpenAI's ChatGPT and ProWritingAid. The goal is to highlight where `morph` differs, performs better, or provides more targeted value based on functionality, usability, and testing outcomes.
 
-First solution: OpenAI's Chatgpt
+**First solution: OpenAI's ChatGPT**
 
-- Functionality: have good performance on prompt-based conversation. Canvas feature make it easier for editing but project `morph` provides suggestions as appliable notes to do selective modification on the content.
-- Usability: the UI from OpenAI's Chatgpt's UI is imformative and organised to support conversation interface, and `morph` put an emphasis on text-editor tailored interface to better support writing purpose
+ChatGPT performs well for prompt-based generation and conversation-style interactions. It includes a canvas feature that supports flexible editing, but it lacks structured support for long-form writing workflows. `morph`, on the other hand, focuses specifically on creative and narrative writing. It provides targeted notes that suggest improvements to specific sections of text. These suggestions are mapped to exact chunks of writing, as demonstrated in Test-1 and Test-4, where the system successfully generated relevant, personalized suggestions that aligned with the user’s tone and content.
 
-Second solution: prowritingaid
+ChatGPT’s interface is clean and informative, optimized for quick conversational exchanges. However, it is not designed for structured editing or multi-stage planning. `morph` offers a minimal, editor-focused interface that supports distraction-free writing. According to the results in Test-8 and Test-10, users appreciated how the interface kept them focused, gave real-time feedback, and allowed for easy refinement of ideas. This feedback suggests that `morph` offers stronger usability for tasks involving focused content creation compared to ChatGPT’s chat-centric layout.
 
-- Functionality: prowritingaid provides suggestions based on the text input for user as reference to make improvement, but `morph` provides direct modification to the text content.
-- Usability: prowritingaid currently supports more delicate unser interface on webserver compared to `morph` to provide better user experience.
+**Second solution: ProWritingAid**
+
+ProWritingAid provides detailed grammar and style suggestions based on text analysis. These suggestions help improve writing but must be manually reviewed and applied. `morph` takes this a step further by allowing users to directly apply or reject system-generated notes with a single action. In Test-5, users provided feedback through a learning-to-rank panel and observed immediate updates to the suggestions, streamlining the editing process and improving the user experience.
+
+ProWritingAid’s interface is feature-rich but can be overwhelming due to its dense layout and the number of popups and toggles. In contrast, `morph` prioritizes clarity and simplicity. Test-8 shows that users rated `morph` highly for being non-intrusive and visually consistent. Additionally, in Test-12, the system passed all keyboard accessibility checks, which supports a wider range of users and improves workflow efficiency compared to ProWritingAid’s mostly mouse-based navigation.
+
+**Summary**
+
+While ChatGPT is effective for conversational prompts and ProWritingAid excels in grammar checking, neither tool is tailored for focused, iterative creative writing. `morph` fills this gap by combining in-context suggestions, direct editing actions, and a clean writing interface. Across multiple tests, `morph` demonstrated its strength in usability, content relevance, and responsiveness, making it a more suitable option for users who prioritize thoughtful writing improvement and fluid editing workflows.
 
 ## Unit Testing
 
