@@ -112,20 +112,24 @@ Morph relies on certain experimental browser APIs—like `queryPermission()`—t
 To access the Morph starting page, navigate to [https://morph-editor.app/](https://morph-editor.app/) in your supported browser. Once the page loads, look for the **Green Button** located in the bottom-right corner of the screen, as shown in **Figure 1**. Clicking this button takes you to the **Vault Selection** page, where you can create a new vault or open an existing one.
 
 ![[UserGuide/Figure1.png]]
+**Figure 1**
 
 Upon your first visit, a **Disclaimer** pop-up will appear (see **Figure 2**). To proceed beyond this screen, you must click **“I acknowledge”** if you agree to the terms of Morph. Only after acknowledging the disclaimer will you gain full access to the rest of the application.
 
 ![[UserGuide/Figure2.png]]
+**Figure 2**
 
 ### 5.1 Vault
 
 The **Vault** is the primary workspace within Morph, containing the directories you’ve selected for storing and editing Markdown files. After arriving on the Vault page, you can click the **Green Button** (see **Figure 3**) to open a local directory:
 
 ![[UserGuide/Figure3.png]]
+**Figure 3**
 
 Upon doing so, you may see a browser prompt requesting permission for Morph to view files in that directory (see **Figure 4**). Clicking **“View Files”** grants Morph the necessary access to read and write your Markdown files.
 
 ![[UserGuide/Figure4.png]]
+**Figure 4**
 
 > **Important Note:**  
 > For your privacy and security, only **empty directories** or directories **containing exclusively Markdown files** can be added to the Vault. This restriction ensures that Morph never gains access to any unrelated or sensitive data stored elsewhere on your device.
@@ -150,6 +154,7 @@ The **Main Page** greets you with a text editor prompting, “What’s on your m
    - Quickly toggle or focus on these features using another keyboard shortcut (`Cntrl + i`) or (`Cmd + i`)
 
 ![[UserGuide/Figure5.png]]
+**Figure 5**
 
 By organizing your workspace into these three sections, Morph provides an intuitive way to write, review suggestions, and manage files or settings—all within a single, distraction-free environment.
 
@@ -168,22 +173,26 @@ Every edit you make in the text editor is considered by the AI, ensuring that it
 **Before Render:**
 
 ![[UserGuide/Figure7.png]]
+**Figure 7**
 
 **After Render:**
 
 ![[UserGuide/Figure8.png]]
+**Figure 8**
 
 ### 5.4 Left Panel: Directory Tree
 
 To open the directory tree, click the panel icon at the top left of the screen. As shown in **Figure 6**, all subdirectories and Markdown files within your vault are displayed in a hierarchical list (e.g., “Essay_1,” “Essay_2,” etc.). Clicking any file name opens it in the main editor for viewing or editing. This structure makes it easy to organize and navigate multiple writing projects within Morph, ensuring you always know where your files reside and how to access them quickly.
 
 ![[UserGuide/Figure6.png]]
+**Figure 6**
 
 ### 5.5 Left Panel: Settings
 
 The **Settings** panel in Morph is your central hub for customizing your writing environment. Accessible via the panel icon on the left, this section provides a wide range of configuration options that allow you to tailor Morph to your personal workflow and preferences.
 
 ![[UserGuide/Figure9.png]]
+**Figure 9**
 
 #### General Tab
 
@@ -193,6 +202,7 @@ Within the **General** tab, you can find links to external resources:
 - **Engineering** – Explore engineering-focused references or advanced usage details.
 
 ![[UserGuide/Figure10.png]]
+**Figure 10**
 
 
 #### Editor Settings
@@ -204,12 +214,14 @@ In the **Editor** tab, you can fine-tune how Morph looks and behaves while you w
   Enable or disable **Vim key bindings** for text editing, allowing you to navigate and modify text using familiar Vim shortcuts if desired.
 
 ![[UserGuide/Figure11.png]]
+**Figure 11**
 
 #### Keyboard Shortcuts
 
 The **Hotkeys** section allows you to view all the current keybindings, and you can modify them to match your personal preferences for quick access to commonly used functions.
 
 ![[UserGuide/Figure12.png]]
+**Figure 12**
 
 By using the Settings panel, you can create a more **accessible** writing environment that enhances both your productivity and creative flow. All changes are applied in real time, allowing you to experiment with different configurations and instantly see the impact on your workspace.
 
@@ -223,22 +235,26 @@ To access AI-generated **Notes**, click the **Green Button** in the bottom-right
 This action initiates the note-generation process, typically taking around 10 seconds. A loading icon indicates that the AI is analyzing your text to produce context-aware suggestions.
 
 ![[UserGuide/Figure13.png]]
+**Figure 13**
 
 #### AI Reasoning
 
 Morph also features an AI **Thinking** section that provides deeper insight into its brainstorming process. This view explains how the AI is formulating ideas, suggesting expansions, or planning structural adjustments to your content.
 
 ![[UserGuide/Figure14.png]]
+**Figure 14**
 
 #### Applying Generated Notes
 
 Once the notes are generated, they appear in the **Right Panel**. You can **drag and drop** these suggestions directly into the text editor to integrate them into your writing.
 
-![[UserGuide/Figure1.png]]
+![[UserGuide/Figure15.png]]
+**Figure 15**
 
 Additionally, hovering over a note provides further details about the AI's reasoning process, giving you more context about the suggestion.
 
 ![[UserGuide/Figure16.png]]
+**Figure 16**
 
 - **Local Persistence:** These notes are stored locally and remain attached to your document even if you regenerate them or close and reopen the application.
 
@@ -247,6 +263,7 @@ Additionally, hovering over a note provides further details about the AI's reaso
 The **Steering** menu allows you to fine-tune how Morph’s AI generates text. To open this menu, click the **golden (or auburn)** icon in the bottom-right corner of the screen (see **Figure 17**). Once opened, you can modify various parameters that shape the style, tone, and behavior of Morph’s suggestions and regenerate notes.
 
 ![[UserGuide/Figure17.png]]
+**Figure 17**
 
 1. **Authors**  
    - Add or remove authors to guide the AI’s writing style. For example, choosing “Stephen King” can lend a suspenseful or vivid tone to your text.
@@ -267,6 +284,7 @@ The **Steering** menu allows you to fine-tune how Morph’s AI generates text. T
    - Sets how many suggestions the AI will generate at a time. Increasing this number can provide more diverse perspectives, while a lower number keeps the suggestions concise.
 
 ![[UserGuide/Figure18.png]]
+**Figure 18**
 
 Use these settings to steer the AI’s output toward your preferred style and depth. Experiment with different combinations—such as pairing a “Formal” tone with a more “Creative” vibe—to find the best balance for your specific writing goals. All steering changes are applied immediately, so you can observe how the AI adapts in real time.
 
