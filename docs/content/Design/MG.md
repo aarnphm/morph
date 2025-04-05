@@ -312,7 +312,6 @@ _Figure 1: Use Hierarchy Between Modules_
 
 ![[images/POC.pdf|POC]]
 
-![[images/modules.drawio.png]]
 
 ## Timeline
 

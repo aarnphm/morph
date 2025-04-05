@@ -110,9 +110,17 @@ Editor module
 
 `renderMarkdown(content: string): HTML`
 
-- Transition: Processes the given Markdown content and converts it into a rendered HTML format for display.
-- Output: Returns a valid HTML string representation of the processed content.
-- Exception: Throws `InvalidInput` if the provided content is empty or invalid.
+- Transition: 
+Binds a predefined set of Vim keybindings to the text editor environment.
+Activates modes including normal, insert, and visual.
+Integrates command mappings for motion, selection, and text manipulation.
+- Output: 
+Returns `true` if all bindings are successfully registered and active.
+Returns `false` if the environment is incompatible or the editor is not mounted.
+- Exception: Throws `BindingError` if:
+Required Vim layer is not present in the runtime environment.
+Conflicting shortcut keys are already bound.
+Editor instance is not properly initialized.
 
 `applyVimBindings(): boolean`
 
@@ -541,18 +549,18 @@ None
 
 | **Name**      | **In**                                                                                           | **Out**                                                                                                                                   | **Exceptions**                |
 | ------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| `interp`      | `markdownInput` ($\textbf{String}$)                                                              | $\textbf{JSON}(\text{notes}=[\text{note}_1,\dots,\text{note}_n], \text{suggestions}=[\text{idea}_1,\dots,\text{idea}_m], \text{graph}=G)$ | InferenceError                |
-| `infer_style` | $\textbf{JSON}(\text{text}=\text{String}, \text{style}=[\text{author}_1,\dots,\text{author}_n])$ | $\textbf{JSON}(\text{variations}=[\text{text}_1,\dots,\text{text}_n])$                                                                    | StyleNotFound, InferenceError |
+| `interp`      | `markdownInput` ($\textbf{String}$)                                                              | $\textbf{JSON}(\{note_i \| note_i = id ∧ 1 ≤ i ≤ n\}, \text{suggestions}=\{idea_i \| idea_i = id ∧ 1 ≤ i ≤ n\}, \text{graph}=G)$ | InferenceError                |
+| `infer_style` | $\textbf{JSON}(\text{text}=\text{String}, \text{style}=[\{author_i \| author_i = id ∧ 1 ≤ i ≤ n\}])$ | $\textbf{JSON}(\text{variations}=[\{text_i \| text_i = id ∧ 1 ≤ i ≤ n\}])$                                                                    | StyleNotFound, InferenceError |
 
 ### Semantics
 
 #### State Variables
 
-- `currentInferenceTasks`: $\textbf{JSON}(\text{tasks}=[\text{task}_1,\dots,\text{task}_n])$ where $\text{task}_i = \{\text{id}, \text{model}, \text{status}, \text{progress}\}$
+- `currentInferenceTasks`: $\textbf{JSON}(\text{tasks}= \{task_i | task_i = id ∧ 1 ≤ i ≤ n\})$ where $\text{task}_i = \{\text{id}, \text{model}, \text{status}, \text{progress}\}$
   - Tracks active inference tasks
 - `modelStates`: $\textbf{JSON}(\text{models}=[\{\text{name}: \text{String}, \text{SAE}: \mathbb{R}\}])$
   - Tracks loaded models and their Self-Attention Entropy scores
-- `generationStates`: $\textbf{JSON}(\text{intermediates}=[\text{gen}_1,\dots,\text{gen}_k])$ where $\text{gen}_i = \{\text{text}, \text{score}, \text{timestamp}\}$
+- `generationStates`: $\textbf{JSON}(\text{intermediates}=\{gen_i | gen_i = id ∧ 1 ≤ i ≤ n\})$ where $\text{gen}_i = \{\text{text}, \text{score}, \text{timestamp}\}$
   - Stores intermediate generations for each task
 
 #### Environment Variables
