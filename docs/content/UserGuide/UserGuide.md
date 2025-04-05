@@ -88,9 +88,6 @@ Morph is entirely web-based and works on any operating system—Windows, Mac, or
 - **Partially Supported:** Firefox may provide some degree of compatibility, but features could vary based on its implementation of file system permissions.
 - **Not Supported:** Safari currently does not support the permissions required for Morph to access your local files.
 
-> **Note:**  
-> See Section 8 - Appendix to see entire list of supported browsers.
-
 
 #### Internet Connection
 
@@ -218,7 +215,61 @@ By using the Settings panel, you can create a more **accessible** writing enviro
 
 ### 5.6 Right Panel: Notes
 
-### 5.7 Right Panel: Steering 
+To access AI-generated **Notes**, click the **Green Button** in the bottom-right corner of the screen or use the following keyboard shortcuts:
+
+- **Windows/Linux:** Press `Ctrl + i`
+- **MacOS:** Press `Cmd + i`
+
+This action initiates the note-generation process, typically taking around 10 seconds. A loading icon indicates that the AI is analyzing your text to produce context-aware suggestions.
+
+![Figure 13](<Figure 13.png>)
+
+#### AI Reasoning
+
+Morph also features an AI **Thinking** section that provides deeper insight into its brainstorming process. This view explains how the AI is formulating ideas, suggesting expansions, or planning structural adjustments to your content.
+
+![Figure 14](<Figure 14.png>)
+
+#### Applying Generated Notes
+
+Once the notes are generated, they appear in the **Right Panel**. You can **drag and drop** these suggestions directly into the text editor to integrate them into your writing.
+
+![Figure 15](<Figure 15.png>)
+
+Additionally, hovering over a note provides further details about the AI's reasoning process, giving you more context about the suggestion.
+
+![Figure 16](<Figure 16.png>)
+
+- **Local Persistence:** These notes are stored locally and remain attached to your document even if you regenerate them or close and reopen the application.
+
+### 5.7 Right Panel: Steering
+
+The **Steering** menu allows you to fine-tune how Morph’s AI generates text. To open this menu, click the **golden (or auburn)** icon in the bottom-right corner of the screen (see **Figure 17**). Once opened, you can modify various parameters that shape the style, tone, and behavior of Morph’s suggestions and regenerate notes.
+
+![Figure 17](<Figure 17.png>)
+
+1. **Authors**  
+   - Add or remove authors to guide the AI’s writing style. For example, choosing “Stephen King” can lend a suspenseful or vivid tone to your text.
+
+2. **Tonality**  
+   - **Formal**: Encourages a more polished, academic style.  
+   - **Fun**: Emphasizes a lively and engaging voice.  
+   - **Soul Cartographer**: Steers the AI to explore deeper, more introspective or emotional content.  
+   - **Logics**: Focuses on clarity and structured reasoning, helpful for analytical or technical writing.  
+   - Toggle the **Enable** checkbox to activate or deactivate specific tonal sliders.
+
+3. **Vibes**  
+   - A slider ranging from **Deterministic** to **Unhinged** (or **Creative**).  
+   - **Deterministic**: Produces more consistent and predictable suggestions.  
+   - **Creative/Unhinged**: Encourages more free-form or unconventional ideas.
+
+4. **Notes**  
+   - Sets how many suggestions the AI will generate at a time. Increasing this number can provide more diverse perspectives, while a lower number keeps the suggestions concise.
+
+![Figure 18](<Figure 18.png>)
+
+Use these settings to steer the AI’s output toward your preferred style and depth. Experiment with different combinations—such as pairing a “Formal” tone with a more “Creative” vibe—to find the best balance for your specific writing goals. All steering changes are applied immediately, so you can observe how the AI adapts in real time.
+
 
 ## 6 Troubleshooting
 
@@ -240,7 +291,7 @@ If Morph is not generating notes:
 If you’re unable to access the Morph website:
 - **Internet Connection:** Verify that you have a stable internet connection.
 - **Device Compatibility:** Ensure you are using a computer, as Morph does not support mobile devices.
-- **Browser Requirements:** Confirm that you are using a supported browser (refer to the Appendix for the full list of accepted browsers).
+- **Browser Requirements:** Confirm that you are using a supported browser. Refer to the Appendix for the full list of accepted browsers.
 - **Firewall/Network Restrictions:** Make sure your firewall or network settings are not blocking access to the website.
   - **For Windows:** Check your Windows Firewall settings.
   - **For MacOS:** Review your network and security preferences.
@@ -312,7 +363,34 @@ By following these troubleshooting steps, you should be able to resolve many com
 | Save Document                         | Cmd + s   |
 | Search                                | Cmd + k   |
 
-### 8.3 Additional Resources
+
+### 8.3 Figures
+
+## Table of Figures
+
+| Figure Number | Description            | Section/Context                                  |
+|---------------|------------------------|--------------------------------------------------|
+| Figure 1      | Starting page with the green button located at the bottom-right corner, which navigates to the Vault Selection page. | 5.0 Start |
+| Figure 2      | Disclaimer pop-up that appears on the first visit, requiring user acknowledgment.  | 5.0 Start |
+| Figure 3      | Vault page displaying the green button used to open a local directory. | 5.1 Vault |
+| Figure 4      | Browser prompt requesting permission for Morph to access files in the selected directory. | 5.1 Vault |
+| Figure 5      | Main page layout showing the text editor along with left and right panels. | 5.3 Main |
+| Figure 6      | Directory Tree view displaying all subdirectories and Markdown files in the vault in a hierarchical list. | 5.4 Left Panel: Directory Tree |
+| Figure 7      | Markdown Text Editor view before rendering the Markdown content.| 5.4 Middle: Markdown Text Editor |
+| Figure 8      | Markdown Text Editor view after rendering the Markdown content. | 5.4 Middle: Markdown Text Editor |
+| Figure 9      | Settings panel where users can customize their writing environment. | 5.5 Left Panel: Settings |
+| Figure 10     | General tab within the Settings panel showing links to external resources such as GitHub and Documentation. | 5.5 Left Panel: Settings > General Tab |
+| Figure 11     | Editor Settings tab displaying options for theme, appearance, and Vim mode configuration.| 5.5 Left Panel: Settings > Editor Settings |
+| Figure 12     | Hotkeys section showing current keyboard shortcuts and keybindings. | 5.5 Left Panel: Settings > Keyboard Shortcuts  |
+| Figure 13     | Green Button in the bottom-right corner of the screen, which users can click to initiate AI-driven note generation in Morph. | 5.6 Right Panel: Notes |
+| Figure 14     | AI Reasoning view that provides insight into the AI's thought process during note generation. | 5.6 Right Panel: Notes > AI Reasoning |
+| Figure 15     | Drag-and-drop interface showing how to apply generated notes directly into the text editor. | 5.6 Right Panel: Notes > Applying Generated Notes |
+| Figure 16     | Hover state over a note, displaying additional details about the AI's reasoning behind the suggestion. | 5.6 Right Panel: Notes > Applying Generated Notes |
+| Figure 17     | Icon (golden/auburn) used to open the Steering menu for adjusting AI parameters. | 5.7 Right Panel: Steering |
+| Figure 18     | Screenshot of the Steering parameters, showcasing adjustable settings such as Authors, Tonality, Vibes, and the number of notes. | 5.7 Right Panel: Steering |
+
+
+### 8.4 Additional Resources
 
 | Resource                  | Link/Description                                                                                   |
 |---------------------------|-----------------------------------------------------------------------------------------------------|
