@@ -18,6 +18,7 @@ import {
 } from "@/components/steering-panel"
 import { VaultButton } from "@/components/ui/button"
 
+import { useLoading } from "@/context/loading"
 import { SteeringSettings, useSteeringContext } from "@/context/steering"
 
 import type { Note } from "@/db/interfaces"
@@ -31,7 +32,7 @@ interface NotesPanelProps {
   droppedNotes: Note[]
   streamingReasoning: string
   reasoningComplete: boolean
-  currentFile: string
+  fileId: string
   vaultId?: string
   currentReasoningId: string
   reasoningHistory: {
@@ -44,7 +45,6 @@ interface NotesPanelProps {
   handleNoteDropped: (note: Note) => void
   handleNoteRemoved: (noteId: string) => void
   handleCurrentGenerationNote: (note: Note) => void
-  isNotesRecentlyGenerated: boolean
   currentReasoningElapsedTime: number
   generateNewSuggestions: (steeringSettings: SteeringSettings) => void
   noteGroupsData: [string, Note[]][]
@@ -88,159 +88,162 @@ const ScrollSeekPlaceholder: Components["ScrollSeekPlaceholder"] = memo(
 // Create a memoized driver bar component for the notes panel
 interface DriversBarProps {
   handleGenerateNewSuggestions: (steeringSettings: SteeringSettings) => void
-  isNotesLoading: boolean
-  isNotesRecentlyGenerated: boolean
 }
 
-const DriversBar = memo(
-  function DriversBar({
-    handleGenerateNewSuggestions,
-    isNotesLoading,
-    isNotesRecentlyGenerated,
-  }: DriversBarProps) {
-    const [isSteeringExpanded, setIsSteeringExpanded] = useState(false)
-    const {
-      settings,
-      updateAuthors,
-      updateTonality,
-      updateTemperature,
-      updateNumSuggestions,
-      toggleTonality,
-    } = useSteeringContext()
+const DriversBarButtons = memo(function DriversBarButtons({
+  onToggleSteeringPanel,
+  onGenerateNewSuggestions,
+}: {
+  onToggleSteeringPanel: () => void
+  onGenerateNewSuggestions: () => void
+}) {
+  const { state } = useLoading()
+  const { isNotesLoading, isNotesRecentlyGenerated } = state
 
-    const toggleSteeringPanel = useCallback(() => {
-      setIsSteeringExpanded((prev) => !prev)
-    }, [])
+  return (
+    <div className="flex items-center justify-end gap-3 p-2">
+      <VaultButton
+        onClick={onToggleSteeringPanel}
+        size="small"
+        color="yellow"
+        title="Interpreter Settings"
+      >
+        <MixerHorizontalIcon className="h-3 w-3" />
+      </VaultButton>
+      <VaultButton
+        onClick={onGenerateNewSuggestions}
+        disabled={isNotesLoading}
+        color="none"
+        size="small"
+        className={cn(
+          "text-primary border border-accent-foreground/40",
+          !isNotesRecentlyGenerated && "button-shimmer-border",
+          isNotesLoading && "cursor-not-allowed opacity-50 hover:cursor-not-allowed",
+        )}
+        title="Generate Suggestions"
+      >
+        <ShadowInnerIcon className="w-3 h-3" />
+      </VaultButton>
+    </div>
+  )
+})
 
-    // Close steering panel when the notes panel is closed
-    useEffect(() => {
-      return () => {
-        // This cleanup function will run when the component unmounts
-        // (which happens when the notes panel is closed)
-        if (isSteeringExpanded) {
-          setIsSteeringExpanded(false)
-        }
+export const DriversBar = memo(function DriversBar({
+  handleGenerateNewSuggestions,
+}: DriversBarProps) {
+  const [isSteeringExpanded, setIsSteeringExpanded] = useState(false)
+  const {
+    settings,
+    updateAuthors,
+    updateTonality,
+    updateTemperature,
+    updateNumSuggestions,
+    toggleTonality,
+  } = useSteeringContext()
+
+  const toggleSteeringPanel = useCallback(() => {
+    setIsSteeringExpanded((prev) => !prev)
+  }, [])
+
+  // Close steering panel when the notes panel is closed
+  useEffect(() => {
+    return () => {
+      // This cleanup function will run when the component unmounts
+      // (which happens when the notes panel is closed)
+      if (isSteeringExpanded) {
+        setIsSteeringExpanded(false)
       }
-    }, [isSteeringExpanded])
+    }
+  }, [isSteeringExpanded])
 
-    // Handler functions for steering controls
-    const handleUpdateAuthors = useCallback(
-      (authors: string[]) => {
-        updateAuthors(authors)
-      },
-      [updateAuthors],
-    )
+  // Handler functions for steering controls
+  const handleUpdateAuthors = useCallback(
+    (authors: string[]) => {
+      updateAuthors(authors)
+    },
+    [updateAuthors],
+  )
 
-    const handleUpdateTonality = useCallback(
-      (tonality: Record<string, number>) => {
-        updateTonality(tonality)
-      },
-      [updateTonality],
-    )
+  const handleUpdateTonality = useCallback(
+    (tonality: Record<string, number>) => {
+      updateTonality(tonality)
+    },
+    [updateTonality],
+  )
 
-    const handleUpdateTemperature = useCallback(
-      (temperature: number) => {
-        updateTemperature(temperature)
-      },
-      [updateTemperature],
-    )
+  const handleUpdateTemperature = useCallback(
+    (temperature: number) => {
+      updateTemperature(temperature)
+    },
+    [updateTemperature],
+  )
 
-    const handleUpdateNumSuggestions = useCallback(
-      (numSuggestions: number) => {
-        updateNumSuggestions(numSuggestions)
-      },
-      [updateNumSuggestions],
-    )
+  const handleUpdateNumSuggestions = useCallback(
+    (numSuggestions: number) => {
+      updateNumSuggestions(numSuggestions)
+    },
+    [updateNumSuggestions],
+  )
 
-    const handleToggleTonality = useCallback(
-      (enabled: boolean) => {
-        toggleTonality(enabled)
-      },
-      [toggleTonality],
-    )
+  const handleToggleTonality = useCallback(
+    (enabled: boolean) => {
+      toggleTonality(enabled)
+    },
+    [toggleTonality],
+  )
 
-    return (
-      <div className="flex flex-col border-t bg-background/95 backdrop-blur-sm shadow-md z-10 relative">
-        {isSteeringExpanded && (
-          <div className="px-4 pb-2 overflow-hidden border-b border-border">
-            <div className="pt-4 flex justify-between items-center">
-              <h2 className="text-base font-semibold">Interpreter</h2>
-              <button
-                onClick={() => setIsSteeringExpanded(false)}
-                className="flex items-center justify-center h-5 w-5 hover:bg-muted rounded-sm"
-              >
-                <Cross2Icon className="h-3 w-3" />
-              </button>
+  const handleGenerate = useCallback(() => {
+    handleGenerateNewSuggestions(settings)
+  }, [handleGenerateNewSuggestions, settings])
+
+  return (
+    <div className="flex flex-col border-t bg-background/95 backdrop-blur-sm shadow-md z-10 relative">
+      {isSteeringExpanded && (
+        <div className="px-4 pb-2 overflow-hidden border-b border-border">
+          <div className="pt-4 flex justify-between items-center">
+            <h2 className="text-base font-semibold">Interpreter</h2>
+            <button
+              onClick={() => setIsSteeringExpanded(false)}
+              className="flex items-center justify-center h-5 w-5 hover:bg-muted rounded-sm"
+            >
+              <Cross2Icon className="h-3 w-3" />
+            </button>
+          </div>
+
+          <div className="space-y-6 pt-4 max-h-[60vh] overflow-y-auto pr-2">
+            <div className="pb-4 border-b border-border">
+              <AuthorsSelector value={settings.authors} onChange={handleUpdateAuthors} />
             </div>
 
-            <div className="space-y-6 pt-4 max-h-[60vh] overflow-y-auto pr-2">
-              <div className="pb-4 border-b border-border">
-                <AuthorsSelector value={settings.authors} onChange={handleUpdateAuthors} />
-              </div>
+            <div className="pb-4 border-b border-border">
+              <TonalityRadar
+                value={settings.tonality}
+                onChange={handleUpdateTonality}
+                enabled={settings.tonalityEnabled}
+                onToggle={handleToggleTonality}
+              />
+            </div>
 
-              <div className="pb-4 border-b border-border">
-                <TonalityRadar
-                  value={settings.tonality}
-                  onChange={handleUpdateTonality}
-                  enabled={settings.tonalityEnabled}
-                  onToggle={handleToggleTonality}
-                />
-              </div>
+            <div className="pb-4 border-b border-border">
+              <TemperatureSlider value={settings.temperature} onChange={handleUpdateTemperature} />
+            </div>
 
-              <div className="pb-4 border-b border-border">
-                <TemperatureSlider
-                  value={settings.temperature}
-                  onChange={handleUpdateTemperature}
-                />
-              </div>
-
-              <div>
-                <SuggestionsSlider
-                  value={settings.numSuggestions}
-                  onChange={handleUpdateNumSuggestions}
-                />
-              </div>
+            <div>
+              <SuggestionsSlider
+                value={settings.numSuggestions}
+                onChange={handleUpdateNumSuggestions}
+              />
             </div>
           </div>
-        )}
-        <div className="flex items-center justify-end gap-3 p-2">
-          <VaultButton
-            onClick={toggleSteeringPanel}
-            size="small"
-            color="yellow"
-            title="Interpreter Settings"
-            disabled={isNotesLoading}
-            className={cn(
-              isNotesLoading && "cursor-not-allowed opacity-50 hover:cursor-not-allowed",
-            )}
-          >
-            <MixerHorizontalIcon className="h-3 w-3" />
-          </VaultButton>
-
-          <VaultButton
-            onClick={() => handleGenerateNewSuggestions(settings)}
-            disabled={isNotesLoading}
-            color="none"
-            size="small"
-            className={cn(
-              "text-primary border border-accent-foreground/40",
-              !isNotesRecentlyGenerated && "button-shimmer-border",
-              isNotesLoading && "cursor-not-allowed opacity-50 hover:cursor-not-allowed",
-            )}
-            title="Generate Suggestions"
-          >
-            <ShadowInnerIcon className="w-3 h-3" />
-          </VaultButton>
         </div>
-      </div>
-    )
-  },
-  // Include all props in equality check
-  (prevProps, nextProps) =>
-    prevProps.isNotesLoading === nextProps.isNotesLoading &&
-    prevProps.isNotesRecentlyGenerated === nextProps.isNotesRecentlyGenerated &&
-    prevProps.handleGenerateNewSuggestions === nextProps.handleGenerateNewSuggestions,
-)
+      )}
+      <DriversBarButtons
+        onToggleSteeringPanel={toggleSteeringPanel}
+        onGenerateNewSuggestions={handleGenerate}
+      />
+    </div>
+  )
+})
 
 export const NotesPanel = memo(function NotesPanel({
   notes,
@@ -251,14 +254,13 @@ export const NotesPanel = memo(function NotesPanel({
   droppedNotes,
   streamingReasoning,
   reasoningComplete,
-  currentFile,
   vaultId,
+  fileId,
   currentReasoningId,
   reasoningHistory,
   handleNoteDropped,
   handleNoteRemoved,
   handleCurrentGenerationNote,
-  isNotesRecentlyGenerated,
   currentReasoningElapsedTime,
   generateNewSuggestions,
   noteGroupsData,
@@ -273,7 +275,7 @@ export const NotesPanel = memo(function NotesPanel({
 
   // Track settings changes with a ref to detect actual value changes
   const prevSettingsRef = useRef(settings)
-  const currentFileRef = useRef<string | null>(null)
+  const currentFileIdRef = useRef<string | null>(null)
 
   // Add effect to properly track settings changes
   useEffect(() => {
@@ -285,18 +287,18 @@ export const NotesPanel = memo(function NotesPanel({
   // Add effect to update fileId in steering context when it changes
   useEffect(() => {
     // Skip for non-persisted files
-    if (currentFile === "Untitled") {
+    if (!fileId) {
       updateFileId(null)
-      currentFileRef.current = null
+      currentFileIdRef.current = null
       return
     }
 
     // Find the file ID from notes array
-    if (notes.length > 0 && notes[0].fileId && currentFileRef.current !== notes[0].fileId) {
-      currentFileRef.current = notes[0].fileId
+    if (notes.length > 0 && notes[0].fileId && currentFileIdRef.current !== notes[0].fileId) {
+      currentFileIdRef.current = notes[0].fileId
       updateFileId(notes[0].fileId)
     }
-  }, [currentFile, notes, updateFileId])
+  }, [notes, updateFileId, fileId])
 
   const [{ isOver }, drop] = useDrop(
     () => ({
@@ -341,7 +343,7 @@ export const NotesPanel = memo(function NotesPanel({
             dateStr={dateStr}
             dateNotes={dateNotes}
             reasoning={dateReasoning}
-            currentFile={currentFile}
+            fileId={fileId}
             vaultId={vaultId}
             handleNoteDropped={handleNoteDropped}
             onNoteRemoved={handleNoteRemoved}
@@ -351,13 +353,37 @@ export const NotesPanel = memo(function NotesPanel({
       )
     },
     [
+      fileId,
       memoizedNoteSkeletons,
-      currentFile,
       vaultId,
       handleNoteDropped,
       handleNoteRemoved,
       reasoningHistory,
     ],
+  )
+
+  const memoizedVirtuoso = useMemo(
+    () => (
+      <div className="flex-1 min-h-0">
+        <Virtuoso
+          key={`note-list-${fileId}-${noteGroupsData.length}`}
+          style={{ height: "100%", width: "100%" }}
+          totalCount={noteGroupsData.length}
+          data={noteGroupsData}
+          overscan={10}
+          components={{ ScrollSeekPlaceholder }}
+          itemContent={itemContent}
+          initialItemCount={1}
+          increaseViewportBy={{ top: 100, bottom: 100 }}
+          scrollSeekConfiguration={{
+            enter: (velocity) => Math.abs(velocity) > 1000,
+            exit: (velocity) => Math.abs(velocity) < 100,
+          }}
+          customScrollParent={notesContainerRef.current!}
+        />
+      </div>
+    ),
+    [fileId, noteGroupsData, itemContent, notesContainerRef],
   )
 
   return (
@@ -370,25 +396,13 @@ export const NotesPanel = memo(function NotesPanel({
     >
       <div className="flex-1 overflow-auto scrollbar-hidden px-2 pt-2 gap-4">
         {!isNotesLoading && notes.length === 0 ? (
-          <NoteCard
-            className="w-full h-16"
-            note={{
-              id: "na",
-              color: "bg-orange-100",
-              content:
-                droppedNotes.length !== 0
-                  ? "All notes are currently in the stack."
-                  : "No notes found for this document",
-              fileId: currentFile,
-              vaultId: vaultId || "",
-              createdAt: new Date(),
-              embeddingStatus: null,
-              embeddingTaskId: null,
-            }}
-            isGenerating={false}
-            isStreaming={false}
-            isScanComplete={false}
-          />
+          <div className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground p-4 pt-0">
+            <p className="mb-4">
+              {droppedNotes.length !== 0
+                ? "All notes are currently in the stack."
+                : "No notes found for this document"}
+            </p>
+          </div>
         ) : (
           <div className="space-y-6 h-full">
             <div
@@ -416,7 +430,6 @@ export const NotesPanel = memo(function NotesPanel({
                         reasoning={streamingReasoning}
                         isStreaming={isNotesLoading && !reasoningComplete}
                         isComplete={reasoningComplete}
-                        currentFile={currentFile}
                         vaultId={vaultId}
                         reasoningId={currentReasoningId}
                         shouldExpand={isNotesLoading || currentGenerationNotes.length > 0}
@@ -442,7 +455,7 @@ export const NotesPanel = memo(function NotesPanel({
                                 id: note.id,
                                 content: note.content,
                                 color: generatePastelColor(),
-                                fileId: currentFile,
+                                fileId,
                                 vaultId: vaultId || "",
                                 createdAt: new Date(),
                                 embeddingStatus: null,
@@ -483,33 +496,12 @@ export const NotesPanel = memo(function NotesPanel({
                       )}
                   </div>
                 )}
-              <div className="flex-1 min-h-0">
-                <Virtuoso
-                  key={`note-list-${currentFile}-${noteGroupsData.length}`}
-                  style={{ height: "100%", width: "100%" }}
-                  totalCount={noteGroupsData.length}
-                  data={noteGroupsData}
-                  overscan={5}
-                  components={{ ScrollSeekPlaceholder }}
-                  itemContent={itemContent}
-                  initialItemCount={1}
-                  increaseViewportBy={{ top: 100, bottom: 100 }}
-                  scrollSeekConfiguration={{
-                    enter: (velocity) => Math.abs(velocity) > 1000,
-                    exit: (velocity) => Math.abs(velocity) < 100,
-                  }}
-                  customScrollParent={notesContainerRef.current!}
-                />
-              </div>
+              {memoizedVirtuoso}
             </div>
           </div>
         )}
       </div>
-      <DriversBar
-        handleGenerateNewSuggestions={generateNewSuggestions}
-        isNotesLoading={isNotesLoading}
-        isNotesRecentlyGenerated={isNotesRecentlyGenerated}
-      />
+      <DriversBar handleGenerateNewSuggestions={generateNewSuggestions} />
     </div>
   )
 })

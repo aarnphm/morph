@@ -73,9 +73,9 @@ async function submitAuthorTask(
       temperature: options.temperature || 0.7,
       max_tokens: options.max_tokens || 16384,
       search_backend: "exa",
-    num_search_results: 3,
-    use_tool: options.use_tool || false,
-  })
+      num_search_results: 3,
+      use_tool: options.use_tool || false,
+    })
     .then((resp) => resp.data)
     .catch((err) => {
       console.error(

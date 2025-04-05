@@ -21,16 +21,7 @@ import { htmlPlugins, markdownPlugins } from "./parser"
 
 export type HtmlContent = [HtmlRoot, VFile, string]
 
-function shouldProcessFile(filename: string): boolean {
-  const processableExtensions = [".md", ".mdx", ".markdown", ".txt"]
-  return processableExtensions.some((ext) => filename.toLowerCase().endsWith(ext))
-}
-
-function processor(filename: string, settings: Settings, vaultId: string) {
-  if (filename.endsWith(".mdx")) {
-    return unified()
-  }
-
+function processor(settings: Settings, vaultId: string) {
   return unified()
     .use(remarkParse)
     .use(markdownPlugins(settings, vaultId))
@@ -41,13 +32,11 @@ function processor(filename: string, settings: Settings, vaultId: string) {
 
 let mdProcessor: ReturnType<typeof processor> | null = null
 
-const cached = new Map<string, HtmlContent>()
-
 interface ConverterOptions {
   value: string
   vaultId: string
   settings: Settings
-  filename: string
+  fileid: string | null
   returnHast?: boolean
 }
 
@@ -56,40 +45,27 @@ export async function mdToHtml(opts: ConverterOptions): Promise<HtmlRoot>
 export async function mdToHtml({
   value,
   vaultId,
-  filename,
+  fileid,
   settings,
   returnHast,
 }: ConverterOptions): Promise<HtmlRoot | string> {
   returnHast = returnHast ?? false
   if (!value.trim()) return returnHast ? { type: "root", children: [] } : ""
-  if (filename && !shouldProcessFile(filename))
-    return returnHast
-      ? {
-          type: "root",
-          children: [{ type: "text", value }],
-        }
-      : value
-
   value = value
     .replace(/^ +/, (spaces) => spaces.replace(/ /g, "\u00A0"))
     .toString()
     .trim()
 
-  const cacheKey = `${filename || "local"}:${value}`
-  const cachedResult = cached.get(cacheKey)
-  if (cachedResult) return returnHast ? cachedResult[0] : String(cachedResult[2])
-
   const file = new VFile()
   file.value = value
-  if (filename) file.path = filename
+  file.path = fileid || "<default>"
 
   try {
-    if (!mdProcessor) mdProcessor = processor(filename, settings, vaultId)
+    if (!mdProcessor) mdProcessor = processor(settings, vaultId)
     const ast = mdProcessor.parse(file) as MdRoot
     const newAst = (await mdProcessor.run(ast, file)) as HtmlRoot
     const result = mdProcessor.stringify(newAst, file)
     // save ast for parsing reading mode
-    cached.set(cacheKey, [newAst, file, result.toString()])
     return returnHast ? newAst : result.toString()
   } catch (error) {
     console.error("Error rendering content:", error)
@@ -102,10 +78,10 @@ export async function mdToHtml({
   }
 }
 
-export const setFile = StateEffect.define<string>()
+export const setFile = StateEffect.define<string | null>()
 
-export const fileField = StateField.define<string>({
-  create: () => "",
+export const fileField = StateField.define<string | null>({
+  create: () => null,
   update: (value, tr) => {
     for (const effect of tr.effects) {
       if (effect.is(setFile)) return effect.value

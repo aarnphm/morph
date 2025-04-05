@@ -1,4 +1,5 @@
 import frontmatter from "./frontmatter"
-import { syntaxHighlighting, theme } from "./themes"
 import { search } from "./search"
+import { syntaxHighlighting, theme } from "./themes"
+
 export { frontmatter, syntaxHighlighting, theme, search }

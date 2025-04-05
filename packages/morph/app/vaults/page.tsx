@@ -56,7 +56,14 @@ const Notch = memo(function Notch({ onClickBanner }: { onClickBanner: () => void
         }}
       >
         <defs>
-          <filter id="shadow" x="-10%" y="-10%" width="120%" height="150%" colorInterpolationFilters="sRGB">
+          <filter
+            id="shadow"
+            x="-10%"
+            y="-10%"
+            width="120%"
+            height="150%"
+            colorInterpolationFilters="sRGB"
+          >
             {/* Combine multiple drop shadows into a single filter for better performance */}
             <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodColor="rgba(251, 191, 36, 0.5)" />
           </filter>

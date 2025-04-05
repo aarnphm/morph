@@ -1,6 +1,7 @@
-import { useAuthorTasks } from "@/context/authors"
 import { useQueryAuthorStatus } from "@/services/authors"
 import { useEffect } from "react"
+
+import { useAuthorTasks } from "@/context/authors"
 
 export function AuthorProcessor() {
   const { pendingTaskIds, getFileIdForTask, removeTask } = useAuthorTasks()

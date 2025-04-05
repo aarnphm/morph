@@ -3,7 +3,7 @@ import { createContext, useContext, useState } from "react"
 interface RestoredFileData {
   file: File
   fileHandle: FileSystemFileHandle
-  fileName: string
+  fileId: string
   content: string
   handleId: string
 }

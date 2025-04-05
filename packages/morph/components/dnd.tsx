@@ -1,6 +1,5 @@
 import { cn } from "@/lib"
 import { NOTES_DND_TYPE } from "@/lib/notes"
-import { motion } from "motion/react"
 import { memo, useCallback, useEffect, useRef } from "react"
 import { useDragLayer, useDrop } from "react-dnd"
 
@@ -64,12 +63,9 @@ export const EditorDropTarget = memo(function EditorDropTarget({
     handleDroppedRef.current = handleNoteDropped
   }, [handleNoteDropped])
 
-  const onDropped = useCallback(
-    (item: Note) => {
-      handleNoteDropped(item)
-    },
-    [handleNoteDropped],
-  )
+  const onDropped = useCallback((item: Note) => {
+    handleDroppedRef.current?.(item)
+  }, [])
 
   const [{ isOver }, drop] = useDrop(
     () => ({
@@ -102,38 +98,5 @@ export const EditorDropTarget = memo(function EditorDropTarget({
     >
       {children}
     </div>
-  )
-})
-
-interface PlayspaceProps {
-  children: React.ReactNode
-  vaultId: string
-}
-
-export const Playspace = memo(function Playspace({ children, vaultId }: PlayspaceProps) {
-  return (
-    <motion.section
-      className="flex flex-1 overflow-hidden m-4 border"
-      layout
-      layoutId={`vault-card-${vaultId}`}
-      transition={{
-        type: "spring",
-        stiffness: 200,
-        damping: 20,
-        mass: 0.3,
-      }}
-      initial={{ borderRadius: 0 }}
-      animate={{
-        margin: "16px",
-        borderRadius: "8px",
-      }}
-      exit={{
-        margin: "16px",
-        borderRadius: "8px",
-        opacity: 0,
-      }}
-    >
-      {children}
-    </motion.section>
   )
 })

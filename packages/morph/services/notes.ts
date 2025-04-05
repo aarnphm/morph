@@ -4,9 +4,7 @@ import { TaskStatusResponse } from "@/services/constants"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import axios from "axios"
 import { and, eq, isNull, not } from "drizzle-orm"
-import { PgliteDatabase, drizzle } from "drizzle-orm/pglite"
-
-import { usePGlite } from "@/context/db"
+import { PgliteDatabase } from "drizzle-orm/pglite"
 
 import type { Note } from "@/db/interfaces"
 import * as schema from "@/db/schema"
@@ -196,17 +194,16 @@ async function saveNoteEmbedding(
 }
 
 // Hook for polling embedding status and handling completion
-export function useQueryNoteEmbeddingStatus(taskId: string | null | undefined) {
-  const client = usePGlite()
-  const db = drizzle({ client, schema })
-
+export function useQueryNoteEmbeddingStatus(
+  taskId: string | null | undefined,
+  db: PgliteDatabase<typeof schema>,
+) {
   return useQuery({
     queryKey: ["noteEmbedding", taskId],
     queryFn: async () => {
       if (!taskId) {
         throw new Error("Task ID is required")
       }
-
       try {
         // Check task status
         const statusData = await checkNoteEmbeddingTask(taskId)
@@ -399,10 +396,7 @@ export async function submitNotesForEmbedding(
 }
 
 // Hook to process notes that need embedding
-export function useProcessPendingEmbeddings() {
-  const client = usePGlite()
-  const db = drizzle({ client, schema })
-
+export function useProcessPendingEmbeddings(db: PgliteDatabase<typeof schema>) {
   return useMutation({
     mutationFn: async (options?: { addTask?: (taskId: string) => void }) => {
       const { addTask } = options || {}

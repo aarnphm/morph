@@ -821,14 +821,14 @@ export default memo(function Rails({
         width: isExpanded ? "16rem" : "3.05rem",
       },
       transition: {
+        duration: 0,
         type: "tween",
-        duration: shouldAnimate ? 0.2 : 0.01, // Almost instant when not visible or reduced motion preferred
         ease: "easeOut",
         layoutDependency: false,
         willChange: "width",
       },
     }),
-    [isExpanded, shouldAnimate],
+    [isExpanded],
   )
 
   // Memoize the vault icons buttons to prevent re-renders when toggling keyboard shortcuts

@@ -40,7 +40,7 @@ const ReasoningHeader = memo(function ReasoningHeader({
     <div
       className={cn(
         "flex items-center justify-between text-xs p-1",
-        isExpanded && "shadow-lg transition-shadow duration-300",
+        isExpanded && "border-b",
         isHovering ? "text-foreground" : "text-muted-foreground",
       )}
     >
@@ -51,7 +51,7 @@ const ReasoningHeader = memo(function ReasoningHeader({
         <div
           className={cn(
             "cursor-pointer transition-transform duration-200",
-            isExpanded && "rotate-90"
+            isExpanded && "rotate-90",
           )}
         >
           {isHovering ? (
@@ -76,7 +76,6 @@ interface ReasoningPanelProps {
   isStreaming: boolean
   isComplete: boolean
   reasoningId: string
-  currentFile?: string
   vaultId?: string
   shouldExpand: boolean
   elapsedTime?: number
@@ -89,7 +88,6 @@ export const ReasoningPanel = memo(function ReasoningPanel({
   isStreaming,
   isComplete,
   reasoningId,
-  currentFile,
   vaultId,
   shouldExpand = false,
   elapsedTime = 0,
@@ -129,13 +127,13 @@ export const ReasoningPanel = memo(function ReasoningPanel({
 
   // Save reasoning to database when complete, not during streaming
   useEffect(() => {
-    if (!isStreaming && isComplete && reasoning && currentFile && vaultId) {
+    if (!isStreaming && isComplete && reasoning && vaultId) {
       db.update(schema.reasonings)
         .set({ content: reasoning })
         .where(eq(schema.reasonings.id, reasoningId))
         .execute()
     }
-  }, [isStreaming, isComplete, reasoning, currentFile, vaultId, reasoningId, db])
+  }, [isStreaming, isComplete, reasoning, vaultId, reasoningId, db])
 
   // Auto-scroll to bottom when content changes and panel is expanded
   useEffect(() => {
@@ -167,17 +165,6 @@ export const ReasoningPanel = memo(function ReasoningPanel({
     setIsExpanded(newExpandState)
     onExpandChange?.(newExpandState)
   }, [isExpanded, onExpandChange])
-
-  // Format the duration nicely
-  const formattedDuration = (seconds: number) => {
-    if (seconds < 60) {
-      return `${seconds} second${seconds !== 1 ? "s" : ""}`
-    } else {
-      const minutes = Math.floor(seconds / 60)
-      const remainingSeconds = seconds % 60
-      return `${minutes} minute${minutes !== 1 ? "s" : ""} ${remainingSeconds} second${remainingSeconds !== 1 ? "s" : ""}`
-    }
-  }
 
   // Virtualized text rendering for performance
   const renderReasoningText = useMemo(() => {
@@ -221,7 +208,7 @@ export const ReasoningPanel = memo(function ReasoningPanel({
           className={cn(
             "whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72 transition-all duration-500 ease-in-out",
             "text-xs text-muted-foreground",
-            isExpanded ? "opacity-100 h-auto" : "opacity-0 h-0"
+            isExpanded ? "opacity-100 h-auto" : "opacity-0 h-0",
           )}
         >
           <span>{renderReasoningText}</span>

@@ -495,6 +495,9 @@ importers:
       '@electric-sql/pglite-react':
         specifier: ^0.2.17
         version: 0.2.17(@electric-sql/pglite@0.2.17)(react@19.1.0)
+      '@electric-sql/pglite-repl':
+        specifier: ^0.2.17
+        version: 0.2.17(@babel/runtime@7.27.0)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.10)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.2)(@electric-sql/pglite@0.2.17)(codemirror@6.0.1)
       '@hookform/resolvers':
         specifier: ^4.1.3
         version: 4.1.3(react-hook-form@7.55.0(react@19.1.0))
@@ -1124,6 +1127,14 @@ packages:
     peerDependencies:
       '@electric-sql/pglite': ^0.2.17
       react: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+
+  '@electric-sql/pglite-repl@0.2.17':
+    resolution: {integrity: sha512-gvqYrTc+vPn26MGWH55zkbDQWPETiZ/UNp9OV6gPn7dqfKjnyCRccopmc07zA16Kmv5mBHxI30mab1fq0lTCYA==}
+    peerDependencies:
+      '@electric-sql/pglite': ^0.2.17
+    peerDependenciesMeta:
+      '@electric-sql/pglite':
+        optional: true
 
   '@electric-sql/pglite@0.2.17':
     resolution: {integrity: sha512-qEpKRT2oUaWDH6tjRxLHjdzMqRUGYDnGZlKrnL4dJ77JVMcP2Hpo3NYnOSPKdZdeec57B6QPprCUFg0picx5Pw==}
@@ -3564,6 +3575,12 @@ packages:
       '@codemirror/state': '>=6.0.0'
       '@codemirror/view': '>=6.0.0'
 
+  '@uiw/codemirror-theme-github@4.23.10':
+    resolution: {integrity: sha512-jTg2sHAcU1d+8x0O+EBDI71rtJ8PWKIW8gzy+SW4wShQTAdsqGHk5y1ynt3KIeoaUkqngLqAK4SkhPaUKlqZqg==}
+
+  '@uiw/codemirror-theme-xcode@4.23.10':
+    resolution: {integrity: sha512-meYMRLr0mTqGZerihSTKpjceRkxbFfpnXX9RyDZFwloydxzWY/6iGEt1/RMY+cWoxgjBYSiunqtU0qgQH0WAuA==}
+
   '@uiw/codemirror-themes@4.23.10':
     resolution: {integrity: sha512-dU0UgEEgEXCAYpxuVDQ6fovE82XsqgHZckTJOH6Bs8xCi3Z7dwBKO4pXuiA8qGDwTOXOMjSzfi+pRViDm7OfWw==}
     peerDependencies:
@@ -5918,6 +5935,9 @@ packages:
   pseudocode@2.4.1:
     resolution: {integrity: sha512-PUslrULyVbqk72+L4D4dvDwD8KPOGazSM9oQhB9a05ab+BPsvwFy6rm/pX6vSFp0IiCa1Isi/lmNE2oHqmr+rw==}
 
+  psql-describe@0.1.6:
+    resolution: {integrity: sha512-cZqmsO1FOTmKZFnwbZxViPzEkH/Kyof/t1O2QI25oN5TEexXl6AXVFNIYpoIVBGm2Ic+ImJDR760zUgBMBv+KQ==}
+
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
@@ -7409,6 +7429,31 @@ snapshots:
     dependencies:
       '@electric-sql/pglite': 0.2.17
       react: 19.1.0
+
+  '@electric-sql/pglite-repl@0.2.17(@babel/runtime@7.27.0)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.10)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.2)(@electric-sql/pglite@0.2.17)(codemirror@6.0.1)':
+    dependencies:
+      '@codemirror/autocomplete': 6.18.6
+      '@codemirror/commands': 6.8.1
+      '@codemirror/lang-sql': 6.8.0
+      '@codemirror/language': 6.11.0
+      '@codemirror/view': 6.36.5
+      '@electric-sql/pglite-react': 0.2.17(@electric-sql/pglite@0.2.17)(react@19.1.0)
+      '@uiw/codemirror-theme-github': 4.23.10(@codemirror/language@6.11.0)(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)
+      '@uiw/codemirror-theme-xcode': 4.23.10(@codemirror/language@6.11.0)(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)
+      '@uiw/codemirror-themes': 4.23.10(@codemirror/language@6.11.0)(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)
+      '@uiw/react-codemirror': 4.23.10(@babel/runtime@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.0)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.10)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.36.5)(codemirror@6.0.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      psql-describe: 0.1.6
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
+    optionalDependencies:
+      '@electric-sql/pglite': 0.2.17
+    transitivePeerDependencies:
+      - '@babel/runtime'
+      - '@codemirror/lint'
+      - '@codemirror/search'
+      - '@codemirror/state'
+      - '@codemirror/theme-one-dark'
+      - codemirror
 
   '@electric-sql/pglite@0.2.17': {}
 
@@ -9534,6 +9579,22 @@ snapshots:
     dependencies:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.36.5
+
+  '@uiw/codemirror-theme-github@4.23.10(@codemirror/language@6.11.0)(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)':
+    dependencies:
+      '@uiw/codemirror-themes': 4.23.10(@codemirror/language@6.11.0)(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)
+    transitivePeerDependencies:
+      - '@codemirror/language'
+      - '@codemirror/state'
+      - '@codemirror/view'
+
+  '@uiw/codemirror-theme-xcode@4.23.10(@codemirror/language@6.11.0)(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)':
+    dependencies:
+      '@uiw/codemirror-themes': 4.23.10(@codemirror/language@6.11.0)(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)
+    transitivePeerDependencies:
+      - '@codemirror/language'
+      - '@codemirror/state'
+      - '@codemirror/view'
 
   '@uiw/codemirror-themes@4.23.10(@codemirror/language@6.11.0)(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)':
     dependencies:
@@ -12337,6 +12398,8 @@ snapshots:
       katex: 0.16.21
     optionalDependencies:
       mathjax: 3.2.2
+
+  psql-describe@0.1.6: {}
 
   punycode@2.3.1: {}
 

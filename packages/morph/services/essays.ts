@@ -88,10 +88,11 @@ async function submitFileEmbeddingTask(
   content: string,
 ): Promise<TaskStatusResponse> {
   return axios
-    .post<EssayEmbeddingRequest, { data: TaskStatusResponse }>(
-      `${API_ENDPOINT}/essays/submit`,
-      { vault_id: vaultId, file_id: fileId, content },
-    )
+    .post<EssayEmbeddingRequest, { data: TaskStatusResponse }>(`${API_ENDPOINT}/essays/submit`, {
+      vault_id: vaultId,
+      file_id: fileId,
+      content,
+    })
     .then((resp) => resp.data)
     .catch((err) => {
       console.error(
@@ -259,10 +260,10 @@ async function saveFileEmbeddings(
 }
 
 // Hook for polling embedding status and handling completion
-export function useQueryEssayEmbeddingStatus(taskId: string | null | undefined) {
-  const client = usePGlite()
-  const db = drizzle({ client, schema })
-
+export function useQueryEssayEmbeddingStatus(
+  taskId: string | null | undefined,
+  db: PgliteDatabase<typeof schema>,
+) {
   return useQuery({
     queryKey: ["essayEmbedding", taskId],
     queryFn: async () => {
@@ -462,10 +463,7 @@ export async function submitFileForEmbedding(
 }
 
 // Hook to process pending file embeddings
-export function useProcessPendingEssayEmbeddings() {
-  const client = usePGlite()
-  const db = drizzle({ client, schema })
-
+export function useProcessPendingEssayEmbeddings(db: PgliteDatabase<typeof schema>) {
   return useMutation({
     mutationFn: async (options?: {
       addTask?: (taskId: string) => void

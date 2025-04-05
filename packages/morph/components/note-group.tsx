@@ -7,9 +7,9 @@ import { drizzle } from "drizzle-orm/pglite"
 import { AnimatePresence, motion, useMotionValue, useTransform } from "motion/react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
+import { FormattedDate } from "@/components/formatted-date"
 import { AttachedNoteCard, DraggableNoteCard } from "@/components/note-card"
 import { ReasoningPanel } from "@/components/reasoning-panel"
-import { FormattedDate } from "@/components/formatted-date"
 
 import { usePGlite } from "@/context/db"
 
@@ -36,7 +36,7 @@ interface NoteGroupProps {
     content: string
     reasoningElapsedTime: number
   }
-  currentFile: string
+  fileId: string
   vaultId?: string
   handleNoteDropped: (note: Note) => void
   onNoteRemoved: (noteId: string) => void
@@ -48,7 +48,6 @@ export const NoteGroup = memo(
     dateStr,
     dateNotes,
     reasoning,
-    currentFile,
     vaultId,
     handleNoteDropped,
     onNoteRemoved,
@@ -122,7 +121,6 @@ export const NoteGroup = memo(
           reasoning={reasoning.content}
           isStreaming={false}
           isComplete={true}
-          currentFile={currentFile}
           vaultId={vaultId}
           reasoningId={reasoning.id}
           shouldExpand={isExpanded}
@@ -130,7 +128,7 @@ export const NoteGroup = memo(
           onExpandChange={setIsExpanded}
         />
       )
-    }, [reasoning, currentFile, vaultId, isExpanded])
+    }, [reasoning, vaultId, isExpanded])
 
     return (
       <div className="mb-3">
@@ -165,7 +163,7 @@ export const NoteGroup = memo(
       prevProps.dateStr === nextProps.dateStr &&
       prevProps.dateNotes === nextProps.dateNotes &&
       prevProps.reasoning === nextProps.reasoning &&
-      prevProps.currentFile === nextProps.currentFile &&
+      prevProps.fileId === nextProps.fileId &&
       prevProps.isGenerating === nextProps.isGenerating
     )
   },
@@ -198,11 +196,14 @@ export const DroppedNoteGroup = memo(
     const hasNotes = droppedNotes.length > 0
 
     // Use empty array if visibleContextNoteIds is undefined
-    const safeVisibleContextNoteIds = useMemo(() => visibleContextNoteIds || [], [visibleContextNoteIds])
+    const safeVisibleContextNoteIds = useMemo(
+      () => visibleContextNoteIds || [],
+      [visibleContextNoteIds],
+    )
 
     // Filter out notes that are visible in context view
     const filteredNotes = useMemo(() => {
-      return droppedNotes.filter(note => !safeVisibleContextNoteIds.includes(note.id))
+      return droppedNotes.filter((note) => !safeVisibleContextNoteIds.includes(note.id))
     }, [droppedNotes, safeVisibleContextNoteIds])
 
     // Get the actual notes to display (either filtered or all)
@@ -213,7 +214,7 @@ export const DroppedNoteGroup = memo(
 
     // Keep track of notes currently in context view
     const inContextNotes = useMemo(() => {
-      return droppedNotes.filter(note => safeVisibleContextNoteIds.includes(note.id))
+      return droppedNotes.filter((note) => safeVisibleContextNoteIds.includes(note.id))
     }, [droppedNotes, safeVisibleContextNoteIds])
 
     // Motion values for chevron drag
@@ -446,7 +447,7 @@ export const DroppedNoteGroup = memo(
       return false // Re-render if length of visibleContextNoteIds changed
     }
 
-    if (!prevVisibleIds.every(id => nextVisibleIds.includes(id))) {
+    if (!prevVisibleIds.every((id) => nextVisibleIds.includes(id))) {
       return false // Re-render if contents of visibleContextNoteIds changed
     }
 

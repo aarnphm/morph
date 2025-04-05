@@ -1,6 +1,6 @@
 "use client"
 
-import { applyPgLiteMigrations, initializeDb } from "@/db"
+import { applyMigrations, initialize } from "@/db"
 import migrations from "@/generated/migrations.json"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
@@ -9,7 +9,6 @@ import type React from "react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import PixelatedLoading from "@/components/landing/pixelated-loading"
-import { TooltipProvider } from "@/components/ui/tooltip"
 
 import { AuthorTasksProvider } from "@/context/authors"
 import { MorphPgLite, PGliteProvider } from "@/context/db"
@@ -58,9 +57,9 @@ async function restoreLastFile(vaultId: string, getHandle: any) {
     return {
       file,
       fileHandle,
-      fileName: file.name,
       content: await file.text(),
       handleId: lastFileInfo.handleId,
+      fileId: lastFileInfo.fileId || "",
     }
   } catch (error) {
     console.error("Error pre-loading file:", error)
@@ -114,48 +113,28 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
   const [contentReady, setContentReady] = useState(false)
 
   useEffect(() => {
-    async function setupDbAndMigrate() {
+    async function setup() {
       setIsDbLoading(true)
       setLoadingProgress(0)
 
       try {
-        // Simulate progress updates for 0-70% with faster intervals
-        const progressInterval = setInterval(() => {
-          setLoadingProgress((prev) => {
-            const newProgress = prev + 0.05 // Slower increment to reduce state changes
-            return newProgress > 0.7 ? 0.7 : newProgress
-          })
-        }, 100) // Longer interval to reduce state change frequency
+        // Show some initial progress
+        setLoadingProgress(0.3)
 
-        const dbInstance = await initializeDb()
-        await applyPgLiteMigrations(dbInstance, migrations)
-
-        clearInterval(progressInterval)
-
-        // Set DB instance first before progressing further
-        setDb(dbInstance)
-
-        // After a short delay, continue progress
-        setTimeout(() => {
-          setLoadingProgress(0.8) // DB is ready at 80%
-
-          // Stagger the remaining progress updates
-          setTimeout(() => {
-            setLoadingProgress(0.9)
-            setTimeout(() => {
-              setLoadingProgress(1)
-            }, 50)
-          }, 100)
-        }, 150)
+        await initialize().then(async (db) => {
+          await applyMigrations(db, migrations)
+          // Set DB instance and finish loading
+          setDb(db)
+          setLoadingProgress(1)
+        })
       } catch (err) {
         console.error("Error initializing database:", err)
-        setLoadingProgress(1) // Move to 100% even on error so UI can show
+        setLoadingProgress(1)
       } finally {
         setIsDbLoading(false)
       }
     }
-
-    setupDbAndMigrate()
+    setup()
   }, [])
 
   // Handle transition from loading to content
@@ -212,9 +191,7 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
                             enableSystem
                             disableTransitionOnChange
                           >
-                            <TooltipProvider delayDuration={0} skipDelayDuration={0}>
-                              {children}
-                            </TooltipProvider>
+                            {children}
                           </ThemeProvider>
                         </SettingsProvider>
                       </VaultProvider>
