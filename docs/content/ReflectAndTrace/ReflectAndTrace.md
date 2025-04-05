@@ -176,17 +176,109 @@ User Manual:
 
 ## Design Iteration (LO11 (PrototypeIterate))
 
-Explain how you arrived at your final design and implementation. How did the design evolve from the first version to the final version?
+Our journey began with a very basic prototype—essentially a static Figma design with a minimal, non-coded interface. In this initial stage, the only AI functionality was a simple model that could "steer" text based solely on one keyword, "furniture." This early prototype served as a conceptual proof-of-concept and lacked any comprehensive user experience features.
 
-Don't just say what you changed, say why you changed it. The needs of the client should be part of the explanation. For example, if you made changes in response to usability testing, explain what the testing found and what changes it led to.
+### Transition to Rev0
+For Revision 0 (Rev0), we shifted from design to code, developing a functional interface and implementing a very basic AI model. While this version demonstrated core capabilities—allowing users to create vaults, edit Markdown files, and receive AI suggestions—it quickly became apparent that the system had several significant issues:
+- **Clunky Interface:** The user interface was not refined, making navigation and task completion cumbersome.
+- **Data Storage Bugs:** We encountered numerous bugs in storing and retrieving user data, resulting in inconsistent vault functionality.
+- **Broken Markdown Rendering:** The text editor failed to fully render Markdown, diminishing the overall writing experience.
+- **Unclear Instructions:** Users struggled to understand what each component did, particularly around vault creation and AI suggestion interpretation.
+- **Lack of Safety Mechanisms:** There was no safety model in place to block NSFW content, posing potential privacy and security concerns.
+- **Minimal AI Feedback:** The embeddings similarity check was running in the background, but clicking on AI-generated notes did not provide any visual indication of the relevant text.
+
+### Advancements in Rev1
+
+In Revision 1 (Rev1), we addressed these issues comprehensively based on extensive usability testing and stakeholder feedback. We reconvened with the same 10 participants—comprising law students, software engineering students, machine learning/AI engineers, and writers with non-technical backgrounds—across multiple sessions (early March, late March, and early April 2025) to validate our changes. Key improvements include:
+
+- **Enhanced Vault Creation:**  
+  *What Was Fixed:* Enhanced visual cues (arrows, icons) and clearer instructions were implemented, ensuring users now easily understand the directory requirements.  
+  *Why:* Clear visual guidance reduces confusion and ensures users adhere to privacy rules by selecting only empty directories or those containing exclusively Markdown files, thereby protecting their data.
+
+- **Robust Data Storage:**  
+  *What Was Fixed:* We integrated more reliable file system APIs and robust error handling to secure local data storage.  
+  *Why:* Reliable data storage is paramount to maintain the integrity of user documents. Ensuring data is stored correctly minimizes the risk of data loss and reinforces trust in the application's privacy-first approach.
+
+- **Improved Markdown Rendering:**  
+  *What Was Fixed:* The text editor was rebuilt to fully support Markdown formatting, with immediate rendering feedback added.  
+  *Why:* A smooth and responsive Markdown rendering process is essential for a productive writing experience. Immediate feedback allows users to see the final output quickly, encouraging a more efficient and enjoyable workflow.
+
+- **Safety Mechanisms:**  
+  *What Was Fixed:* A safety model was integrated to filter and block NSFW content effectively.  
+  *Why:* By preventing inappropriate content from being displayed or stored, the safety mechanism upholds the integrity of the platform and ensures a secure, family-friendly user environment.
+
+- **AI Suggestions & Reasoning Panel Enhancements:**  
+  *What Was Fixed:* We enhanced the embeddings similarity check so that clicking on a note now highlights the corresponding section of text. The Reasoning panel was redesigned to provide simplified, natural language summaries.  
+  *Why:* This improvement creates a direct visual link between AI suggestions and the source text, increasing transparency and trust in the AI. Simplified explanations make the feature accessible to all users, regardless of technical expertise.
+
+- **Interface & Navigation Refinements:**  
+  *What Was Fixed:* The interface was refined with updated icons, streamlined panel layouts, and real-time visual feedback.  
+  *Why:* A clean, intuitive interface is crucial for reducing user frustration and enhancing the overall user experience. Improved navigation ensures that users can access and use all features efficiently.
+
+- **Expanded Settings Customization:**  
+  *What Was Fixed:* Additional customization options were integrated into the Settings panel, including a reset-to-default feature and more flexible keybinding configurations.  
+  *Why:* Allowing users to tailor the application to their preferences boosts usability and satisfaction. Enhanced customization makes Morph adaptable to a wider range of workflows and personal preferences.
+
+These targeted improvements directly address the issues identified during usability testing and have transformed Morph from a basic, clunky prototype into a polished, intuitive, and responsive tool that meets the high usability and privacy expectations of our diverse user base.
+
 
 ## Design Decisions (LO12)
 
-Reflect and justify your design decisions. How did limitations, assumptions, and constraints influence your decisions? Discuss each of these separately.
+### Limitations
+Our design decisions were heavily influenced by technical limitations inherent in developing a fully web-based, AI-driven text editor. For instance, relying on experimental browser APIs such as `queryPermission()` restricted us to using only modern, Chromium-based browsers, which in turn limited our user base. Moreover, the computational demand for running a real-time embeddings similarity check meant that we had to optimize our code carefully to maintain responsiveness. These limitations forced us to prioritize performance and stability over adding less critical features, resulting in a streamlined, efficient system.
+
+### Assumptions
+Several key assumptions guided our design:
+
+- **User Environment:** We assumed that users would have a stable internet connection and sufficient local disk space, which allowed us to implement a "file-over-app" approach without relying on centralized cloud storage.
+- **Data Privacy:** It was assumed that our target users place a high priority on data privacy. This assumption led to decisions such as enforcing strict directory criteria (only empty directories or those containing exclusively Markdown files) to ensure that user data remains entirely local.
+- **User Proficiency:** We assumed a baseline level of technical competence among our users, enabling us to integrate advanced AI functionalities while still maintaining an intuitive interface. This balance allowed us to offer sophisticated features like embeddings-based suggestions without overwhelming less technical users.
+
+### Constraints
+Our design was also shaped by several constraints:
+
+- **Privacy and Security:** Mandatory privacy constraints required that no sensitive data be transmitted or stored externally. This led to a design that emphasizes local storage and strict control over file access.
+- **Performance:** The need for a responsive, real-time interface imposed performance constraints. We had to optimize the embeddings similarity check and ensure that all user interactions, such as rendering Markdown or updating settings, occurred quickly and smoothly.
+- **Time and Resource Constraints:** Limited development time and resources dictated that we prioritize core functionalities. This constraint led to iterative development, where we incrementally improved the interface and AI features based on user feedback from our usability testing sessions.
+
+Overall, our design decisions were a careful balancing act between overcoming technical limitations, validating our assumptions about user needs, and adhering to strict constraints on privacy, performance, and project timelines. This approach enabled us to deliver a secure, efficient, and user-friendly product that meets both our technical goals and the expectations of our diverse user base.
 
 ## Economic Considerations (LO23)
 
-Is there a market for your product? What would be involved in marketing your product? What is your estimate of the cost to produce a version that you could sell? What would you charge for your product? How many units would you have to sell to make money? If your product isn't something that would be sold, like an open source project, how would you go about attracting users? How many potential users currently exist?
+There is a robust market for an AI-enhanced text editor like Morph. With the increasing demand for tools that integrate advanced AI capabilities into everyday workflows, our product appeals to a broad audience, including creative writers, students, professionals, and technical writers. Morph’s focus on local data privacy, real-time AI suggestions, and an intuitive interface distinguishes it from other products, positioning it well within a growing niche.
+
+### Marketing Strategy
+- **Digital Marketing:**  
+  Leverage social media platforms (Twitter, LinkedIn, Facebook) and content marketing (blogs, tutorials, and case studies) to highlight Morph’s unique features and benefits.
+- **Community Engagement:**  
+  Build an active user community through GitHub, developer forums, and dedicated user groups to encourage feedback and continuous improvement.
+- **Conferences and Webinars:**  
+  Present Morph at industry events and host webinars to demonstrate its functionality and attract both individual users and enterprise customers.
+### Cost Considerations
+- **Domain Name:**  
+  The cost of a domain (e.g., morph-editor.app) is relatively low and constitutes a minor part of the overall budget.
+- **GPU Costs:**  
+  Our current setup utilizes an NVIDIA A100 GPU that runs continuously. With a low number of concurrent users, costs remain minimal; however, GPU expenses will scale with increased user concurrency.
+- **No Database Costs:**  
+  Morph’s file-over-app architecture means that user data is stored locally on the device, eliminating ongoing database costs.
+- **Development and Maintenance:**  
+  Ongoing development, bug fixes, and support are required, but leveraging open source components and community contributions helps mitigate these expenses.
+
+### Revenue Model and Pricing
+- **Commercial Version:**  
+  For a commercial release, we could adopt a subscription model (e.g., $10–$20 per month) or a one-time licensing fee (e.g., $50–$100 per user).
+- **Open Source Strategy:**  
+  If Morph remains open source, attracting users will depend on active community engagement, regular updates, and robust support channels. Monetization could occur through sponsorships, premium add-ons, or enterprise support contracts.
+
+### Market Potential
+- **User Base:**  
+  The market for AI-enhanced writing tools is expanding rapidly. Potential users include thousands of creative professionals, academics, and technical experts worldwide.
+- **Scalability:**  
+  With a scalable cloud-based infrastructure and a decentralized data storage model, Morph can efficiently serve both individual users and larger organizations while ensuring high levels of privacy.
+- **Competitive Advantage:**  
+  Morph’s combination of local storage (ensuring data privacy), real-time AI suggestions, and a polished, intuitive user interface provides a strong competitive edge.
+
+Overall, Morph offers a cost-effective and scalable solution with significant revenue potential. By minimizing operational costs (through local data storage and scalable GPU usage) and implementing a strategic marketing plan focused on digital outreach and community engagement, Morph is well-positioned to capture a substantial share of the market for AI-enhanced text editors.
 
 ## Reflection on Project Management (LO24)
 
