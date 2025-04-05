@@ -9,29 +9,39 @@ authors = [{ name = "Aaron Pham", email = "contact@aarnphm.xyz" }]
 dependencies = [
   "vllm==0.8.2",
   "bentoml==1.4.7",
+  "kantoku>=0.18.3",
   "huggingface-hub>=0.25.0",
   "openai>=1.67.0",
   "jinja2>=3.1.5",
   "kantoku>=0.18.1",
   "goodfire>=0.3.4",
-  "hnswlib>=0.8.0",
-  "llama-index>=0.12.26",
+  "llama-index>=0.12.27",
   "llama-index-core>=0.12.27",
-  "llama-index-vector-stores-hnswlib>=0.3.0",
   "llama-index-embeddings-openai>=0.3.1",
-  "llama-index-llms-openai>=0.3.27",
   "llama-index-llms-openai-like>=0.3.4",
+  "httpx>=0.27.0",
+  "fastapi>=0.115.8",
+  "exa-py>=1.9.1",
 ]
 [project.urls]
 Website = "https://morph-editor.app"
-Documentation = "https://tinymorph.aarnphm.xyz"
+Documentation = "https://docs.morph-editor.app"
 GitHub = "https://github.com/aarnphm/morph"
 Twitter = "https://twitter.com/aarnphm_"
 Tracker = "https://github.com/aarnphm/morph/issues"
 
 [tool.bentoml.build]
 service = "service.py:API"
-include = ["LICENCE", "*.py", "*.yaml", "*.txt", "*.md", "*.json", "*.toml"]
+include = [
+  "LICENCE",
+  "*.py",
+  "*.yaml",
+  "*.txt",
+  "*.md",
+  "*.json",
+  "*.toml",
+  "swarm.sh",
+]
 
 [tool.uv]
 dev-dependencies = [

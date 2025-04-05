@@ -1,9 +1,9 @@
+import type { Node, Root } from "hast"
 import { Components, toJsxRuntime } from "hast-util-to-jsx-runtime"
-import { Fragment, jsx, jsxs } from "react/jsx-runtime"
 import { urlAttributes } from "html-url-attributes"
-import { type BuildVisitor, visit } from "unist-util-visit"
-import type { Root, Node } from "hast"
 import { HTMLAttributes, ReactNode } from "react"
+import { Fragment, jsx, jsxs } from "react/jsx-runtime"
+import { type BuildVisitor, visit } from "unist-util-visit"
 
 interface TableWrapperProps extends HTMLAttributes<HTMLTableElement> {
   children?: ReactNode

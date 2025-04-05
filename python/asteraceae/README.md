@@ -19,22 +19,19 @@ The following table describes available environment variables to be used with th
 > [!NOTE]
 > To run the inference backend locally, make sure you have at least two GPUs.
 >
-> In one terminal run:
->
 > ```bash
-> BENTOML_DISABLE_GPU_ALLOCATION=True CUDA_VISIBLE_DEVICES=0 VLLM_PLUGINS= bentoml serve service:Engine --port 3001 --debug
-> ```
->
-> Open a new terminal then run:
->
-> ```bash
-> BENTOML_DISABLE_GPU_ALLOCATION=True CUDA_VISIBLE_DEVICES=1 VLLM_PLUGINS= bentoml serve service:Embeddings --port 3002 --debug
-> ```
->
-> Then the API server can be run in a separate terminal:
->
-> ```bash
-> DEVELOPMENT=1 bentoml serve service:API --port 3000 --debug
+> bash swarm.sh
 > ```
 
+To run hot-reload API service, do `DEBUG=1`, otherwise `DEBUG=2` for full verbosity
+
 For the LLM engine, if you don't have a large GPUs then you should set `LLM=r1-qwen-tiny` to use smaller models.
+
+There are a few endpoints to consider:
+
+- `/essays`: handle semantic chunks of essays with line number metadata aware, with title extractors for relevant documents information
+- `/notes`: handles creating notes embeddings
+- `/authors`: A reasoning RAG search for authors assignments.
+- `/v1/chat/completions`: OpenAI-compatible Chat Completions API proxy to internal LLM node.
+- `/v1/embeddings`: OpenAI-compatible Embeddings API proxy to internal Embedding node.
+- `/v1/models`: will return both informations for the LLM and Embedding node.

@@ -16,13 +16,13 @@ dev-dependencies = [
 
 [tool.uv.sources]
 exo.workspace = true
+asteraceae.workspace = true
 
 [tool.uv.workspace]
 members = ["python/*"]
 
 [tool.ruff]
-extend-include = ["*.ipynb"]
-preview = true
+extend-include = ["*.ipynb", "**/pyproject.toml"]
 line-length = 119
 indent-width = 2
 
@@ -34,41 +34,33 @@ skip-magic-trailing-comma = true
 docstring-code-format = true
 
 [tool.ruff.lint]
-ignore = [
-  "RUF012",
-  "ANN",    # Mypy is better at this
-  "E722",
-  "D",
-]
+preview = true
+exclude = ["*.ipynb"]
+ignore = ["RUF012", "ANN", "E501", "E722", "D", "E401"]
 select = [
   "F",
   "D",
-  "G",    # flake8-logging-format
-  "PERF", # perflint
-  "RUF",  # Ruff-specific rules
+  "G",
+  "PERF",
+  "RUF",
   "W6",
   "E71",
   "E72",
   "E112",
   "E113",
-  # "E124",
   "E203",
   "E272",
-  # "E303",
-  # "E304",
-  # "E501",
-  # "E502",
+  "E303",
+  "E304",
+  "E502",
   "E702",
   "E703",
   "E731",
   "W191",
   "W291",
   "W293",
-  "UP039", # unnecessary-class-parentheses
+  "UP039",
 ]
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"
 
 [tool.pyright]
 include = ["python"]
@@ -79,10 +71,22 @@ enableExperimentalFeatures = true
 defineConstant = { MYPY = true }
 venvPath = "."
 venv = ".venv"
-pythonVersion = "3.12"
+pythonVersion = "3.11"
 reportMissingImports = "warning"
 reportMissingTypeStubs = false
 reportPrivateUsage = "warning"
 reportUnknownArgumentType = "warning"
 reportUnsupportedDunderAll = "warning"
 reportWildcardImportFromLibrary = "warning"
+
+[tool.mypy]
+strict = true
+plugins = ['pydantic.mypy', 'mypy.plugins.attrs']
+follow_imports = "silent"
+ignore_missing_imports = true
+check_untyped_defs = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true

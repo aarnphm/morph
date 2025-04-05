@@ -1,14 +1,15 @@
-import * as React from "react"
-import { useRef, useState, memo, useMemo, useEffect, useCallback } from "react"
-import { Skeleton } from "@/components/ui/skeleton"
-import { DragSourceMonitor, useDrag } from "react-dnd"
+import type { Note } from "@/db"
 import { NOTES_DND_TYPE, generatePastelColor } from "@/lib/notes"
 import { cn } from "@/lib/utils"
-import type { Note } from "@/db"
-import { getEmptyImage } from "react-dnd-html5-backend"
-import { cva, type VariantProps } from "class-variance-authority"
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+import { type VariantProps, cva } from "class-variance-authority"
 import { motion } from "motion/react"
+import * as React from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { DragSourceMonitor, useDrag } from "react-dnd"
+import { getEmptyImage } from "react-dnd-html5-backend"
+
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+import { Skeleton } from "@/components/ui/skeleton"
 
 // Define note card variants using CVA
 const noteCardVariants = cva(
@@ -312,14 +313,37 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
       },
       hidden: {
         opacity: 0,
-        y: -10,
-        scale: 0.8,
+        y: 0,
+        scale: 1,
         transition: {
           duration: 0.2,
         },
       },
+      // Add file transition animation variants
+      fileEnter: {
+        opacity: 0,
+        y: 20,
+        scale: 0.9,
+      },
+      fileVisible: {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        transition: {
+          type: "spring",
+          stiffness: 300,
+          damping: 25,
+          mass: 0.5,
+          delay: index * 0.05, // Staggered animation based on index
+        },
+      },
+      fileExit: {
+        opacity: 0,
+        y: 0,
+        scale: 0.9,
+      },
     }),
-    [],
+    [index],
   )
 
   // Ensure we have a color
@@ -337,23 +361,28 @@ export const AttachedNoteCard = memo(function AttachedNoteCard({
               noteColor,
             )}
             variants={variants}
-            initial="hidden"
+            initial="fileEnter"
             animate={isStackExpanded ? "expanded" : "collapsed"}
+            exit="fileExit"
             layout="position"
             drag="x"
+            layoutDependency={isStackExpanded}
             dragDirectionLock
             dragConstraints={{ top: 0, right: 0, bottom: 0, left: 0 }}
             dragTransition={{
               bounceStiffness: 450,
               bounceDamping: 20,
               power: 0.2,
+              timeConstant: 0.15,
             }}
-            dragElastic={0.15}
+            dragElastic={0.1}
             whileDrag={{
               cursor: "grabbing",
+              zIndex: 50,
               transition: {
                 type: "tween",
                 ease: "easeOut",
+                duration: 0.1,
               },
             }}
             {...props}

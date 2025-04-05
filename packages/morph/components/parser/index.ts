@@ -1,51 +1,44 @@
-import type { Root as MdRoot, Code } from "mdast"
-import type { Root as HtmlRoot, Element, Text } from "hast"
-import { PluggableList } from "unified"
-import remarkFrontmatter from "remark-frontmatter"
-import yaml from "js-yaml"
-import { Data } from "vfile"
 import matter, { type GrayMatterFile } from "gray-matter"
-import { toString as hastToString } from "hast-util-to-string"
-import { toString as mdastToString } from "mdast-util-to-string"
+import type { Element, Root as HtmlRoot, Text } from "hast"
+import { fromHtmlIsomorphic } from "hast-util-from-html-isomorphic"
 import { headingRank } from "hast-util-heading-rank"
+import { toHtml as hastToHtml } from "hast-util-to-html"
+import { toString as hastToString } from "hast-util-to-string"
+import { type Child, h, s } from "hastscript"
+import yaml from "js-yaml"
+import type { Code, Root as MdRoot } from "mdast"
+import { fromMarkdown } from "mdast-util-from-markdown"
+import { toHast as mdastToHast } from "mdast-util-to-hast"
+import { toString as mdastToString } from "mdast-util-to-string"
 import readingTime, { ReadTimeResults } from "reading-time"
+import rehypeGithubEmoji from "rehype-github-emoji"
+import rehypeKatex from "rehype-katex"
+import rehypePrettyCode, { Theme } from "rehype-pretty-code"
+import rehypeRaw from "rehype-raw"
+import rehypeSlug from "rehype-slug"
+import remarkFrontmatter from "remark-frontmatter"
+import remarkGfm from "remark-gfm"
+import remarkMath from "remark-math"
+import smartypants from "remark-smartypants"
+import { PluggableList } from "unified"
+import { EXIT, SKIP, visit } from "unist-util-visit"
+import { Data } from "vfile"
+
 import {
+  SvgOptions,
   coalesceAliases,
   coerceDate,
   coerceToArray,
+  escapeHTML,
+  extractInlineMacros,
+  parsePseudoMeta,
+  renderPseudoToString,
+  rendererOptions,
   slugTag,
   unescapeHTML,
-  SvgOptions,
-  escapeHTML,
-  renderPseudoToString,
-  parsePseudoMeta,
-  extractInlineMacros,
-  rendererOptions,
-  extractArxivId,
-  checkMermaidCode,
-  getCitationFormat,
-  genCitation,
 } from "@/components/parser/utils"
-import { toHtml as hastToHtml } from "hast-util-to-html"
-import { toHast as mdastToHast } from "mdast-util-to-hast"
-import { fromMarkdown } from "mdast-util-from-markdown"
-import { fromHtmlIsomorphic } from "hast-util-from-html-isomorphic"
-import { EXIT, SKIP, visit } from "unist-util-visit"
-import { h, s, type Child } from "hastscript"
-import remarkGfm from "remark-gfm"
-import smartypants from "remark-smartypants"
-import remarkMath from "remark-math"
-import rehypeSlug from "rehype-slug"
-import rehypePrettyCode, { Theme } from "rehype-pretty-code"
-import rehypeKatex from "rehype-katex"
-import rehypeRaw from "rehype-raw"
-import rehypeGithubEmoji from "rehype-github-emoji"
-import { Cite } from "rehype-citation"
-import { parseCitation } from "rehype-citation/node/src/parse-citation.js"
-import { genBiblioNode } from "rehype-citation/node/src/gen-biblio.js"
-import { genFootnoteSection } from "rehype-citation/node/src/gen-footnote.js"
-import { type Settings } from "@/hooks/use-persisted-settings"
-import { db } from "@/db"
+
+import { type Settings } from "@/db/interfaces"
 
 export type MorphPluginData = Data
 export type MorphParser = {
@@ -580,464 +573,12 @@ const Markup = {
   ],
 } satisfies MorphParser
 
-const Mermaid = {
-  name: "Mermaid",
-  markdownPlugins: () => [
-    () => {
-      return (tree) => {
-        visit(tree, "code", (node: Code) => {
-          if (node.lang === "mermaid") {
-            node.data = {
-              hProperties: {
-                className: ["mermaid"],
-                "data-clipboard": mdastToString(node),
-              },
-            }
-          }
-        })
-      }
-    },
-  ],
-  htmlPlugins: () => [
-    () => {
-      return (tree) => {
-        visit(
-          tree,
-          (node) => checkMermaidCode(node as Element),
-          (node: Element, _, parent: Element) => {
-            const className = Array.isArray(parent.properties.className)
-              ? parent.properties.className
-              : (parent.properties.className = [])
-            if (!new Set(className).has("min-h-fit")) className.push("min-h-fit")
-
-            parent.children = [
-              h("button.expand-button", { ariaLabel: "Expand mermaid diagram", tabindex: -1 }, [
-                s("svg", { ...SvgOptions, viewbox: "0 -8 24 24", tabindex: -1 }, [
-                  s("use", { href: "#expand-e-w" }),
-                ]),
-              ]),
-              h("button.clipboard-button", { ariaLabel: "copy source", tabindex: -1 }, [
-                s("svg", { ...SvgOptions, viewbox: "0 -8 24 24", class: "copy-icon" }, [
-                  s("use", { href: "#github-copy" }),
-                ]),
-                s("svg", { ...SvgOptions, viewbox: "0 -8 24 24", class: "check-icon" }, [
-                  s("use", { href: "#github-check" }),
-                ]),
-              ]),
-              node,
-              h(
-                ".mermaid-viewer",
-                h(".mermaid-backdrop"),
-                h(
-                  "#mermaid-space",
-                  h(
-                    ".mermaid-header",
-                    h(
-                      "button.close-button",
-                      { ariaLabel: "close button", title: "close button", type: "button" },
-                      [
-                        s(
-                          "svg",
-                          {
-                            ...SvgOptions,
-                            ariaHidden: true,
-                            width: 24,
-                            height: 24,
-                            fill: "none",
-                            stroke: "currentColor",
-                            strokewidth: 2,
-                          },
-                          [s("use", { href: "#close-button" })],
-                        ),
-                      ],
-                    ),
-                  ),
-                  h(".mermaid-content"),
-                ),
-              ),
-            ]
-          },
-        )
-      }
-    },
-  ],
-} satisfies MorphParser
-
-const URL_PATTERN = /https?:\/\/[^\s<>)"]+/g
-
-interface LinkType {
-  type: string
-  pattern: (url: string) => boolean | string | null
-  label: string
-}
-
-const LINK_TYPES: LinkType[] = [
-  {
-    type: "arxiv",
-    pattern: extractArxivId,
-    label: "[arXiv]",
-  },
-  {
-    type: "lesswrong",
-    pattern: (url: string) => url.toLowerCase().includes("lesswrong.com"),
-    label: "[lesswrong]",
-  },
-  {
-    type: "github",
-    pattern: (url: string) => url.toLowerCase().includes("github.com"),
-    label: "[GitHub]",
-  },
-  {
-    type: "transformer",
-    pattern: (url: string) => url.toLowerCase().includes("transformer-circuits.pub"),
-    label: "[transformer circuit]",
-  },
-  {
-    type: "alignment",
-    pattern: (url: string) => url.toLowerCase().includes("alignmentforum.org"),
-    label: "[alignment forum]",
-  },
-]
-
-function createTextNode(value: string): Text {
-  return { type: "text", value }
-}
-
-function getLinkType(url: string): LinkType | undefined {
-  return LINK_TYPES.find((type) => type.pattern(url))
-}
-
-function createLinkElement(href: string): Element {
-  const linkType = getLinkType(href)
-  const displayText = linkType ? linkType.label : href
-
-  return h(
-    "a.csl-external-link",
-    { href, target: "_blank", rel: "noopener noreferrer" },
-    createTextNode(displayText),
-  )
-}
-
-function processTextNode(node: Text): (Element | Text)[] {
-  const text = node.value
-  const matches = Array.from(text.matchAll(URL_PATTERN))
-
-  if (matches.length === 0) {
-    return [node]
-  }
-
-  const result: (Element | Text)[] = []
-  let lastIndex = 0
-
-  matches.forEach((match) => {
-    const href = match[0]
-    const startIndex = match.index!
-
-    // Add text before URL if exists
-    if (startIndex > lastIndex) {
-      result.push(createTextNode(text.slice(lastIndex, startIndex)))
-    }
-
-    // Add arXiv prefix if applicable
-    const arxivId = extractArxivId(href)
-    if (arxivId) {
-      result.push(createTextNode(`arXiv preprint arXiv:${arxivId} `))
-    }
-
-    // Add link element
-    result.push(createLinkElement(href))
-    lastIndex = startIndex + href.length
-  })
-
-  // Add remaining text after last URL if exists
-  if (lastIndex < text.length) {
-    result.push(createTextNode(text.slice(lastIndex)))
-  }
-
-  return result
-}
-
-// Function to process a list of nodes
-function processNodes(nodes: (Element | Text)[]): (Element | Text)[] {
-  return nodes.flatMap((node) => {
-    if (node.type === "text") {
-      return processTextNode(node)
-    }
-    if (node.type === "element") {
-      return {
-        ...node,
-        children: processNodes(node.children as (Element | Text)[]),
-      }
-    }
-    return [node]
-  })
-}
-
-export const checkBib = ({ tagName, properties }: Element) =>
-  tagName === "a" &&
-  Boolean(properties.href) &&
-  typeof properties.href === "string" &&
-  properties.href.startsWith("#bib")
-
-export const checkBibSection = ({ type, tagName, properties }: Element) =>
-  type === "element" && tagName === "section" && properties.dataReferences == ""
-
-/**
- * Regex adapted from https://github.com/Zettlr/Zettlr/blob/develop/source/common/util/extract-citations.ts
- *
- * Citation detection: The first alternative matches "full" citations surrounded
- * by square brackets, whereas the second one matches in-text citations,
- * optionally with suffixes.
- *
- * * Group 1 matches regular "full" citations
- * * Group 2 matches in-text citations (not surrounded by brackets)
- * * Group 3 matches optional square-brackets suffixes to group 2 matches
- *
- * For more information, see https://pandoc.org/MANUAL.html#extension-citations
- */
-export const citationRE: RegExp =
-  /(?:\[([^[\]]*@[^[\]]+)\])|(?<=\s|^|(-))(?:@([\p{L}\d_][^\s]*[\p{L}\d_]|\{.+\})(?:\s+\[(.*?)\])?)/u
-const permittedTags = ["div", "p", "span", "li", "td", "th"]
-const idRoot = "CITATION"
-const Citations = {
-  name: "Citations",
-  htmlPlugins: (_, vaultId) => {
-    return [
-      () => async (tree) => {
-        //The following is vendorred from rehype-citation, given that we don't access to 'path' within the browser
-        const opts = {
-          suppressBibliography: false,
-          linkCitations: true,
-          csl: "apa",
-          lang: "en-US",
-        }
-        const files = await db.references.where("vaultId").equals(vaultId).toArray()
-        // Skip citation processing if no valid files are found
-        if (!files.length) return
-
-        // TODO: add more format support
-        const config = (Cite.plugins as { config: any }).config.get("@csl")
-
-        // Process only files with valid handles
-        const validFiles = files.filter((el) => el.handle !== null && el.handle !== undefined)
-        if (!validFiles.length) return
-
-        const bibliography: string[] = await Promise.all(
-          validFiles.map(async (el) => {
-            try {
-              const file = await el.handle.getFile()
-              return await file.text()
-            } catch (error) {
-              console.error("Error reading citation file:", error)
-              return "" // Return empty string if file can't be read
-            }
-          }),
-        )
-
-        // Filter out empty strings
-        const validBibliography = bibliography.filter((text) => text.trim() !== "")
-        if (validBibliography.length === 0) return
-
-        const citations = new Cite(validBibliography, { generateGraph: false })
-        const citationIds = citations.data.map((x) => x.id)
-        const citationPre: [string, number][] = []
-        const citationDict: Record<string, string> = {}
-        let citationId = 1
-        const citeproc = config.engine(citations.data, opts.csl, opts.lang, "html")
-
-        const mode = citeproc.opt.xclass
-        const citationFormat = getCitationFormat(citeproc)
-
-        visit(tree, "text", (node, idx, parent) => {
-          const match = node.value.match(citationRE)
-          if (!match || ("tagName" in parent && !permittedTags.includes(parent.tagName))) return
-          let citeStartIdx = match.index
-          const citeEndIdx = match.index + match[0].length
-          // If we have an in-text citation and we should suppress the author, the
-          // match.index does NOT include the positive lookbehind, so we have to manually
-          // shift "from" to one before.
-          if (match[2] !== undefined) {
-            citeStartIdx--
-          }
-          const newChildren = []
-          // if preceding string
-          if (citeStartIdx !== 0) {
-            // create a new child node
-            newChildren.push({
-              type: "text",
-              value: node.value.slice(0, citeStartIdx),
-            })
-          }
-          const [entries, isComposite] = parseCitation(match)
-          // If id is not in citation file (e.g. route alias or js package), abort process
-          for (const citeItem of entries) {
-            if (!citationIds.includes(citeItem.id)) return
-          }
-          const [citedText, citedTextNode] = genCitation(
-            citeproc,
-            mode,
-            entries,
-            idRoot,
-            citationId,
-            citationPre,
-            opts,
-            isComposite,
-            citationFormat,
-          )
-          citationDict[citationId] = citedText
-          // Prepare citationPre and citationId for the next cite instance
-          citationPre.push([`${idRoot}-${citationId}`, 0])
-          citationId = citationId + 1
-          newChildren.push(citedTextNode)
-          // if trailing string
-          if (citeEndIdx < node.value.length) {
-            newChildren.push({
-              type: "text",
-              value: node.value.slice(citeEndIdx),
-            })
-          }
-          // insert into the parent
-          parent.children = [
-            ...parent.children.slice(0, idx),
-            ...newChildren,
-            ...parent.children.slice(idx! + 1),
-          ]
-        })
-        // NOTE: Remove noCite features
-        if (citeproc.registry.mylist.length >= 1 && !opts.suppressBibliography) {
-          const biblioNode: Element = genBiblioNode(citeproc)
-          let bilioInserted = false
-          const biblioMap: Record<string, Element> = {}
-          biblioNode.children
-            .filter((node) =>
-              ((node as Element).properties?.className as string[])?.includes("csl-entry"),
-            )
-            .forEach((node) => {
-              const citekey = ((node as Element).properties.id as string)!
-                .split("-")
-                .slice(1)
-                .join("-")
-              biblioMap[citekey] = { ...node } as Element
-              biblioMap[citekey].properties = { id: "inlinebib-" + citekey }
-            })
-          // Insert it at ^ref, if not found insert it as the last element of the tree
-          visit(tree, "element", (node, idx, parent) => {
-            // TODO: Add inline bibliography
-            // Add bibliography
-            if (
-              !opts.suppressBibliography &&
-              (node.tagName === "p" || node.tagName === "div") &&
-              node.children.length >= 1 &&
-              node.children[0].type === "text" &&
-              node.children[0].value === "[^ref]" &&
-              idx
-            ) {
-              parent.children[idx] = biblioNode
-              bilioInserted = true
-            }
-          })
-          if (!opts.suppressBibliography && !bilioInserted) {
-            tree.children.push(biblioNode)
-          }
-        }
-        let footnoteSection
-        visit(tree, "element", (node, index, parent) => {
-          if (node.tagName === "section" && node.properties.dataFootnotes) {
-            footnoteSection = node
-            parent.children.splice(index, 1)
-          }
-        })
-        // Need to adjust footnote numbering based on existing ones already assigned
-        // And insert them into the footnote section (if exists)
-        // Footnote comes after bibliography
-        if (mode === "note" && Object.keys(citationDict).length > 0) {
-          const fnArray: { type: "citation" | "existing"; oldId: string }[] = []
-          let index = 1
-          visit(tree, "element", (node) => {
-            if (node.tagName === "sup" && node.children[0].type === "element") {
-              const nextNode = node.children[0]
-              if (nextNode.tagName === "a") {
-                const { href, id } = nextNode.properties
-                if (href.includes("fn") && id.includes("fnref")) {
-                  const oldId = href.split("-").pop()
-                  fnArray.push({
-                    type: href.includes("cite") ? "citation" : "existing",
-                    oldId,
-                  })
-                  // Update ref number
-                  nextNode.properties.href = `#user-content-fn-${index}`
-                  nextNode.properties.id = `user-content-fnref-${index}`
-                  nextNode.children[0].value = index.toString()
-                  index += 1
-                }
-              }
-            }
-          })
-          // @ts-expect-error some type mismatch, it is ok
-          const newFootnoteSection = genFootnoteSection(citationDict, fnArray, footnoteSection)
-          tree.children.push(newFootnoteSection)
-        } else {
-          if (footnoteSection) tree.children.push(footnoteSection)
-        }
-      },
-      // using https://github.com/syntax-tree/unist-util-visit as they're just anochor links
-      () => (tree) => {
-        visit(tree, (node) => {
-          if (checkBib(node as Element)) {
-            node.properties["data-bib"] = true
-          }
-        })
-      },
-      // Format external links correctly
-      () => (tree) => {
-        const checkReferences = ({ properties }: Element): boolean => {
-          const className = properties?.className
-          return Array.isArray(className) && className.includes("references")
-        }
-        const checkEntries = ({ properties }: Element): boolean => {
-          const className = properties?.className
-          return Array.isArray(className) && className.includes("csl-entry")
-        }
-
-        visit(
-          tree,
-          (node) => checkReferences(node as Element),
-          (node, index, parent) => {
-            const entries: Element[] = []
-            visit(
-              node,
-              (node) => checkEntries(node as Element),
-              (node) => {
-                const { properties, children } = node as Element
-                entries.push(h("li", properties, processNodes(children as Element[])))
-              },
-            )
-
-            parent!.children.splice(
-              index!,
-              1,
-              h(
-                "section.bibliography",
-                { dataReferences: true },
-                h("h2#reference-label", [{ type: "text", value: "Bibliographie" }]),
-                h("ul", ...entries),
-              ),
-            )
-          },
-        )
-      },
-    ]
-  },
-} satisfies MorphParser
-
 const Order = [
   Frontmatter,
   ModifiedTime,
   Markup,
   Pseudocode,
   SyntaxHighlighting,
-  Citations,
-  Mermaid,
   Gfm,
   Description,
   Latex,

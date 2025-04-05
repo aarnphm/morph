@@ -9,13 +9,15 @@
 import { StateEffect, StateField } from "@codemirror/state"
 import type { Root as HtmlRoot } from "hast"
 import type { Root as MdRoot } from "mdast"
-import { VFile } from "vfile"
-import { unified } from "unified"
+import rehypeStringify from "rehype-stringify"
 import remarkParse from "remark-parse"
 import remarkRehype from "remark-rehype"
-import rehypeStringify from "rehype-stringify"
-import { markdownPlugins, htmlPlugins } from "./parser"
-import { Settings } from "@/hooks/use-persisted-settings"
+import { unified } from "unified"
+import { VFile } from "vfile"
+
+import type { Settings } from "@/db/interfaces"
+
+import { htmlPlugins, markdownPlugins } from "./parser"
 
 export type HtmlContent = [HtmlRoot, VFile, string]
 
