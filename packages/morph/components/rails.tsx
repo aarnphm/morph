@@ -18,6 +18,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useRouter } from "next/navigation"
 import * as React from "react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { toast } from "sonner"
 
 import { setFile } from "@/components/markdown-inline"
 import { VaultButton } from "@/components/ui/button"
@@ -34,7 +35,6 @@ import { SidebarMenuButton, SidebarMenuItem, SidebarMenuSub } from "@/components
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 import usePersistedSettings from "@/hooks/use-persisted-settings"
-import { useToast } from "@/hooks/use-toast"
 
 import { FileSystemTreeNode, Vault } from "@/db/interfaces"
 
@@ -152,7 +152,6 @@ export const FileTreeNode = memo(
     node,
     nodePath = "",
   }: Omit<FileTreeNodeProps, "onFileSelect" | "isExpanded"> & { nodePath?: string }) {
-    const { toast } = useToast()
     const { onFileSelect, isExpanded } = React.useContext(FileTreeContext)
     const { expandedFolders, setExpandedFolder } = React.useContext(ExpandedFoldersContext)
 
@@ -205,13 +204,9 @@ export const FileTreeNode = memo(
         }, 1000)
       } catch (error) {
         console.error("Error opening file:", error)
-        toast({
-          title: "Error opening file",
-          description: "Could not open the file with the system's default application",
-          variant: "destructive",
-        })
+        toast.error("Could not open the file with the system's default application")
       }
-    }, [node, toast])
+    }, [node])
 
     const MemoizedSidebarFolderItem = useMemo(
       () => (
@@ -727,7 +722,6 @@ export default memo(function Rails({
   onContentUpdate,
   setIsSettingsOpen,
 }: RailsProps) {
-  const { toast } = useToast()
   const { toggleSidebar, state } = useSidebar()
   const isExpanded = state === "expanded"
   const router = useRouter()
@@ -776,7 +770,7 @@ export default memo(function Rails({
     async (node: FileSystemTreeNode) => {
       if (!node || node.kind !== "file" || node.extension !== "md") {
         if (node && node.kind === "file" && node.extension !== "md") {
-          toast({ title: "File picker", description: "Can only open markdown files" })
+          toast.warning("Can only open markdown files")
         }
         return
       }
@@ -811,7 +805,7 @@ export default memo(function Rails({
         console.error("Error reading file:", error)
       }
     },
-    [vault, editorViewRef, onContentUpdate, onFileSelect, toast],
+    [vault, editorViewRef, onContentUpdate, onFileSelect],
   )
 
   // Memoize the motion components to prevent unnecessary recalculations

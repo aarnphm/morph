@@ -121,12 +121,11 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
         // Show some initial progress
         setLoadingProgress(0.3)
 
-        await initialize().then(async (db) => {
-          await applyMigrations(db, migrations)
-          // Set DB instance and finish loading
-          setDb(db)
-          setLoadingProgress(1)
-        })
+        const dbInstance = await initialize()
+        await applyMigrations(dbInstance, migrations)
+        // Set DB instance and finish loading
+        setDb(dbInstance)
+        setLoadingProgress(1)
       } catch (err) {
         console.error("Error initializing database:", err)
         setLoadingProgress(1)

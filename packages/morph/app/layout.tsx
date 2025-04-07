@@ -3,7 +3,7 @@ import PlausibleProvider from "next-plausible"
 import Script from "next/script"
 import type React from "react"
 
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/ui/sonner"
 
 import ClientProvider from "@/context/providers"
 

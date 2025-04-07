@@ -120,4 +120,5 @@ export async function applyMigrations(db: MorphPgLite, migrations: MigrationMeta
     console.error("applyPgLiteMigrations: Migration process failed:", error)
     throw error
   }
+  return db
 }

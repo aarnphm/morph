@@ -2,6 +2,7 @@ import { highlight, slugifyFilePath, toJsx } from "@/lib"
 import { CommandGroup } from "cmdk"
 import { fromHtmlIsomorphic } from "hast-util-from-html-isomorphic"
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { toast } from "sonner"
 
 import {
   CommandDialog,
@@ -13,8 +14,6 @@ import {
 
 import { type UserDocument, useSearch } from "@/context/search"
 import { type FlattenedFileMapping } from "@/context/vault"
-
-import { useToast } from "@/hooks/use-toast"
 
 import type { FileSystemTreeNode, Vault } from "@/db/interfaces"
 
@@ -31,7 +30,6 @@ export function SearchCommand({ maps, vault, onFileSelect }: SearchCommandProps)
   const [results, setResults] = useState<Array<UserDocument>>([])
   const [searchKey, setSearchKey] = useState(0)
   const { isIndexReady, searchDocuments } = useSearch()
-  const { toast } = useToast()
 
   // Debounce the query input to reduce the number of search operations
   useEffect(() => {
@@ -111,7 +109,7 @@ export function SearchCommand({ maps, vault, onFileSelect }: SearchCommandProps)
       } catch (error) {
         if (isMounted) {
           console.error("Search error:", error)
-          toast({ title: "Cmd-K", description: "Failed to search query" })
+          toast.error("Failed to search query")
           setResults([])
         }
       }
@@ -122,7 +120,7 @@ export function SearchCommand({ maps, vault, onFileSelect }: SearchCommandProps)
     return () => {
       isMounted = false
     }
-  }, [debouncedQuery, open, searchDocuments, maps, toast, isIndexReady])
+  }, [debouncedQuery, open, searchDocuments, maps, isIndexReady])
 
   // Update the search key when the dialog opens
   useEffect(() => {
