@@ -8,7 +8,7 @@ import * as Plugin from "./quartz/plugins"
  */
 const config: QuartzConfig = {
   configuration: {
-    pageTitle: "User Manual",
+    pageTitle: "morph manuals",
     pageTitleSuffix: " | morph-editor.app",
     enableSPA: true,
     enablePopovers: true,
@@ -66,10 +66,19 @@ const config: QuartzConfig = {
         },
         keepBackground: false,
       }),
+      Plugin.Citations({
+        bibliographyFile: "./content/References.bib",
+        linkCitations: true,
+      }),
       Plugin.ObsidianFlavoredMarkdown({ enableInHtmlEmbed: false }),
       Plugin.GitHubFlavoredMarkdown(),
       Plugin.TableOfContents(),
-      Plugin.CrawlLinks({ markdownLinkResolution: "shortest" }),
+      Plugin.CrawlLinks({
+        markdownLinkResolution: "absolute",
+        externalLinkIcon: false,
+        lazyLoad: true,
+        openLinksInNewTab: true,
+      }),
       Plugin.Description(),
       Plugin.Latex({ renderEngine: "katex" }),
     ],
