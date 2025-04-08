@@ -81,6 +81,7 @@ SERVICE_CONFIG: ServiceOpts = {
       'access_control_allow_methods': ['*'],
       'access_control_allow_headers': ['*'],
       'access_control_max_age': 1200,
+      'access_control_expose_headers': ['Access-Control-Allow-Origin'],
     }
   },
   'image': bentoml.images.PythonImage(python_version='3.11')
@@ -431,7 +432,7 @@ class API:
       temperature=llm_['temperature'],
       default_headers={'Runner-Name': LLM.name},
       strict=True,
-      timeout=6000,  # V0 limitations atm, but once we support thinking in V1, will move there.
+      timeout=600.0,  # V0 limitations atm, but once we support thinking in V1, will move there.
     )
     self.embed_model = OpenAIEmbedding(
       api_key='dummy',
@@ -441,11 +442,8 @@ class API:
       default_headers={'Runner-Name': Embeddings.name},
     )
 
-    # Setup the semantic chunker with appropriate parameters
     chunker = SemanticSplitterNodeParser(
-      buffer_size=1,
-      breakpoint_percentile_threshold=95,  # Threshold for determining chunk boundaries
-      embed_model=self.embed_model,
+      buffer_size=1, breakpoint_percentile_threshold=70, embed_model=self.embed_model
     )
 
     # Create our line number metadata extractor
@@ -553,6 +551,7 @@ class API:
   @bentoml.task
   async def authors(self, request: AuthorRequest, /) -> Authors:
     """Generate author suggestions based on essay analysis, using function calling and search tools."""
+    return Authors(authors=DEFAULT_AUTHORS)
 
     # Use the request's search backend if specified, otherwise use the default
     search_backend = request.search_backend or self.search_backend

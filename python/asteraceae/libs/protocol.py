@@ -236,7 +236,7 @@ class AuthorSchema(pydantic.BaseModel):
 
 
 class Authors(AuthorSchema):
-  queries: t.Optional[list[str]] = pydantic.Field(description='Optional search queri')
+  queries: t.Optional[list[str]] = pydantic.Field(description='Optional search queries', default=None)
 
 
 class Tonality(pydantic.BaseModel):
