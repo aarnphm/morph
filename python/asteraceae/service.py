@@ -183,7 +183,7 @@ def make_args(
   *,
   task: TaskType,
   max_log_len: int = 2000,
-  max_num_seqs: int = 256,
+  max_num_seqs: int = 128,
   max_model_len: int = MAX_MODEL_LEN,
   reasoning: bool = True,
   reasoning_parser: str = 'deepseek_r1',
@@ -256,7 +256,7 @@ class LLM:
   async def init_engine(self) -> None:
     import vllm.entrypoints.openai.api_server as vllm_api_server
 
-    args = make_args(self.model, self.model_id, task='generate', gpu_memory_utilization=0.99)
+    args = make_args(self.model, self.model_id, task='generate', gpu_memory_utilization=0.90)
 
     router = fastapi.APIRouter(lifespan=vllm_api_server.lifespan)
     OPENAI_ENDPOINTS = [

@@ -1,4 +1,7 @@
+import { ReasoningHistory } from "@/db"
 import rfdc from "rfdc"
+
+import type { Note } from "@/db/interfaces"
 
 export function stripSlashes(s: string, onlyStripPrefix?: boolean): string {
   if (s.startsWith("/")) {
@@ -193,5 +196,124 @@ export function formatDateString(dateStr: string): FormattedDateResult {
     formattedDate,
     formattedTime,
     relativeTime,
+  }
+}
+
+export function safeDate(dateStr: string | null | undefined): Date | null {
+  if (!dateStr) return null
+
+  try {
+    const date = new Date(dateStr)
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return null
+    }
+    return date
+  } catch (error) {
+    console.error(`Failed to parse date string: ${dateStr}`, error)
+    return null
+  }
+}
+
+// Add a debug logging helper function that only runs in development
+export function debugLog(message: string, ...data: any) {
+  if (process.env.NODE_ENV !== "development") return
+  console.debug(message, ...data)
+}
+
+// Add a function to log reasoning and note groups data
+export function logReasoningAndGroups(
+  reasoningHistory: ReasoningHistory[],
+  noteGroups: [string, Note[]][],
+) {
+  if (process.env.NODE_ENV !== "development") return
+
+  debugLog(
+    `[NotesPanel] Reasoning history: ${reasoningHistory.length}, Note groups: ${noteGroups.length}`,
+  )
+
+  if (reasoningHistory.length > 0) {
+    const allNoteIds = reasoningHistory.map((r) => r.noteIds).flat()
+    debugLog(`[NotesPanel] All reasoning noteIds:`, allNoteIds)
+
+    reasoningHistory.forEach((r) => {
+      debugLog(`[NotesPanel] Reasoning ${r.id} has ${r.noteIds?.length || 0} noteIds:`, r.noteIds)
+    })
+  }
+
+  if (noteGroups.length > 0) {
+    debugLog(`[NotesPanel] Found ${noteGroups.length} note groups:`)
+    noteGroups.forEach(([dateStr, notes]) => {
+      debugLog(
+        `[NotesPanel] Group '${dateStr}' has ${notes.length} notes:`,
+        notes.map((n) => n.id),
+      )
+    })
+  } else {
+    debugLog(`[NotesPanel] No note groups found - check filtering in noteGroupsData creation`)
+  }
+}
+
+// Add an analysis function that helps diagnose noteGroupsData filtering issues
+export function analyzeNotesFiltering(allNotes: Note[], droppedNotes: Note[]) {
+  if (process.env.NODE_ENV !== "development") return
+
+  // Get counts to understand filtering
+  const totalNotes = allNotes.length
+  const droppedNotesCount = droppedNotes.length
+  const droppedNoteIds = new Set(droppedNotes.map((note) => note.id))
+
+  // Count notes with dropped flag
+  const notesWithDroppedFlag = allNotes.filter((note) => note.dropped).length
+
+  // Count notes that are in allNotes but not in droppedNotes
+  const nonDroppedNotes = allNotes.filter(
+    (note) => !droppedNoteIds.has(note.id) && !note.dropped,
+  ).length
+
+  debugLog(`[Notes Analysis] Total notes: ${totalNotes}, Dropped notes: ${droppedNotesCount}`)
+  debugLog(`[Notes Analysis] Notes with dropped flag: ${notesWithDroppedFlag}`)
+  debugLog(`[Notes Analysis] Non-dropped notes that should appear in groups: ${nonDroppedNotes}`)
+
+  if (nonDroppedNotes === 0) {
+    // Detailed analysis of what might be happening
+    const droppedFlagButNotInDroppedNotes = allNotes.filter(
+      (note) => note.dropped && !droppedNoteIds.has(note.id),
+    ).length
+
+    const inDroppedNotesButNoFlag = allNotes.filter(
+      (note) => !note.dropped && droppedNoteIds.has(note.id),
+    ).length
+
+    debugLog(
+      `[Notes Analysis] Notes with dropped flag but not in droppedNotes array: ${droppedFlagButNotInDroppedNotes}`,
+    )
+    debugLog(
+      `[Notes Analysis] Notes in droppedNotes array but without dropped flag: ${inDroppedNotesButNoFlag}`,
+    )
+
+    if (droppedFlagButNotInDroppedNotes > 0) {
+      debugLog(
+        "[Notes Analysis] ISSUE: There are notes marked as dropped but not in the droppedNotes array",
+      )
+    }
+
+    if (inDroppedNotesButNoFlag > 0) {
+      debugLog(
+        "[Notes Analysis] ISSUE: There are notes in the droppedNotes array but without the dropped flag",
+      )
+    }
+
+    if (totalNotes === droppedNotesCount) {
+      debugLog(
+        "[Notes Analysis] All notes are in the droppedNotes array, which is why noteGroupsData is empty",
+      )
+    }
+
+    if (totalNotes === notesWithDroppedFlag) {
+      debugLog(
+        "[Notes Analysis] All notes have the dropped flag set to true, which is why noteGroupsData is empty",
+      )
+    }
   }
 }

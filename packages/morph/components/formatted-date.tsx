@@ -1,6 +1,6 @@
-import * as React from "react"
 import { cn } from "@/lib"
 import { formatDateString } from "@/lib"
+import * as React from "react"
 
 interface FormattedDateProps {
   dateString: string

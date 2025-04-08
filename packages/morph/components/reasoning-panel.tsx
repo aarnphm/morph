@@ -2,7 +2,6 @@ import { cn } from "@/lib/utils"
 import { ChevronRightIcon, TransformIcon } from "@radix-ui/react-icons"
 import { eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/pglite"
-import { AnimatePresence, motion } from "motion/react"
 import * as React from "react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
@@ -10,48 +9,63 @@ import { usePGlite } from "@/context/db"
 
 import * as schema from "@/db/schema"
 
-// Triple dot loading animation component
-const LoadingDots = memo(function LoadingDots() {
-  const containerVariants = {
-    animate: {
-      transition: {
-        staggerChildren: 0.12,
-      },
-    },
-  }
-  const dotVariants = {
-    initial: {
-      scaleY: 1,
-      opacity: 0.5,
-    },
-    animate: {
-      scaleY: [1, 2.2, 1],
-      opacity: [0.5, 1, 0.5],
-      transition: {
-        duration: 0.7,
-        repeat: Infinity,
-        repeatType: "loop" as const,
-        ease: "easeInOut",
-      },
-    },
+// Memoized header component to prevent redundant renders
+const ReasoningHeader = memo(function ReasoningHeader({
+  isExpanded,
+  isHovering,
+  isStreaming,
+  isComplete,
+  elapsedTime,
+  toggleExpand,
+}: {
+  isExpanded: boolean
+  isHovering: boolean
+  isStreaming: boolean
+  isComplete: boolean
+  elapsedTime: number
+  toggleExpand: () => void
+}) {
+  // Format the duration nicely
+  const formattedDuration = (seconds: number) => {
+    if (seconds < 60) {
+      return `${seconds} second${seconds !== 1 ? "s" : ""}`
+    } else {
+      const minutes = Math.floor(seconds / 60)
+      const remainingSeconds = seconds % 60
+      return `${minutes} minute${minutes !== 1 ? "s" : ""} ${remainingSeconds} second${remainingSeconds !== 1 ? "s" : ""}`
+    }
   }
 
   return (
-    <motion.div
-      className="flex items-center space-x-1.5 ml-1"
-      variants={containerVariants}
-      initial="initial"
-      animate="animate"
+    <div
+      className={cn(
+        "flex items-center justify-between text-xs p-1",
+        isHovering ? "text-foreground" : "text-muted-foreground",
+      )}
     >
-      {[0, 1, 2].map((dot) => (
-        <motion.span
-          key={dot}
-          className="w-[2px] h-[3px] bg-current text-primary/70 inline-block"
-          style={{ transformOrigin: "center" }}
-          variants={dotVariants}
-        />
-      ))}
-    </motion.div>
+      <button
+        onClick={toggleExpand}
+        className="flex items-center gap-1 transition-colors text-left"
+      >
+        <div
+          className={cn(
+            "cursor-pointer transition-transform duration-200",
+            isExpanded && "rotate-90",
+          )}
+        >
+          {isHovering ? (
+            <ChevronRightIcon className="h-3 w-3" />
+          ) : (
+            <TransformIcon className="h-3 w-3" />
+          )}
+        </div>
+        {isComplete ? (
+          <span>Finished scheming for {formattedDuration(elapsedTime)}</span>
+        ) : (
+          <span className={isStreaming ? "animate-text-shimmer" : ""}>Scheming</span>
+        )}
+      </button>
+    </div>
   )
 })
 
@@ -61,7 +75,6 @@ interface ReasoningPanelProps {
   isStreaming: boolean
   isComplete: boolean
   reasoningId: string
-  currentFile?: string
   vaultId?: string
   shouldExpand: boolean
   elapsedTime?: number
@@ -74,7 +87,6 @@ export const ReasoningPanel = memo(function ReasoningPanel({
   isStreaming,
   isComplete,
   reasoningId,
-  currentFile,
   vaultId,
   shouldExpand = false,
   elapsedTime = 0,
@@ -112,20 +124,15 @@ export const ReasoningPanel = memo(function ReasoningPanel({
     }
   }, [isStreaming])
 
-  // Save reasoning to database when complete - batch updates to reduce database writes
+  // Save reasoning to database when complete, not during streaming
   useEffect(() => {
-    if (isStreaming && reasoning && currentFile && vaultId) {
-      // Debounce database updates to reduce writes
-      const debouncedUpdate = setTimeout(() => {
-        db.update(schema.reasonings)
-          .set({ content: reasoning })
-          .where(eq(schema.reasonings.id, reasoningId))
-          .execute()
-      }, 500)
-
-      return () => clearTimeout(debouncedUpdate)
+    if (!isStreaming && isComplete && reasoning && vaultId) {
+      db.update(schema.reasonings)
+        .set({ content: reasoning })
+        .where(eq(schema.reasonings.id, reasoningId))
+        .execute()
     }
-  }, [isStreaming, reasoning, currentFile, vaultId, reasoningId, db])
+  }, [isStreaming, isComplete, reasoning, vaultId, reasoningId, db])
 
   // Auto-scroll to bottom when content changes and panel is expanded
   useEffect(() => {
@@ -158,17 +165,6 @@ export const ReasoningPanel = memo(function ReasoningPanel({
     onExpandChange?.(newExpandState)
   }, [isExpanded, onExpandChange])
 
-  // Format the duration nicely
-  const formattedDuration = (seconds: number) => {
-    if (seconds < 60) {
-      return `${seconds} second${seconds !== 1 ? "s" : ""}`
-    } else {
-      const minutes = Math.floor(seconds / 60)
-      const remainingSeconds = seconds % 60
-      return `${minutes} minute${minutes !== 1 ? "s" : ""} ${remainingSeconds} second${remainingSeconds !== 1 ? "s" : ""}`
-    }
-  }
-
   // Virtualized text rendering for performance
   const renderReasoningText = useMemo(() => {
     if (!reasoning) return null
@@ -196,55 +192,28 @@ export const ReasoningPanel = memo(function ReasoningPanel({
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      <div
-        className={cn(
-          "flex items-center justify-between text-xs p-1",
-          isExpanded && "shadow-lg transition-shadow duration-300",
-          isHovering ? "text-foreground" : "text-muted-foreground",
-        )}
-      >
-        <button
-          onClick={toggleExpand}
-          className="flex items-center gap-1 transition-colors text-left"
-        >
-          <motion.div
-            animate={{ rotate: isExpanded ? 90 : 0 }}
-            transition={{ duration: 0.2 }}
-            className="cursor-pointer"
-          >
-            {isHovering ? (
-              <ChevronRightIcon className="h-3 w-3" />
-            ) : (
-              <TransformIcon className="h-3 w-3" />
-            )}
-          </motion.div>
-          {isComplete ? (
-            <span>Finished scheming for {formattedDuration(elapsedTime)}</span>
-          ) : (
-            <span className={isStreaming ? "animate-text-shimmer" : ""}>Scheming</span>
+      <ReasoningHeader
+        isExpanded={isExpanded}
+        isHovering={isHovering}
+        isStreaming={isStreaming}
+        isComplete={isComplete}
+        elapsedTime={elapsedTime}
+        toggleExpand={toggleExpand}
+      />
+
+      {/* TODO: make the whole current notes panel scrollable */}
+      {isExpanded && reasoning && (
+        <div
+          ref={reasoningRef}
+          className={cn(
+            "whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-168 transition-all duration-500 ease-in-out",
+            "text-xs text-muted-foreground",
+            isExpanded ? "opacity-100 h-auto" : "opacity-0 h-0",
           )}
-        </button>
-
-        <div className="flex items-center">{isStreaming && <LoadingDots />}</div>
-      </div>
-
-      <AnimatePresence>
-        {isExpanded && reasoning && (
-          <motion.div
-            ref={reasoningRef}
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.5, ease: "easeInOut" }}
-            className={cn(
-              "whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72 transition-colors duration-200 will-change-transform",
-              "text-xs text-muted-foreground",
-            )}
-          >
-            <span>{renderReasoningText}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        >
+          <span>{renderReasoningText}</span>
+        </div>
+      )}
     </div>
   )
 })

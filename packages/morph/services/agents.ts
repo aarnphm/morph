@@ -1,4 +1,5 @@
 import { API_ENDPOINT } from "@/services/constants"
+import axios, { AxiosResponse } from "axios"
 
 // Interfaces
 export interface SuggestionRequest {
@@ -59,22 +60,26 @@ export interface StreamingCallbacks {
  * Checks if the agent API is available
  */
 export async function checkAgentAvailability(): Promise<boolean> {
-  try {
-    const readyz = await fetch(`${API_ENDPOINT}/readyz`)
-    return readyz.ok
-  } catch (error) {
-    console.error("Error checking agent availability:", error)
-    return false
-  }
+  return await axios
+    .get(`${API_ENDPOINT}/readyz`)
+    .then((resp) => resp.status === 200)
+    .catch((err) => {
+      console.error("Error checking agent availability:", err)
+      return false
+    })
 }
 
 /**
  * Checks the health of the agent API
  */
 export async function checkAgentHealth(timeout: number = 30): Promise<ReadinessResponse> {
-  return fetch(`${API_ENDPOINT}/health`, {
-    method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify({ timeout }),
-  }).then((data) => data.json())
+  return await axios
+    .post<{ timeout: number }, AxiosResponse<ReadinessResponse>>(`${API_ENDPOINT}/health`, {
+      timeout,
+    })
+    .then((response) => response.data)
+    .catch((err) => {
+      console.error("Services aren't ready:", err)
+      throw err
+    })
 }

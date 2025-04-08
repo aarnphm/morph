@@ -55,7 +55,7 @@ export function search() {
 
         // Dispatch effect to close panel
         view.dispatch({
-          effects: [toggleSearchPanel.of(false)]
+          effects: [toggleSearchPanel.of(false)],
         })
 
         // Focus the editor
@@ -114,7 +114,9 @@ export function search() {
       run: (view: EditorView) => {
         // If panel is already open, focus it
         if (panelOpen) {
-          const input = view.dom.querySelector(".cm-search-panel-container input") as HTMLInputElement
+          const input = view.dom.querySelector(
+            ".cm-search-panel-container input",
+          ) as HTMLInputElement
           if (input) input.focus()
           return true
         }

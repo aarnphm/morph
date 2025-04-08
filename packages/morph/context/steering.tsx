@@ -1,8 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { createContext, useCallback, useContext, useEffect, useState } from "react"
-import { useRecommendedAuthors } from "@/services/authors"
+import { createContext, useCallback, useContext, useState } from "react"
+
+// import { useRecommendedAuthors } from "@/services/authors"
 
 // Default steering parameters
 export const DEFAULT_AUTHORS = [
@@ -34,8 +35,6 @@ export interface SteeringSettings {
 
 interface SteeringContextType {
   settings: SteeringSettings
-  fileId: string | null
-  updateFileId: (fileId: string | null) => void
   updateAuthors: (authors: string[]) => void
   updateTonality: (tonality: Record<string, number>) => void
   updateTemperature: (temperature: number) => void
@@ -50,7 +49,6 @@ interface SteeringProviderProps {
 }
 
 export function SteeringProvider({ children }: SteeringProviderProps) {
-  const [fileId, setFileId] = useState<string | null>(null)
   const [settings, setSettings] = useState<SteeringSettings>({
     authors: [...DEFAULT_AUTHORS], // Start with default authors
     tonality: { ...DEFAULT_TONALITY }, // Create a new object to avoid reference issues
@@ -58,19 +56,6 @@ export function SteeringProvider({ children }: SteeringProviderProps) {
     numSuggestions: DEFAULT_NUM_SUGGESTIONS,
     tonalityEnabled: false,
   })
-
-  // Fetch recommended authors if fileId is available
-  const { data: recommendedAuthors } = useRecommendedAuthors(fileId)
-
-  // Update authors when recommendations are available
-  useEffect(() => {
-    if (recommendedAuthors?.authors && recommendedAuthors.authors.length > 0) {
-      setSettings(prev => ({
-        ...prev,
-        authors: [...recommendedAuthors.authors]
-      }))
-    }
-  }, [recommendedAuthors])
 
   const updateSettings = useCallback(
     <K extends keyof SteeringSettings>(key: K, value: SteeringSettings[K]) => {
@@ -91,10 +76,6 @@ export function SteeringProvider({ children }: SteeringProviderProps) {
     },
     [],
   )
-
-  const updateFileId = useCallback((id: string | null) => {
-    setFileId(id)
-  }, [])
 
   const updateAuthors = useCallback(
     (authors: string[]) => {
@@ -133,8 +114,6 @@ export function SteeringProvider({ children }: SteeringProviderProps) {
 
   const value = {
     settings,
-    fileId,
-    updateFileId,
     updateAuthors,
     updateTonality,
     updateTemperature,

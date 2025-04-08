@@ -1,9 +1,12 @@
+import { safeDate } from "@/lib"
 import { API_ENDPOINT, POLLING_INTERVAL, TaskStatusResponse } from "@/services/constants"
 import { useMutation, useQuery } from "@tanstack/react-query"
+import axios from "axios"
 import { eq } from "drizzle-orm"
 import { PgliteDatabase, drizzle } from "drizzle-orm/pglite"
 
 import { usePGlite } from "@/context/db"
+import { DEFAULT_AUTHORS } from "@/context/steering"
 
 import * as schema from "@/db/schema"
 
@@ -62,106 +65,78 @@ async function submitAuthorTask(
     max_tokens?: number
     use_tool?: boolean
   } = {},
-): Promise<TaskStatusResponse> {
-  const req: AuthorRequest = {
-    essay: content,
-    num_authors: options.num_authors || 8,
-    temperature: options.temperature || 0.7,
-    max_tokens: options.max_tokens || 16384,
-    search_backend: "exa",
-    num_search_results: 3,
-    use_tool: options.use_tool || false,
-  }
-
-  const response = await fetch(`${API_ENDPOINT}/authors/submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
-  })
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }))
-    console.error(
-      `[Authors] Failed to submit content for author recommendations:`,
-      error.error || response.statusText,
-    )
-    throw new Error(`Failed to submit for author recommendations: ${error.error || response.statusText}`)
-  }
-
-  const responseData = await response.json()
-  return responseData
+) {
+  return axios
+    .post<AuthorRequest, { data: TaskStatusResponse }>(`${API_ENDPOINT}/authors/submit`, {
+      essay: content,
+      num_authors: options.num_authors || 8,
+      temperature: options.temperature || 0.7,
+      max_tokens: options.max_tokens || 16384,
+      search_backend: "exa",
+      num_search_results: 3,
+      use_tool: options.use_tool || false,
+    })
+    .then((resp) => resp.data)
+    .catch((err) => {
+      console.error(
+        `[Authors] Failed to submit content for author recommendations:`,
+        err.response.data?.error || err.message,
+      )
+      throw new Error(
+        `Failed to submit for author recommendations: ${err.response.data?.error || err.message}`,
+      )
+    })
 }
 
 // Check the status of an author task
-async function checkAuthorTask(taskId: string): Promise<TaskStatusResponse> {
-  try {
-    const response = await fetch(`${API_ENDPOINT}/authors/status?task_id=${taskId}`)
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: "Unknown error" }))
+async function checkAuthorTask(taskId: string) {
+  return await axios
+    .get<TaskStatusResponse>(`${API_ENDPOINT}/authors/status`, {
+      params: { task_id: taskId },
+    })
+    .then((resp) => resp.data)
+    .catch((error) => {
       console.error(
         `[Authors] Status check failed for task ${taskId}:`,
-        error.error || response.statusText,
+        error.response.data?.error || error.message,
       )
-      throw new Error(`Failed to check status: ${error.error || response.statusText}`)
-    }
-
-    const statusData = await response.json()
-    return statusData
-  } catch (error) {
-    console.error(`[Authors] Error checking task status for ${taskId}:`, error)
-    // Return a failure status for any errors
-    return {
-      task_id: taskId,
-      status: "failure" as const,
-      created_at: new Date().toISOString(),
-      executed_at: new Date().toISOString(),
-    }
-  }
+      return {
+        task_id: taskId,
+        status: "failure" as const,
+        created_at: new Date().toISOString(),
+        executed_at: new Date().toISOString(),
+      }
+    })
 }
 
 // Get author recommendations for a completed task
-async function getAuthorTask(taskId: string): Promise<AuthorResponse> {
-  const response = await fetch(`${API_ENDPOINT}/authors/get?task_id=${taskId}`)
+async function getAuthorTask(taskId: string) {
+  return await axios
+    .get<AuthorResponse>(`${API_ENDPOINT}/authors/get`, {
+      params: { task_id: taskId },
+    })
+    .then((resp) => {
+      const authorsData = resp.data
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }))
-    console.error(
-      `[Authors] Failed to get recommendations for task ${taskId}:`,
-      error.error || response.statusText,
-    )
-    throw new Error(`Failed to get recommendations: ${error.error || response.statusText}`)
-  }
-
-  const authorsData = await response.json()
-
-  // Verify we received the correct type of response
-  if (!authorsData.authors || !Array.isArray(authorsData.authors)) {
-    console.error(
-      `[Authors] Invalid response format for task ${taskId}, missing authors array:`,
-      authorsData,
-    )
-    throw new Error(`Invalid response format: missing authors array`)
-  }
-
-  return authorsData
-}
-
-// Add a helper function to safely create dates
-function safeDate(dateStr: string | null | undefined): Date | null {
-  if (!dateStr) return null
-
-  try {
-    const date = new Date(dateStr)
-    // Check if date is valid
-    if (isNaN(date.getTime())) {
-      return null
-    }
-    return date
-  } catch (error) {
-    console.error(`Failed to parse date string: ${dateStr}`, error)
-    return null
-  }
+      // Verify we received the correct type of response
+      if (!authorsData.authors || !Array.isArray(authorsData.authors)) {
+        console.error(
+          `[Authors] Invalid response format for task ${taskId}, missing authors array:`,
+          authorsData,
+        )
+        throw new Error(`Invalid response format: missing authors array`)
+      }
+      return authorsData
+    })
+    .catch((error) => {
+      console.error(
+        `[Authors] Failed to get recommendations for task ${taskId}:`,
+        error.response.data?.error || error.message,
+      )
+      return {
+        authors: DEFAULT_AUTHORS,
+      }
+    })
 }
 
 // Save author recommendations to database
@@ -177,9 +152,7 @@ async function saveAuthorRecommendations(
     })
 
     if (!existingFile) {
-      console.error(
-        `[Authors] Cannot save recommendations: File ${fileId} not found in database`,
-      )
+      console.error(`[Authors] Cannot save recommendations: File ${fileId} not found in database`)
       return
     }
 
@@ -234,11 +207,78 @@ async function saveAuthorRecommendations(
   }
 }
 
-// Hook for polling author task status and handling completion
-export function useQueryAuthorStatus(taskId: string | null | undefined, fileId: string | null | undefined) {
-  const client = usePGlite()
-  const db = drizzle({ client, schema })
+// Process pending author recommendations
+export function useProcessPendingAuthor(db: PgliteDatabase<typeof schema>) {
+  return async (fileId: string, result: AuthorResponse): Promise<void> => {
+    try {
+      // Check if file exists before updating it
+      const existingFile = await db.query.files.findFirst({
+        where: eq(schema.files.id, fileId),
+      })
 
+      if (!existingFile) {
+        console.error(`[Authors] Cannot save pending authors: File ${fileId} not found in database`)
+        return
+      }
+
+      // Check if this file already has an author record
+      const existingAuthor = await db.query.authors.findFirst({
+        where: eq(schema.authors.fileId, fileId),
+      })
+
+      if (existingAuthor) {
+        // Update existing record with pending status
+        await db
+          .update(schema.authors)
+          .set({
+            recommendedAuthors: result.authors,
+            queries: result.queries || [],
+            authorStatus: "pending",
+            authorTaskId: null,
+          })
+          .where(eq(schema.authors.id, existingAuthor.id))
+      } else {
+        // Insert new record with pending status
+        await db.insert(schema.authors).values({
+          fileId: fileId,
+          recommendedAuthors: result.authors,
+          queries: result.queries || [],
+          createdAt: new Date(),
+          authorStatus: "pending",
+          authorTaskId: null,
+        })
+      }
+    } catch (error) {
+      console.error(`[Authors] Error saving pending authors for file ${fileId}:`, error)
+
+      // Try to update the author record to indicate failure
+      try {
+        const existingAuthor = await db.query.authors.findFirst({
+          where: eq(schema.authors.fileId, fileId),
+        })
+
+        if (existingAuthor) {
+          await db
+            .update(schema.authors)
+            .set({
+              authorStatus: "failure",
+              authorTaskId: null,
+            })
+            .where(eq(schema.authors.id, existingAuthor.id))
+        }
+      } catch (err) {
+        console.error(`[Authors] Failed to update author status for ${fileId}:`, err)
+      }
+    }
+  }
+}
+
+// Hook for polling author task status and handling completion
+export function useQueryAuthorStatus(
+  taskId: string | null | undefined,
+  fileId: string | null | undefined,
+  db: PgliteDatabase<typeof schema>,
+) {
   return useQuery({
     queryKey: ["authors", taskId, fileId],
     queryFn: async () => {
@@ -257,10 +297,7 @@ export function useQueryAuthorStatus(taskId: string | null | undefined, fileId: 
 
             // Verify this is a valid response before saving
             if (!result.authors || !Array.isArray(result.authors)) {
-              console.error(
-                `[Authors] Received invalid response for task ${taskId}:`,
-                result,
-              )
+              console.error(`[Authors] Received invalid response for task ${taskId}:`, result)
               throw new Error("Invalid response format: missing authors array")
             }
 
@@ -506,6 +543,6 @@ export function useProcessAuthors() {
         console.error(`[Authors] Failed to process authors for ${fileId}:`, error)
         return { submitted: false, error }
       }
-    }
+    },
   })
 }

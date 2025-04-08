@@ -1,55 +1,78 @@
-import { useAuthorTasks } from "@/context/authors"
 import { useQueryAuthorStatus } from "@/services/authors"
-import { useEffect } from "react"
+import { useCallback, useEffect, memo } from "react"
+import { PgliteDatabase } from "drizzle-orm/pglite"
 
-export function AuthorProcessor() {
+import { useAuthorTasks } from "@/context/authors"
+
+import * as schema from "@/db/schema"
+
+export const AuthorProcessor = memo(function AuthorProcessor({
+  db,
+}: {
+  db: PgliteDatabase<typeof schema>
+}) {
   const { pendingTaskIds, getFileIdForTask, removeTask } = useAuthorTasks()
 
-  // Process each pending task in parallel with separate queries
-  return (
-    <>
-      {pendingTaskIds.map((taskId) => (
-        <AuthorTaskProcessor
-          key={taskId}
-          taskId={taskId}
-          fileId={getFileIdForTask(taskId)}
-          onComplete={removeTask}
-        />
-      ))}
-    </>
+  // Memoize the removeTask callback to prevent unnecessary rerenders
+  const handleTaskComplete = useCallback(
+    (taskId: string) => {
+      removeTask(taskId)
+    },
+    [removeTask]
   )
-}
+
+  // Create a memoized component factory function for task processors
+  const TaskProcessors = useCallback(() => {
+    if (pendingTaskIds.length === 0) return null
+
+    return pendingTaskIds.map((taskId) => (
+      <AuthorTaskProcessor
+        key={taskId}
+        taskId={taskId}
+        fileId={getFileIdForTask(taskId)}
+        db={db}
+        onComplete={() => handleTaskComplete(taskId)}
+      />
+    ))
+  }, [pendingTaskIds, getFileIdForTask, handleTaskComplete, db])
+
+  // Return the task processors
+  return <TaskProcessors />
+})
 
 function AuthorTaskProcessor({
   taskId,
   fileId,
+  db,
   onComplete,
 }: {
   taskId: string
   fileId: string
+  db: PgliteDatabase<typeof schema>
   onComplete: (taskId: string) => void
 }) {
   // Use the query hook to poll the task status
-  const { data, isError } = useQueryAuthorStatus(taskId, fileId)
+  const { data, isSuccess, isError } = useQueryAuthorStatus(taskId, fileId, db)
 
-  // When the task completes (success or failure), remove it from pending tasks
+  // When task is successful or fails, call the onComplete callback
   useEffect(() => {
-    if (!data) return
+    // Check for success status
+    const isSuccessful =
+      isSuccess && data && typeof data === "object" && "status" in data && data.status === "success"
 
-    const isComplete =
-      data.status === "success" || data.status === "failure" || data.status === "cancelled"
+    // Check for failure status
+    const isFailed =
+      (isSuccess &&
+        data &&
+        typeof data === "object" &&
+        "status" in data &&
+        (data.status === "failure" || data.status === "cancelled")) ||
+      isError
 
-    if (isComplete) {
+    if (isSuccessful || isFailed) {
       onComplete(taskId)
     }
-  }, [data, taskId, onComplete])
-
-  // If there's an error, also remove the task
-  useEffect(() => {
-    if (isError) {
-      onComplete(taskId)
-    }
-  }, [isError, taskId, onComplete])
+  }, [isSuccess, isError, data, taskId, onComplete])
 
   // This component doesn't render anything visible
   return null

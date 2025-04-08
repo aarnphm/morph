@@ -22,14 +22,9 @@ const initialAuthorTasksState: AuthorTasksState = {
 }
 
 const AuthorTasksStateContext = createContext<AuthorTasksState | undefined>(undefined)
-const AuthorTasksDispatchContext = createContext<Dispatch<AuthorTasksAction> | undefined>(
-  undefined
-)
+const AuthorTasksDispatchContext = createContext<Dispatch<AuthorTasksAction> | undefined>(undefined)
 
-function authorTasksReducer(
-  state: AuthorTasksState,
-  action: AuthorTasksAction,
-): AuthorTasksState {
+function authorTasksReducer(state: AuthorTasksState, action: AuthorTasksAction): AuthorTasksState {
   switch (action.type) {
     case "ADD_TASK": {
       // Only add the task if it's not already in the list

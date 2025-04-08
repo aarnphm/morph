@@ -112,7 +112,7 @@ ReasoningModels: dict[ModelType, ModelForCausalLM] = {
     top_p=0.95,
     max_model_len=48 * 1024,
     max_tokens=32 * 1024,
-    resources={'gpu': 1, 'gpu_type': 'nvidia-a100-80gb'},
+    resources={'gpu': 2, 'gpu_type': 'nvidia-a100-80gb'},
   ),
 }
 

@@ -8,40 +8,30 @@ import { MorphPgLite } from "@/context/db"
 export * from "@/db/schema"
 export * from "@/db/interfaces"
 
-export const PGLITE_DB_NAME = "morph-pglite"
+const PGLITE_DB_NAME = "morph-pglite"
 
 // Singleton instance and promise
-let db: MorphPgLite | null = null // Use PGlite type directly
-let initPromise: Promise<MorphPgLite> | null = null
+let db: MorphPgLite | null = null
 
-// Function to get the initialized PGlite instance (singleton pattern)
-// This function ONLY ensures the PGlite client is created and extensions are loaded.
-// It does NOT handle schema creation/migration.
-export async function initializeDb(): Promise<MorphPgLite> {
-  if (db) {
-    return db
+export async function initialize() {
+  if (db) return db
+
+  try {
+    const pg = (await PGlite.create({
+      fs: new IdbFs(PGLITE_DB_NAME),
+      relaxedDurability: true,
+      extensions: { live, vector },
+    })) as MorphPgLite
+
+    // Ensure vector extension exists - this is lightweight
+    await pg.exec(`CREATE EXTENSION IF NOT EXISTS vector;`)
+    db = pg
+    return pg
+  } catch (error) {
+    db = null
+    console.error("getDbInstance: Failed to initialize PGlite client:", error)
+    throw new Error("Failed to initialize database")
   }
-  if (!initPromise) {
-    initPromise = (async () => {
-      try {
-        const pg = await PGlite.create({
-          fs: new IdbFs(PGLITE_DB_NAME),
-          relaxedDurability: true,
-          extensions: { live, vector },
-        })
-        // Ensure vector extension exists - this is lightweight
-        await pg.exec(`CREATE EXTENSION IF NOT EXISTS vector;`)
-        db = pg
-        return pg
-      } catch (error) {
-        console.error("getDbInstance: Failed to initialize PGlite client:", error)
-        db = null // Reset instance on failure
-        initPromise = null // Reset promise on failure
-        throw error
-      }
-    })()
-  }
-  return initPromise
 }
 
 // --- Browser Migration Runner --- //
@@ -85,7 +75,7 @@ async function recordMigration(db: MorphPgLite, hash: string) {
  * @param db The initialized PGlite instance.
  * @param migrations The compiled migration data (array of MigrationMeta).
  */
-export async function applyPgLiteMigrations(db: MorphPgLite, migrations: MigrationMeta[]) {
+export async function applyMigrations(db: MorphPgLite, migrations: MigrationMeta[]) {
   if (!migrations || migrations.length === 0) {
     return
   }
@@ -130,4 +120,5 @@ export async function applyPgLiteMigrations(db: MorphPgLite, migrations: Migrati
     console.error("applyPgLiteMigrations: Migration process failed:", error)
     throw error
   }
+  return db
 }

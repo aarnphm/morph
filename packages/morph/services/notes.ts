@@ -1,10 +1,10 @@
+import { safeDate } from "@/lib"
 import { API_ENDPOINT, POLLING_INTERVAL } from "@/services/constants"
 import { TaskStatusResponse } from "@/services/constants"
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { and, eq, isNull, not } from "drizzle-orm"
-import { PgliteDatabase, drizzle } from "drizzle-orm/pglite"
-
-import { usePGlite } from "@/context/db"
+import axios from "axios"
+import { and, eq, inArray, isNull, not } from "drizzle-orm"
+import { PgliteDatabase } from "drizzle-orm/pglite"
 
 import type { Note } from "@/db/interfaces"
 import * as schema from "@/db/schema"
@@ -40,86 +40,139 @@ export async function checkNoteHasEmbedding(
   return !!embedding
 }
 
+// Function to log notes for a file (utility function)
+export async function logNotesForFile(
+  db: any,
+  fileId: string,
+  vaultId: string,
+  label: string = "Notes query",
+) {
+  if (process.env.NODE_ENV !== "development") return
+
+  try {
+    console.log(`[Notes Debug] ${label} - Querying all notes for file ${fileId}`)
+
+    // Query all notes for this file
+    const fileNotes = await db
+      .select()
+      .from(schema.notes)
+      .where(and(eq(schema.notes.fileId, fileId), eq(schema.notes.vaultId, vaultId)))
+
+    const regularNotes = fileNotes.filter((note: any) => !note.dropped)
+    const droppedNotes = fileNotes.filter((note: any) => note.dropped)
+
+    console.log(`[Notes Debug] ${label} - Found ${fileNotes.length} total notes:`)
+    console.log(
+      `[Notes Debug] ${label} - Regular notes: ${regularNotes.length}, Dropped notes: ${droppedNotes.length}`,
+    )
+
+    // Query all reasonings associated with these notes
+    const reasoningIds = [
+      ...new Set(fileNotes.map((note: any) => note.reasoningId).filter(Boolean)),
+    ] as string[] // Explicitly type as string[]
+
+    if (reasoningIds.length > 0) {
+      console.log(`[Notes Debug] ${label} - Found ${reasoningIds.length} unique reasoning IDs`)
+
+      const reasonings = await db
+        .select()
+        .from(schema.reasonings)
+        .where(inArray(schema.reasonings.id, reasoningIds))
+
+      console.log(
+        `[Notes Debug] ${label} - Retrieved ${reasonings?.length || 0} reasonings from DB`,
+      )
+
+      // Log a summary of each reasoning and its notes
+      for (const reasoning of reasonings) {
+        const notesForReasoning = fileNotes.filter((n: any) => n.reasoningId === reasoning.id)
+        console.log(
+          `[Notes Debug] ${label} - Reasoning ${reasoning.id} has ${notesForReasoning.length} notes:`,
+          notesForReasoning.map((n: any) => ({
+            id: n.id,
+            dropped: n.dropped,
+            embeddingStatus: n.embeddingStatus,
+          })),
+        )
+      }
+    } else {
+      console.log(`[Notes Debug] ${label} - No reasoning IDs found`)
+    }
+
+    return { fileNotes, regularNotes, droppedNotes }
+  } catch (error) {
+    console.error(`[Notes Debug] ${label} - Error querying notes:`, error)
+    return { fileNotes: [], regularNotes: [], droppedNotes: [] }
+  }
+}
+
 // Submit a note for embedding
 async function submitNoteEmbeddingTask(note: Note): Promise<TaskStatusResponse> {
-  const req: NoteEmbeddingRequest = {
-    vault_id: note.vaultId,
-    file_id: note.fileId,
-    note_id: note.id,
-    content: note.content,
-  }
-  const response = await fetch(`${API_ENDPOINT}/notes/submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
-  })
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }))
-    console.error(
-      `[Embedding] Failed to submit note ${note.id}:`,
-      error.error || response.statusText,
-    )
-    throw new Error(`Failed to submit note: ${error.error || response.statusText}`)
-  }
-
-  const responseData = await response.json()
-  return responseData
+  return axios
+    .post<NoteEmbeddingRequest, { data: TaskStatusResponse }>(`${API_ENDPOINT}/notes/submit`, {
+      vault_id: note.vaultId,
+      file_id: note.fileId,
+      note_id: note.id,
+      content: note.content,
+    })
+    .then((resp) => resp.data)
+    .catch((err) => {
+      console.error(
+        `[Embedding] Failed to submit note ${note.id}:`,
+        err.response?.data?.error || err.message,
+      )
+      throw new Error(`Failed to submit note: ${err.response?.data?.error || err.message}`)
+    })
 }
 
 // Check the status of an embedding task
 async function checkNoteEmbeddingTask(taskId: string): Promise<TaskStatusResponse> {
-  try {
-    const response = await fetch(`${API_ENDPOINT}/notes/status?task_id=${taskId}`)
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: "Unknown error" }))
+  return axios
+    .get<TaskStatusResponse>(`${API_ENDPOINT}/notes/status`, {
+      params: { task_id: taskId },
+    })
+    .then((resp) => resp.data)
+    .catch((error) => {
       console.error(
         `[Embedding] Status check failed for task ${taskId}:`,
-        error.error || response.statusText,
+        error.response?.data?.error || error.message,
       )
-      throw new Error(`Failed to check status: ${error.error || response.statusText}`)
-    }
-
-    const statusData = await response.json()
-    return statusData
-  } catch (error) {
-    console.error(`[Embedding] Error checking task status for ${taskId}:`, error)
-    // Return a failure status for any errors
-    return {
-      task_id: taskId,
-      status: "failure" as const,
-      created_at: new Date().toISOString(),
-      executed_at: new Date().toISOString(),
-    }
-  }
+      return {
+        task_id: taskId,
+        status: "failure" as const,
+        created_at: new Date().toISOString(),
+        executed_at: new Date().toISOString(),
+      }
+    })
 }
 
 // Get embedding results for a completed task
 async function getNoteEmbeddingTask(taskId: string): Promise<NoteEmbeddingResponse> {
-  const response = await fetch(`${API_ENDPOINT}/notes/get?task_id=${taskId}`)
+  return axios
+    .get<NoteEmbeddingResponse>(`${API_ENDPOINT}/notes/get`, {
+      params: { task_id: taskId },
+    })
+    .then((resp) => {
+      const embedData = resp.data
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }))
-    console.error(
-      `[Embedding] Failed to get embedding for task ${taskId}:`,
-      error.error || response.statusText,
-    )
-    throw new Error(`Failed to get embedding: ${error.error || response.statusText}`)
-  }
+      // Validate the response is a note embedding response
+      if (!embedData.note_id || !embedData.embedding || !Array.isArray(embedData.embedding)) {
+        console.error(
+          `[Embedding] Invalid note embedding response format for task ${taskId}:`,
+          embedData,
+        )
+        throw new Error(`Invalid response format: missing note_id or embedding array`)
+      }
 
-  const embedData = await response.json()
-
-  // Validate the response is a note embedding response
-  if (!embedData.note_id || !embedData.embedding || !Array.isArray(embedData.embedding)) {
-    console.error(
-      `[Embedding] Invalid note embedding response format for task ${taskId}:`,
-      embedData,
-    )
-    throw new Error(`Invalid response format: missing note_id or embedding array`)
-  }
-
-  return embedData
+      return embedData
+    })
+    .catch((error) => {
+      console.error(
+        `[Embedding] Failed to get embedding for task ${taskId}:`,
+        error.response?.data?.error || error.message,
+      )
+      throw new Error(`Failed to get embedding: ${error.response?.data?.error || error.message}`)
+    })
 }
 
 // Save embedding to database
@@ -206,35 +259,17 @@ async function saveNoteEmbedding(
   }
 }
 
-// Add a helper function to safely create dates
-function safeDate(dateStr: string | null | undefined): Date | null {
-  if (!dateStr) return null
-
-  try {
-    const date = new Date(dateStr)
-    // Check if date is valid
-    if (isNaN(date.getTime())) {
-      return null
-    }
-    return date
-  } catch (error) {
-    console.error(`Failed to parse date string: ${dateStr}`, error)
-    return null
-  }
-}
-
 // Hook for polling embedding status and handling completion
-export function useQueryNoteEmbeddingStatus(taskId: string | null | undefined) {
-  const client = usePGlite()
-  const db = drizzle({ client, schema })
-
+export function useQueryNoteEmbeddingStatus(
+  taskId: string | null | undefined,
+  db: PgliteDatabase<typeof schema>,
+) {
   return useQuery({
     queryKey: ["noteEmbedding", taskId],
     queryFn: async () => {
       if (!taskId) {
         throw new Error("Task ID is required")
       }
-
       try {
         // Check task status
         const statusData = await checkNoteEmbeddingTask(taskId)
@@ -427,10 +462,7 @@ export async function submitNotesForEmbedding(
 }
 
 // Hook to process notes that need embedding
-export function useProcessPendingEmbeddings() {
-  const client = usePGlite()
-  const db = drizzle({ client, schema })
-
+export function useProcessPendingEmbeddings(db: PgliteDatabase<typeof schema>) {
   return useMutation({
     mutationFn: async (options?: { addTask?: (taskId: string) => void }) => {
       const { addTask } = options || {}

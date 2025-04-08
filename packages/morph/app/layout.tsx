@@ -3,7 +3,7 @@ import PlausibleProvider from "next-plausible"
 import Script from "next/script"
 import type React from "react"
 
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/ui/sonner"
 
 import ClientProvider from "@/context/providers"
 
@@ -49,7 +49,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <PlausibleProvider domain="morph-editor.app" trackOutboundLinks trackFileDownloads>
           <ClientProvider>{children}</ClientProvider>
         </PlausibleProvider>
-        <Toaster />
+        <Toaster position="bottom-center" />
         {process.env.NODE_ENV === "production" && (
           <Script
             defer
