@@ -207,14 +207,78 @@ async function saveAuthorRecommendations(
   }
 }
 
+// Process pending author recommendations
+export function useProcessPendingAuthor(db: PgliteDatabase<typeof schema>) {
+  return async (fileId: string, result: AuthorResponse): Promise<void> => {
+    try {
+      // Check if file exists before updating it
+      const existingFile = await db.query.files.findFirst({
+        where: eq(schema.files.id, fileId),
+      })
+
+      if (!existingFile) {
+        console.error(`[Authors] Cannot save pending authors: File ${fileId} not found in database`)
+        return
+      }
+
+      // Check if this file already has an author record
+      const existingAuthor = await db.query.authors.findFirst({
+        where: eq(schema.authors.fileId, fileId),
+      })
+
+      if (existingAuthor) {
+        // Update existing record with pending status
+        await db
+          .update(schema.authors)
+          .set({
+            recommendedAuthors: result.authors,
+            queries: result.queries || [],
+            authorStatus: "pending",
+            authorTaskId: null,
+          })
+          .where(eq(schema.authors.id, existingAuthor.id))
+      } else {
+        // Insert new record with pending status
+        await db.insert(schema.authors).values({
+          fileId: fileId,
+          recommendedAuthors: result.authors,
+          queries: result.queries || [],
+          createdAt: new Date(),
+          authorStatus: "pending",
+          authorTaskId: null,
+        })
+      }
+    } catch (error) {
+      console.error(`[Authors] Error saving pending authors for file ${fileId}:`, error)
+
+      // Try to update the author record to indicate failure
+      try {
+        const existingAuthor = await db.query.authors.findFirst({
+          where: eq(schema.authors.fileId, fileId),
+        })
+
+        if (existingAuthor) {
+          await db
+            .update(schema.authors)
+            .set({
+              authorStatus: "failure",
+              authorTaskId: null,
+            })
+            .where(eq(schema.authors.id, existingAuthor.id))
+        }
+      } catch (err) {
+        console.error(`[Authors] Failed to update author status for ${fileId}:`, err)
+      }
+    }
+  }
+}
+
 // Hook for polling author task status and handling completion
 export function useQueryAuthorStatus(
   taskId: string | null | undefined,
   fileId: string | null | undefined,
+  db: PgliteDatabase<typeof schema>,
 ) {
-  const client = usePGlite()
-  const db = drizzle({ client, schema })
-
   return useQuery({
     queryKey: ["authors", taskId, fileId],
     queryFn: async () => {

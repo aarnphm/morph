@@ -11,7 +11,6 @@ import { NoteCard } from "@/components/note-card"
 
 import { useNotesContext } from "@/context/notes"
 
-
 interface ContextNotesProps extends React.HTMLAttributes<HTMLDivElement> {
   editorViewRef: React.RefObject<EditorView | null>
   readingModeRef: React.RefObject<HTMLDivElement | null>
@@ -28,7 +27,9 @@ export default memo(function ContextNotes({
   ...props
 }: ContextNotesProps) {
   // Get state from NotesContext instead of props
-  const { state: { droppedNotes, currentFileId, currentVaultId } } = useNotesContext();
+  const {
+    state: { droppedNotes, currentFileId, currentVaultId },
+  } = useNotesContext()
 
   const [visibleContextNotes, setVisibleContextNotes] = useState<ContextNote[]>([])
   const [visibleLines, setVisibleLines] = useState<{ start: number; end: number }>({
@@ -49,7 +50,7 @@ export default memo(function ContextNotes({
   const { getSimilarNotes } = useContextAwareNotes(
     currentFileId || "",
     currentVaultId || "",
-    noteIds
+    noteIds,
   )
 
   // Context notes data - cached until fileId, vaultId, or noteIds change
@@ -61,8 +62,7 @@ export default memo(function ContextNotes({
   // Add debug toggle handler
   const toggleDebugMode = useCallback(() => {
     setDebugMode((prev) => !prev)
-    console.log(`[ContextNotes] Debug mode ${!debugMode ? "enabled" : "disabled"}`)
-  }, [debugMode])
+  }, [])
 
   // Check if noteIds have changed
   const haveNoteIdsChanged = useCallback(() => {
@@ -166,7 +166,14 @@ export default memo(function ContextNotes({
 
       loadContextNotes()
     }
-  }, [currentFileId, currentVaultId, noteIds, getSimilarNotes, updateVisibleLines, haveNoteIdsChanged])
+  }, [
+    currentFileId,
+    currentVaultId,
+    noteIds,
+    getSimilarNotes,
+    updateVisibleLines,
+    haveNoteIdsChanged,
+  ])
 
   // Set up scroll listeners
   useEffect(() => {

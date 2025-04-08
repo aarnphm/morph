@@ -1,5 +1,5 @@
 import { cn, sanitizeStreamingContent } from "@/lib"
-import { generatePastelColor, groupNotesByDate } from "@/lib/notes"
+import { generatePastelColor } from "@/lib/notes"
 import { NOTES_DND_TYPE } from "@/lib/notes"
 import {
   GeneratedNote,
@@ -84,7 +84,7 @@ interface HistoricalNotesProps {
   handleNoteRemoved: (noteId: string) => void
   vaultId?: string
   notesContainerRef: React.RefObject<HTMLDivElement | null>
-noteGroupsData: [string, Note[]][]
+  noteGroupsData: [string, Note[]][]
 }
 
 // Extract HistoricalNotes into a separate memoized component
@@ -150,6 +150,7 @@ interface DriversBarProps {
   handleGenerateNewSuggestions: (steeringSettings: SteeringSettings) => void
   isNotesRecentlyGenerated: boolean
   isNotesLoading: boolean
+  markdownContent: string
 }
 
 const DriversBarButtons = memo(function DriversBarButtons({
@@ -195,6 +196,7 @@ export const DriversBar = memo(function DriversBar({
   handleGenerateNewSuggestions,
   isNotesRecentlyGenerated,
   isNotesLoading,
+  markdownContent,
 }: DriversBarProps) {
   const [isSteeringExpanded, setIsSteeringExpanded] = useState(false)
   const {
@@ -277,7 +279,11 @@ export const DriversBar = memo(function DriversBar({
 
           <div className="space-y-6 pt-4 max-h-[60vh] overflow-y-auto pr-2">
             <div className="pb-4 border-b border-border">
-              <AuthorsSelector value={settings.authors} onChange={handleUpdateAuthors} />
+              <AuthorsSelector
+                value={settings.authors}
+                onChange={handleUpdateAuthors}
+                markdownContent={markdownContent}
+              />
             </div>
 
             <div className="pb-4 border-b border-border">
@@ -317,7 +323,7 @@ const ErrorDisplay = memo(function ErrorDisplay({ error }: { error: string | nul
   if (!error) return null
 
   return (
-    <div className="px-4 py-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive">
+    <div className="px-4 py-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive mb-6">
       {error}
     </div>
   )
@@ -400,7 +406,7 @@ export const NotesPanel = memo(function NotesPanel({
     return () => {
       // Save current generation notes to DB when unmounting
       if (currentGenerationNotes.length > 0 && currentlyGeneratingDateKey && fileId) {
-        console.log(
+        console.debug(
           `[NotesPanel] Saving ${currentGenerationNotes.length} current generation notes to DB on unmount`,
         )
 
@@ -431,7 +437,7 @@ export const NotesPanel = memo(function NotesPanel({
               })
 
               if (!existingNote) {
-                console.log(`[NotesPanel] Saving note ${note.id} to DB on unmount`)
+                console.debug(`[NotesPanel] Saving note ${note.id} to DB on unmount`)
 
                 await db.insert(schema.notes).values({
                   id: note.id,
@@ -877,7 +883,7 @@ export const NotesPanel = memo(function NotesPanel({
         return Promise.reject(error)
       }
     },
-    [notes, droppedNotes, currentGenerationNotes, dispatch],
+    [droppedNotes, dispatch],
   )
 
   // Check if notes were recently generated (within the last 5 minutes)
@@ -893,16 +899,9 @@ export const NotesPanel = memo(function NotesPanel({
         return
       }
 
-      console.log(`[NotesPanel] Starting to generate new suggestions with settings:`, {
-        numSuggestions: steeringSettings.numSuggestions,
-        hasAuthors: !!steeringSettings.authors,
-        temperature: steeringSettings.temperature,
-        hasTonality: steeringSettings.tonalityEnabled,
-      })
-
       // Move current generation notes to history by adding them to notes array
       if (currentGenerationNotes && currentGenerationNotes.length > 0) {
-        console.log(
+        console.debug(
           `[NotesPanel] Moving ${currentGenerationNotes.length} current generation notes to history`,
         )
 
@@ -912,7 +911,7 @@ export const NotesPanel = memo(function NotesPanel({
         )
 
         if (notesToAdd.length > 0) {
-          console.log(`[NotesPanel] Adding ${notesToAdd.length} notes to main notes array`)
+          console.debug(`[NotesPanel] Adding ${notesToAdd.length} notes to main notes array`)
           dispatch({ type: "ADD_NOTES", notes: notesToAdd })
         }
       }
@@ -944,9 +943,9 @@ export const NotesPanel = memo(function NotesPanel({
               where: (files, { and, eq }) => and(eq(files.id, fileId), eq(files.vaultId, vaultId)),
             })) || null
 
-          console.log(`[NotesPanel] Found file in DB: ${currentDbFile?.id || "not found"}`)
+          console.debug(`[NotesPanel] Found file in DB: ${currentDbFile?.id || "not found"}`)
         } else {
-          console.log(`[NotesPanel] Using existing file from props: ${currentDbFile.id}`)
+          console.debug(`[NotesPanel] Using existing file from props: ${currentDbFile.id}`)
         }
 
         if (!currentDbFile) {
@@ -955,7 +954,7 @@ export const NotesPanel = memo(function NotesPanel({
             throw new Error("No file handle available")
           }
 
-          console.log(
+          console.debug(
             `[NotesPanel] File not found in DB, creating new file entry for ${currentFileHandle.name}`,
           )
           // Insert file into database
@@ -977,31 +976,37 @@ export const NotesPanel = memo(function NotesPanel({
           if (!currentDbFile) {
             throw new Error("Failed to create file in database")
           }
-          console.log(`[NotesPanel] Created new file in DB with ID: ${currentDbFile.id}`)
+          console.debug(`[NotesPanel] Created new file in DB with ID: ${currentDbFile.id}`)
 
           // Update local state with the new file
           setDbFile(currentDbFile)
         }
 
         try {
-          // Now that we have the file, generate the suggestions
-          console.log(`[NotesPanel] Fetching new notes from API`)
-          const { generatedNotes, reasoningId, reasoningElapsedTime, reasoningContent } =
-            await fetchNewNotes(
-              markdownContent,
-              steeringSettings.numSuggestions,
-              steeringSettings
-                ? {
-                    authors: steeringSettings.authors,
-                    tonality: steeringSettings.tonalityEnabled
-                      ? steeringSettings.tonality
-                      : undefined,
-                    temperature: steeringSettings.temperature,
-                  }
-                : undefined,
-            )
+          // Get authors from database if in pending status
+          const authorRecord = await db.query.authors.findFirst({
+            where: (authors, { and, eq }) =>
+              and(eq(authors.fileId, fileId), eq(authors.authorStatus, "pending")),
+          })
 
-          console.log(
+          // Use authors from DB if available and in pending status
+          const effectiveAuthors =
+            authorRecord && authorRecord.recommendedAuthors.length > 0
+              ? authorRecord.recommendedAuthors
+              : steeringSettings.authors
+
+          console.debug(`[NotesPanel] Using authors: ${effectiveAuthors.join(", ")}`)
+
+          // Now that we have the file, generate the suggestions
+          console.debug(`[NotesPanel] Fetching new notes from API`)
+          const { generatedNotes, reasoningId, reasoningElapsedTime, reasoningContent } =
+            await fetchNewNotes(markdownContent, steeringSettings.numSuggestions, {
+              authors: effectiveAuthors,
+              tonality: steeringSettings.tonalityEnabled ? steeringSettings.tonality : undefined,
+              temperature: steeringSettings.temperature,
+            })
+
+          console.debug(
             `[NotesPanel] Received ${generatedNotes.length} generated notes with reasoning ID: ${reasoningId}`,
           )
 
@@ -1051,13 +1056,13 @@ export const NotesPanel = memo(function NotesPanel({
           // Only save if the file is not null and we have notes to save
           if (fileId && newNotes.length > 0) {
             try {
-              console.log(`[NotesPanel] Saving reasoning with ID ${reasoningId} to DB`)
+              console.debug(`[NotesPanel] Saving reasoning with ID ${reasoningId} to DB`)
               // Use Promise.all to save reasoning and notes concurrently
               await Promise.all([
                 // Ensure reasoningRecordToSave matches the schema expectations
                 db.insert(schema.reasonings).values(reasoningRecordToSave),
                 ...newNotes.map((note) => {
-                  console.log(`[NotesPanel] Saving note ${note.id} to DB`)
+                  console.debug(`[NotesPanel] Saving note ${note.id} to DB`)
                   return db.insert(schema.notes).values({
                     id: note.id,
                     content: note.content,
@@ -1075,8 +1080,8 @@ export const NotesPanel = memo(function NotesPanel({
                 }),
               ])
 
-              console.log(`[NotesPanel] Saving ${newNotes.length} new notes to DB`)
-              console.log(`[NotesPanel] Notes and reasoning saved successfully.`)
+              console.debug(`[NotesPanel] Saving ${newNotes.length} new notes to DB`)
+              console.debug(`[NotesPanel] Notes and reasoning saved successfully.`)
 
               // **Update UI state AFTER successful DB operations**
               dispatch({
@@ -1093,10 +1098,10 @@ export const NotesPanel = memo(function NotesPanel({
               // Set current generation notes for UI
               dispatch({ type: "SET_CURRENT_GENERATION_NOTES", notes: newNotes })
 
-              console.log(`[NotesPanel] Processing embeddings for ${newNotes.length} new notes`)
+              console.debug(`[NotesPanel] Processing embeddings for ${newNotes.length} new notes`)
               // Submit each note for embedding individually and track task IDs for polling
               for (const note of newNotes) {
-                console.log(`[NotesPanel] Submitting note ${note.id} for embedding`)
+                console.debug(`[NotesPanel] Submitting note ${note.id} for embedding`)
                 const result = await submitNoteForEmbedding(db, note)
 
                 // If successful and we have a task ID, add it for polling
@@ -1111,16 +1116,16 @@ export const NotesPanel = memo(function NotesPanel({
 
                   if (updatedNote?.embeddingTaskId) {
                     addTask(updatedNote.embeddingTaskId)
-                    console.log(
+                    console.debug(
                       `[NotesPanel] Added embedding task ${updatedNote.embeddingTaskId} for note ${note.id}`,
                     )
                   } else {
-                    console.log(
+                    console.debug(
                       `[NotesPanel] Note ${note.id} has no embedding task ID after submission`,
                     )
                   }
                 } else {
-                  console.log(`[NotesPanel] Failed to submit note ${note.id} for embedding`)
+                  console.debug(`[NotesPanel] Failed to submit note ${note.id} for embedding`)
                 }
               }
 
@@ -1134,13 +1139,13 @@ export const NotesPanel = memo(function NotesPanel({
             } catch (dbError) {
               console.error("Failed to save notes to database:", dbError)
               // Still show notes in UI even if DB fails
-              console.log(`[NotesPanel] Showing notes in UI despite DB save failure`)
+              console.debug(`[NotesPanel] Showing notes in UI despite DB save failure`)
               dispatch({ type: "SET_CURRENT_GENERATION_NOTES", notes: newNotes })
               dispatch({ type: "ADD_NOTES", notes: newNotes })
             }
           } else {
             // For unsaved files, just display in UI without saving to DB
-            console.log(`[NotesPanel] Displaying ephemeral notes for unsaved file`)
+            console.debug(`[NotesPanel] Displaying ephemeral notes for unsaved file`)
             // Update UI immediately for ephemeral notes
             dispatch({
               type: "ADD_REASONING_HISTORY",
@@ -1343,6 +1348,7 @@ export const NotesPanel = memo(function NotesPanel({
         handleGenerateNewSuggestions={generateNewSuggestions}
         isNotesLoading={isNotesLoading}
         isNotesRecentlyGenerated={isNotesRecentlyGenerated}
+        markdownContent={markdownContent}
       />
     </div>
   )

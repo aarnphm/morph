@@ -30,6 +30,7 @@ import { useDebouncedCallback } from "use-debounce"
 import { AuthorProcessor } from "@/components/author-processor"
 import ContextNotes from "@/components/context-notes"
 import { CustomDragLayer, EditorDropTarget } from "@/components/dnd"
+import { EmbeddingStatus } from "@/components/embedding-status"
 import { EssayEmbeddingProcessor } from "@/components/essay-embedding-processor"
 import { fileField, mdToHtml, setFile } from "@/components/markdown-inline"
 import { NoteEmbeddingProcessor } from "@/components/note-embedding-processor"
@@ -44,6 +45,7 @@ import { VaultButton } from "@/components/ui/button"
 import { DotIcon } from "@/components/ui/icons"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
+import { useAuthorTasks } from "@/context/authors"
 import { usePGlite } from "@/context/db"
 import { useEssayEmbeddingTasks } from "@/context/embedding"
 import { useRestoredFile } from "@/context/file-restoration"
@@ -131,6 +133,10 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [visibleContextNoteIds, setVisibleContextNoteIds] = useState<string[]>([])
   // Add state for author understanding indicator
   const [isAuthorProcessing, setIsAuthorProcessing] = useState(false)
+  // Add state for essay embedding status
+  const [embeddingStatus, setEmbeddingStatus] = useState<
+    "in_progress" | "success" | "failure" | "cancelled" | null
+  >(null)
 
   // Use the notes context instead of local state
   const {
@@ -159,11 +165,20 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   // Add a ref to track if we've processed essay embeddings for the current file
   const essayEmbeddingProcessedRef = useRef<string | null>(null)
 
+  // Add a ref to track the last time embeddings were processed for rate limiting
+  const lastEmbeddingProcessedTimestampRef = useRef<Record<string, number>>({})
+
   // Use a ref to store the timeout ID so we can access it in the cleanup function
   const embeddingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Get the task actions for adding tasks
   const { addTask: addEssayTask } = useEssayEmbeddingTasks()
+
+  // Get author tasks to track when authors are being processed
+  const { pendingTaskIds: authorTaskIds } = useAuthorTasks()
+
+  // Get essay embedding tasks to track essay embedding progress
+  const { pendingTaskIds: essayEmbeddingTaskIds } = useEssayEmbeddingTasks()
 
   useEffect(() => {
     if (restoredFile && restoredFile.fileId)
@@ -343,6 +358,53 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
       // Reset unsaved changes flag
       setHasUnsavedChanges(false)
+      toast.success("File saved successfully!")
+
+      // Process essay embeddings with rate limiting (avoid spamming)
+      if (fileId) {
+        const currentTime = Date.now()
+        const fileKey = `${vaultId}:${fileId}`
+        const lastProcessed = lastEmbeddingProcessedTimestampRef.current[fileKey] || 0
+        const timeSinceLastProcess = currentTime - lastProcessed
+
+        // Only process if it's been at least 2 minutes since last processing for this file
+        // or if it's a new file (isNewFile is true)
+        const RATE_LIMIT_MS = 3 * 60 * 1000 // 3 minutes
+
+        if (isNewFile || timeSinceLastProcess > RATE_LIMIT_MS) {
+          console.debug(`[Notes Debug] Processing essay embeddings on save for ${fileId}`)
+
+          try {
+            // Process the saved content
+            const content = md(markdownContent).content
+
+            // Update the last processed timestamp
+            lastEmbeddingProcessedTimestampRef.current[fileKey] = currentTime
+
+            // Set embedding status to processing in database
+            await db
+              .update(schema.files)
+              .set({ embeddingStatus: "in_progress" })
+              .where(and(eq(schema.files.id, fileId), eq(schema.files.vaultId, vaultId)))
+
+            // Trigger embedding processing
+            processEssayEmbeddings.mutate({
+              addTask: addEssayTask,
+              currentContent: content,
+              currentVaultId: vaultId,
+              currentFileId: fileId,
+            })
+          } catch (error) {
+            console.error("Error processing essay embeddings on save:", error)
+          }
+        } else {
+          console.debug(
+            `[Notes Debug] Skipping embedding update due to rate limiting (${Math.round(
+              timeSinceLastProcess / 1000,
+            )}s < ${RATE_LIMIT_MS / 1000}s)`,
+          )
+        }
+      }
     } catch (error) {
       console.error("Error saving file:", error)
     }
@@ -359,6 +421,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     db,
     updateContentRef,
     loadFileMetadata,
+    processEssayEmbeddings,
+    addEssayTask,
   ])
 
   // Handle dragging a dropped note back to the panel
@@ -634,9 +698,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   const onContentChange = useCallback(
     async (value: string) => {
-      // Only update hasUnsavedChanges if it's not already set
-      // This prevents constant re-renders
-      if (!hasUnsavedChanges && value !== contentRef.current.content) {
+      // Check if the content has changed compared to the saved content
+      if (value !== contentRef.current.content) {
         setHasUnsavedChanges(true)
       }
 
@@ -646,7 +709,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       // Update preview with the new content using the debounced function
       debouncedUpdatePreview(value)
     },
-    [debouncedUpdatePreview, hasUnsavedChanges, contentRef], // Use debounced function here
+    [debouncedUpdatePreview, contentRef],
   )
 
   // Effect to use preloaded file from context if available
@@ -702,12 +765,8 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               if (
                 embeddingProcessingStarted ||
                 essayEmbeddingProcessedRef.current === `${vaultId}:${targetFileId}`
-              ) {
-                console.debug(
-                  `[Debug] Skipping duplicate essay embedding processing for restored file ${targetFileId}`,
-                )
+              )
                 return
-              }
 
               // Mark as processing immediately
               embeddingProcessingStarted = true
@@ -726,8 +785,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   currentVaultId: vaultId,
                   currentFileId: targetFileId,
                 })
-              } else {
-                console.debug(`[Debug] Restored file ${targetFileId} already has embeddings`)
               }
             } catch (error) {
               console.error(`Error processing file data for ${targetFileId}:`, error)
@@ -875,6 +932,25 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     return groupNotesByDate(filteredNotes)
   }, [droppedNotes, notes, currentGenerationNotes])
 
+  // Update author processing state when tasks change
+  useEffect(() => {
+    setIsAuthorProcessing(authorTaskIds.length > 0)
+  }, [authorTaskIds])
+
+  // Update essay embedding status when tasks change
+  useEffect(() => {
+    if (essayEmbeddingTaskIds.length > 0) {
+      setEmbeddingStatus("in_progress")
+    } else if (dbFileState?.embeddingStatus) {
+      // When tasks complete, use the status from the database
+      setEmbeddingStatus(
+        dbFileState.embeddingStatus as "in_progress" | "success" | "failure" | "cancelled",
+      )
+    } else {
+      setEmbeddingStatus(null)
+    }
+  }, [essayEmbeddingTaskIds, dbFileState?.embeddingStatus])
+
   return (
     <DndProvider backend={HTML5Backend}>
       <SteeringProvider>
@@ -893,7 +969,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
               <section className="flex flex-1 overflow-hidden m-4 border rounded-[8px]">
                 <NoteEmbeddingProcessor db={db} />
                 <EssayEmbeddingProcessor db={db} />
-                <AuthorProcessor />
+                <AuthorProcessor db={db} />
                 <AnimatePresence initial={false}>
                   {showEphemeralBanner && (
                     <motion.div
@@ -972,7 +1048,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     className="before:mix-blend-multiply before:bg-noise-pattern"
                     visibleContextNoteIds={visibleContextNoteIds}
                   />
-                  <div className="flex flex-col items-center space-y-2 absolute bottom-2 right-2 z-20">
+                  <div className="flex flex-col items-center space-y-2 absolute bottom-2 right-2 z-100">
                     <VaultButton
                       onClick={toggleNotes}
                       size="small"
@@ -983,6 +1059,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   </div>
                   <div className="absolute top-2 left-2 text-sm/7 z-10 flex flex-col items-start justify-self gap-2">
                     {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
+                    <EmbeddingStatus status={embeddingStatus} />
                   </div>
                   {droppedNotes.length > 0 && (
                     <ContextNotes
@@ -1026,9 +1103,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   </div>
                 </EditorDropTarget>
                 {showNotes && (
-                  <div
-                    className={cn("flex flex-col", showNotes ? "w-88 visible" : "w-0 hidden")}
-                  >
+                  <div className={cn("flex flex-col", showNotes ? "w-88 visible" : "w-0 hidden")}>
                     <NotesPanel
                       handleNoteDropped={handleNoteDropped}
                       handleNoteRemoved={handleNoteRemoved}

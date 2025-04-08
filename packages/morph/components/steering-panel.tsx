@@ -1,21 +1,66 @@
 "use client"
 
 import { cn } from "@/lib"
-import { Cross2Icon, PlusIcon } from "@radix-ui/react-icons"
+import {
+  submitContentForAuthors,
+  useProcessPendingAuthor,
+  useRecommendedAuthors,
+} from "@/services/authors"
+import { CheckIcon, Cross2Icon, MagicWandIcon, PlusIcon } from "@radix-ui/react-icons"
+import { drizzle } from "drizzle-orm/pglite"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 
+import { md } from "@/components/parser"
 import { Input } from "@/components/ui/input"
+
+import { useAuthorTasks } from "@/context/authors"
+import { usePGlite } from "@/context/db"
+import { useNotesContext } from "@/context/notes"
+
+import * as schema from "@/db/schema"
 
 interface AuthorsSelectorProps {
   value: string[]
   onChange: (authors: string[]) => void
   className?: string
+  markdownContent: string
 }
 
-export function AuthorsSelector({ value, onChange, className }: AuthorsSelectorProps) {
+export function AuthorsSelector({
+  value,
+  onChange,
+  className,
+  markdownContent,
+}: AuthorsSelectorProps) {
   const [authors, setAuthors] = useState<string[]>(value)
   const [newAuthor, setNewAuthor] = useState<string>("")
   const [isAdding, setIsAdding] = useState(false)
+  const [isInferring, setIsInferring] = useState(false)
+  const [isPending, setIsPending] = useState(false)
+
+  // Get current content and fileId from notes context
+  const {
+    state: { currentFileId },
+  } = useNotesContext()
+  const { addTask, pendingTaskIds } = useAuthorTasks()
+
+  // Get DB client
+  const client = usePGlite()
+  const db = drizzle({ client, schema })
+
+  // Load recommended authors from the database
+  const { data: recommendedAuthors } = useRecommendedAuthors(currentFileId)
+
+  // Process pending authors function
+  const processPendingAuthor = useProcessPendingAuthor(db)
+
+  // Check if we should stop inferring when pending tasks change
+  useEffect(() => {
+    if (isInferring && pendingTaskIds.length === 0) {
+      setIsInferring(false)
+    }
+  }, [pendingTaskIds, isInferring])
 
   // Update local state when context changes
   useEffect(() => {
@@ -25,8 +70,67 @@ export function AuthorsSelector({ value, onChange, className }: AuthorsSelectorP
     }
   }, [value, authors])
 
-  // Debug log local state changes
-  useEffect(() => {}, [authors])
+  // When recommended authors are loaded, update the authors list if it's empty
+  useEffect(() => {
+    if (
+      recommendedAuthors?.authors &&
+      recommendedAuthors.authors.length > 0 &&
+      authors.length === 0
+    ) {
+      // Only update if we don't already have authors
+      const newAuthors = [...recommendedAuthors.authors]
+      setAuthors(newAuthors)
+      onChange(newAuthors)
+    }
+  }, [recommendedAuthors, authors.length, onChange])
+
+  // When isInferring changes to false after being true, get the latest recommended authors
+  const wasInferring = useRef(false)
+
+  useEffect(() => {
+    if (wasInferring.current && !isInferring) {
+      // Refresh recommended authors after inference completes
+      if (recommendedAuthors?.authors && recommendedAuthors.authors.length > 0) {
+        const newAuthors = [...recommendedAuthors.authors]
+        setAuthors(newAuthors)
+        onChange(newAuthors)
+        toast.success("Updated authors based on document content")
+      }
+    }
+    wasInferring.current = isInferring
+  }, [isInferring, recommendedAuthors, onChange])
+
+  // Inference handler
+  const handleInferAuthors = useCallback(async () => {
+    // We need both the current file ID and document content
+    if (!currentFileId) {
+      toast.error("Please save the file first before inferring authors")
+      return
+    }
+
+    try {
+      setIsInferring(true)
+      toast.info("Analyzing document to infer authors...")
+
+      // Clean the content using the md parser
+      const cleanedContent = md(markdownContent).content
+      // Submit the content for author inference
+      const taskId = await submitContentForAuthors(db, currentFileId, cleanedContent)
+
+      if (taskId) {
+        // Add the task to the queue
+        addTask(taskId, currentFileId)
+        toast.success("Authors are being inferred. This may take a moment.")
+      } else {
+        toast.info("Authors have already been inferred for this document")
+        setIsInferring(false)
+      }
+    } catch (error) {
+      console.error("Error inferring authors:", error)
+      toast.error("Failed to infer authors from content")
+      setIsInferring(false)
+    }
+  }, [currentFileId, db, addTask])
 
   const handleAddAuthor = useCallback(() => {
     if (!newAuthor.trim()) return
@@ -64,6 +168,24 @@ export function AuthorsSelector({ value, onChange, className }: AuthorsSelectorP
     [authors, onChange],
   )
 
+  // Handle saving pending authors
+  const handleSavePendingAuthors = useCallback(async () => {
+    if (!currentFileId || authors.length === 0) {
+      return
+    }
+
+    setIsPending(true)
+    try {
+      await processPendingAuthor(currentFileId, { authors })
+      toast.success("Saved pending authors")
+    } catch (error) {
+      console.error("Error saving pending authors:", error)
+      toast.error("Failed to save pending authors")
+    } finally {
+      setIsPending(false)
+    }
+  }, [currentFileId, authors, processPendingAuthor])
+
   const handleKeyPress = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter") {
@@ -77,16 +199,45 @@ export function AuthorsSelector({ value, onChange, className }: AuthorsSelectorP
     <div className={cn("space-y-2", className)}>
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-foreground">Authors</label>
-        <button
-          type="button"
-          className="text-xs text-muted-foreground hover:text-foreground"
-          onClick={() => setIsAdding(true)}
-        >
-          <PlusIcon className="h-3 w-3" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 hover:cursor-pointer"
+            onClick={handleInferAuthors}
+            disabled={isInferring || isPending}
+            title="Auto-infer authors from document"
+          >
+            <MagicWandIcon className={cn("h-3 w-3", isInferring && "animate-pulse")} />
+            {isInferring && <span className="text-xs">Inferring...</span>}
+          </button>
+          <button
+            type="button"
+            className={cn(
+              "text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 hover:cursor-pointer",
+              (isInferring || isPending) && "opacity-50 cursor-not-allowed",
+            )}
+            onClick={handleSavePendingAuthors}
+            disabled={isInferring || isPending}
+            title="Save as pending authors"
+          >
+            <CheckIcon className={cn("h-3 w-3", isPending && "animate-pulse")} />
+            {isPending && <span className="text-xs">Saving...</span>}
+          </button>
+          <button
+            type="button"
+            className={cn(
+              "text-xs text-muted-foreground hover:text-foreground  hover:cursor-pointer",
+              (isInferring || isPending) && "opacity-50 cursor-not-allowed",
+            )}
+            onClick={() => setIsAdding(true)}
+            disabled={isInferring || isPending}
+          >
+            <PlusIcon className="h-3 w-3" />
+          </button>
+        </div>
       </div>
 
-      {isAdding && (
+      {isAdding && !isInferring && !isPending && (
         <div className="flex items-center gap-2">
           <Input
             className="h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
@@ -111,13 +262,14 @@ export function AuthorsSelector({ value, onChange, className }: AuthorsSelectorP
         {authors.map((author, index) => (
           <div
             key={index}
-            className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs"
+            className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs cursor-pointer"
           >
             <span>{author}</span>
             <button
               type="button"
               onClick={() => handleRemoveAuthor(index)}
-              className="hover:text-primary"
+              className={cn("hover:text-primary", isInferring && "opacity-50 cursor-not-allowed")}
+              disabled={isInferring}
             >
               <Cross2Icon className="h-3 w-3" />
             </button>

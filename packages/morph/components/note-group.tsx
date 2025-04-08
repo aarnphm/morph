@@ -247,10 +247,6 @@ export const DroppedNoteGroup = memo(function DroppedNoteGroup({
 
       // Only process if we have notes that need embeddings
       if (notesRequiringEmbedding.length > 0) {
-        console.log(
-          `[DroppedNotes] Processing ${notesRequiringEmbedding.length} visible notes for embedding`,
-        )
-
         // Process these notes - use as any to handle type mismatch
         submitNotesForEmbedding(db, notesRequiringEmbedding as any).catch((error) => {
           console.error("[DroppedNotes] Error submitting notes for embedding:", error)

@@ -4,9 +4,7 @@ import { TaskStatusResponse } from "@/services/constants"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import axios from "axios"
 import { and, eq, isNull, not } from "drizzle-orm"
-import { PgliteDatabase, drizzle } from "drizzle-orm/pglite"
-
-import { usePGlite } from "@/context/db"
+import { PgliteDatabase } from "drizzle-orm/pglite"
 
 import * as schema from "@/db/schema"
 
