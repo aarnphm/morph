@@ -42,18 +42,15 @@ import type { Note } from "@/db/interfaces"
 import * as schema from "@/db/schema"
 
 interface NotesPanelProps {
-  notes: Note[]
   droppedNotes: Note[]
   fileId: string
   vaultId: string
+  noteGroupsData: [string, Note[]][]
   handleNoteDropped: (note: Note) => void
   handleNoteRemoved: (noteId: string) => void
-  notesContainerRef: React.RefObject<HTMLDivElement | null>
-  streamingNotes?: StreamingNote[]
-  scanAnimationComplete?: boolean
+  dbFile: typeof schema.files.$inferSelect | null
   markdownContent?: string
   currentFileHandle?: FileSystemFileHandle | null
-  dbFile: typeof schema.files.$inferSelect
 }
 
 const ScrollSeekPlaceholder: Components["ScrollSeekPlaceholder"] = memo(
@@ -82,195 +79,71 @@ const ScrollSeekPlaceholder: Components["ScrollSeekPlaceholder"] = memo(
 
 interface HistoricalNotesProps {
   fileId: string
-  noteGroupsData: [string, Note[]][]
   reasoningHistory: ReasoningHistory[]
   handleNoteDropped: (note: Note) => void
   handleNoteRemoved: (noteId: string) => void
   vaultId?: string
   notesContainerRef: React.RefObject<HTMLDivElement | null>
-}
-
-// Add a debug logging helper function that only runs in development
-function debugLog(message: string, data?: any) {
-  if (process.env.NODE_ENV !== "development") return
-  console.debug(message, data)
-}
-
-// Add a function to log reasoning and note groups data
-function logReasoningAndGroups(
-  reasoningHistory: ReasoningHistory[],
-  noteGroups: [string, Note[]][],
-) {
-  if (process.env.NODE_ENV !== "development") return
-
-  debugLog(
-    `[Notes Debug] Reasoning history: ${reasoningHistory.length}, Note groups: ${noteGroups.length}`,
-  )
-
-  if (reasoningHistory.length > 0) {
-    const allNoteIds = reasoningHistory.map((r) => r.noteIds).flat()
-    debugLog(`[Notes Debug] All reasoning noteIds:`, allNoteIds)
-
-    reasoningHistory.forEach((r) => {
-      debugLog(`[Notes Debug] Reasoning ${r.id} has ${r.noteIds?.length || 0} noteIds:`, r.noteIds)
-    })
-  }
-
-  if (noteGroups.length > 0) {
-    debugLog(`[Notes Debug] Found ${noteGroups.length} note groups:`)
-    noteGroups.forEach(([dateStr, notes]) => {
-      debugLog(
-        `[Notes Debug] Group '${dateStr}' has ${notes.length} notes:`,
-        notes.map((n) => n.id),
-      )
-    })
-  } else {
-    debugLog(`[Notes Debug] No note groups found - check filtering in noteGroupsData creation`)
-  }
-}
-
-// Add an analysis function that helps diagnose noteGroupsData filtering issues
-function analyzeNotesFiltering(allNotes: Note[], droppedNotes: Note[]) {
-  if (process.env.NODE_ENV !== "development") return
-
-  // Get counts to understand filtering
-  const totalNotes = allNotes.length
-  const droppedNotesCount = droppedNotes.length
-  const droppedNoteIds = new Set(droppedNotes.map((note) => note.id))
-
-  // Count notes with dropped flag
-  const notesWithDroppedFlag = allNotes.filter((note) => note.dropped).length
-
-  // Count notes that are in allNotes but not in droppedNotes
-  const nonDroppedNotes = allNotes.filter(
-    (note) => !droppedNoteIds.has(note.id) && !note.dropped,
-  ).length
-
-  debugLog(`[Notes Analysis] Total notes: ${totalNotes}, Dropped notes: ${droppedNotesCount}`)
-  debugLog(`[Notes Analysis] Notes with dropped flag: ${notesWithDroppedFlag}`)
-  debugLog(`[Notes Analysis] Non-dropped notes that should appear in groups: ${nonDroppedNotes}`)
-
-  if (nonDroppedNotes === 0) {
-    // Detailed analysis of what might be happening
-    const droppedFlagButNotInDroppedNotes = allNotes.filter(
-      (note) => note.dropped && !droppedNoteIds.has(note.id),
-    ).length
-
-    const inDroppedNotesButNoFlag = allNotes.filter(
-      (note) => !note.dropped && droppedNoteIds.has(note.id),
-    ).length
-
-    debugLog(
-      `[Notes Analysis] Notes with dropped flag but not in droppedNotes array: ${droppedFlagButNotInDroppedNotes}`,
-    )
-    debugLog(
-      `[Notes Analysis] Notes in droppedNotes array but without dropped flag: ${inDroppedNotesButNoFlag}`,
-    )
-
-    if (droppedFlagButNotInDroppedNotes > 0) {
-      debugLog(
-        "[Notes Analysis] ISSUE: There are notes marked as dropped but not in the droppedNotes array",
-      )
-    }
-
-    if (inDroppedNotesButNoFlag > 0) {
-      debugLog(
-        "[Notes Analysis] ISSUE: There are notes in the droppedNotes array but without the dropped flag",
-      )
-    }
-
-    if (totalNotes === droppedNotesCount) {
-      debugLog(
-        "[Notes Analysis] All notes are in the droppedNotes array, which is why noteGroupsData is empty",
-      )
-    }
-
-    if (totalNotes === notesWithDroppedFlag) {
-      debugLog(
-        "[Notes Analysis] All notes have the dropped flag set to true, which is why noteGroupsData is empty",
-      )
-    }
-  }
+noteGroupsData: [string, Note[]][]
 }
 
 // Extract HistoricalNotes into a separate memoized component
-const HistoricalNotes = memo(
-  function HistoricalNotes({
-    fileId,
-    noteGroupsData,
-    reasoningHistory,
-    handleNoteDropped,
-    handleNoteRemoved,
-    vaultId,
-    notesContainerRef,
-  }: HistoricalNotesProps) {
-    const memoizedNoteSkeletons = useMemo(() => <NoteCard variant="skeleton" />, [])
+const HistoricalNotes = memo(function HistoricalNotes({
+  fileId,
+  reasoningHistory,
+  vaultId,
+  notesContainerRef,
+  handleNoteDropped,
+  noteGroupsData,
+  handleNoteRemoved,
+}: HistoricalNotesProps) {
+  const memoizedNoteSkeletons = useMemo(() => <NoteCard variant="skeleton" />, [])
 
-    // Log reasoning and note groups data on component mount and when data changes
-    useEffect(() => {
-      debugLog(
-        `[HistoricalNotes] Received data - Groups: ${noteGroupsData.length}, Reasoning history: ${reasoningHistory.length}`,
-      )
-    }, [noteGroupsData, reasoningHistory])
+  return (
+    <div className="flex-1 min-h-0">
+      <Virtuoso
+        style={{ height: "100%", width: "100%" }}
+        data={noteGroupsData}
+        overscan={5}
+        increaseViewportBy={{ top: 100, bottom: 100 }}
+        initialItemCount={1}
+        components={{ ScrollSeekPlaceholder }}
+        itemContent={(_: number, group: [string, Note[]]) => {
+          // Add a safety check for when group is undefined or not properly formed
+          if (!group || !Array.isArray(group) || group.length < 2) {
+            return memoizedNoteSkeletons
+          }
+          const [dateStr, dateNotes] = group
 
-    return (
-      <div className="flex-1 min-h-0">
-        <Virtuoso
-          key={`note-list-${fileId}-${noteGroupsData.length}`}
-          style={{ height: "100%", width: "100%" }}
-          totalCount={noteGroupsData.length}
-          data={noteGroupsData}
-          overscan={10}
-          components={{ ScrollSeekPlaceholder }}
-          itemContent={(_index: number, group: [string, Note[]]) => {
-            // Add a safety check for when group is undefined or not properly formed
-            if (!group || !Array.isArray(group) || group.length < 2) {
-              return memoizedNoteSkeletons
-            }
+          // Only handle historical notes now
+          const dateReasoning = reasoningHistory.find((r) =>
+            r.noteIds.some((id: string) => dateNotes.some((note: Note) => note.id === id)),
+          )
 
-            const [dateStr, dateNotes] = group
-
-            // Only handle historical notes now
-            const dateReasoning = reasoningHistory.find((r) =>
-              r.noteIds.some((id: string) => dateNotes.some((note: Note) => note.id === id)),
-            )
-
-            return (
-              <div className="mb-6">
-                <NoteGroup
-                  dateStr={dateStr}
-                  dateNotes={dateNotes}
-                  reasoning={dateReasoning}
-                  fileId={fileId}
-                  vaultId={vaultId}
-                  handleNoteDropped={handleNoteDropped}
-                  onNoteRemoved={handleNoteRemoved}
-                  isGenerating={false}
-                />
-              </div>
-            )
-          }}
-          initialItemCount={1}
-          increaseViewportBy={{ top: 100, bottom: 100 }}
-          scrollSeekConfiguration={{
-            enter: (velocity) => Math.abs(velocity) > 1000,
-            exit: (velocity) => Math.abs(velocity) < 100,
-          }}
-          customScrollParent={notesContainerRef.current!}
-        />
-      </div>
-    )
-  },
-  // Custom comparison function for props to prevent unnecessary re-renders
-  (prevProps, nextProps) => {
-    // Only re-render if these specific props change
-    return (
-      prevProps.fileId === nextProps.fileId &&
-      prevProps.noteGroupsData === nextProps.noteGroupsData &&
-      prevProps.reasoningHistory === nextProps.reasoningHistory
-    )
-  },
-)
+          return (
+            <div className="mb-6">
+              <NoteGroup
+                dateStr={dateStr}
+                dateNotes={dateNotes}
+                reasoning={dateReasoning}
+                fileId={fileId}
+                vaultId={vaultId}
+                handleNoteDropped={handleNoteDropped}
+                onNoteRemoved={handleNoteRemoved}
+                isGenerating={false}
+              />
+            </div>
+          )
+        }}
+        scrollSeekConfiguration={{
+          enter: (velocity) => Math.abs(velocity) > 1000,
+          exit: (velocity) => Math.abs(velocity) < 100,
+        }}
+        customScrollParent={notesContainerRef.current!}
+      />
+    </div>
+  )
+})
 
 // Create a memoized driver bar component for the notes panel
 interface DriversBarProps {
@@ -472,61 +345,39 @@ const EmptyState = memo(function EmptyState({
 })
 
 export const NotesPanel = memo(function NotesPanel({
-  notes: initialNotes,
   droppedNotes,
   vaultId,
   fileId,
-  handleNoteDropped,
-  handleNoteRemoved,
-  notesContainerRef,
+  noteGroupsData,
   markdownContent: initialMarkdownContent,
   currentFileHandle: initialFileHandle,
   dbFile: initialDbFile,
+  handleNoteDropped,
+  handleNoteRemoved,
 }: NotesPanelProps) {
   // Get steering settings and fileId update function from context
-  const { settings, updateFileId } = useSteeringContext()
+  const { settings } = useSteeringContext()
   const {
-    state: { reasoningHistory: contextReasoningHistory },
+    state: {
+      reasoningHistory,
+      streamingReasoning,
+      reasoningComplete,
+      currentReasoningId,
+      currentlyGeneratingDateKey,
+      currentGenerationNotes,
+      scanAnimationComplete,
+      isNotesLoading,
+      notesError,
+      lastNotesGeneratedTime,
+      notes,
+    },
     dispatch,
   } = useNotesContext()
 
-  // Create alternate note groups that don't rely on the filtering in the editor component
-  const noteGroupsData = useMemo(() => {
-    // Only consider non-dropped notes that aren't in the droppedNotes array
-    const droppedNoteIds = new Set(droppedNotes.map((note) => note.id))
-    const nonDroppedNotes = initialNotes.filter(
-      (note) => !note.dropped && !droppedNoteIds.has(note.id),
-    )
-    return groupNotesByDate(nonDroppedNotes)
-  }, [initialNotes, droppedNotes])
-
-  // Debug log the state of reasoning and note groups when they change
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      logReasoningAndGroups(contextReasoningHistory, noteGroupsData)
-      analyzeNotesFiltering(initialNotes, droppedNotes)
-
-      // Compare the original noteGroupsData with our alternate grouping
-      debugLog(`[Notes Debug] Original noteGroupsData length: ${noteGroupsData.length}`)
-    }
-  }, [contextReasoningHistory, initialNotes, droppedNotes, noteGroupsData])
-
-  // State management (moved from editor.tsx)
-  const [notes, setNotes] = useState<Note[]>(initialNotes || [])
-  const [notesError, setNotesError] = useState<string | null>(null)
-  const [currentlyGeneratingDateKey, setCurrentlyGeneratingDateKey] = useState<string | null>(null)
-  const [currentGenerationNotes, setCurrentGenerationNotes] = useState<Note[]>([])
-
-  // Additional state
-  const [isNotesLoading, setIsNotesLoading] = useState(false)
-  const [scanAnimationComplete, setScanAnimationComplete] = useState(false)
+  // Local state for data that isn't in context yet
   const [currentReasoningElapsedTime, setCurrentReasoningElapsedTime] = useState(0)
-  const [lastNotesGeneratedTime, setLastNotesGeneratedTime] = useState<Date | null>(null)
-  const [currentReasoningId, setCurrentReasoningId] = useState<string>("")
   const [streamingSuggestionColors, setStreamingSuggestionColors] = useState<string[]>([])
   const [streamingNotes, setStreamingNotes] = useState<StreamingNote[]>([])
-  const [reasoningComplete, setReasoningComplete] = useState(false)
-  const [streamingReasoning, setStreamingReasoning] = useState<string>("")
   const [markdownContent, setMarkdownContent] = useState<string>(initialMarkdownContent || "")
   const [currentFileHandle, setCurrentFileHandle] = useState<FileSystemFileHandle | null>(
     initialFileHandle || null,
@@ -534,10 +385,10 @@ export const NotesPanel = memo(function NotesPanel({
   const [dbFile, setDbFile] = useState<typeof schema.files.$inferSelect | null>(
     initialDbFile || null,
   )
+  const notesContainerRef = useRef<HTMLDivElement>(null)
 
   // Track settings changes with a ref to detect actual value changes
   const prevSettingsRef = useRef(settings)
-  const currentFileIdRef = useRef<string | null>(null)
 
   const client = usePGlite()
   const db = useMemo(() => drizzle({ client, schema }), [client])
@@ -550,7 +401,7 @@ export const NotesPanel = memo(function NotesPanel({
       // Save current generation notes to DB when unmounting
       if (currentGenerationNotes.length > 0 && currentlyGeneratingDateKey && fileId) {
         console.log(
-          `[Notes Debug] Saving ${currentGenerationNotes.length} current generation notes to DB on unmount`,
+          `[NotesPanel] Saving ${currentGenerationNotes.length} current generation notes to DB on unmount`,
         )
 
         // We can't await in useEffect cleanup, so we use a fire-and-forget approach
@@ -580,7 +431,7 @@ export const NotesPanel = memo(function NotesPanel({
               })
 
               if (!existingNote) {
-                console.log(`[Notes Debug] Saving note ${note.id} to DB on unmount`)
+                console.log(`[NotesPanel] Saving note ${note.id} to DB on unmount`)
 
                 await db.insert(schema.notes).values({
                   id: note.id,
@@ -660,18 +511,18 @@ export const NotesPanel = memo(function NotesPanel({
         const reasoningId = createId()
 
         // Reset states for new generation
-        setStreamingReasoning("")
-        setReasoningComplete(false)
+        dispatch({ type: "SET_STREAMING_REASONING", reasoning: "" })
+        dispatch({ type: "SET_REASONING_COMPLETE", complete: false })
         setCurrentReasoningElapsedTime(0) // Reset elapsed time at the start
-        setStreamingNotes([]) // Reset streaming notes
-        setScanAnimationComplete(false) // Reset scan animation state
+        dispatch({ type: "SET_STREAMING_NOTES", streamingNotes: [] }) // Reset streaming notes
+        dispatch({ type: "SET_SCAN_ANIMATION_COMPLETE", complete: false }) // Reset scan animation state
 
         // Set a current date key for the new notes group with 15-second interval
         const now = new Date()
         const seconds = now.getSeconds()
         const interval = Math.floor(seconds / 15) * 15
         const dateKey = `${now.toDateString()}-${now.getHours()}-${now.getMinutes()}-${interval}`
-        setCurrentlyGeneratingDateKey(dateKey)
+        dispatch({ type: "SET_CURRENT_GENERATING_DATE_KEY", dateKey })
 
         const max_tokens = 16384
         const essay = md(content).content
@@ -782,7 +633,7 @@ export const NotesPanel = memo(function NotesPanel({
               // Handle reasoning phase
               if (delta.reasoning) {
                 collectedReasoning += delta.reasoning
-                setStreamingReasoning((prev) => prev + delta.reasoning)
+                dispatch({ type: "SET_STREAMING_REASONING", reasoning: collectedReasoning })
               }
 
               // Check for phase transition
@@ -796,7 +647,7 @@ export const NotesPanel = memo(function NotesPanel({
                     const elapsedTime = Math.round((reasoningEndTime - reasoningStartTime) / 1000)
                     setCurrentReasoningElapsedTime(elapsedTime)
                   }
-                  setReasoningComplete(true)
+                  dispatch({ type: "SET_REASONING_COMPLETE", complete: true })
                   inReasoningPhase = false
                 }
 
@@ -920,7 +771,7 @@ export const NotesPanel = memo(function NotesPanel({
             const elapsedTime = Math.round((reasoningEndTime - reasoningStartTime) / 1000)
             setCurrentReasoningElapsedTime(elapsedTime)
           }
-          setReasoningComplete(true)
+          dispatch({ type: "SET_REASONING_COMPLETE", complete: true })
         }
 
         // Mark all streaming notes as complete
@@ -954,16 +805,13 @@ export const NotesPanel = memo(function NotesPanel({
             currentDelay = Math.max(10, currentDelay * 0.85)
           }
           // Set loading to false which will trigger showing the final notes
-          setIsNotesLoading(false)
-          setScanAnimationComplete(true)
+          dispatch({ type: "SET_IS_NOTES_LOADING", loading: false })
+          dispatch({ type: "SET_SCAN_ANIMATION_COMPLETE", complete: true })
         }
 
         // Start the scan animation sequence
         runScanAnimation()
-
-        // At this point we have the complete reasoning, but we don't yet know which notes it produced
-        // We'll update reasoningHistory later when we know the noteIds
-        setCurrentReasoningId(reasoningId)
+        dispatch({ type: "SET_CURRENT_REASONING_ID", reasoningId })
 
         // Clean up
         reader.releaseLock()
@@ -988,10 +836,12 @@ export const NotesPanel = memo(function NotesPanel({
 
         if (generatedNotes.length === 0) {
           // Set error state when no suggestions could be generated
-          setNotesError(
-            "Could not generate suggestions for this content. Please report this issue to GitHub.",
-          )
-          setCurrentlyGeneratingDateKey(null)
+          dispatch({
+            type: "SET_NOTES_ERROR",
+            error:
+              "Could not generate suggestions for this content. Please report this issue to GitHub.",
+          })
+          dispatch({ type: "SET_CURRENT_GENERATING_DATE_KEY", dateKey: null })
         } else {
           // Save the reasoning content to be associated with the notes later
           const reasoningData = {
@@ -1007,7 +857,7 @@ export const NotesPanel = memo(function NotesPanel({
             numSuggestions: numSuggestions,
           }
           dispatch({ type: "ADD_REASONING_HISTORY", reasoning: reasoningData })
-          setNotesError(null)
+          dispatch({ type: "SET_NOTES_ERROR", error: null })
         }
 
         return {
@@ -1019,15 +869,15 @@ export const NotesPanel = memo(function NotesPanel({
       } catch (error: any) {
         // Catch specific error type
         const errorMsg = `Notes not available: ${error.message || "Unknown error"}`
-        setNotesError(errorMsg)
-        setReasoningComplete(true)
-        setCurrentlyGeneratingDateKey(null)
+        dispatch({ type: "SET_NOTES_ERROR", error: errorMsg })
+        dispatch({ type: "SET_REASONING_COMPLETE", complete: true })
+        dispatch({ type: "SET_CURRENT_GENERATING_DATE_KEY", dateKey: null })
 
         // Ensure we return a rejected promise
         return Promise.reject(error)
       }
     },
-    [droppedNotes],
+    [notes, droppedNotes, currentGenerationNotes, dispatch],
   )
 
   // Check if notes were recently generated (within the last 5 minutes)
@@ -1040,11 +890,10 @@ export const NotesPanel = memo(function NotesPanel({
   const generateNewSuggestions = useCallback(
     async (steeringSettings: SteeringSettings) => {
       if (!vaultId || !fileId || !markdownContent) {
-        console.log("[Notes Debug] Cannot generate suggestions - missing vault, file or content")
         return
       }
 
-      console.log(`[Notes Debug] Starting to generate new suggestions with settings:`, {
+      console.log(`[NotesPanel] Starting to generate new suggestions with settings:`, {
         numSuggestions: steeringSettings.numSuggestions,
         hasAuthors: !!steeringSettings.authors,
         temperature: steeringSettings.temperature,
@@ -1052,43 +901,37 @@ export const NotesPanel = memo(function NotesPanel({
       })
 
       // Move current generation notes to history by adding them to notes array
-      if (currentGenerationNotes.length > 0) {
+      if (currentGenerationNotes && currentGenerationNotes.length > 0) {
         console.log(
-          `[Notes Debug] Moving ${currentGenerationNotes.length} current generation notes to history`,
+          `[NotesPanel] Moving ${currentGenerationNotes.length} current generation notes to history`,
         )
-        // First ensure the current notes are in the main notes array (if they aren't already)
-        setNotes((prev: Note[]) => {
-          // Filter out any notes that might already exist in the array
-          const notesToAdd = currentGenerationNotes.filter(
-            (note) => !prev.some((existingNote: Note) => existingNote.id === note.id),
-          )
 
-          if (notesToAdd.length === 0) return prev
+        // Filter out any notes that might already exist in the array
+        const notesToAdd = currentGenerationNotes.filter(
+          (note) => !notes.some((existingNote: Note) => existingNote.id === note.id),
+        )
 
-          console.log(`[Notes Debug] Adding ${notesToAdd.length} notes to main notes array`)
-          // Add to notes and sort
-          const combined = [...notesToAdd, ...prev]
-          return combined.sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-          )
-        })
+        if (notesToAdd.length > 0) {
+          console.log(`[NotesPanel] Adding ${notesToAdd.length} notes to main notes array`)
+          dispatch({ type: "ADD_NOTES", notes: notesToAdd })
+        }
       }
 
       // Clear current generation notes before starting new generation
-      setCurrentGenerationNotes([])
-      setNotesError(null)
-      // Update loading state via setState
-      setIsNotesLoading(true)
-      setStreamingReasoning("")
-      setReasoningComplete(false)
+      dispatch({ type: "SET_CURRENT_GENERATION_NOTES", notes: [] })
+      dispatch({ type: "SET_NOTES_ERROR", error: null })
+      // Update loading state
+      dispatch({ type: "SET_IS_NOTES_LOADING", loading: true })
+      dispatch({ type: "SET_STREAMING_REASONING", reasoning: "" })
+      dispatch({ type: "SET_REASONING_COMPLETE", complete: false })
       setStreamingSuggestionColors([])
-      setScanAnimationComplete(false) // Reset scan animation state
-      setLastNotesGeneratedTime(new Date())
+      dispatch({ type: "SET_SCAN_ANIMATION_COMPLETE", complete: false }) // Reset scan animation state
+      dispatch({ type: "SET_LAST_NOTES_GENERATED_TIME", time: new Date() })
       const now = new Date()
       const seconds = now.getSeconds()
       const interval = Math.floor(seconds / 15) * 15
       const dateKey = `${now.toDateString()}-${now.getHours()}-${now.getMinutes()}-${interval}`
-      setCurrentlyGeneratingDateKey(dateKey)
+      dispatch({ type: "SET_CURRENT_GENERATING_DATE_KEY", dateKey })
 
       try {
         // First, find or create the file in the database to ensure proper ID reference
@@ -1098,23 +941,22 @@ export const NotesPanel = memo(function NotesPanel({
           // Only query the database if we don't have a dbFile from props
           currentDbFile =
             (await db.query.files.findFirst({
-              where: (files, { and, eq }) =>
-                and(eq(files.id, fileId), eq(files.vaultId, vaultId || "")),
+              where: (files, { and, eq }) => and(eq(files.id, fileId), eq(files.vaultId, vaultId)),
             })) || null
 
-          console.log(`[Notes Debug] Found file in DB: ${currentDbFile?.id || "not found"}`)
+          console.log(`[NotesPanel] Found file in DB: ${currentDbFile?.id || "not found"}`)
         } else {
-          console.log(`[Notes Debug] Using existing file from props: ${currentDbFile.id}`)
+          console.log(`[NotesPanel] Using existing file from props: ${currentDbFile.id}`)
         }
 
         if (!currentDbFile) {
           if (!currentFileHandle) {
-            console.error("[Notes Debug] No file handle available to create DB entry")
+            console.error("[NotesPanel] No file handle available to create DB entry")
             throw new Error("No file handle available")
           }
 
           console.log(
-            `[Notes Debug] File not found in DB, creating new file entry for ${currentFileHandle.name}`,
+            `[NotesPanel] File not found in DB, creating new file entry for ${currentFileHandle.name}`,
           )
           // Insert file into database
           await db.insert(schema.files).values({
@@ -1135,7 +977,7 @@ export const NotesPanel = memo(function NotesPanel({
           if (!currentDbFile) {
             throw new Error("Failed to create file in database")
           }
-          console.log(`[Notes Debug] Created new file in DB with ID: ${currentDbFile.id}`)
+          console.log(`[NotesPanel] Created new file in DB with ID: ${currentDbFile.id}`)
 
           // Update local state with the new file
           setDbFile(currentDbFile)
@@ -1143,7 +985,7 @@ export const NotesPanel = memo(function NotesPanel({
 
         try {
           // Now that we have the file, generate the suggestions
-          console.log(`[Notes Debug] Fetching new notes from API`)
+          console.log(`[NotesPanel] Fetching new notes from API`)
           const { generatedNotes, reasoningId, reasoningElapsedTime, reasoningContent } =
             await fetchNewNotes(
               markdownContent,
@@ -1160,7 +1002,7 @@ export const NotesPanel = memo(function NotesPanel({
             )
 
           console.log(
-            `[Notes Debug] Received ${generatedNotes.length} generated notes with reasoning ID: ${reasoningId}`,
+            `[NotesPanel] Received ${generatedNotes.length} generated notes with reasoning ID: ${reasoningId}`,
           )
 
           const newNoteIds: string[] = []
@@ -1209,13 +1051,13 @@ export const NotesPanel = memo(function NotesPanel({
           // Only save if the file is not null and we have notes to save
           if (fileId && newNotes.length > 0) {
             try {
-              console.log(`[Notes Debug] Saving reasoning with ID ${reasoningId} to DB`)
+              console.log(`[NotesPanel] Saving reasoning with ID ${reasoningId} to DB`)
               // Use Promise.all to save reasoning and notes concurrently
               await Promise.all([
                 // Ensure reasoningRecordToSave matches the schema expectations
                 db.insert(schema.reasonings).values(reasoningRecordToSave),
                 ...newNotes.map((note) => {
-                  console.log(`[Notes Debug] Saving note ${note.id} to DB`)
+                  console.log(`[NotesPanel] Saving note ${note.id} to DB`)
                   return db.insert(schema.notes).values({
                     id: note.id,
                     content: note.content,
@@ -1233,11 +1075,10 @@ export const NotesPanel = memo(function NotesPanel({
                 }),
               ])
 
-              console.log(`[Notes Debug] Saving ${newNotes.length} new notes to DB`)
-              console.log(`[Notes Debug] Notes and reasoning saved successfully.`)
+              console.log(`[NotesPanel] Saving ${newNotes.length} new notes to DB`)
+              console.log(`[NotesPanel] Notes and reasoning saved successfully.`)
 
               // **Update UI state AFTER successful DB operations**
-              // Fix: Ensure the object matches ReasoningHistory type
               dispatch({
                 type: "ADD_REASONING_HISTORY",
                 reasoning: {
@@ -1247,20 +1088,15 @@ export const NotesPanel = memo(function NotesPanel({
                 },
               })
 
-              setNotes((prev: Note[]) => {
-                const combined = [...newNotes, ...prev]
-                return combined.sort(
-                  (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-                )
-              })
+              dispatch({ type: "ADD_NOTES", notes: newNotes })
 
               // Set current generation notes for UI
-              setCurrentGenerationNotes(newNotes)
+              dispatch({ type: "SET_CURRENT_GENERATION_NOTES", notes: newNotes })
 
-              console.log(`[Notes Debug] Processing embeddings for ${newNotes.length} new notes`)
+              console.log(`[NotesPanel] Processing embeddings for ${newNotes.length} new notes`)
               // Submit each note for embedding individually and track task IDs for polling
               for (const note of newNotes) {
-                console.log(`[Notes Debug] Submitting note ${note.id} for embedding`)
+                console.log(`[NotesPanel] Submitting note ${note.id} for embedding`)
                 const result = await submitNoteForEmbedding(db, note)
 
                 // If successful and we have a task ID, add it for polling
@@ -1276,15 +1112,15 @@ export const NotesPanel = memo(function NotesPanel({
                   if (updatedNote?.embeddingTaskId) {
                     addTask(updatedNote.embeddingTaskId)
                     console.log(
-                      `[Notes Debug] Added embedding task ${updatedNote.embeddingTaskId} for note ${note.id}`,
+                      `[NotesPanel] Added embedding task ${updatedNote.embeddingTaskId} for note ${note.id}`,
                     )
                   } else {
                     console.log(
-                      `[Notes Debug] Note ${note.id} has no embedding task ID after submission`,
+                      `[NotesPanel] Note ${note.id} has no embedding task ID after submission`,
                     )
                   }
                 } else {
-                  console.log(`[Notes Debug] Failed to submit note ${note.id} for embedding`)
+                  console.log(`[NotesPanel] Failed to submit note ${note.id} for embedding`)
                 }
               }
 
@@ -1298,18 +1134,13 @@ export const NotesPanel = memo(function NotesPanel({
             } catch (dbError) {
               console.error("Failed to save notes to database:", dbError)
               // Still show notes in UI even if DB fails
-              console.log(`[Notes Debug] Showing notes in UI despite DB save failure`)
-              setCurrentGenerationNotes(newNotes)
-              setNotes((prev: Note[]) => {
-                const combined = [...newNotes, ...prev]
-                return combined.sort(
-                  (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-                )
-              })
+              console.log(`[NotesPanel] Showing notes in UI despite DB save failure`)
+              dispatch({ type: "SET_CURRENT_GENERATION_NOTES", notes: newNotes })
+              dispatch({ type: "ADD_NOTES", notes: newNotes })
             }
           } else {
             // For unsaved files, just display in UI without saving to DB
-            console.log(`[Notes Debug] Displaying ephemeral notes for unsaved file`)
+            console.log(`[NotesPanel] Displaying ephemeral notes for unsaved file`)
             // Update UI immediately for ephemeral notes
             dispatch({
               type: "ADD_REASONING_HISTORY",
@@ -1319,28 +1150,24 @@ export const NotesPanel = memo(function NotesPanel({
                 reasoningElapsedTime: reasoningRecordToSave.duration,
               },
             })
-            setCurrentGenerationNotes(newNotes)
-            setNotes((prev: Note[]) => {
-              const combined = [...newNotes, ...prev]
-              return combined.sort(
-                (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-              )
-            })
+            dispatch({ type: "SET_CURRENT_GENERATION_NOTES", notes: newNotes })
+            dispatch({ type: "ADD_NOTES", notes: newNotes })
           }
         } catch (error: any) {
           const errorMessage =
             error.message || "Notes not available for this generation, try again later"
-          setNotesError(errorMessage)
-          setCurrentlyGeneratingDateKey(null)
-          console.error(`[Notes Debug] Failed to generate notes: ${errorMessage}`, error)
+          dispatch({ type: "SET_NOTES_ERROR", error: errorMessage })
+          dispatch({ type: "SET_CURRENT_GENERATING_DATE_KEY", dateKey: null })
+          console.error(`[NotesPanel] Failed to generate notes: ${errorMessage}`, error)
         } finally {
-          setIsNotesLoading(false)
+          dispatch({ type: "SET_IS_NOTES_LOADING", loading: false })
         }
       } catch (error) {
-        console.error("[Notes Debug] Error in generateNewSuggestions:", error)
+        console.error("[NotesPanel] Error in generateNewSuggestions:", error)
       }
     },
     [
+      notes,
       vaultId,
       fileId,
       fetchNewNotes,
@@ -1351,6 +1178,7 @@ export const NotesPanel = memo(function NotesPanel({
       streamingSuggestionColors,
       currentFileHandle,
       dbFile,
+      dispatch,
     ],
   )
 
@@ -1360,22 +1188,6 @@ export const NotesPanel = memo(function NotesPanel({
       prevSettingsRef.current = settings
     }
   }, [settings])
-
-  // Add effect to update fileId in steering context when it changes
-  useEffect(() => {
-    // Skip for non-persisted files
-    if (!fileId) {
-      updateFileId(null)
-      currentFileIdRef.current = null
-      return
-    }
-
-    // Find the file ID from notes array
-    if (notes.length > 0 && notes[0].fileId && currentFileIdRef.current !== notes[0].fileId) {
-      currentFileIdRef.current = notes[0].fileId
-      updateFileId(notes[0].fileId)
-    }
-  }, [notes, updateFileId, fileId])
 
   const [{ isOver }, drop] = useDrop(
     () => ({
@@ -1400,22 +1212,22 @@ export const NotesPanel = memo(function NotesPanel({
     [drop],
   )
 
-  const handleCurrentGenerationNote = useCallback((note: Note) => {
-    // Remove from current generation notes
-    setCurrentGenerationNotes((prev) => prev.filter((n) => n.id !== note.id))
+  const handleCurrentGenerationNote = useCallback(
+    (note: Note) => {
+      // Remove from current generation notes
+      if (currentGenerationNotes) {
+        const updatedNotes = currentGenerationNotes.filter((n) => n.id !== note.id)
+        dispatch({ type: "SET_CURRENT_GENERATION_NOTES", notes: updatedNotes })
+      }
 
-    // Ensure the note is in the main notes array if it's not already
-    setNotes((prev) => {
-      // Check if note already exists in notes array
-      if (prev.some((existingNote) => existingNote.id === note.id)) return prev
-
-      // Add to notes and sort
-      const combined = [...prev, note]
-      return combined.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      )
-    })
-  }, [])
+      // Ensure the note is in the main notes array if it's not already
+      if (!notes.some((existingNote) => existingNote.id === note.id)) {
+        // Add note to the array
+        dispatch({ type: "ADD_NOTES", notes: [note] })
+      }
+    },
+    [dispatch, currentGenerationNotes, notes],
+  )
 
   return (
     <div
@@ -1515,13 +1327,12 @@ export const NotesPanel = memo(function NotesPanel({
                     )}
                 </div>
               )}
-
             <HistoricalNotes
               fileId={fileId}
-              noteGroupsData={noteGroupsData}
-              reasoningHistory={contextReasoningHistory}
+              reasoningHistory={reasoningHistory}
               handleNoteDropped={handleNoteDropped}
               handleNoteRemoved={handleNoteRemoved}
+              noteGroupsData={noteGroupsData}
               vaultId={vaultId}
               notesContainerRef={notesContainerRef}
             />

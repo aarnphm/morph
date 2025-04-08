@@ -23,6 +23,7 @@ export type NotesAction =
   | { type: "SET_CURRENT_VAULT_ID"; vaultId: string | null }
   | { type: "SET_REASONING_HISTORY"; reasoningHistory: ReasoningHistory[] }
   | { type: "ADD_REASONING_HISTORY"; reasoning: ReasoningHistory }
+  | { type: "SET_CURRENT_REASONING_ID"; reasoningId: string }
   | { type: "SET_CURRENT_GENERATING_DATE_KEY"; dateKey: string | null }
   | { type: "SET_STREAMING_NOTES"; streamingNotes: StreamingNote[] }
   | { type: "SET_STREAMING_REASONING"; reasoning: string }
@@ -33,6 +34,7 @@ export type NotesAction =
   | { type: "SET_NOTES_ERROR"; error: string | null }
   | { type: "SET_LAST_NOTES_GENERATED_TIME"; time: Date | null }
   | { type: "SET_DB_FILE"; dbFile: typeof schema.files.$inferSelect | null }
+  | { type: "FORCE_REFRESH" }
 
 // Define the state interface for the notes reducer
 export interface NotesState {
@@ -45,6 +47,7 @@ export interface NotesState {
   streamingNotes: StreamingNote[]
   streamingReasoning: string
   currentGenerationNotes: Note[]
+  currentReasoningId: string
   reasoningComplete: boolean
   scanAnimationComplete: boolean
   isNotesLoading: boolean
@@ -64,6 +67,7 @@ export const initialNotesState: NotesState = {
   streamingNotes: [],
   streamingReasoning: "",
   currentGenerationNotes: [],
+  currentReasoningId: "",
   reasoningComplete: false,
   scanAnimationComplete: false,
   isNotesLoading: false,
@@ -125,6 +129,7 @@ export function notesReducer(state: NotesState, action: NotesAction): NotesState
         streamingNotes: [],
         streamingReasoning: "",
         currentGenerationNotes: [],
+        currentReasoningId: "",
         reasoningComplete: false,
         scanAnimationComplete: false,
         isNotesLoading: false,
@@ -134,6 +139,11 @@ export function notesReducer(state: NotesState, action: NotesAction): NotesState
       return {
         ...state,
         currentFileId: action.fileId,
+      }
+    case "SET_CURRENT_REASONING_ID":
+      return {
+        ...state,
+        currentReasoningId: action.reasoningId,
       }
     case "SET_CURRENT_VAULT_ID":
       return {
@@ -211,7 +221,6 @@ interface NotesContextType {
   dispatch: React.Dispatch<NotesAction>
   handleNoteDropped: (note: Note) => Promise<void>
   handleNoteRemoved: (noteId: string) => void
-  handleNoteDragBackToPanel: (noteId: string) => Promise<void>
   loadFileMetadata: (fileId: string) => Promise<void>
   updateDbFile: (fileId: string | null) => Promise<typeof schema.files.$inferSelect | null>
 }
@@ -236,7 +245,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       try {
         const file = await db.query.files.findFirst({
           where: (files, { and, eq }) =>
-            and(eq(files.id, fileId), eq(files.vaultId, state.currentVaultId)),
+            and(eq(files.id, fileId), eq(files.vaultId, state.currentVaultId!)),
         })
 
         dispatch({ type: "SET_DB_FILE", dbFile: file || null })
@@ -305,7 +314,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
             // Load reasoning history for this file
             const reasoningRecords = await db.query.reasonings.findMany({
               where: (reasoning, { and, eq }) =>
-                and(eq(reasoning.fileId, dbFile.id), eq(reasoning.vaultId, state.currentVaultId)),
+                and(eq(reasoning.fileId, dbFile.id), eq(reasoning.vaultId, state.currentVaultId!)),
             })
 
             if (reasoningRecords && reasoningRecords.length > 0) {
@@ -343,7 +352,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const handleNoteDropped = useCallback(
     async (note: Note) => {
       if (!state.currentFileId || !state.currentVaultId) return
-      console.debug(`[Notes Debug] Handling note drop for note ${note.id}`)
+      console.debug(`[NotesContext] Handling note drop for note ${note.id}`)
 
       // Ensure note has a color if it doesn't already
       const droppedNote: Note = {
@@ -380,7 +389,6 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
         console.debug(`[Notes Debug] Successfully updated note ${note.id} as dropped in DB`)
       } catch (error) {
         console.error("Failed to update note dropped status:", error)
-        // Rollback or handle error
       }
     },
     [db, state.currentFileId, state.currentVaultId, state.dbFile, updateDbFile],
@@ -390,59 +398,6 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const handleNoteRemoved = useCallback((noteId: string) => {
     dispatch({ type: "REMOVE_NOTE", noteId })
   }, [])
-
-  // Handle dragging a dropped note back to the notes panel
-  const handleNoteDragBackToPanel = useCallback(
-    async (noteId: string) => {
-      // Find the note in the droppedNotes
-      const note = state.droppedNotes.find((n) => n.id === noteId)
-      if (!note) {
-        console.error(`Note with ID ${noteId} not found in droppedNotes`)
-        return
-      }
-
-      // Update the note to indicate it's no longer dropped
-      const undropNote = {
-        ...note,
-        dropped: false,
-        lastModified: new Date(),
-        // Preserve embedding status
-        embeddingStatus: note.embeddingStatus || "success",
-        embeddingTaskId: note.embeddingTaskId,
-      }
-
-      // Remove from droppedNotes state
-      dispatch({ type: "REMOVE_DROPPED_NOTE", noteId })
-
-      try {
-        // Ensure we have a valid dbFile
-        const dbFile = state.dbFile || (await updateDbFile(state.currentFileId))
-        if (!dbFile) {
-          console.error("DB file not found when trying to move note back to panel")
-          return
-        }
-
-        // Update the database
-        await db
-          .update(schema.notes)
-          .set({
-            dropped: false,
-            accessedAt: new Date(),
-            fileId: dbFile.id,
-            // Preserve existing embedding values
-            embeddingStatus: undropNote.embeddingStatus,
-            embeddingTaskId: undropNote.embeddingTaskId,
-          })
-          .where(eq(schema.notes.id, noteId))
-
-        // Add back to main notes collection
-        dispatch({ type: "ADD_NOTES", notes: [undropNote] })
-      } catch (error) {
-        console.error("Failed to update note status:", error)
-      }
-    },
-    [db, state.currentFileId, state.dbFile, state.droppedNotes, updateDbFile],
-  )
 
   // Set current file and vault IDs, and clear notes when they change
   useEffect(() => {
@@ -490,7 +445,6 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
         dispatch,
         handleNoteDropped,
         handleNoteRemoved,
-        handleNoteDragBackToPanel,
         loadFileMetadata,
         updateDbFile,
       }}

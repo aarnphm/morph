@@ -1,7 +1,6 @@
 "use client"
 
 import { cn, toJsx } from "@/lib"
-import { generatePastelColor } from "@/lib/notes"
 import { groupNotesByDate } from "@/lib/notes"
 import { checkFileHasEmbeddings, useProcessPendingEssayEmbeddings } from "@/services/essays"
 import { logNotesForFile } from "@/services/notes"
@@ -124,7 +123,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const readingModeRef = useRef<HTMLDivElement>(null)
   const [showNotes, setShowNotes] = useState(false)
   const [markdownContent, setMarkdownContent] = useState<string>("")
-  const notesContainerRef = useRef<HTMLDivElement>(null)
   const [isStackExpanded, setIsStackExpanded] = useState(false)
   const [vimMode, setVimMode] = useState(settings.vimMode ?? false)
   // Add a ref to track if we've already attempted to restore a file
@@ -136,11 +134,10 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   // Use the notes context instead of local state
   const {
-    state: { notes, droppedNotes, currentFileId, dbFile: dbFileState },
+    state: { droppedNotes, notes, currentGenerationNotes, currentFileId, dbFile: dbFileState },
     dispatch,
     handleNoteDropped,
     handleNoteRemoved,
-    handleNoteDragBackToPanel,
     loadFileMetadata,
     updateDbFile,
   } = useNotesContext()
@@ -222,18 +219,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         return false
       }
     },
-    [debouncedUpdatePreview],
+    [debouncedUpdatePreview, dispatch],
   )
-
-  // Use the updateDbFile from context instead of defining it locally
-
-  // Use loadFileMetadata from context instead of defining it locally
 
   const toggleNotes = useCallback(() => {
     setShowNotes(!showNotes)
   }, [showNotes])
-
-  // Use handleNoteDropped from context instead of defining it locally
 
   const handleSave = useCallback(async () => {
     try {
@@ -356,6 +347,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       console.error("Error saving file:", error)
     }
   }, [
+    dispatch,
     setRestoredFile,
     currentFileHandle,
     markdownContent,
@@ -368,6 +360,59 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     updateContentRef,
     loadFileMetadata,
   ])
+
+  // Handle dragging a dropped note back to the panel
+  const handleNoteDragBackToPanel = useCallback(
+    async (noteId: string) => {
+      // Find the note in the droppedNotes
+      const note = droppedNotes.find((n) => n.id === noteId)
+      if (!note) {
+        console.error(`Note with ID ${noteId} not found in droppedNotes`)
+        return
+      }
+
+      // Update the note to indicate it's no longer dropped
+      const undropNote = {
+        ...note,
+        dropped: false,
+        lastModified: new Date(),
+        // Preserve embedding status
+        embeddingStatus: note.embeddingStatus || "in_progress",
+        embeddingTaskId: note.embeddingTaskId,
+      }
+
+      // Remove from droppedNotes state
+      dispatch({ type: "REMOVE_DROPPED_NOTE", noteId })
+
+      try {
+        // Ensure we have a valid dbFile
+        const dbFile = dbFileState || (await updateDbFile(currentFileId))
+        if (!dbFile) {
+          console.error("DB file not found when trying to move note back to panel")
+          return
+        }
+
+        // Update the database
+        await db
+          .update(schema.notes)
+          .set({
+            dropped: false,
+            accessedAt: new Date(),
+            fileId: dbFile.id,
+            // Preserve existing embedding values
+            embeddingStatus: undropNote.embeddingStatus,
+            embeddingTaskId: undropNote.embeddingTaskId,
+          })
+          .where(eq(schema.notes.id, noteId))
+
+        // Add back to main notes collection
+        dispatch({ type: "ADD_NOTES", notes: [undropNote] })
+      } catch (error) {
+        console.error("Failed to update note status:", error)
+      }
+    },
+    [droppedNotes, db, currentFileId, dbFileState, dispatch, updateDbFile],
+  )
 
   const baseExtensions = useMemo(() => {
     const tabSize = new Compartment()
@@ -439,18 +484,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const toggleSettings = useCallback(() => {
     setIsSettingsOpen((prev) => !prev)
   }, [])
-
-  // Use handleNoteRemoved from context instead of defining it locally
-
-  // Memoize dropped notes to prevent unnecessary re-renders
-  const memoizedDroppedNotes = useMemo(() => {
-    return droppedNotes.map((note) => ({
-      ...note,
-      color: note.color || generatePastelColor(),
-    }))
-  }, [droppedNotes])
-
-  // Use handleNoteDragBackToPanel from context instead of defining it locally
 
   const handleFileSelect = useCallback(
     async (node: FileSystemTreeNode) => {
@@ -580,6 +613,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       }
     },
     [
+      dispatch,
       vault,
       vaultId,
       loadFileContent,
@@ -716,6 +750,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       }
     }
   }, [
+    dispatch,
     vaultId,
     restoredFile,
     loadFileContent,
@@ -826,6 +861,20 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
   }, [vimMode, baseExtensions])
 
+  const noteGroupsData = useMemo(() => {
+    // Filter out current generation notes and dropped notes
+    const currentGenerationNoteIds = new Set(currentGenerationNotes.map((note) => note.id))
+    const droppedNoteIds = new Set(droppedNotes.map((note) => note.id))
+
+    // Filter out both current generation notes and dropped notes
+    const filteredNotes = notes.filter(
+      (note) =>
+        !currentGenerationNoteIds.has(note.id) && !droppedNoteIds.has(note.id) && !note.dropped,
+    )
+
+    return groupNotesByDate(filteredNotes)
+  }, [droppedNotes, notes, currentGenerationNotes])
+
   return (
     <DndProvider backend={HTML5Backend}>
       <SteeringProvider>
@@ -916,7 +965,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
                 <EditorDropTarget handleNoteDropped={handleNoteDropped}>
                   <DroppedNoteGroup
-                    droppedNotes={memoizedDroppedNotes}
+                    droppedNotes={droppedNotes}
                     isStackExpanded={isStackExpanded}
                     onExpandStack={toggleStackExpand}
                     onDragBackToPanel={handleNoteDragBackToPanel}
@@ -935,15 +984,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   <div className="absolute top-2 left-2 text-sm/7 z-10 flex flex-col items-start justify-self gap-2">
                     {hasUnsavedChanges && <DotIcon className="text-yellow-200" />}
                   </div>
-                  {vault && currentFileId !== null && memoizedDroppedNotes.length > 0 && (
+                  {droppedNotes.length > 0 && (
                     <ContextNotes
                       className={`${isEditMode ? "block" : "hidden"}`}
                       editorViewRef={codeMirrorViewRef}
                       readingModeRef={readingModeRef}
-                      droppedNotes={memoizedDroppedNotes}
                       isEditMode={isEditMode}
-                      fileId={currentFileId}
-                      vaultId={vaultId}
                       onVisibleNotesChange={handleVisibleContextNotesChange}
                     />
                   )}
@@ -979,19 +1025,17 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     </div>
                   </div>
                 </EditorDropTarget>
-                {showNotes && vault && currentFileId !== null && dbFileState !== null && (
+                {showNotes && (
                   <div
-                    ref={notesContainerRef}
                     className={cn("flex flex-col", showNotes ? "w-88 visible" : "w-0 hidden")}
                   >
                     <NotesPanel
-                      notes={notes}
-                      droppedNotes={droppedNotes}
-                      fileId={currentFileId}
-                      vaultId={vault.id}
                       handleNoteDropped={handleNoteDropped}
                       handleNoteRemoved={handleNoteRemoved}
-                      notesContainerRef={notesContainerRef}
+                      noteGroupsData={noteGroupsData}
+                      droppedNotes={droppedNotes}
+                      fileId={currentFileId!}
+                      vaultId={vaultId}
                       markdownContent={markdownContent}
                       currentFileHandle={currentFileHandle}
                       dbFile={dbFileState}

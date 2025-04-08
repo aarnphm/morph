@@ -35,8 +35,6 @@ export interface SteeringSettings {
 
 interface SteeringContextType {
   settings: SteeringSettings
-  fileId: string | null
-  updateFileId: (fileId: string | null) => void
   updateAuthors: (authors: string[]) => void
   updateTonality: (tonality: Record<string, number>) => void
   updateTemperature: (temperature: number) => void
@@ -51,7 +49,6 @@ interface SteeringProviderProps {
 }
 
 export function SteeringProvider({ children }: SteeringProviderProps) {
-  const [fileId, setFileId] = useState<string | null>(null)
   const [settings, setSettings] = useState<SteeringSettings>({
     authors: [...DEFAULT_AUTHORS], // Start with default authors
     tonality: { ...DEFAULT_TONALITY }, // Create a new object to avoid reference issues
@@ -79,10 +76,6 @@ export function SteeringProvider({ children }: SteeringProviderProps) {
     },
     [],
   )
-
-  const updateFileId = useCallback((id: string | null) => {
-    setFileId(id)
-  }, [])
 
   const updateAuthors = useCallback(
     (authors: string[]) => {
@@ -121,8 +114,6 @@ export function SteeringProvider({ children }: SteeringProviderProps) {
 
   const value = {
     settings,
-    fileId,
-    updateFileId,
     updateAuthors,
     updateTonality,
     updateTemperature,

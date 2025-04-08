@@ -9,15 +9,13 @@ import { useDebouncedCallback } from "use-debounce"
 
 import { NoteCard } from "@/components/note-card"
 
-import type { Note } from "@/db/interfaces"
+import { useNotesContext } from "@/context/notes"
+
 
 interface ContextNotesProps extends React.HTMLAttributes<HTMLDivElement> {
   editorViewRef: React.RefObject<EditorView | null>
   readingModeRef: React.RefObject<HTMLDivElement | null>
-  droppedNotes: Note[]
   isEditMode: boolean
-  fileId: string
-  vaultId: string
   onVisibleNotesChange?: (visibleNoteIds: string[]) => void
 }
 
@@ -25,13 +23,13 @@ export default memo(function ContextNotes({
   className,
   editorViewRef,
   readingModeRef,
-  droppedNotes,
   isEditMode,
-  fileId,
-  vaultId,
   onVisibleNotesChange,
   ...props
 }: ContextNotesProps) {
+  // Get state from NotesContext instead of props
+  const { state: { droppedNotes, currentFileId, currentVaultId } } = useNotesContext();
+
   const [visibleContextNotes, setVisibleContextNotes] = useState<ContextNote[]>([])
   const [visibleLines, setVisibleLines] = useState<{ start: number; end: number }>({
     start: 0,
@@ -44,11 +42,15 @@ export default memo(function ContextNotes({
 
   // Track if we've already loaded notes for this combination
   const loadedRef = useRef<boolean>(false)
-  const previousFileIdRef = useRef<string>(fileId)
+  const previousFileIdRef = useRef<string | null>(currentFileId)
   const previousNoteIdsRef = useRef<string[]>(noteIds)
 
-  // Use our context notes hook
-  const { getSimilarNotes } = useContextAwareNotes(fileId, vaultId, noteIds)
+  // Use our context notes hook with currentFileId and currentVaultId from context
+  const { getSimilarNotes } = useContextAwareNotes(
+    currentFileId || "",
+    currentVaultId || "",
+    noteIds
+  )
 
   // Context notes data - cached until fileId, vaultId, or noteIds change
   const [contextNotes, setContextNotes] = useState<ContextNote[]>([])
@@ -135,11 +137,11 @@ export default memo(function ContextNotes({
   // Load context notes data when dependencies change
   useEffect(() => {
     // Only reload if the file ID changed or notes changed
-    const fileChanged = previousFileIdRef.current !== fileId
+    const fileChanged = previousFileIdRef.current !== currentFileId
     const notesChanged = haveNoteIdsChanged()
 
     // Skip loading if we don't have needed data
-    if (!fileId || !vaultId || noteIds.length === 0) {
+    if (!currentFileId || !currentVaultId || noteIds.length === 0) {
       loadedRef.current = false
       return
     }
@@ -147,7 +149,7 @@ export default memo(function ContextNotes({
     // Reduce unnecessary loads - only load on initial mount or when data changes
     if (!loadedRef.current || fileChanged || notesChanged) {
       loadedRef.current = true
-      previousFileIdRef.current = fileId
+      previousFileIdRef.current = currentFileId
       previousNoteIdsRef.current = [...noteIds]
 
       const loadContextNotes = async () => {
@@ -162,12 +164,9 @@ export default memo(function ContextNotes({
         }
       }
 
-      const timeout = setTimeout(() => {
-        loadContextNotes()
-      }, 200)
-      return () => clearTimeout(timeout)
+      loadContextNotes()
     }
-  }, [fileId, vaultId, noteIds, getSimilarNotes, updateVisibleLines, haveNoteIdsChanged])
+  }, [currentFileId, currentVaultId, noteIds, getSimilarNotes, updateVisibleLines, haveNoteIdsChanged])
 
   // Set up scroll listeners
   useEffect(() => {
@@ -201,8 +200,8 @@ export default memo(function ContextNotes({
     }
   }, [visibleContextNotes, onVisibleNotesChange])
 
-  // No visible notes, no render
-  if (visibleContextNotes.length === 0) {
+  // No visible notes or no dropped notes, no render
+  if (visibleContextNotes.length === 0 || droppedNotes.length === 0) {
     // Don't call onVisibleNotesChange here - that's done in the effect above
     return null
   }
@@ -276,7 +275,7 @@ export default memo(function ContextNotes({
               <div className="bg-green-500/80 text-white px-2 py-1 rounded text-xs z-50 my-4">
                 {contextNotes.length} context matches found
               </div>
-              <div>File ID: {fileId}</div>
+              <div>File ID: {currentFileId || "none"}</div>
               <div>
                 Notes: {noteIds.length} (with {contextNotes.length} matches)
               </div>
