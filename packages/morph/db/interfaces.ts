@@ -125,3 +125,23 @@ export interface Reasoning {
   duration: number
   steering: Steering
 }
+
+export interface StreamingNote {
+  id: string
+  content: string
+  color: string
+  isComplete: boolean
+  isScanComplete?: boolean
+}
+
+export interface ReasoningHistory {
+  id: string
+  content: string
+  timestamp: Date
+  noteIds: string[]
+  reasoningElapsedTime: number
+  authors?: string[]
+  tonality?: Record<string, number>
+  temperature?: number
+  numSuggestions?: number
+}

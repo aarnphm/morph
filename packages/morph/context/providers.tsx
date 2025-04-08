@@ -14,6 +14,7 @@ import { AuthorTasksProvider } from "@/context/authors"
 import { MorphPgLite, PGliteProvider } from "@/context/db"
 import { EmbeddingProvider } from "@/context/embedding"
 import { FileRestorationProvider, useRestoredFile } from "@/context/file-restoration"
+import { NotesProvider } from "@/context/notes"
 import { ThemeProvider } from "@/context/theme"
 import { VaultProvider } from "@/context/vault"
 import { verifyHandle } from "@/context/vault-reducer"
@@ -190,7 +191,9 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
                             enableSystem
                             disableTransitionOnChange
                           >
-                            {children}
+                            <NotesProvider>
+                              {children}
+                            </NotesProvider>
                           </ThemeProvider>
                         </SettingsProvider>
                       </VaultProvider>

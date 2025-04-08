@@ -4,7 +4,7 @@ import { cn, toJsx } from "@/lib"
 import { generatePastelColor } from "@/lib/notes"
 import { groupNotesByDate } from "@/lib/notes"
 import { checkFileHasEmbeddings, useProcessPendingEssayEmbeddings } from "@/services/essays"
-import { logNotesForFile, useProcessPendingEmbeddings } from "@/services/notes"
+import { logNotesForFile } from "@/services/notes"
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
@@ -47,8 +47,8 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 import { usePGlite } from "@/context/db"
 import { useEssayEmbeddingTasks } from "@/context/embedding"
-import { useEmbeddingTasks } from "@/context/embedding"
 import { useRestoredFile } from "@/context/file-restoration"
+import { useNotesContext } from "@/context/notes"
 import { SearchProvider } from "@/context/search"
 import { SteeringProvider } from "@/context/steering"
 import { useVaultContext } from "@/context/vault"
@@ -58,7 +58,7 @@ import useFsHandles from "@/hooks/use-fs-handles"
 import usePersistedSettings from "@/hooks/use-persisted-settings"
 
 import type { Settings } from "@/db/interfaces"
-import type { FileSystemTreeNode, Note, Vault } from "@/db/interfaces"
+import type { FileSystemTreeNode, Vault } from "@/db/interfaces"
 import * as schema from "@/db/schema"
 
 interface EditorProps {
@@ -123,22 +123,27 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const codeMirrorViewRef = useRef<EditorView | null>(null)
   const readingModeRef = useRef<HTMLDivElement>(null)
   const [showNotes, setShowNotes] = useState(false)
-  const [notes, setNotes] = useState<Note[]>([])
   const [markdownContent, setMarkdownContent] = useState<string>("")
-  const [droppedNotes, setDroppedNotes] = useState<Note[]>([])
   const notesContainerRef = useRef<HTMLDivElement>(null)
   const [isStackExpanded, setIsStackExpanded] = useState(false)
   const [vimMode, setVimMode] = useState(settings.vimMode ?? false)
   // Add a ref to track if we've already attempted to restore a file
   const fileRestorationAttempted = useRef(false)
-  // Add a state for currentFileId that allows null values
-  const [currentFileId, setCurrentFileId] = useState<string | null>(null)
   // Add a state for visible context note IDs (around line 150, with other state declarations)
   const [visibleContextNoteIds, setVisibleContextNoteIds] = useState<string[]>([])
   // Add state for author understanding indicator
   const [isAuthorProcessing, setIsAuthorProcessing] = useState(false)
-  // Add a state for memoized dbFile
-  const [dbFileState, setDbFileState] = useState<typeof schema.files.$inferSelect | null>(null)
+
+  // Use the notes context instead of local state
+  const {
+    state: { notes, droppedNotes, currentFileId, dbFile: dbFileState },
+    dispatch,
+    handleNoteDropped,
+    handleNoteRemoved,
+    handleNoteDragBackToPanel,
+    loadFileMetadata,
+    updateDbFile,
+  } = useNotesContext()
 
   const client = usePGlite()
   const db = drizzle({ client, schema })
@@ -161,18 +166,12 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const embeddingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Get the task actions for adding tasks
-  const { addTask } = useEmbeddingTasks()
   const { addTask: addEssayTask } = useEssayEmbeddingTasks()
 
   useEffect(() => {
-    if (restoredFile && restoredFile!.fileId) setCurrentFileId(restoredFile!.fileId)
-  }, [restoredFile])
-
-  // Create a ref to the current dbFile for sync access
-  const dbFileRef = useRef<typeof schema.files.$inferSelect | null>(dbFileState)
-
-  const embeddingProcessedRef = useRef<string | null>(null)
-  const processEmbeddings = useProcessPendingEmbeddings(db)
+    if (restoredFile && restoredFile.fileId)
+      dispatch({ type: "SET_CURRENT_FILE_ID", fileId: restoredFile.fileId })
+  }, [restoredFile, dispatch])
 
   // Define updateContentRef function that updates content without logging
   const updateContentRef = useCallback(() => {
@@ -211,7 +210,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
         // Update state
         setCurrentFileHandle(fileHandle)
-        setCurrentFileId(fileId)
+        dispatch({ type: "SET_CURRENT_FILE_ID", fileId })
         setMarkdownContent(content)
         setHasUnsavedChanges(false)
         setIsEditMode(true)
@@ -226,141 +225,15 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     [debouncedUpdatePreview],
   )
 
-  // Helper function to fetch and update the dbFile
-  const updateDbFile = useCallback(
-    async (fileId: string | null) => {
-      if (!fileId) {
-        setDbFileState(null)
-        dbFileRef.current = null
-        return null
-      }
-      const file = await db.query.files.findFirst({
-        where: (files, { and, eq }) => and(eq(files.id, fileId), eq(files.vaultId, vaultId)),
-      })
-      setDbFileState(file || null)
-      dbFileRef.current = file || null
-      return file
-    },
-    [db, vaultId],
-  )
+  // Use the updateDbFile from context instead of defining it locally
 
-  // Load file metadata when fileId changes
-  const loadFileMetadata = useCallback(
-    async (fileId: string) => {
-      console.debug(`[Notes Debug] Starting to load metadata for file ${fileId}`)
-
-      try {
-        // Fetch notes associated with this file in a single query
-        const dbFile = dbFileRef.current! || (await updateDbFile(fileId))
-        if (!dbFile) return
-        try {
-          // Query all notes for this file
-          const fileNotes = await db
-            .select()
-            .from(schema.notes)
-            .where(and(eq(schema.notes.fileId, dbFile.id), eq(schema.notes.vaultId, vaultId)))
-
-          console.debug(
-            `[Notes Debug] Retrieved ${fileNotes?.length || 0} notes from DB for file ${fileId}`,
-          )
-
-          if (fileNotes && fileNotes.length > 0) {
-            // Process notes and reasoning in parallel
-            // Separate notes into regular and dropped notes
-            const regularNotes = fileNotes.filter((note) => !note.dropped)
-            const droppedNotesList = fileNotes.filter((note) => note.dropped)
-
-            console.debug(
-              `[Notes Debug] Regular notes: ${regularNotes.length}, Dropped notes: ${droppedNotesList.length}`,
-            )
-
-            // Prepare notes for the UI
-            const uiReadyRegularNotes = regularNotes.map((note) => ({
-              ...note,
-              color: note.color || generatePastelColor(),
-              lastModified: new Date(note.accessedAt),
-            }))
-
-            const uiReadyDroppedNotes = droppedNotesList.map((note) => ({
-              ...note,
-              color: note.color || generatePastelColor(),
-              lastModified: new Date(note.accessedAt),
-            }))
-            setDroppedNotes(uiReadyDroppedNotes)
-            setNotes(uiReadyRegularNotes)
-          }
-
-          // Process embeddings if needed
-          if (fileNotes && fileNotes.length > 0 && !embeddingProcessedRef.current) {
-            console.debug(`[Notes Debug] Processing embeddings for ${fileNotes.length} notes`)
-            processEmbeddings.mutate({ addTask })
-            embeddingProcessedRef.current = `${vaultId}:${fileId}`
-          }
-        } catch (error) {
-          console.error("Error fetching notes for file:", error)
-        }
-      } catch (dbError) {
-        console.error("Error with database operations:", dbError)
-      }
-    },
-    [db, vaultId, processEmbeddings, addTask, updateDbFile],
-  )
+  // Use loadFileMetadata from context instead of defining it locally
 
   const toggleNotes = useCallback(() => {
     setShowNotes(!showNotes)
   }, [showNotes])
 
-  const handleNoteDropped = useCallback(
-    async (note: Note) => {
-      if (currentFileId === null) return
-      console.debug(`[Notes Debug] Handling note drop for note ${note.id}`)
-
-      // Ensure note has a color if it doesn't already
-      const droppedNote: Note = { ...note, dropped: true, accessedAt: new Date() }
-
-      // Update droppedNotes optimistically without triggering unnecessary motion
-      setDroppedNotes((prev) => {
-        if (prev.find((n) => n.id === droppedNote.id)) return prev
-        // Add note to the end of the array for proper scroll-to behavior
-        return [...prev, droppedNote]
-      })
-
-      // Find the file in the database to get its ID
-      try {
-        // First, find the file in the database
-        const dbFile = await db.query.files.findFirst({
-          where: (files, { and, eq }) =>
-            and(eq(files.id, currentFileId!), eq(files.vaultId, vault?.id || "")),
-        })
-
-        if (!dbFile) {
-          console.error("Failed to find file in database when dropping note")
-          return
-        }
-
-        console.debug(`[Notes Debug] Updating note ${note.id} in DB to mark as dropped`)
-
-        // Save to database - update the note's dropped flag
-        await db
-          .update(schema.notes)
-          .set({
-            dropped: true,
-            accessedAt: droppedNote.accessedAt!,
-            ...(droppedNote.embeddingStatus !== "success" && { embeddingStatus: "in_progress" }),
-          })
-          .where(eq(schema.notes.id, droppedNote.id))
-
-        console.debug(`[Notes Debug] Successfully updated note ${note.id} as dropped in DB`)
-      } catch (error) {
-        console.error("Failed to update note dropped status:", error)
-        // Update dropped notes to show failure
-        setDroppedNotes((prev) =>
-          prev.map((n) => (n.id === droppedNote.id ? { ...n, embeddingStatus: "failure" } : n)),
-        )
-      }
-    },
-    [db, currentFileId, vault],
-  )
+  // Use handleNoteDropped from context instead of defining it locally
 
   const handleSave = useCallback(async () => {
     try {
@@ -425,7 +298,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             await storeHandle(handleId, vaultId, dbFileId, targetHandle)
 
             // Update component state with the new file information
-            setCurrentFileId(dbFileId)
+            dispatch({ type: "SET_CURRENT_FILE_ID", fileId: dbFileId })
             setCurrentFileHandle(targetHandle)
 
             // Refresh the vault to show the new file
@@ -437,7 +310,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         } catch (dbError) {
           console.error("Error creating file in database:", dbError)
           // If database save fails, still update local state
-          setCurrentFileId(fileId)
+          dispatch({ type: "SET_CURRENT_FILE_ID", fileId: fileId })
           setCurrentFileHandle(targetHandle)
 
           // Store the handle even if DB fails
@@ -511,14 +384,14 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         if (update.docChanged || update.selectionSet) {
           // We only update the filename if it explicitly changes via the effect
           const newFileId = update.state.field(fileField)
-          setCurrentFileId(newFileId)
+          dispatch({ type: "SET_CURRENT_FILE_ID", fileId: newFileId })
         }
       }),
       syntaxHighlighting(),
       search(),
       hyperLink,
     ]
-  }, [settings.tabSize, currentFileId])
+  }, [settings.tabSize, currentFileId, dispatch])
 
   // Only compute extensions that will be used in the editor
   const memoizedExtensions = useMemo(() => {
@@ -543,18 +416,14 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     setIsEditMode(true)
     setPreviewNode(null) // Clear preview
 
-    // Reset all note states for new file
-    setNotes([])
-    setDroppedNotes([])
-
     // Reset embedding processing flags
     essayEmbeddingProcessedRef.current = null
 
     setHasUnsavedChanges(false) // Reset unsaved changes
     // Set currentFileId to null for new file
-    setCurrentFileId(null)
+    dispatch({ type: "SET_CURRENT_FILE_ID", fileId: null })
     // Also reset dbFile state for new file
-    setDbFileState(null)
+    dispatch({ type: "SET_DB_FILE", dbFile: null })
 
     // Clear the last file info from localStorage
     if (vaultId) {
@@ -564,31 +433,14 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         console.error("Failed to clear file info from localStorage:", storageError)
       }
     }
-  }, [vaultId, setDbFileState])
+  }, [vaultId, dispatch])
 
   // Create a function to toggle settings that we can pass to Rails
   const toggleSettings = useCallback(() => {
     setIsSettingsOpen((prev) => !prev)
   }, [])
 
-  // Handle removing a note from the notes array
-  const handleNoteRemoved = useCallback((noteId: string) => {
-    setNotes((prev) => prev.filter((n) => n.id !== noteId))
-  }, [])
-
-  const noteGroupsData = useMemo(() => {
-    // Filter out current generation notes and dropped notes
-    const currentGenerationNoteIds = new Set(notes.map((note) => note.id))
-    const droppedNoteIds = new Set(droppedNotes.map((note) => note.id))
-
-    // Filter out both current generation notes and dropped notes
-    const filteredNotes = notes.filter(
-      (note) =>
-        !currentGenerationNoteIds.has(note.id) && !droppedNoteIds.has(note.id) && !note.dropped,
-    )
-
-    return groupNotesByDate(filteredNotes)
-  }, [notes, droppedNotes])
+  // Use handleNoteRemoved from context instead of defining it locally
 
   // Memoize dropped notes to prevent unnecessary re-renders
   const memoizedDroppedNotes = useMemo(() => {
@@ -598,68 +450,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }))
   }, [droppedNotes])
 
-  // Handle dragging a dropped note back to the panel
-  const handleNoteDragBackToPanel = useCallback(
-    async (noteId: string) => {
-      // Find the note in the droppedNotes
-      const note = droppedNotes.find((n) => n.id === noteId)
-      if (!note) {
-        console.error(`Note with ID ${noteId} not found in droppedNotes`)
-        return
-      }
-
-      // Update the note to indicate it's no longer dropped
-      const undropNote = {
-        ...note,
-        dropped: false,
-        lastModified: new Date(),
-        // Preserve embedding status
-        embeddingStatus: note.embeddingStatus || "success",
-        embeddingTaskId: note.embeddingTaskId,
-      }
-
-      // Remove from droppedNotes state
-      setDroppedNotes((prev) => prev.filter((n) => n.id !== noteId))
-
-      try {
-        // Update the database
-        await db
-          .update(schema.notes)
-          .set({
-            dropped: false,
-            accessedAt: new Date(),
-            fileId: dbFileRef.current!.id, // Ensure we're using the database file ID
-            // Preserve existing embedding values
-            embeddingStatus: undropNote.embeddingStatus,
-            embeddingTaskId: undropNote.embeddingTaskId,
-          })
-          .where(eq(schema.notes.id, noteId))
-
-        // Add back to main notes collection if not already there
-        setNotes((prevNotes) => {
-          // If it exists, just update its dropped status
-          if (prevNotes.some((n) => n.id === noteId)) {
-            return prevNotes.map((n) =>
-              n.id === noteId
-                ? {
-                    ...n,
-                    dropped: false,
-                    embeddingStatus: undropNote.embeddingStatus,
-                    embeddingTaskId: undropNote.embeddingTaskId,
-                  }
-                : n,
-            )
-          } else {
-            // Add to the beginning of the notes array to make it appear at the top
-            return [undropNote, ...prevNotes]
-          }
-        })
-      } catch (error) {
-        console.error("Failed to update note status:", error)
-      }
-    },
-    [droppedNotes, db, setNotes, dbFileRef],
-  )
+  // Use handleNoteDragBackToPanel from context instead of defining it locally
 
   const handleFileSelect = useCallback(
     async (node: FileSystemTreeNode) => {
@@ -699,7 +490,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
         // Set the fileId early so it can be used immediately
         const targetFileId = node.id
-        setCurrentFileId(targetFileId)
+
+        // Update file ID in notes context
+        dispatch({ type: "SET_CURRENT_FILE_ID", fileId: targetFileId })
 
         // Update dbFile state when selecting a new file
         await updateDbFile(targetFileId)
@@ -837,7 +630,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
     // Set the initial states synchronously
     setMarkdownContent(restoredFile.content)
-    setCurrentFileId(restoredFile.fileId)
+    dispatch({ type: "SET_CURRENT_FILE_ID", fileId: restoredFile.fileId })
     setCurrentFileHandle(restoredFile.fileHandle)
     setHasUnsavedChanges(false)
 
@@ -858,8 +651,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           console.debug(
             `[Notes Debug] Resetting notes state before loading metadata for ${targetFileId}`,
           )
-          setNotes([])
-          setDroppedNotes([])
 
           console.debug(`[Notes Debug] Loading metadata for restored file: ${targetFileId}`)
           // Load file metadata to populate notes
@@ -912,9 +703,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           }, 1000) // 1 second delay to ensure DB operations are ready
         } catch (error) {
           console.error(`Error loading file metadata for ${targetFileId}:`, error)
-          // If metadata loading fails, ensure the notes state remains cleared
-          setNotes([])
-          setDroppedNotes([])
         }
       }
     }
@@ -1191,7 +979,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     </div>
                   </div>
                 </EditorDropTarget>
-                {showNotes && vault && currentFileId !== null && (
+                {showNotes && vault && currentFileId !== null && dbFileState !== null && (
                   <div
                     ref={notesContainerRef}
                     className={cn("flex flex-col", showNotes ? "w-88 visible" : "w-0 hidden")}
@@ -1203,7 +991,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                       vaultId={vault.id}
                       handleNoteDropped={handleNoteDropped}
                       handleNoteRemoved={handleNoteRemoved}
-                      noteGroupsData={noteGroupsData}
                       notesContainerRef={notesContainerRef}
                       markdownContent={markdownContent}
                       currentFileHandle={currentFileHandle}
