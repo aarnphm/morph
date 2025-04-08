@@ -36,7 +36,7 @@ interface ConverterOptions {
   value: string
   vaultId: string
   settings: Settings
-  fileid: string | null
+  fileId: string | null
   returnHast?: boolean
 }
 
@@ -45,7 +45,7 @@ export async function mdToHtml(opts: ConverterOptions): Promise<HtmlRoot>
 export async function mdToHtml({
   value,
   vaultId,
-  fileid,
+  fileId,
   settings,
   returnHast,
 }: ConverterOptions): Promise<HtmlRoot | string> {
@@ -58,7 +58,7 @@ export async function mdToHtml({
 
   const file = new VFile()
   file.value = value
-  file.path = fileid || "<default>"
+  file.path = fileId || "<default>"
 
   try {
     if (!mdProcessor) mdProcessor = processor(settings, vaultId)

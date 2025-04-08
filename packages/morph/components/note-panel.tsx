@@ -9,10 +9,10 @@ import {
   checkAgentAvailability,
   checkAgentHealth,
 } from "@/services/agents"
-import { submitNoteForEmbedding, useProcessPendingEmbeddings } from "@/services/notes"
+import { logNotesForFile, submitNoteForEmbedding } from "@/services/notes"
 import { createId } from "@paralleldrive/cuid2"
 import { Cross2Icon, MixerHorizontalIcon, ShadowInnerIcon } from "@radix-ui/react-icons"
-import { and, eq, inArray } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/pglite"
 import { AnimatePresence, motion } from "motion/react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -393,7 +393,7 @@ const EmptyState = memo(function EmptyState({
 
 export const NotesPanel = memo(function NotesPanel({
   notes: initialNotes,
-  droppedNotes: initialDroppedNotes,
+  droppedNotes,
   vaultId,
   fileId,
   handleNoteDropped,
@@ -406,14 +406,11 @@ export const NotesPanel = memo(function NotesPanel({
   // Get steering settings and fileId update function from context
   const { settings, updateFileId } = useSteeringContext()
 
-  const { addTask } = useEmbeddingTasks()
-
   // State management (moved from editor.tsx)
   const [notes, setNotes] = useState<Note[]>(initialNotes || [])
   const [notesError, setNotesError] = useState<string | null>(null)
   const [currentlyGeneratingDateKey, setCurrentlyGeneratingDateKey] = useState<string | null>(null)
   const [currentGenerationNotes, setCurrentGenerationNotes] = useState<Note[]>([])
-  const [droppedNotes, setDroppedNotes] = useState<Note[]>(initialDroppedNotes || [])
 
   // Additional state
   const [isNotesLoading, setIsNotesLoading] = useState(false)
@@ -431,8 +428,6 @@ export const NotesPanel = memo(function NotesPanel({
     initialFileHandle || null,
   )
 
-  const embeddingProcessedRef = useRef<string | null>(null)
-
   // Track settings changes with a ref to detect actual value changes
   const prevSettingsRef = useRef(settings)
   const currentFileIdRef = useRef<string | null>(null)
@@ -440,166 +435,7 @@ export const NotesPanel = memo(function NotesPanel({
   const client = usePGlite()
   const db = useMemo(() => drizzle({ client, schema }), [client])
 
-  const processEmbeddings = useProcessPendingEmbeddings(db)
-
-  // Load file metadata when fileId changes
-  const loadFileMetadata = useCallback(
-    async (fileId: string) => {
-      if (!vaultId || fileId === null) return
-
-      try {
-        console.log(`[Notes Debug] Starting to load metadata for file ${fileId}`)
-
-        // Find the file in database
-        const dbFile = await db.query.files.findFirst({
-          where: (files, { and, eq }) => and(eq(files.id, fileId), eq(files.vaultId, vaultId)),
-        })
-
-        // If file doesn't exist in DB, log error and return
-        if (!dbFile) {
-          console.error(`File ${fileId} does not exist in db. Something has gone very wrong`)
-          return
-        }
-
-        // Fetch notes associated with this file in a single query
-        try {
-          // Query all notes for this file
-          const fileNotes = await db
-            .select()
-            .from(schema.notes)
-            .where(and(eq(schema.notes.fileId, dbFile.id), eq(schema.notes.vaultId, vaultId)))
-
-          console.log(
-            `[Notes Debug] Retrieved ${fileNotes?.length || 0} notes from DB for file ${fileId}`,
-          )
-
-          if (fileNotes && fileNotes.length > 0) {
-            // Process notes and reasoning in parallel
-            // Separate notes into regular and dropped notes
-            const regularNotes = fileNotes.filter((note) => !note.dropped)
-            const droppedNotesList = fileNotes.filter((note) => note.dropped)
-
-            console.log(
-              `[Notes Debug] Regular notes: ${regularNotes.length}, Dropped notes: ${droppedNotesList.length}`,
-            )
-
-            // Prepare notes for the UI
-            const uiReadyRegularNotes = regularNotes.map((note) => ({
-              ...note,
-              color: note.color || generatePastelColor(),
-              lastModified: new Date(note.accessedAt),
-            }))
-
-            const uiReadyDroppedNotes = droppedNotesList.map((note) => ({
-              ...note,
-              color: note.color || generatePastelColor(),
-              lastModified: new Date(note.accessedAt),
-            }))
-
-            // Reset note states before updating to avoid merging with previous file's notes
-            setCurrentGenerationNotes([])
-            setCurrentlyGeneratingDateKey(null)
-            setNotesError(null)
-
-            let loadedReasoningHistory: ReasoningHistory[] = []
-
-            // In parallel, fetch and process reasoning if needed
-            const reasoningIds = [
-              ...new Set(fileNotes.map((note) => note.reasoningId).filter(Boolean)),
-            ] as string[] // Explicitly type as string[]
-
-            if (reasoningIds.length > 0) {
-              console.log(
-                `[Notes Debug] Found ${reasoningIds.length} unique reasoning IDs, fetching reasoning`,
-              )
-              const reasonings = await db
-                .select()
-                .from(schema.reasonings)
-                .where(inArray(schema.reasonings.id, reasoningIds))
-
-              console.log(`[Notes Debug] Retrieved ${reasonings?.length || 0} reasonings from DB`)
-
-              if (reasonings && reasonings.length > 0) {
-                // Convert to ReasoningHistory format
-                loadedReasoningHistory = reasonings.map((r) => ({
-                  id: r.id,
-                  content: r.content,
-                  timestamp: r.createdAt,
-                  noteIds: fileNotes.filter((n) => n.reasoningId === r.id).map((n) => n.id),
-                  reasoningElapsedTime: r.duration,
-                  authors: r.steering?.authors,
-                  tonality: r.steering?.tonality,
-                  temperature: r.steering?.temperature,
-                  numSuggestions: r.steering?.numSuggestions,
-                }))
-              }
-            }
-
-            // Update the state with fetched notes atomically to prevent flicker
-            // Ensure we are using the correct variables here
-            setNotes(uiReadyRegularNotes)
-            setDroppedNotes(uiReadyDroppedNotes)
-            setReasoningHistory(loadedReasoningHistory)
-
-            console.log(`[Notes Debug] State updated after loading metadata:`, {
-              notesCount: uiReadyRegularNotes.length,
-              droppedNotesCount: uiReadyDroppedNotes.length,
-              reasoningHistoryCount: loadedReasoningHistory.length,
-            })
-          } else {
-            console.log(`[Notes Debug] No notes found for file ${fileId}, resetting state`)
-            // Ensure state is reset even if no notes are found
-            setNotes([])
-            setDroppedNotes([])
-            setReasoningHistory([])
-            setCurrentGenerationNotes([])
-            setCurrentlyGeneratingDateKey(null)
-            setNotesError(null)
-          }
-
-          // Process embeddings if needed
-          if (fileNotes && fileNotes.length > 0 && !embeddingProcessedRef.current) {
-            console.log(`[Notes Debug] Processing embeddings for ${fileNotes.length} notes`)
-            processEmbeddings.mutate({ addTask })
-            embeddingProcessedRef.current = `${vaultId}:${fileId}`
-          }
-        } catch (error) {
-          console.error("Error fetching notes for file:", error)
-          // Reset note states on error
-          setCurrentGenerationNotes([])
-          setNotesError(
-            `Failed to load notes: ${error instanceof Error ? error.message : "Unknown error"}`,
-          )
-          setNotes([])
-          setDroppedNotes([])
-          setReasoningHistory([])
-        }
-      } catch (dbError) {
-        console.error("Error with database operations:", dbError)
-        setNotesError(
-          `Database error: ${dbError instanceof Error ? dbError.message : "Unknown error"}`,
-        )
-      }
-    },
-    [db, vaultId, processEmbeddings, addTask],
-  )
-
-  // Load file metadata when fileId changes
-  // useEffect(() => {
-  //   if (fileId) {
-  //     loadFileMetadata(fileId)
-  //     currentFileIdRef.current = fileId
-  //   } else {
-  //     // Reset state when fileId is null
-  //     setNotes([])
-  //     setDroppedNotes([])
-  //     setReasoningHistory([])
-  //     setCurrentGenerationNotes([])
-  //     setCurrentlyGeneratingDateKey(null)
-  //     setNotesError(null)
-  //     embeddingProcessedRef.current = null
-  //   }
-  // }, [fileId, loadFileMetadata])
+  const { addTask } = useEmbeddingTasks()
 
   // When unmounting or when fileId changes, save any pending notes to DB
   useEffect(() => {
@@ -702,7 +538,7 @@ export const NotesPanel = memo(function NotesPanel({
             unhealthyServices,
             allServices: healthStatus.services,
           })
-          toast(`Services unavailable: ${unhealthyServices}`)
+          toast.error(`Services unavailable: ${unhealthyServices}`)
         }
 
         // Create a new reasoning ID for this generation
@@ -1074,7 +910,7 @@ export const NotesPanel = memo(function NotesPanel({
         return Promise.reject(error)
       }
     },
-    [toast, droppedNotes],
+    [droppedNotes],
   )
 
   // Check if notes were recently generated (within the last 5 minutes)
@@ -1565,69 +1401,3 @@ export const NotesPanel = memo(function NotesPanel({
     </div>
   )
 })
-
-// Function to log notes for a file (utility function)
-async function logNotesForFile(
-  db: any,
-  fileId: string,
-  vaultId: string,
-  label: string = "Notes query",
-) {
-  if (process.env.NODE_ENV !== "development") return
-
-  try {
-    console.log(`[Notes Debug] ${label} - Querying all notes for file ${fileId}`)
-
-    // Query all notes for this file
-    const fileNotes = await db
-      .select()
-      .from(schema.notes)
-      .where(and(eq(schema.notes.fileId, fileId), eq(schema.notes.vaultId, vaultId)))
-
-    const regularNotes = fileNotes.filter((note: any) => !note.dropped)
-    const droppedNotes = fileNotes.filter((note: any) => note.dropped)
-
-    console.log(`[Notes Debug] ${label} - Found ${fileNotes.length} total notes:`)
-    console.log(
-      `[Notes Debug] ${label} - Regular notes: ${regularNotes.length}, Dropped notes: ${droppedNotes.length}`,
-    )
-
-    // Query all reasonings associated with these notes
-    const reasoningIds = [
-      ...new Set(fileNotes.map((note: any) => note.reasoningId).filter(Boolean)),
-    ] as string[] // Explicitly type as string[]
-
-    if (reasoningIds.length > 0) {
-      console.log(`[Notes Debug] ${label} - Found ${reasoningIds.length} unique reasoning IDs`)
-
-      const reasonings = await db
-        .select()
-        .from(schema.reasonings)
-        .where(inArray(schema.reasonings.id, reasoningIds))
-
-      console.log(
-        `[Notes Debug] ${label} - Retrieved ${reasonings?.length || 0} reasonings from DB`,
-      )
-
-      // Log a summary of each reasoning and its notes
-      for (const reasoning of reasonings) {
-        const notesForReasoning = fileNotes.filter((n: any) => n.reasoningId === reasoning.id)
-        console.log(
-          `[Notes Debug] ${label} - Reasoning ${reasoning.id} has ${notesForReasoning.length} notes:`,
-          notesForReasoning.map((n: any) => ({
-            id: n.id,
-            dropped: n.dropped,
-            embeddingStatus: n.embeddingStatus,
-          })),
-        )
-      }
-    } else {
-      console.log(`[Notes Debug] ${label} - No reasoning IDs found`)
-    }
-
-    return { fileNotes, regularNotes, droppedNotes }
-  } catch (error) {
-    console.error(`[Notes Debug] ${label} - Error querying notes:`, error)
-    return { fileNotes: [], regularNotes: [], droppedNotes: [] }
-  }
-}

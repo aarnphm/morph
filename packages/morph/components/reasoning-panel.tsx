@@ -40,7 +40,6 @@ const ReasoningHeader = memo(function ReasoningHeader({
     <div
       className={cn(
         "flex items-center justify-between text-xs p-1",
-        isExpanded && "border-b",
         isHovering ? "text-foreground" : "text-muted-foreground",
       )}
     >

@@ -49,7 +49,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <PlausibleProvider domain="morph-editor.app" trackOutboundLinks trackFileDownloads>
           <ClientProvider>{children}</ClientProvider>
         </PlausibleProvider>
-        <Toaster />
+        <Toaster position="bottom-center" />
         {process.env.NODE_ENV === "production" && (
           <Script
             defer

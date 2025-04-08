@@ -3,7 +3,7 @@ import { API_ENDPOINT, POLLING_INTERVAL } from "@/services/constants"
 import { TaskStatusResponse } from "@/services/constants"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import axios from "axios"
-import { and, eq, isNull, not } from "drizzle-orm"
+import { and, eq, inArray, isNull, not } from "drizzle-orm"
 import { PgliteDatabase } from "drizzle-orm/pglite"
 
 import type { Note } from "@/db/interfaces"
@@ -38,6 +38,72 @@ export async function checkNoteHasEmbedding(
   })
 
   return !!embedding
+}
+
+// Function to log notes for a file (utility function)
+export async function logNotesForFile(
+  db: any,
+  fileId: string,
+  vaultId: string,
+  label: string = "Notes query",
+) {
+  if (process.env.NODE_ENV !== "development") return
+
+  try {
+    console.log(`[Notes Debug] ${label} - Querying all notes for file ${fileId}`)
+
+    // Query all notes for this file
+    const fileNotes = await db
+      .select()
+      .from(schema.notes)
+      .where(and(eq(schema.notes.fileId, fileId), eq(schema.notes.vaultId, vaultId)))
+
+    const regularNotes = fileNotes.filter((note: any) => !note.dropped)
+    const droppedNotes = fileNotes.filter((note: any) => note.dropped)
+
+    console.log(`[Notes Debug] ${label} - Found ${fileNotes.length} total notes:`)
+    console.log(
+      `[Notes Debug] ${label} - Regular notes: ${regularNotes.length}, Dropped notes: ${droppedNotes.length}`,
+    )
+
+    // Query all reasonings associated with these notes
+    const reasoningIds = [
+      ...new Set(fileNotes.map((note: any) => note.reasoningId).filter(Boolean)),
+    ] as string[] // Explicitly type as string[]
+
+    if (reasoningIds.length > 0) {
+      console.log(`[Notes Debug] ${label} - Found ${reasoningIds.length} unique reasoning IDs`)
+
+      const reasonings = await db
+        .select()
+        .from(schema.reasonings)
+        .where(inArray(schema.reasonings.id, reasoningIds))
+
+      console.log(
+        `[Notes Debug] ${label} - Retrieved ${reasonings?.length || 0} reasonings from DB`,
+      )
+
+      // Log a summary of each reasoning and its notes
+      for (const reasoning of reasonings) {
+        const notesForReasoning = fileNotes.filter((n: any) => n.reasoningId === reasoning.id)
+        console.log(
+          `[Notes Debug] ${label} - Reasoning ${reasoning.id} has ${notesForReasoning.length} notes:`,
+          notesForReasoning.map((n: any) => ({
+            id: n.id,
+            dropped: n.dropped,
+            embeddingStatus: n.embeddingStatus,
+          })),
+        )
+      }
+    } else {
+      console.log(`[Notes Debug] ${label} - No reasoning IDs found`)
+    }
+
+    return { fileNotes, regularNotes, droppedNotes }
+  } catch (error) {
+    console.error(`[Notes Debug] ${label} - Error querying notes:`, error)
+    return { fileNotes: [], regularNotes: [], droppedNotes: [] }
+  }
 }
 
 // Submit a note for embedding
