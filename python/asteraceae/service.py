@@ -182,7 +182,7 @@ def make_args(
   *,
   task: TaskType,
   max_log_len: int = 2000,
-  max_num_seqs: int = 256,
+  max_num_seqs: int = 128,
   max_model_len: int = MAX_MODEL_LEN,
   reasoning: bool = True,
   reasoning_parser: str = 'deepseek_r1',
