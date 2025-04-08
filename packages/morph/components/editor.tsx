@@ -45,7 +45,6 @@ import { VaultButton } from "@/components/ui/button"
 import { DotIcon } from "@/components/ui/icons"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
-import { useAuthorTasks } from "@/context/authors"
 import { usePGlite } from "@/context/db"
 import { useEssayEmbeddingTasks } from "@/context/embedding"
 import { useRestoredFile } from "@/context/file-restoration"
@@ -173,9 +172,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
   // Get the task actions for adding tasks
   const { addTask: addEssayTask } = useEssayEmbeddingTasks()
-
-  // Get author tasks to track when authors are being processed
-  const { pendingTaskIds: authorTaskIds } = useAuthorTasks()
 
   // Get essay embedding tasks to track essay embedding progress
   const { pendingTaskIds: essayEmbeddingTaskIds } = useEssayEmbeddingTasks()
@@ -931,11 +927,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
 
     return groupNotesByDate(filteredNotes)
   }, [droppedNotes, notes, currentGenerationNotes])
-
-  // Update author processing state when tasks change
-  useEffect(() => {
-    setIsAuthorProcessing(authorTaskIds.length > 0)
-  }, [authorTaskIds])
 
   // Update essay embedding status when tasks change
   useEffect(() => {

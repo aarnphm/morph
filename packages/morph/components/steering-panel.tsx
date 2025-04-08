@@ -130,7 +130,7 @@ export function AuthorsSelector({
       toast.error("Failed to infer authors from content")
       setIsInferring(false)
     }
-  }, [currentFileId, db, addTask])
+  }, [currentFileId, db, addTask, markdownContent])
 
   const handleAddAuthor = useCallback(() => {
     if (!newAuthor.trim()) return

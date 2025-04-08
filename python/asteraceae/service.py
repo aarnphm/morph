@@ -255,7 +255,7 @@ class LLM:
   async def init_engine(self) -> None:
     import vllm.entrypoints.openai.api_server as vllm_api_server
 
-    args = make_args(self.model, self.model_id, task='generate', gpu_memory_utilization=0.99)
+    args = make_args(self.model, self.model_id, task='generate', gpu_memory_utilization=0.90)
 
     router = fastapi.APIRouter(lifespan=vllm_api_server.lifespan)
     OPENAI_ENDPOINTS = [

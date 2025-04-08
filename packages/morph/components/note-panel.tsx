@@ -440,7 +440,6 @@ export const NotesPanel = memo(function NotesPanel({
                 console.debug(`[NotesPanel] Saving note ${note.id} to DB on unmount`)
 
                 await db.insert(schema.notes).values({
-                  id: note.id,
                   content: note.content,
                   color: note.color,
                   createdAt: note.createdAt,
@@ -986,7 +985,7 @@ export const NotesPanel = memo(function NotesPanel({
           // Get authors from database if in pending status
           const authorRecord = await db.query.authors.findFirst({
             where: (authors, { and, eq }) =>
-              and(eq(authors.fileId, fileId), eq(authors.authorStatus, "pending")),
+              and(eq(authors.fileId, fileId), eq(authors.authorStatus, "in_progress")),
           })
 
           // Use authors from DB if available and in pending status
@@ -1064,14 +1063,13 @@ export const NotesPanel = memo(function NotesPanel({
                 ...newNotes.map((note) => {
                   console.debug(`[NotesPanel] Saving note ${note.id} to DB`)
                   return db.insert(schema.notes).values({
-                    id: note.id,
                     content: note.content,
                     color: note.color,
                     createdAt: note.createdAt,
                     accessedAt: new Date(),
                     dropped: note.dropped ?? false,
                     fileId: currentDbFile!.id,
-                    vaultId: note.vaultId || vaultId,
+                    vaultId: note.vaultId || vaultId || "",
                     reasoningId: note.reasoningId || undefined,
                     steering: note.steering || undefined,
                     embeddingStatus: "in_progress",
