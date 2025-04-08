@@ -551,7 +551,6 @@ class API:
   @bentoml.task
   async def authors(self, request: AuthorRequest, /) -> Authors:
     """Generate author suggestions based on essay analysis, using function calling and search tools."""
-    return Authors(authors=DEFAULT_AUTHORS)
 
     # Use the request's search backend if specified, otherwise use the default
     search_backend = request.search_backend or self.search_backend
