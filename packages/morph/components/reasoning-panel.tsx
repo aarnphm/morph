@@ -201,11 +201,12 @@ export const ReasoningPanel = memo(function ReasoningPanel({
         toggleExpand={toggleExpand}
       />
 
+      {/* TODO: make the whole current notes panel scrollable */}
       {isExpanded && reasoning && (
         <div
           ref={reasoningRef}
           className={cn(
-            "whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-72 transition-all duration-500 ease-in-out",
+            "whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-168 transition-all duration-500 ease-in-out",
             "text-xs text-muted-foreground",
             isExpanded ? "opacity-100 h-auto" : "opacity-0 h-0",
           )}

@@ -52,6 +52,7 @@ interface NotesPanelProps {
   scanAnimationComplete?: boolean
   markdownContent?: string
   currentFileHandle?: FileSystemFileHandle | null
+  dbFile: typeof schema.files.$inferSelect | null
 }
 
 export interface StreamingNote {
@@ -391,6 +392,14 @@ const EmptyState = memo(function EmptyState({
   )
 })
 
+// Helper function to assert a value is not null or undefined
+function assertNonNull<T>(value: T | null | undefined, errorMessage: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(errorMessage)
+  }
+  return value
+}
+
 export const NotesPanel = memo(function NotesPanel({
   notes: initialNotes,
   droppedNotes,
@@ -402,6 +411,7 @@ export const NotesPanel = memo(function NotesPanel({
   notesContainerRef,
   markdownContent: initialMarkdownContent,
   currentFileHandle: initialFileHandle,
+  dbFile: initialDbFile,
 }: NotesPanelProps) {
   // Get steering settings and fileId update function from context
   const { settings, updateFileId } = useSteeringContext()
@@ -427,6 +437,9 @@ export const NotesPanel = memo(function NotesPanel({
   const [currentFileHandle, setCurrentFileHandle] = useState<FileSystemFileHandle | null>(
     initialFileHandle || null,
   )
+  const [dbFile, setDbFile] = useState<typeof schema.files.$inferSelect | null>(
+    initialDbFile || null,
+  )
 
   // Track settings changes with a ref to detect actual value changes
   const prevSettingsRef = useRef(settings)
@@ -442,7 +455,7 @@ export const NotesPanel = memo(function NotesPanel({
     return () => {
       // Save current generation notes to DB when unmounting
       if (currentGenerationNotes.length > 0 && currentlyGeneratingDateKey && fileId) {
-        console.log(
+        console.debug(
           `[Notes Debug] Saving ${currentGenerationNotes.length} current generation notes to DB on unmount`,
         )
 
@@ -451,14 +464,20 @@ export const NotesPanel = memo(function NotesPanel({
         const saveNotes = async () => {
           try {
             // Find the file in database
-            const dbFile = await db.query.files.findFirst({
-              where: (files, { and, eq }) =>
-                and(eq(files.id, fileId), eq(files.vaultId, vaultId || "")),
-            })
+            let currentDbFile = dbFile
 
-            if (!dbFile) {
-              console.error("Failed to find file in database when saving notes on unmount")
-              return
+            if (!currentDbFile) {
+              const foundFile = await db.query.files.findFirst({
+                where: (files, { and, eq }) =>
+                  and(eq(files.id, fileId), eq(files.vaultId, vaultId || "")),
+              })
+
+              if (foundFile) {
+                currentDbFile = foundFile
+              } else {
+                console.error("Failed to find file in database when saving notes on unmount")
+                return
+              }
             }
 
             // For each note, ensure it's saved to database if not already
@@ -468,7 +487,7 @@ export const NotesPanel = memo(function NotesPanel({
               })
 
               if (!existingNote) {
-                console.log(`[Notes Debug] Saving note ${note.id} to DB on unmount`)
+                console.debug(`[Notes Debug] Saving note ${note.id} to DB on unmount`)
 
                 await db.insert(schema.notes).values({
                   id: note.id,
@@ -477,8 +496,8 @@ export const NotesPanel = memo(function NotesPanel({
                   createdAt: note.createdAt,
                   accessedAt: new Date(),
                   dropped: note.dropped ?? false,
-                  fileId: dbFile.id,
-                  vaultId: note.vaultId,
+                  fileId: assertNonNull(currentDbFile, "File must exist").id,
+                  vaultId: assertNonNull(note.vaultId || vaultId, "VaultId must exist"),
                   reasoningId: note.reasoningId || null,
                   steering: note.steering || null,
                   embeddingStatus: "in_progress",
@@ -494,9 +513,9 @@ export const NotesPanel = memo(function NotesPanel({
         saveNotes()
       }
     }
-  }, [currentGenerationNotes, currentlyGeneratingDateKey, fileId, vaultId, db])
+  }, [currentGenerationNotes, currentlyGeneratingDateKey, fileId, vaultId, db, dbFile])
 
-  // Update markdownContent and vault state with props
+  // Update markdownContent, vault state, and dbFile with props
   useEffect(() => {
     if (initialMarkdownContent) {
       setMarkdownContent(initialMarkdownContent)
@@ -504,7 +523,10 @@ export const NotesPanel = memo(function NotesPanel({
     if (initialFileHandle) {
       setCurrentFileHandle(initialFileHandle)
     }
-  }, [initialMarkdownContent, initialFileHandle])
+    if (initialDbFile) {
+      setDbFile(initialDbFile)
+    }
+  }, [initialMarkdownContent, initialFileHandle, initialDbFile])
 
   const fetchNewNotes = useCallback(
     async (
@@ -867,13 +889,15 @@ export const NotesPanel = memo(function NotesPanel({
             }
           } catch (e) {
             console.error("Error parsing suggestions:", e)
-            toast.error("Failed to parse suggestion data")
+            toast.error("Failed to parse suggestion data. Please report this issue to GitHub.")
           }
         }
 
         if (generatedNotes.length === 0) {
           // Set error state when no suggestions could be generated
-          setNotesError("Could not generate suggestions for this content")
+          setNotesError(
+            "Could not generate suggestions for this content. Please report this issue to GitHub.",
+          )
           setCurrentlyGeneratingDateKey(null)
         } else {
           // Save the reasoning content to be associated with the notes later
@@ -920,15 +944,14 @@ export const NotesPanel = memo(function NotesPanel({
     return lastNotesGeneratedTime > fiveMinutesAgo
   }, [lastNotesGeneratedTime])
 
-  // Fix typing in the generateNewSuggestions function
   const generateNewSuggestions = useCallback(
     async (steeringSettings: SteeringSettings) => {
       if (!vaultId || !fileId || !markdownContent) {
-        console.log("[Notes Debug] Cannot generate suggestions - missing vault, file or content")
+        console.debug("[Notes Debug] Cannot generate suggestions - missing vault, file or content")
         return
       }
 
-      console.log(`[Notes Debug] Starting to generate new suggestions with settings:`, {
+      console.debug(`[Notes Debug] Starting to generate new suggestions with settings:`, {
         numSuggestions: steeringSettings.numSuggestions,
         hasAuthors: !!steeringSettings.authors,
         temperature: steeringSettings.temperature,
@@ -937,7 +960,7 @@ export const NotesPanel = memo(function NotesPanel({
 
       // Move current generation notes to history by adding them to notes array
       if (currentGenerationNotes.length > 0) {
-        console.log(
+        console.debug(
           `[Notes Debug] Moving ${currentGenerationNotes.length} current generation notes to history`,
         )
         // First ensure the current notes are in the main notes array (if they aren't already)
@@ -949,7 +972,7 @@ export const NotesPanel = memo(function NotesPanel({
 
           if (notesToAdd.length === 0) return prev
 
-          console.log(`[Notes Debug] Adding ${notesToAdd.length} notes to main notes array`)
+          console.debug(`[Notes Debug] Adding ${notesToAdd.length} notes to main notes array`)
           // Add to notes and sort
           const combined = [...notesToAdd, ...prev]
           return combined.sort(
@@ -976,19 +999,31 @@ export const NotesPanel = memo(function NotesPanel({
 
       try {
         // First, find or create the file in the database to ensure proper ID reference
-        let dbFile = await db.query.files.findFirst({
-          where: (files, { and, eq }) => and(eq(files.id, fileId), eq(files.vaultId, vaultId)),
-        })
+        let currentDbFile = dbFile
 
-        console.log(`[Notes Debug] Found file in DB: ${dbFile?.id || "not found"}`)
+        if (!currentDbFile) {
+          // Only query the database if we don't have a dbFile from props
+          const foundFile = await db.query.files.findFirst({
+            where: (files, { and, eq }) => and(eq(files.id, fileId), eq(files.vaultId, vaultId)),
+          })
 
-        if (!dbFile) {
+          if (foundFile) {
+            currentDbFile = foundFile
+            console.debug(`[Notes Debug] Found file in DB: ${currentDbFile.id}`)
+          } else {
+            console.debug(`[Notes Debug] Found file in DB: not found`)
+          }
+        } else {
+          console.debug(`[Notes Debug] Using existing file from props: ${currentDbFile.id}`)
+        }
+
+        if (!currentDbFile) {
           if (!currentFileHandle) {
             console.error("[Notes Debug] No file handle available to create DB entry")
             throw new Error("No file handle available")
           }
 
-          console.log(
+          console.debug(
             `[Notes Debug] File not found in DB, creating new file entry for ${currentFileHandle.name}`,
           )
           // Insert file into database
@@ -1002,19 +1037,23 @@ export const NotesPanel = memo(function NotesPanel({
           })
 
           // Re-fetch the file to get its ID
-          dbFile = await db.query.files.findFirst({
+          const newFile = await db.query.files.findFirst({
             where: (files, { and, eq }) => and(eq(files.id, fileId), eq(files.vaultId, vaultId)),
           })
 
-          if (!dbFile) {
+          if (!newFile) {
             throw new Error("Failed to create file in database")
           }
-          console.log(`[Notes Debug] Created new file in DB with ID: ${dbFile.id}`)
+          currentDbFile = newFile
+          console.debug(`[Notes Debug] Created new file in DB with ID: ${currentDbFile.id}`)
+
+          // Update local state with the new file
+          setDbFile(currentDbFile)
         }
 
         try {
           // Now that we have the file, generate the suggestions
-          console.log(`[Notes Debug] Fetching new notes from API`)
+          console.debug(`[Notes Debug] Fetching new notes from API`)
           const { generatedNotes, reasoningId, reasoningElapsedTime, reasoningContent } =
             await fetchNewNotes(
               markdownContent,
@@ -1030,7 +1069,7 @@ export const NotesPanel = memo(function NotesPanel({
                 : undefined,
             )
 
-          console.log(
+          console.debug(
             `[Notes Debug] Received ${generatedNotes.length} generated notes with reasoning ID: ${reasoningId}`,
           )
 
@@ -1042,8 +1081,8 @@ export const NotesPanel = memo(function NotesPanel({
               id,
               content: note.content,
               color: streamingSuggestionColors[index] || generatePastelColor(),
-              fileId: dbFile!.id, // Use the actual DB file ID here
-              vaultId,
+              fileId: assertNonNull(currentDbFile, "File must exist").id,
+              vaultId: assertNonNull(vaultId, "VaultId must exist"),
               isInEditor: false,
               createdAt: new Date(),
               lastModified: new Date(),
@@ -1062,8 +1101,8 @@ export const NotesPanel = memo(function NotesPanel({
           // Prepare the reasoning record to be saved
           const reasoningRecordToSave = {
             id: reasoningId,
-            fileId: dbFile!.id,
-            vaultId,
+            fileId: assertNonNull(currentDbFile, "File must exist").id,
+            vaultId: assertNonNull(vaultId, "VaultId must exist"),
             content: reasoningContent,
             noteIds: newNoteIds,
             createdAt: now,
@@ -1080,13 +1119,13 @@ export const NotesPanel = memo(function NotesPanel({
           // Only save if the file is not null and we have notes to save
           if (fileId && newNotes.length > 0) {
             try {
-              console.log(`[Notes Debug] Saving reasoning with ID ${reasoningId} to DB`)
+              console.debug(`[Notes Debug] Saving reasoning with ID ${reasoningId} to DB`)
               // Use Promise.all to save reasoning and notes concurrently
               await Promise.all([
                 // Ensure reasoningRecordToSave matches the schema expectations
                 db.insert(schema.reasonings).values(reasoningRecordToSave),
                 ...newNotes.map((note) => {
-                  console.log(`[Notes Debug] Saving note ${note.id} to DB`)
+                  console.debug(`[Notes Debug] Saving note ${note.id} to DB`)
                   return db.insert(schema.notes).values({
                     id: note.id,
                     content: note.content,
@@ -1094,9 +1133,9 @@ export const NotesPanel = memo(function NotesPanel({
                     createdAt: note.createdAt,
                     accessedAt: new Date(),
                     dropped: note.dropped ?? false,
-                    fileId: dbFile!.id,
-                    vaultId: note.vaultId,
-                    reasoningId: note.reasoningId!,
+                    fileId: assertNonNull(currentDbFile, "File must exist").id,
+                    vaultId: assertNonNull(note.vaultId || vaultId, "VaultId must exist"),
+                    reasoningId: note.reasoningId || null,
                     steering: note.steering || null,
                     embeddingStatus: "in_progress",
                     embeddingTaskId: null,
@@ -1104,8 +1143,8 @@ export const NotesPanel = memo(function NotesPanel({
                 }),
               ])
 
-              console.log(`[Notes Debug] Saving ${newNotes.length} new notes to DB`)
-              console.log(`[Notes Debug] Notes and reasoning saved successfully.`)
+              console.debug(`[Notes Debug] Saving ${newNotes.length} new notes to DB`)
+              console.debug(`[Notes Debug] Notes and reasoning saved successfully.`)
 
               // **Update UI state AFTER successful DB operations**
               // Fix: Ensure the object matches ReasoningHistory type
@@ -1128,10 +1167,10 @@ export const NotesPanel = memo(function NotesPanel({
               // Set current generation notes for UI
               setCurrentGenerationNotes(newNotes)
 
-              console.log(`[Notes Debug] Processing embeddings for ${newNotes.length} new notes`)
+              console.debug(`[Notes Debug] Processing embeddings for ${newNotes.length} new notes`)
               // Submit each note for embedding individually and track task IDs for polling
               for (const note of newNotes) {
-                console.log(`[Notes Debug] Submitting note ${note.id} for embedding`)
+                console.debug(`[Notes Debug] Submitting note ${note.id} for embedding`)
                 const result = await submitNoteForEmbedding(db, note)
 
                 // If successful and we have a task ID, add it for polling
@@ -1146,25 +1185,30 @@ export const NotesPanel = memo(function NotesPanel({
 
                   if (updatedNote?.embeddingTaskId) {
                     addTask(updatedNote.embeddingTaskId)
-                    console.log(
+                    console.debug(
                       `[Notes Debug] Added embedding task ${updatedNote.embeddingTaskId} for note ${note.id}`,
                     )
                   } else {
-                    console.log(
+                    console.debug(
                       `[Notes Debug] Note ${note.id} has no embedding task ID after submission`,
                     )
                   }
                 } else {
-                  console.log(`[Notes Debug] Failed to submit note ${note.id} for embedding`)
+                  console.debug(`[Notes Debug] Failed to submit note ${note.id} for embedding`)
                 }
               }
 
               // Log the notes after saving to verify they were saved correctly
-              await logNotesForFile(db, dbFile!.id, vaultId, "After generating new suggestions")
+              await logNotesForFile(
+                db,
+                assertNonNull(currentDbFile, "File must exist").id,
+                assertNonNull(vaultId, "VaultId must exist"),
+                "After generating new suggestions",
+              )
             } catch (dbError) {
               console.error("Failed to save notes to database:", dbError)
               // Still show notes in UI even if DB fails
-              console.log(`[Notes Debug] Showing notes in UI despite DB save failure`)
+              console.debug(`[Notes Debug] Showing notes in UI despite DB save failure`)
               setCurrentGenerationNotes(newNotes)
               setNotes((prev: Note[]) => {
                 const combined = [...newNotes, ...prev]
@@ -1175,7 +1219,7 @@ export const NotesPanel = memo(function NotesPanel({
             }
           } else {
             // For unsaved files, just display in UI without saving to DB
-            console.log(`[Notes Debug] Displaying ephemeral notes for unsaved file`)
+            console.debug(`[Notes Debug] Displaying ephemeral notes for unsaved file`)
             // Update UI immediately for ephemeral notes
             setReasoningHistory((prev) => [
               ...prev,
@@ -1216,6 +1260,7 @@ export const NotesPanel = memo(function NotesPanel({
       addTask,
       streamingSuggestionColors,
       currentFileHandle,
+      dbFile,
     ],
   )
 

@@ -59,7 +59,7 @@ export async function checkFileHasEmbeddings(
     })
 
     if (!file) {
-      console.error(`[EssayEmbedding] File ${fileId} not found in database`)
+      console.debug(`[EssayEmbedding] File ${fileId} not found in database`)
       return false
     }
 
