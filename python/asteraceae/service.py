@@ -77,9 +77,10 @@ SERVICE_CONFIG: ServiceOpts = {
   'http': {
     'cors': {
       'enabled': True,
-      'access_control_allow_origins': ['*'],
+      'access_control_allow_origins': ['https://morph-editor.app', 'http://localhost:3000', 'https://localhost:3000'],
       'access_control_allow_methods': ['*'],
-      'access_control_allow_headers': ['*'],
+      'access_control_allow_credentials': True,
+      'access_control_allow_headers': ['*', 'Content-Type', 'Authorization'],
       'access_control_max_age': 1200,
       'access_control_expose_headers': ['Access-Control-Allow-Origin'],
     }
@@ -139,13 +140,9 @@ class SearchResults(pydantic.BaseModel):
   items: list[SearchItem]
 
 
-llm_app = fastapi.FastAPI(title=f'OpenAI Compatible Endpoint for {LLM_ID}')
-embed_app = fastapi.FastAPI(title=f'OpenAI Compatible Endpoint for {EMBED_ID}')
-app = fastapi.FastAPI(title='API Gateway for morph')
-
-
-def make_labels(task: TaskType) -> dict[str, t.Any]:
-  return {'owner': 'aarnphm', 'type': 'engine', 'task': task}
+llm_app = fastapi.FastAPI(title=f'OpenAI Compatible Endpoint for {LLM_ID}', docs=False, redoc=False)
+embed_app = fastapi.FastAPI(title=f'OpenAI Compatible Endpoint for {EMBED_ID}', docs=False, redoc=False)
+app = fastapi.FastAPI(title='API Gateway for morph', docs=False, redoc=False)
 
 
 def make_engine_service_config(type_: t.Literal['llm', 'embed'] = 'llm') -> ServiceOpts:
@@ -240,7 +237,9 @@ def make_url(task: TaskType) -> str | None:
 
 
 @bentoml.asgi_app(llm_app, path='/v1')
-@bentoml.service(labels=make_labels('generate'), envs=make_env(0), **make_engine_service_config())
+@bentoml.service(
+  labels={'owner': 'aarnphm', 'type': 'engine', 'task': 'generate'}, envs=make_env(0), **make_engine_service_config()
+)
 class LLM:
   model_id = LLM_ID
   model = bentoml.models.HuggingFaceModel(model_id, exclude=IGNORE_PATTERNS)
@@ -325,7 +324,11 @@ class LLM:
 
 
 @bentoml.asgi_app(embed_app, path='/v1')
-@bentoml.service(labels=make_labels('embed'), envs=make_env(0), **make_engine_service_config('embed'))
+@bentoml.service(
+  labels={'owner': 'aarnphm', 'type': 'engine', 'task': 'embed'},
+  envs=make_env(0),
+  **make_engine_service_config('embed'),
+)
 class Embeddings:
   model_id = EMBED_ID
   model = bentoml.models.HuggingFaceModel(model_id, exclude=IGNORE_PATTERNS)
