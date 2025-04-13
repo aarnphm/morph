@@ -3,14 +3,12 @@
 import { cn, toJsx } from "@/lib"
 import { groupNotesByDate } from "@/lib/notes"
 import { checkFileHasEmbeddings, useProcessPendingEssayEmbeddings } from "@/services/essays"
-import { logNotesForFile } from "@/services/notes"
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
 import { Compartment, EditorState } from "@codemirror/state"
 import { keymap } from "@codemirror/view"
 import { EditorView } from "@codemirror/view"
-import { createId } from "@paralleldrive/cuid2"
 import { CopyIcon, Cross2Icon } from "@radix-ui/react-icons"
 import { Vim, vim } from "@replit/codemirror-vim"
 import { hyperLink } from "@uiw/codemirror-extensions-hyper-link"
@@ -47,11 +45,10 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 import { usePGlite } from "@/context/db"
 import { useEssayEmbeddingTasks } from "@/context/embedding"
-import { useRestoredFile } from "@/context/file-restoration"
 import { useNotesContext } from "@/context/notes"
 import { SearchProvider } from "@/context/search"
 import { SteeringProvider } from "@/context/steering"
-import { useVaultContext } from "@/context/vault"
+import { useVaultContext, useVaultDispatch } from "@/context/vault"
 import { verifyHandle } from "@/context/vault-reducer"
 
 import useFsHandles from "@/hooks/use-fs-handles"
@@ -76,23 +73,30 @@ export interface AuthorRequest {
   num_search_results?: number
 }
 
-function saveLastFileInfo(vaultId: string | null, fileId: string | null, handleId: string) {
-  if (!vaultId || !fileId) return
+function saveLastFileInfo(vaultId: string | null, fileId: string | null) {
+  if (!vaultId || !fileId) {
+    if (vaultId) localStorage.removeItem(`morph:last-file:${vaultId}`)
+    return
+  }
   try {
     localStorage.setItem(
       `morph:last-file:${vaultId}`,
       JSON.stringify({
         lastAccessed: new Date().toISOString(),
-        handleId,
         fileId,
       }),
     )
+    console.debug(`[Editor] Saved last file info for vault ${vaultId}: fileId=${fileId}`)
   } catch (storageError) {
     console.error("Failed to save file info to localStorage:", storageError)
   }
 }
 
 async function renderHastNode(value: string, settings: Settings, vaultId: string, fileId: string) {
+  if (!fileId) {
+    console.warn("[renderHastNode] Attempted to render with null fileId.")
+    return null
+  }
   try {
     return await mdToHtml({
       value,
@@ -102,18 +106,38 @@ async function renderHastNode(value: string, settings: Settings, vaultId: string
       returnHast: true,
     })
   } catch (error) {
-    console.error(error)
+    console.error("Error rendering HAST node:", error)
     throw error
   }
 }
 
-export default memo(function Editor({ vaultId, vaults }: EditorProps) {
+// Helper function (can be placed outside the component or in a utils file)
+function findNodeByIdRecursive(node: FileSystemTreeNode | undefined, id: string): FileSystemTreeNode | null {
+  if (!node) {
+    return null;
+  }
+  if (node.id === id) {
+    return node;
+  }
+  if (node.kind === 'directory' && node.children) {
+    for (const child of node.children) {
+      const found = findNodeByIdRecursive(child, id);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  return null;
+}
+
+export default memo(function Editor({ vaultId }: EditorProps) {
   const { theme } = useTheme()
   const { storeHandle } = useFsHandles()
-  const { restoredFile, setRestoredFile } = useRestoredFile()
   const { settings } = usePersistedSettings()
 
-  const { refreshVault, flattenedFileIds } = useVaultContext()
+  const { flattenedFileIds, getActiveVault } = useVaultContext()
+  const vaultDispatch = useVaultDispatch()
+
   const [isEditMode, setIsEditMode] = useState(true)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [previewNode, setPreviewNode] = useState<Root | null>(null)
@@ -125,22 +149,15 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const [showNotes, setShowNotes] = useState(false)
   const [markdownContent, setMarkdownContent] = useState<string>("")
   const [isStackExpanded, setIsStackExpanded] = useState(false)
-  const [vimMode, setVimMode] = useState(settings.vimMode ?? false)
-  // Add a ref to track if we've already attempted to restore a file
-  const fileRestorationAttempted = useRef(false)
-  // Add a state for visible context note IDs (around line 150, with other state declarations)
   const [visibleContextNoteIds, setVisibleContextNoteIds] = useState<string[]>([])
-  // Add state for author understanding indicator
   const [isAuthorProcessing, setIsAuthorProcessing] = useState(false)
-  // Add state for essay embedding status
   const [embeddingStatus, setEmbeddingStatus] = useState<
     "in_progress" | "success" | "failure" | "cancelled" | null
   >(null)
 
-  // Use the notes context instead of local state
   const {
-    state: { droppedNotes, notes, currentGenerationNotes, currentFileId, dbFile: dbFileState },
-    dispatch,
+    state: { droppedNotes, notes, currentGenerationNotes, currentFileId, dbFile },
+    dispatch: notesDispatch,
     handleNoteDropped,
     handleNoteRemoved,
     loadFileMetadata,
@@ -150,63 +167,51 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   const client = usePGlite()
   const db = drizzle({ client, schema })
 
-  const vault = vaults.find((v) => v.id === vaultId)
+  const vault = getActiveVault()
+  const currentVaultId = vaultId
 
-  // Add the process pending embeddings mutation for essays
   const processEssayEmbeddings = useProcessPendingEssayEmbeddings(db)
 
-  // create a ref for contents to batch updates
   const contentRef = useRef({ content: "" })
 
-  // Create a ref for the keyboard handler to ensure stable identity
   const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(() => {})
 
-  // Add a ref to track if we've processed essay embeddings for the current file
   const essayEmbeddingProcessedRef = useRef<string | null>(null)
 
-  // Add a ref to track the last time embeddings were processed for rate limiting
   const lastEmbeddingProcessedTimestampRef = useRef<Record<string, number>>({})
 
-  // Use a ref to store the timeout ID so we can access it in the cleanup function
-  const embeddingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const { addTask, pendingTaskIds } = useEssayEmbeddingTasks()
 
-  // Get the task actions for adding tasks
-  const { addTask: addEssayTask } = useEssayEmbeddingTasks()
-
-  // Get essay embedding tasks to track essay embedding progress
-  const { pendingTaskIds: essayEmbeddingTaskIds } = useEssayEmbeddingTasks()
-
-  useEffect(() => {
-    if (restoredFile && restoredFile.fileId)
-      dispatch({ type: "SET_CURRENT_FILE_ID", fileId: restoredFile.fileId })
-  }, [restoredFile, dispatch])
-
-  // Define updateContentRef function that updates content without logging
-  const updateContentRef = useCallback(() => {
-    contentRef.current = { content: markdownContent }
-  }, [markdownContent])
-
-  const toggleStackExpand = useCallback(() => {
-    setIsStackExpanded((prev) => !prev)
+  const updateContentRef = useCallback((content: string) => {
+    contentRef.current = { content }
   }, [])
 
-  const updatePreview = useCallback(
-    async (content: string) => {
-      const tree = await renderHastNode(content, settings, vaultId, currentFileId!)
-      setPreviewNode(tree)
-    },
-    [currentFileId, settings, vaultId],
+  const updatePreview = useDebouncedCallback(
+    useCallback(
+      async (content: string) => {
+        if (!currentVaultId || !currentFileId) return
+        const tree = await renderHastNode(content, settings, currentVaultId, currentFileId)
+        setPreviewNode(tree)
+      },
+      [currentFileId, settings, currentVaultId],
+    ),
+    300,
   )
 
-  // Debounce the preview update function
-  const debouncedUpdatePreview = useDebouncedCallback(updatePreview, 300) // 300ms debounce delay
-
-  // Helper function to load file content and UI state
   const loadFileContent = useCallback(
-    (fileId: string, fileHandle: FileSystemFileHandle, content: string) => {
-      if (!codeMirrorViewRef.current) return false
+    async (fileId: string, fileHandle: FileSystemFileHandle, content: string) => {
+      if (!codeMirrorViewRef.current || !currentVaultId) return false
 
       try {
+        const existingFile = await db.query.files.findFirst({
+          where: (files, { and, eq }) =>
+            and(eq(files.id, fileId), eq(files.vaultId, currentVaultId)),
+        })
+
+        if (existingFile) {
+          notesDispatch({ type: "SET_DB_FILE", dbFile: existingFile })
+        }
+
         codeMirrorViewRef.current.dispatch({
           changes: {
             from: 0,
@@ -216,21 +221,20 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
           effects: setFile.of(fileId),
         })
 
-        // Update state
         setCurrentFileHandle(fileHandle)
-        dispatch({ type: "SET_CURRENT_FILE_ID", fileId })
+        notesDispatch({ type: "SET_CURRENT_FILE_ID", fileId })
         setMarkdownContent(content)
         setHasUnsavedChanges(false)
         setIsEditMode(true)
-        // Update preview
-        debouncedUpdatePreview(content)
+        updatePreview(content)
         return true
       } catch (error) {
-        console.error("Error loading file content:", error)
+        console.error(`Error loading file content for ${fileId}:`, error)
+        toast.error(`Failed to load file content for ${fileId}.`)
         return false
       }
     },
-    [debouncedUpdatePreview, dispatch],
+    [updatePreview, notesDispatch, db, currentVaultId],
   )
 
   const toggleNotes = useCallback(() => {
@@ -238,24 +242,23 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   }, [showNotes])
 
   const handleSave = useCallback(async () => {
+    if (!currentVaultId) {
+      toast.error("Cannot save: No active vault selected.")
+      return
+    }
+
     try {
       let targetHandle = currentFileHandle
-      let fileId = currentFileId
-      const handleId = createId() // Always generate a new handle ID
+      let fileIdToSave = currentFileId
       let isNewFile = false
+      let relativePath = ""
 
-      // If we're working with the default file or don't have a handle, we need to save as a new file
-      if (!targetHandle || fileId === null) {
+      if (!targetHandle || !fileIdToSave) {
         isNewFile = true
-        // For new files, create a new unique file ID if we're using null
-        if (fileId === null) {
-          fileId = createId()
-        }
 
-        // Show the save file picker
         targetHandle = await window.showSaveFilePicker({
-          id: vaultId,
-          suggestedName: `morph-${fileId}.md`,
+          id: "morph-save-picker",
+          suggestedName: `untitled.md`,
           types: [
             {
               description: "Markdown Files",
@@ -263,215 +266,194 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
             },
           ],
         })
+
+        // New files are conceptually saved at root for now
+        // TODO: change this to save to the current directory
+        relativePath = `/${targetHandle.name}`
+        fileIdToSave = `${currentVaultId}:${relativePath}`
+
+        await storeHandle(currentVaultId, fileIdToSave, targetHandle)
+      } else {
+        // Use recursive search instead of shallow search
+        const node = findNodeByIdRecursive(vault?.tree, fileIdToSave);
+        if (node && node.kind === 'file') { // Ensure it's a file node
+          relativePath = node.path
+        } else {
+          console.error(
+            `[Editor] Could not find existing file node for ID: ${fileIdToSave} or it's not a file. Cannot determine path.`,
+          )
+          toast.error("Error: Could not find file data to save properly.")
+          return
+        }
       }
 
-      // Write the file content
+      // Get the latest content directly from CodeMirror
+      const currentEditorContent = codeMirrorViewRef.current?.state.doc.toString() || markdownContent
+
       const writable = await targetHandle.createWritable()
-      await writable.write(markdownContent)
+      await writable.write(currentEditorContent) // Use the direct content here
       await writable.close()
 
-      const file = await targetHandle.getFile()
+      const filename = targetHandle.name
+      const match = filename.match(/^(.+?)(\.[^.]*)?$/)
+      const baseName = match?.[1] || filename
+      const extension = match?.[2]?.replace(/^\./, "") || ""
 
-      // If this is a new file and we have a vault, create a db entry
-      if (isNewFile && vault) {
-        // Extract the filename and extension
-        const filename = targetHandle.name
-        const extension = filename.includes(".") ? filename.split(".").pop() || "" : ""
+      const fileData = {
+        id: fileIdToSave,
+        name: baseName,
+        extension,
+        vaultId: currentVaultId,
+        lastModified: new Date(),
+        embeddingStatus: "in_progress" as const,
+      }
 
-        try {
-          // Create a new file entry in the database
-          const newFile = await db
-            .insert(schema.files)
-            .values({
-              id: fileId,
-              name: filename,
-              extension,
-              vaultId: vaultId,
-              lastModified: new Date(),
-              embeddingStatus: "in_progress",
-            })
-            .returning()
-
-          if (newFile && newFile.length > 0) {
-            // Use the database-generated ID if available
-            const dbFileId = newFile[0].id
-
-            // Store the handle in IndexedDB with the new ID
-            await storeHandle(handleId, vaultId, dbFileId, targetHandle)
-
-            // Update component state with the new file information
-            dispatch({ type: "SET_CURRENT_FILE_ID", fileId: dbFileId })
-            setCurrentFileHandle(targetHandle)
-
-            // Refresh the vault to show the new file
-            await refreshVault(vaultId)
-
-            // Update fileId to use the DB one for localStorage
-            fileId = dbFileId
-          }
-        } catch (dbError) {
-          console.error("Error creating file in database:", dbError)
-          // If database save fails, still update local state
-          dispatch({ type: "SET_CURRENT_FILE_ID", fileId: fileId })
-          setCurrentFileHandle(targetHandle)
-
-          // Store the handle even if DB fails
-          await storeHandle(handleId, vaultId, fileId, targetHandle)
-        }
-      } else if (currentFileId !== null) {
-        // Update last modified time for existing files
-        try {
+      try {
+        if (isNewFile) {
+          // Insert new file metadata
+          await db.insert(schema.files).values(fileData)
+          console.debug(`[Editor] Inserted new file metadata for ${fileIdToSave} in DB.`)
+        } else {
+          // Update existing file metadata
           await db
             .update(schema.files)
-            .set({ lastModified: new Date() })
+            .set({
+              name: fileData.name,
+              extension: fileData.extension,
+              lastModified: fileData.lastModified,
+              embeddingStatus: fileData.embeddingStatus, // Keep updating status on save for now
+            })
             .where(
-              and(eq(schema.files.id, currentFileId), eq(schema.files.vaultId, vault?.id || "")),
+              and(eq(schema.files.id, fileIdToSave), eq(schema.files.vaultId, currentVaultId)),
             )
-        } catch (error) {
-          console.error("Error updating file last modified time:", error)
+          console.debug(`[Editor] Updated file metadata for ${fileIdToSave} in DB.`)
         }
+      } catch (dbError) {
+        console.error("Error upserting file metadata:", dbError)
+        toast.error("Failed to update file metadata in database.")
+        // Consider if we should proceed if DB update fails. Maybe not?
+        // return; // Uncomment if DB failure should stop the process
       }
 
-      // Save the current file info to localStorage
-      saveLastFileInfo(vaultId, fileId, handleId)
+      if (isNewFile) {
+        const newNode: FileSystemTreeNode = {
+          id: fileIdToSave,
+          name: baseName,
+          extension,
+          kind: "file",
+          path: relativePath,
+          handle: targetHandle,
+        }
+        vaultDispatch({ type: "ADD_FILE_NODE", vaultId: currentVaultId, node: newNode })
+        console.debug(`[Editor] Dispatched ADD_FILE_NODE for ${fileIdToSave}`)
 
-      // Update the restored file context
-      setRestoredFile({
-        file,
-        fileHandle: targetHandle,
-        fileId,
-        content: markdownContent,
-        handleId,
-      })
-
-      // Refresh metadata to update notes
-      if (fileId) {
-        await loadFileMetadata(fileId)
+        notesDispatch({ type: "SET_CURRENT_FILE_ID", fileId: fileIdToSave })
+        setCurrentFileHandle(targetHandle)
+        await updateDbFile(fileIdToSave)
+      } else {
+        await updateDbFile(fileIdToSave)
       }
 
-      // Update the content reference only after successful save
-      updateContentRef()
+      saveLastFileInfo(currentVaultId, fileIdToSave)
 
-      // Reset unsaved changes flag
+      updateContentRef(currentEditorContent) // Update ref with saved content
+      setMarkdownContent(currentEditorContent) // Sync state with saved content
       setHasUnsavedChanges(false)
       toast.success("File saved successfully!")
 
-      // Process essay embeddings with rate limiting (avoid spamming)
-      if (fileId) {
-        const currentTime = Date.now()
-        const fileKey = `${vaultId}:${fileId}`
-        const lastProcessed = lastEmbeddingProcessedTimestampRef.current[fileKey] || 0
-        const timeSinceLastProcess = currentTime - lastProcessed
+      const currentTime = Date.now()
+      const fileKey = `${currentVaultId}:${fileIdToSave}`
+      const lastProcessed = lastEmbeddingProcessedTimestampRef.current[fileKey] || 0
+      const timeSinceLastProcess = currentTime - lastProcessed
+      const RATE_LIMIT_MS = 3 * 60 * 1000
 
-        // Only process if it's been at least 2 minutes since last processing for this file
-        // or if it's a new file (isNewFile is true)
-        const RATE_LIMIT_MS = 3 * 60 * 1000 // 3 minutes
-
-        if (isNewFile || timeSinceLastProcess > RATE_LIMIT_MS) {
-          console.debug(`[Notes Debug] Processing essay embeddings on save for ${fileId}`)
-
-          try {
-            // Process the saved content
-            const content = md(markdownContent).content
-
-            // Update the last processed timestamp
-            lastEmbeddingProcessedTimestampRef.current[fileKey] = currentTime
-
-            // Set embedding status to processing in database
-            await db
-              .update(schema.files)
-              .set({ embeddingStatus: "in_progress" })
-              .where(and(eq(schema.files.id, fileId), eq(schema.files.vaultId, vaultId)))
-
-            // Trigger embedding processing
-            processEssayEmbeddings.mutate({
-              addTask: addEssayTask,
-              currentContent: content,
-              currentVaultId: vaultId,
-              currentFileId: fileId,
-            })
-          } catch (error) {
-            console.error("Error processing essay embeddings on save:", error)
-          }
-        } else {
-          console.debug(
-            `[Notes Debug] Skipping embedding update due to rate limiting (${Math.round(
-              timeSinceLastProcess / 1000,
-            )}s < ${RATE_LIMIT_MS / 1000}s)`,
-          )
+      if (isNewFile || timeSinceLastProcess > RATE_LIMIT_MS) {
+        console.debug(`[Editor] Processing essay embeddings on save for ${fileIdToSave}`)
+        try {
+          const content = md(currentEditorContent).content // Use the direct content for embedding
+          lastEmbeddingProcessedTimestampRef.current[fileKey] = currentTime
+          processEssayEmbeddings.mutate({
+            addTask: addTask,
+            currentContent: content,
+            currentVaultId: currentVaultId,
+            currentFileId: fileIdToSave,
+          })
+        } catch (error) {
+          console.error("Error processing essay embeddings on save:", error)
         }
+      } else {
+        console.debug(
+          `[Editor] Skipping embedding update due to rate limiting (${Math.round(
+            timeSinceLastProcess / 1000,
+          )}s < ${RATE_LIMIT_MS / 1000}s)`,
+        )
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        console.log("[Editor] File save cancelled by user.")
+        return
+      }
       console.error("Error saving file:", error)
+      toast.error(`Error saving file: ${error.message}`)
     }
   }, [
-    dispatch,
-    setRestoredFile,
+    currentVaultId,
+    currentFileId,
     currentFileHandle,
     markdownContent,
-    vault,
-    refreshVault,
-    vaultId,
     storeHandle,
-    currentFileId,
     db,
+    vaultDispatch,
+    notesDispatch,
     updateContentRef,
-    loadFileMetadata,
     processEssayEmbeddings,
-    addEssayTask,
+    addTask,
+    vault,
+    updateDbFile,
   ])
 
-  // Handle dragging a dropped note back to the panel
   const handleNoteDragBackToPanel = useCallback(
     async (noteId: string) => {
-      // Find the note in the droppedNotes
+      if (!currentFileId) {
+        console.warn("[handleNoteDragBackToPanel] No current file ID, cannot associate note.")
+        return
+      }
+
       const note = droppedNotes.find((n) => n.id === noteId)
       if (!note) {
         console.error(`Note with ID ${noteId} not found in droppedNotes`)
         return
       }
 
-      // Update the note to indicate it's no longer dropped
       const undropNote = {
         ...note,
         dropped: false,
         lastModified: new Date(),
-        // Preserve embedding status
         embeddingStatus: note.embeddingStatus || "in_progress",
         embeddingTaskId: note.embeddingTaskId,
       }
 
-      // Remove from droppedNotes state
-      dispatch({ type: "REMOVE_DROPPED_NOTE", noteId })
+      notesDispatch({ type: "REMOVE_DROPPED_NOTE", noteId })
 
       try {
-        // Ensure we have a valid dbFile
-        const dbFile = dbFileState || (await updateDbFile(currentFileId))
-        if (!dbFile) {
-          console.error("DB file not found when trying to move note back to panel")
-          return
-        }
-
-        // Update the database
         await db
           .update(schema.notes)
           .set({
             dropped: false,
             accessedAt: new Date(),
-            fileId: dbFile.id,
-            // Preserve existing embedding values
+            fileId: currentFileId,
             embeddingStatus: undropNote.embeddingStatus,
             embeddingTaskId: undropNote.embeddingTaskId,
           })
           .where(eq(schema.notes.id, noteId))
 
-        // Add back to main notes collection
-        dispatch({ type: "ADD_NOTES", notes: [undropNote] })
+        notesDispatch({ type: "ADD_NOTES", notes: [undropNote] })
       } catch (error) {
         console.error("Failed to update note status:", error)
+        toast.error("Failed to move note back to panel.")
       }
     },
-    [droppedNotes, db, currentFileId, dbFileState, dispatch, updateDbFile],
+    [droppedNotes, db, currentFileId, notesDispatch],
   )
 
   const baseExtensions = useMemo(() => {
@@ -487,23 +469,26 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       fileField.init(() => currentFileId),
       EditorView.updateListener.of((update) => {
         if (update.docChanged || update.selectionSet) {
-          // We only update the filename if it explicitly changes via the effect
           const newFileId = update.state.field(fileField)
-          dispatch({ type: "SET_CURRENT_FILE_ID", fileId: newFileId })
+          if (newFileId !== currentFileId) {
+            console.debug(
+              "[CodeMirror Listener] fileField changed, updating notes context:",
+              newFileId,
+            )
+            notesDispatch({ type: "SET_CURRENT_FILE_ID", fileId: newFileId })
+          }
         }
       }),
       syntaxHighlighting(),
       search(),
       hyperLink,
     ]
-  }, [settings.tabSize, currentFileId, dispatch])
+  }, [settings.tabSize, currentFileId, notesDispatch])
 
-  // Only compute extensions that will be used in the editor
   const memoizedExtensions = useMemo(() => {
-    return vimMode ? [...baseExtensions, vim()] : baseExtensions
-  }, [baseExtensions, vimMode])
+    return settings.vimMode ? [...baseExtensions, vim()] : baseExtensions
+  }, [baseExtensions, settings.vimMode])
 
-  // Memoize the basicSetup object
   const memoizedBasicSetup = useMemo(
     () => ({
       rectangularSelection: false,
@@ -516,318 +501,190 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
   )
 
   const onNewFile = useCallback(() => {
+    console.debug("[Editor] Creating new file.")
     setCurrentFileHandle(null)
-    setMarkdownContent("") // Clear content for new file
+    setMarkdownContent("")
     setIsEditMode(true)
-    setPreviewNode(null) // Clear preview
-
-    // Reset embedding processing flags
+    setPreviewNode(null)
     essayEmbeddingProcessedRef.current = null
+    setHasUnsavedChanges(false)
+    notesDispatch({ type: "SET_CURRENT_FILE_ID", fileId: null })
+    notesDispatch({ type: "SET_DB_FILE", dbFile: null })
 
-    setHasUnsavedChanges(false) // Reset unsaved changes
-    // Set currentFileId to null for new file
-    dispatch({ type: "SET_CURRENT_FILE_ID", fileId: null })
-    // Also reset dbFile state for new file
-    dispatch({ type: "SET_DB_FILE", dbFile: null })
-
-    // Clear the last file info from localStorage
-    if (vaultId) {
-      try {
-        localStorage.removeItem(`morph:last-file:${vaultId}`)
-      } catch (storageError) {
-        console.error("Failed to clear file info from localStorage:", storageError)
-      }
+    if (currentVaultId) {
+      saveLastFileInfo(currentVaultId, null)
     }
-  }, [vaultId, dispatch])
+  }, [currentVaultId, notesDispatch])
 
-  // Create a function to toggle settings that we can pass to Rails
   const toggleSettings = useCallback(() => {
     setIsSettingsOpen((prev) => !prev)
   }, [])
 
   const handleFileSelect = useCallback(
     async (node: FileSystemTreeNode) => {
-      if (!vault || node.kind !== "file" || !codeMirrorViewRef.current || !node.handle) return
+      if (!vault || node.kind !== "file" || !node.handle || !currentVaultId) {
+        console.warn("[Editor] handleFileSelect precondition failed:", {
+          vaultExists: !!vault,
+          nodeKind: node.kind,
+          nodeHandleExists: !!node.handle,
+          currentVaultId,
+        })
+        return
+      }
+
+      const selectedFileId = node.id
 
       try {
-        console.debug(`[Notes Debug] Selecting file: ${node.name} (${node.id})`)
+        console.debug(`[Editor] Selecting file: ${node.name} (${selectedFileId})`)
 
-        // Reset embedding processing flags for new file selection
-        essayEmbeddingProcessedRef.current = null
-
-        const file = await node.handle!.getFile()
-        const content = await file.text()
-
-        // If the node doesn't have a handleId, create one and store it
-        let handleId = node.handleId
-        if (!handleId) {
-          handleId = createId()
-          // Store the handle for future use
+        if (currentFileId && hasUnsavedChanges) {
+          console.debug(
+            `[Editor] Auto-saving current file (${currentFileId}) due to unsaved changes before switching.`,
+          )
           try {
-            await storeHandle(handleId, vaultId, node.id, node.handle as FileSystemFileHandle)
-          } catch (storeError) {
-            console.error("Failed to store handle:", storeError)
-            // Continue without storing - non-critical
-          }
-        } else {
-          // Verify the existing handle is still valid
-          try {
-            const isValid = await verifyHandle(node.handle)
-            if (!isValid) {
-              await storeHandle(handleId, vaultId, node.id, node.handle as FileSystemFileHandle)
-            }
-          } catch (verifyError) {
-            console.error("Failed to verify handle:", verifyError)
+            await handleSave()
+          } catch (saveError) {
+            console.error("Error auto-saving current file before switching:", saveError)
+            toast.error("Failed to save previous file before switching.")
+            return
           }
         }
 
-        // Set the fileId early so it can be used immediately
-        const targetFileId = node.id
+        essayEmbeddingProcessedRef.current = null
 
-        // Update file ID in notes context
-        dispatch({ type: "SET_CURRENT_FILE_ID", fileId: targetFileId })
+        const fileHandle = node.handle as FileSystemFileHandle
+        const file = await fileHandle.getFile()
+        const content = await file.text()
 
-        // Update dbFile state when selecting a new file
-        await updateDbFile(targetFileId)
-          .catch((error) => {
-            console.error("Error updating dbFile during file selection:", error)
-          })
-          .then()
+        console.debug(`[Editor] Read content for ${selectedFileId}`)
 
-        // Load file content - this should now find the correct file ID
-        const success = loadFileContent(targetFileId, node.handle as FileSystemFileHandle, content)
-
-        if (success) {
-          console.debug(`[Notes Debug] Successfully loaded content for file ${targetFileId}`)
-
-          console.debug(
-            `[Notes Debug] Saving file info with ID: ${targetFileId}, handleId: ${handleId || node.id}`,
-          )
-          // Save the last accessed file info with the correct ID
-          saveLastFileInfo(vaultId, targetFileId, handleId || node.id)
-
-          // Update restored file in context for future restorations
-          setRestoredFile({
-            file,
-            fileHandle: node.handle as FileSystemFileHandle,
-            fileId: targetFileId,
-            content,
-            handleId: handleId || node.id,
-          })
-
-          // Load file metadata to populate notes
-          try {
-            await loadFileMetadata(targetFileId)
-            console.debug(`[Notes Debug] Loaded metadata for file ${targetFileId}`)
-          } catch (metadataError) {
-            console.error(
-              `[Notes Debug] Error loading metadata for file ${targetFileId}:`,
-              metadataError,
+        try {
+          const isValid = await verifyHandle(fileHandle)
+          if (!isValid) {
+            console.warn(
+              `[Editor] Handle for file ${selectedFileId} needs permission or is invalid, attempting to re-store.`,
             )
           }
+          await storeHandle(currentVaultId, selectedFileId, fileHandle)
+          console.debug(`[Editor] Verified and stored handle for ${selectedFileId}`)
+        } catch (storeError) {
+          console.error(`Failed to store handle for ${selectedFileId}:`, storeError)
+        }
 
-          // Process essay embeddings if needed
-          if (targetFileId !== null) {
-            try {
-              // Skip if already being processed
-              if (essayEmbeddingProcessedRef.current === `${vaultId}:${targetFileId}`) {
-                console.debug(
-                  `[Notes Debug] Skipping duplicate essay embedding processing for ${node.name}`,
-                )
-                return
-              }
+        await updateDbFile(selectedFileId)
 
-              // Mark as processing immediately using ID
-              essayEmbeddingProcessedRef.current = `${vaultId}:${targetFileId}`
+        const success = await loadFileContent(selectedFileId, fileHandle, content)
 
-              // Check if this file already has embeddings
-              const hasEmbeddings = await checkFileHasEmbeddings(db, targetFileId)
+        if (success) {
+          console.debug(`[Editor] Successfully loaded content for file ${selectedFileId}`)
 
-              if (!hasEmbeddings) {
-                console.debug(`[Notes Debug] Processing essay embeddings for ${node.name}`)
-                const cleaned = md(content).content
-                processEssayEmbeddings.mutate({
-                  addTask: addEssayTask,
-                  currentContent: cleaned,
-                  currentVaultId: vaultId,
-                  currentFileId: targetFileId,
-                })
-              } else {
-                console.debug(
-                  `[Notes Debug] File ${node.name} already has embeddings, skipping processing`,
-                )
-              }
-            } catch (error) {
-              console.error("Error processing file data:", error)
-              // Reset flags on error to allow retrying
-              essayEmbeddingProcessedRef.current = null
+          // Load associated notes and reasoning after file content is loaded
+          await loadFileMetadata(selectedFileId)
+          console.debug(`[Editor] Dispatched action to load metadata for ${selectedFileId}`)
+
+          saveLastFileInfo(currentVaultId, selectedFileId)
+
+          try {
+            if (essayEmbeddingProcessedRef.current === `${currentVaultId}:${selectedFileId}`) {
+              console.debug(
+                `[Editor] Skipping duplicate essay embedding processing check for ${node.name}`,
+              )
+              return
             }
+
+            essayEmbeddingProcessedRef.current = `${currentVaultId}:${selectedFileId}`
+
+            const hasEmbeddings = await checkFileHasEmbeddings(db, selectedFileId)
+
+            if (!hasEmbeddings) {
+              console.debug(
+                `[Editor] Processing essay embeddings for ${node.name} (${selectedFileId})`,
+              )
+              const cleaned = md(content).content
+
+              await db
+                .update(schema.files)
+                .set({ embeddingStatus: "in_progress" })
+                .where(
+                  and(
+                    eq(schema.files.id, selectedFileId),
+                    eq(schema.files.vaultId, currentVaultId),
+                  ),
+                )
+
+              processEssayEmbeddings.mutate({
+                addTask: addTask,
+                currentContent: cleaned,
+                currentVaultId: currentVaultId,
+                currentFileId: selectedFileId,
+              })
+            } else {
+              console.debug(
+                `[Editor] File ${node.name} (${selectedFileId}) already has embeddings, skipping processing.`,
+              )
+              const fileMeta = await db.query.files.findFirst({
+                where: eq(schema.files.id, selectedFileId),
+              })
+              if (fileMeta?.embeddingStatus === "success") {
+                setEmbeddingStatus("success")
+              }
+            }
+          } catch (error) {
+            console.error("Error processing file data during selection:", error)
+            essayEmbeddingProcessedRef.current = null
           }
         } else {
-          console.debug(`[Notes Debug] Failed to load content for file ${targetFileId}`)
+          console.warn(`[Editor] Failed to load content for file ${selectedFileId}`)
+          toast.error(`Failed to load content for file ${node.name}.`)
         }
       } catch (error) {
         console.error("Error handling file selection:", error)
-
         toast.error(`Could not load file ${node.name}. Please try again.`)
+        notesDispatch({ type: "SET_CURRENT_FILE_ID", fileId: null })
+        setCurrentFileHandle(null)
+        setMarkdownContent("")
       }
     },
     [
-      dispatch,
       vault,
-      vaultId,
-      loadFileContent,
+      currentVaultId,
+      currentFileId,
+      hasUnsavedChanges,
+      handleSave,
       storeHandle,
-      db,
-      addEssayTask,
-      processEssayEmbeddings,
-      setRestoredFile,
       updateDbFile,
-      loadFileMetadata,
+      loadFileContent,
+      db,
+      addTask,
+      processEssayEmbeddings,
+      notesDispatch,
     ],
   )
 
-  // Add the handler function (around line 500, with other handler functions)
   const handleVisibleContextNotesChange = useCallback((noteIds: string[]) => {
     setVisibleContextNoteIds(noteIds)
   }, [])
 
   const onContentChange = useCallback(
     async (value: string) => {
-      // Check if the content has changed compared to the saved content
       if (value !== contentRef.current.content) {
         setHasUnsavedChanges(true)
       }
-
-      // Always update the current content
       setMarkdownContent(value)
-
-      // Update preview with the new content using the debounced function
-      debouncedUpdatePreview(value)
+      updatePreview(value)
     },
-    [debouncedUpdatePreview, contentRef],
+    [updatePreview],
   )
 
-  // Effect to use preloaded file from context if available
-  useEffect(() => {
-    if (!restoredFile || fileRestorationAttempted.current) return
-
-    // Mark file as restored so we don't try again
-    fileRestorationAttempted.current = true
-
-    // Update preview immediately with the restored content
-    debouncedUpdatePreview(restoredFile.content)
-
-    // Create flags to track processing status
-    let embeddingProcessingStarted = false
-
-    // Set the initial states synchronously
-    setMarkdownContent(restoredFile.content)
-    dispatch({ type: "SET_CURRENT_FILE_ID", fileId: restoredFile.fileId })
-    setCurrentFileHandle(restoredFile.fileHandle)
-    setHasUnsavedChanges(false)
-
-    const loadFile = async () => {
-      // This will also set currentFileId via the loadFileContent function
-      const success = loadFileContent(
-        restoredFile.fileId,
-        restoredFile.fileHandle,
-        restoredFile.content,
-      )
-
-      // Use restoredFile.fileId directly instead of currentFileId
-      const targetFileId = restoredFile.fileId
-
-      if (success && targetFileId) {
-        try {
-          // Reset note states *before* loading new metadata
-          console.debug(
-            `[Notes Debug] Resetting notes state before loading metadata for ${targetFileId}`,
-          )
-
-          console.debug(`[Notes Debug] Loading metadata for restored file: ${targetFileId}`)
-          // Load file metadata to populate notes
-          await loadFileMetadata(targetFileId)
-          console.debug(`[Notes Debug] Metadata loaded for ${targetFileId}`)
-
-          // Log notes after metadata loading attempt
-          await logNotesForFile(db, targetFileId, vaultId, "After restoring file")
-
-          // Process essay embeddings for restored file (only if online)
-          // Use a small timeout to let the file load completely first
-          embeddingTimeoutRef.current = setTimeout(async () => {
-            try {
-              // Skip if processing has already started or if file is already processed
-              if (
-                embeddingProcessingStarted ||
-                essayEmbeddingProcessedRef.current === `${vaultId}:${targetFileId}`
-              )
-                return
-
-              // Mark as processing immediately
-              embeddingProcessingStarted = true
-              essayEmbeddingProcessedRef.current = `${vaultId}:${targetFileId}`
-
-              // Check if this file already has embeddings - use the target file ID
-              const hasEmbeddings = await checkFileHasEmbeddings(db, targetFileId)
-
-              if (!hasEmbeddings) {
-                console.debug(`[Debug] Processing embeddings for restored file ${targetFileId}`)
-                // Process essay embeddings asynchronously using the md content function
-                const content = md(restoredFile.content).content
-                processEssayEmbeddings.mutate({
-                  addTask: addEssayTask,
-                  currentContent: content,
-                  currentVaultId: vaultId,
-                  currentFileId: targetFileId,
-                })
-              }
-            } catch (error) {
-              console.error(`Error processing file data for ${targetFileId}:`, error)
-              // Reset flags on error to allow retrying
-              essayEmbeddingProcessedRef.current = null
-            }
-          }, 1000) // 1 second delay to ensure DB operations are ready
-        } catch (error) {
-          console.error(`Error loading file metadata for ${targetFileId}:`, error)
-        }
-      }
-    }
-
-    const loadingFile = setTimeout(loadFile, 1000)
-    // Cleanup timeout on unmount or if dependencies change
-    return () => {
-      if (embeddingTimeoutRef.current) {
-        clearTimeout(embeddingTimeoutRef.current)
-        clearTimeout(loadingFile)
-      }
-    }
-  }, [
-    dispatch,
-    vaultId,
-    restoredFile,
-    loadFileContent,
-    vault,
-    db,
-    processEssayEmbeddings,
-    addEssayTask,
-    debouncedUpdatePreview,
-    currentFileId,
-    loadFileMetadata,
-  ])
-
-  // Update the ref when dependencies change, but don't recreate the event listener
   useEffect(() => {
     keyHandlerRef.current = (event: KeyboardEvent) => {
-      // Special handling for settings shortcut - high priority
       if ((event.metaKey || event.ctrlKey) && event.key === ",") {
         event.preventDefault()
-        event.stopPropagation() // Stop event from bubbling up
+        event.stopPropagation()
         toggleSettings()
         return
       }
 
-      // Save shortcut should have priority
       if ((event.ctrlKey || event.metaKey) && event.key === "s") {
         event.preventDefault()
         event.stopPropagation()
@@ -835,7 +692,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
         return
       }
 
-      // Other keyboard shortcuts
       if (event.key === settings.toggleNotes && (event.metaKey || event.ctrlKey)) {
         event.preventDefault()
         toggleNotes()
@@ -846,18 +702,9 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
     }
   }, [handleSave, toggleNotes, settings.toggleNotes, settings.toggleEditMode, toggleSettings])
 
-  // Effect to update vimMode state when settings change
-  useEffect(() => {
-    // Only update vimMode if it differs from settings.vimMode
-    if (settings.vimMode !== vimMode) {
-      console.debug("Updating vim mode from settings")
-      setVimMode(settings.vimMode ?? false)
-    }
-  }, [settings.vimMode, vimMode])
-
   // Register vim commands separately to avoid type errors
   useEffect(() => {
-    if (vimMode) {
+    if (settings.vimMode) {
       // Register our vim commands for saving
       Vim.defineEx("w", "w", () => {
         handleSave()
@@ -876,71 +723,73 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
       Vim.unmap("jj", "insert")
       Vim.unmap("jk", "insert")
     }
-  }, [vimMode, handleSave])
+  }, [settings.vimMode, handleSave])
 
-  // Stable keyboard handler event listener setup
   useEffect(() => {
-    // Create a stable handler that uses the current ref value
     const stableHandler = (e: KeyboardEvent) => {
       keyHandlerRef.current?.(e)
     }
-
-    // Add event listener only once
-    console.debug("Registering keyboard handler")
+    console.debug("Registering global keydown handler")
     window.addEventListener("keydown", stableHandler, { capture: true })
-
-    // Clean up on unmount only
     return () => {
-      console.debug("Removing keyboard handler")
+      console.debug("Removing global keydown handler")
       window.removeEventListener("keydown", stableHandler, { capture: true })
     }
   }, [])
 
-  // Add an effect to update CodeMirror when vim mode changes
   useEffect(() => {
-    // Only run if CodeMirror view is available
     if (codeMirrorViewRef.current) {
-      console.debug("Updating CodeMirror vim mode")
-
-      // Instead of trying to query facets directly, just create a new state when mode changes
+      console.debug("[Editor] Syncing CodeMirror vim mode setting:", settings.vimMode)
       const newState = EditorState.create({
         doc: codeMirrorViewRef.current.state.doc,
         selection: codeMirrorViewRef.current.state.selection,
-        extensions: vimMode ? [...baseExtensions, vim()] : baseExtensions,
+        extensions: settings.vimMode ? [...baseExtensions, vim()] : baseExtensions,
       })
-
-      // Update the view with the new state
       codeMirrorViewRef.current.setState(newState)
     }
-  }, [vimMode, baseExtensions])
+  }, [settings.vimMode, baseExtensions])
 
   const noteGroupsData = useMemo(() => {
-    // Filter out current generation notes and dropped notes
     const currentGenerationNoteIds = new Set(currentGenerationNotes.map((note) => note.id))
     const droppedNoteIds = new Set(droppedNotes.map((note) => note.id))
 
-    // Filter out both current generation notes and dropped notes
+    // Filter notes: exclude dropped, exclude current generation, and ensure it's not marked as dropped in its properties
     const filteredNotes = notes.filter(
       (note) =>
-        !currentGenerationNoteIds.has(note.id) && !droppedNoteIds.has(note.id) && !note.dropped,
+        !droppedNoteIds.has(note.id) &&
+        !currentGenerationNoteIds.has(note.id) &&
+        !note.dropped, // Explicitly check the note's dropped status
     )
 
-    return groupNotesByDate(filteredNotes)
-  }, [droppedNotes, notes, currentGenerationNotes])
+    // Deduplicate based on ID *after* filtering
+    const uniqueNotes = Array.from(new Map(filteredNotes.map((note) => [note.id, note])).values())
 
-  // Update essay embedding status when tasks change
+    return groupNotesByDate(uniqueNotes)
+  }, [notes, droppedNotes, currentGenerationNotes])
+
   useEffect(() => {
-    if (essayEmbeddingTaskIds.length > 0) {
-      setEmbeddingStatus("in_progress")
-    } else if (dbFileState?.embeddingStatus) {
-      // When tasks complete, use the status from the database
-      setEmbeddingStatus(
-        dbFileState.embeddingStatus as "in_progress" | "success" | "failure" | "cancelled",
-      )
-    } else {
-      setEmbeddingStatus(null)
+    let newStatus: typeof embeddingStatus = null
+    if (
+      pendingTaskIds.length > 0 &&
+      pendingTaskIds.some((taskId) => dbFile?.embeddingTaskId === taskId)
+    ) {
+      newStatus = "in_progress"
+    } else if (dbFile?.embeddingStatus) {
+      newStatus = dbFile.embeddingStatus as "in_progress" | "success" | "failure" | "cancelled"
     }
-  }, [essayEmbeddingTaskIds, dbFileState?.embeddingStatus])
+    if (newStatus !== embeddingStatus) {
+      console.debug(
+        `[Editor] Updating embedding status UI to: ${newStatus} for file ${currentFileId}`,
+      )
+      setEmbeddingStatus(newStatus)
+    }
+  }, [
+    pendingTaskIds,
+    dbFile?.embeddingStatus,
+    dbFile?.embeddingTaskId,
+    currentFileId,
+    embeddingStatus,
+  ])
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -961,6 +810,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                 <NoteEmbeddingProcessor db={db} />
                 <EssayEmbeddingProcessor db={db} />
                 <AuthorProcessor db={db} />
+
                 <AnimatePresence initial={false}>
                   {showEphemeralBanner && (
                     <motion.div
@@ -985,8 +835,6 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     </motion.div>
                   )}
                 </AnimatePresence>
-
-                {/* Author processing indicator */}
                 <AnimatePresence initial={false}>
                   {isAuthorProcessing && (
                     <motion.div
@@ -1034,7 +882,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                   <DroppedNoteGroup
                     droppedNotes={droppedNotes}
                     isStackExpanded={isStackExpanded}
-                    onExpandStack={toggleStackExpand}
+                    onExpandStack={() => setIsStackExpanded((prev) => !prev)}
                     onDragBackToPanel={handleNoteDragBackToPanel}
                     className="before:mix-blend-multiply before:bg-noise-pattern"
                     visibleContextNoteIds={visibleContextNoteIds}
@@ -1070,7 +918,7 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                         height="100%"
                         autoFocus
                         placeholder={"What's on your mind?"}
-                        basicSetup={memoizedBasicSetup} // Use memoized object
+                        basicSetup={memoizedBasicSetup}
                         indentWithTab={true}
                         extensions={memoizedExtensions}
                         onChange={onContentChange}
@@ -1093,18 +941,18 @@ export default memo(function Editor({ vaultId, vaults }: EditorProps) {
                     </div>
                   </div>
                 </EditorDropTarget>
-                {showNotes && (
+                {showNotes && currentVaultId && (
                   <div className={cn("flex flex-col", showNotes ? "w-88 visible" : "w-0 hidden")}>
                     <NotesPanel
                       handleNoteDropped={handleNoteDropped}
                       handleNoteRemoved={handleNoteRemoved}
                       noteGroupsData={noteGroupsData}
                       droppedNotes={droppedNotes}
-                      fileId={currentFileId!}
-                      vaultId={vaultId}
+                      fileId={currentFileId}
+                      vaultId={currentVaultId}
                       markdownContent={markdownContent}
                       currentFileHandle={currentFileHandle}
-                      dbFile={dbFileState}
+                      dbFile={dbFile}
                     />
                   </div>
                 )}

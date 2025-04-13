@@ -18,12 +18,12 @@ import { usePGlite } from "@/context/db"
 import {
   initialVaultState,
   processDirectory,
+  reconstructTreeWithHandles,
   treeToDbTree,
   vaultReducer,
 } from "@/context/vault-reducer"
 import type { FlattenedFileMapping, VaultAction, VaultState } from "@/context/vault-reducer"
 
-import useDatabaseModels from "@/hooks/use-database-models"
 import useFsHandles from "@/hooks/use-fs-handles"
 
 import type { FileSystemTreeNode, Vault, VaultDb } from "@/db/interfaces"
@@ -35,7 +35,6 @@ const VAULT_IDS_KEY = "morph:vault-ids"
 type VaultContextType = VaultState & {
   setActiveVaultId: (id: string | null) => void
   getActiveVault: () => Vault | undefined
-  refreshVault: (vaultId: string) => Promise<void>
   addVault: (handle: FileSystemDirectoryHandle) => Promise<Vault | null>
 }
 
@@ -43,7 +42,6 @@ const VaultContext = createContext<VaultContextType>({
   ...initialVaultState,
   setActiveVaultId: () => {},
   getActiveVault: () => undefined,
-  refreshVault: async () => {},
   addVault: async () => null,
 })
 const VaultDispatchContext = createContext<Dispatch<VaultAction> | null>(null)
@@ -51,7 +49,6 @@ const VaultDispatchContext = createContext<Dispatch<VaultAction> | null>(null)
 export function VaultProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(vaultReducer, initialVaultState)
   const { storeHandle, getHandle } = useFsHandles()
-  const { dbVaultToRuntimeVault } = useDatabaseModels()
 
   const client = usePGlite()
   const db = useMemo(() => drizzle({ client, schema }), [client])
@@ -79,7 +76,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
 
   // Add a new vault
   const addVault = useCallback(
-    async (handle: FileSystemDirectoryHandle) => {
+    async (handle: FileSystemDirectoryHandle): Promise<Vault | null> => {
       try {
         const existing = state.vaults.find((v) => v.name === handle.name)
         if (existing) {
@@ -87,183 +84,126 @@ export function VaultProvider({ children }: { children: ReactNode }) {
 
           await db
             .update(schema.vaults)
-            .set({ lastOpened: new Date() })
+            .set({ lastOpened: updatedVault.lastOpened })
             .where(eq(schema.vaults.id, existing.id))
 
           dispatch({ type: "UPDATE_VAULT", vault: updatedVault })
+          setActiveVaultId(existing.id)
           return updatedVault
         }
 
-        // Process directory to build the tree
-        const tree = await processDirectory(handle, DEFAULT_SETTINGS.ignorePatterns)
+        const vaultId = createId()
+        const runtimeTree = await processDirectory(vaultId, handle, DEFAULT_SETTINGS.ignorePatterns)
 
-        // Store the directory handle in IndexedDB for the *generic handles* table
-        const treeHandleId = createId()
-        // Use storeHandle from the hook for the generic handles table
-        await storeHandle(treeHandleId, treeHandleId, "root", handle) // Pass "root" as id prefix
-
-        const addHandleIds = (node: FileSystemTreeNode) => {
+        const storeAllHandles = async (node: FileSystemTreeNode) => {
           if (node.handle) {
-            const nodeHandleId = createId()
-            // Store individual file/dir handles in the generic handles table
-            storeHandle(nodeHandleId, treeHandleId, node.id, node.handle).catch((err: any) =>
-              console.error("Error storing node handle:", err),
-            )
-            node.handleId = nodeHandleId
+            try {
+              await storeHandle(vaultId, node.id, node.handle)
+            } catch (err) {
+              console.error(`Error storing handle for ${node.path} (${node.id}):`, err)
+            }
           }
-          node.children?.forEach(addHandleIds)
+          if (node.children) {
+            await Promise.all(node.children.map(storeAllHandles))
+          }
         }
-        addHandleIds(tree)
 
-        // Convert tree to DB format (removing actual handles)
-        const dbTree = treeToDbTree(tree)
+        await storeAllHandles(runtimeTree)
 
-        // Add root tree handle reference
-        dbTree.handleId = treeHandleId
+        const dbTree = treeToDbTree(runtimeTree)
 
-        // Generate a unique ID hash for this vault to avoid namespace collisions
-        const uniqueHash = createId().slice(0, 6)
-        const rootPath = `${handle.name}-${uniqueHash}`
+        const rootPath = `/vaults/${vaultId}`
 
-        // Insert the new vault into database
-        const newVaultId = createId()
-
-        await db.insert(schema.vaults).values({
-          id: newVaultId,
+        const newVaultDbData = {
+          id: vaultId,
           name: handle.name,
           lastOpened: new Date(),
           tree: dbTree,
           settings: DEFAULT_SETTINGS,
           rootPath,
-        })
-
-        // The vault for state needs the actual handle
-        const newVault: Vault = {
-          id: newVaultId,
-          name: handle.name,
-          lastOpened: new Date(),
-          tree,
-          settings: DEFAULT_SETTINGS,
-          rootPath,
         }
 
-        dispatch({ type: "ADD_VAULT", vault: newVault })
+        await db.insert(schema.vaults).values(newVaultDbData)
 
-        // Update localStorage with the vault ids
-        const updatedVaultIds = [...state.vaults.map((v) => v.id), newVaultId]
+        const runtimeVault: Vault = {
+          ...newVaultDbData,
+          tree: runtimeTree,
+        }
+
+        dispatch({ type: "ADD_VAULT", vault: runtimeVault })
+        setActiveVaultId(vaultId)
+
+        const updatedVaultIds = [...state.vaults.map((v) => v.id), vaultId]
         localStorage.setItem(VAULT_IDS_KEY, JSON.stringify(updatedVaultIds))
 
-        return newVault
+        return runtimeVault
       } catch (error) {
         console.error("Error adding vault:", error)
         return null
       }
     },
-    [state.vaults, storeHandle, db],
-  )
-
-  // Refresh a vault's content
-  const refreshVault = useCallback(
-    async (vaultId: string) => {
-      const vault = state.vaults.find((v) => v.id === vaultId)
-      if (!vault) return
-
-      try {
-        let dirHandle: FileSystemDirectoryHandle | null = null
-
-        // Try to get the handle from the tree directly or from IndexedDB
-        if (vault.tree.handle) {
-          dirHandle = vault.tree.handle as FileSystemDirectoryHandle
-        } else if (vault.tree.handleId) {
-          const handle = await getHandle(vault.tree.handleId)
-          if (handle && handle.kind === "directory") {
-            dirHandle = handle as FileSystemDirectoryHandle
-          }
-        }
-
-        if (!dirHandle) {
-          console.error("Could not find directory handle for vault:", vaultId)
-          return
-        }
-
-        // Process the directory
-        const tree = await processDirectory(dirHandle, vault.settings.ignorePatterns)
-
-        // Update handle references
-        const addHandleIds = (node: FileSystemTreeNode) => {
-          if (node.handle) {
-            const nodeHandleId = createId()
-            // Use storeHandle from the hook for the generic handles table
-            storeHandle(nodeHandleId, vaultId, node.id, node.handle).catch((err) =>
-              console.error("Error storing node handle:", err),
-            )
-            node.handleId = nodeHandleId
-          }
-          node.children?.forEach(addHandleIds)
-        }
-        addHandleIds(tree)
-
-        // Get tree root handleId
-        const rootHandleId = vault.tree.handleId || createId()
-
-        // Store the root handle if needed
-        if (!vault.tree.handleId) {
-          await storeHandle(rootHandleId, vaultId, "root", dirHandle)
-        }
-
-        // Keep existing rootPath - no need to regenerate as it should be unique
-        const rootPath = vault.rootPath
-
-        // Convert to DB format
-        const dbTree = treeToDbTree(tree)
-        dbTree.handleId = rootHandleId
-
-        // Update the database
-        await db
-          .update(schema.vaults)
-          .set({
-            tree: dbTree,
-            rootPath,
-          })
-          .where(eq(schema.vaults.id, vaultId))
-
-        // Update the state with the full tree including handles
-        const updatedVault = { ...vault, tree, rootPath }
-        dispatch({ type: "UPDATE_VAULT", vault: updatedVault })
-      } catch (error) {
-        console.error("Error refreshing vault:", error)
-      }
-    },
-    [state.vaults, getHandle, storeHandle, db],
+    [state.vaults, storeHandle, db, setActiveVaultId],
   )
 
   // Load vaults from the database
   useEffect(() => {
     async function loadVaults() {
+      if (state.vaults.length > 0 || state.isLoading === false) {
+        return
+      }
       dispatch({ type: "SET_LOADING", isLoading: true })
 
       try {
-        const vaultIds = JSON.parse(localStorage.getItem(VAULT_IDS_KEY) || "[]")
-        if (vaultIds.length === 0) {
+        const vaultIdsJson = localStorage.getItem(VAULT_IDS_KEY)
+        if (!vaultIdsJson) {
+          dispatch({ type: "SET_LOADING", isLoading: false })
+          return
+        }
+        const vaultIds = JSON.parse(vaultIdsJson || "[]")
+        if (!Array.isArray(vaultIds) || vaultIds.length === 0) {
           dispatch({ type: "SET_LOADING", isLoading: false })
           return
         }
 
-        const vaultsList = await getAllVaults()
+        const vaultsListDb: VaultDb[] = await getAllVaults()
 
-        const hydratedVaultsList = await Promise.all(
-          vaultsList.map(async (dbVault: VaultDb) => {
-            return await dbVaultToRuntimeVault(dbVault)
-          }),
-        )
+        const hydratedVaultsPromises = vaultsListDb.map(async (dbVault) => {
+          try {
+            const runtimeTree = await reconstructTreeWithHandles(
+              dbVault.id,
+              dbVault.tree,
+              getHandle,
+            )
+            if (!runtimeTree) {
+              console.error(`Failed to reconstruct tree for vault ${dbVault.id}`)
+              return null
+            }
+            return {
+              ...dbVault,
+              tree: runtimeTree,
+            } as Vault
+          } catch (reconError) {
+            console.error(`Error reconstructing vault ${dbVault.id}:`, reconError)
+            return null
+          }
+        })
 
-        const validVaults = hydratedVaultsList.filter(Boolean) as Vault[]
-        dispatch({ type: "SET_VAULTS", vaults: validVaults })
+        const hydratedVaultsList = (await Promise.all(hydratedVaultsPromises)).filter(
+          Boolean,
+        ) as Vault[]
 
-        // Set previously active vault if it exists
+        dispatch({ type: "SET_VAULTS", vaults: hydratedVaultsList })
+
         const lastActiveId = localStorage.getItem("morph:active-vault")
-        if (lastActiveId && validVaults.some((v) => v.id === lastActiveId)) {
+        if (lastActiveId && hydratedVaultsList.some((v) => v.id === lastActiveId)) {
           dispatch({ type: "SET_ACTIVE_VAULT_ID", id: lastActiveId })
+        } else if (hydratedVaultsList.length > 0) {
+          const firstVaultId = hydratedVaultsList[0].id
+          dispatch({ type: "SET_ACTIVE_VAULT_ID", id: firstVaultId })
+          localStorage.setItem("morph:active-vault", firstVaultId)
+        } else {
+          dispatch({ type: "SET_ACTIVE_VAULT_ID", id: null })
+          localStorage.removeItem("morph:active-vault")
         }
       } catch (error) {
         console.error("Error loading vaults:", error)
@@ -272,10 +212,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    if (state.vaults.length === 0) {
-      loadVaults()
-    }
-  }, [getAllVaults, dbVaultToRuntimeVault, state.vaults.length])
+    loadVaults()
+  }, [getAllVaults, getHandle, state.vaults.length, state.isLoading])
 
   // Create a memoized value for the context
   const vaultState = useMemo(
@@ -283,11 +221,9 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       ...state,
       setActiveVaultId,
       getActiveVault,
-      refreshVault,
       addVault,
-      dispatch,
     }),
-    [state, setActiveVaultId, getActiveVault, refreshVault, addVault],
+    [state, setActiveVaultId, getActiveVault, addVault],
   )
 
   return (
@@ -297,6 +233,20 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   )
 }
 
-export const useVaultContext = () => useContext(VaultContext)
+export const useVaultContext = () => {
+  const context = useContext(VaultContext)
+  if (context === undefined) {
+    throw new Error("useVaultContext must be used within a VaultProvider")
+  }
+  return context
+}
+
+export const useVaultDispatch = () => {
+  const dispatch = useContext(VaultDispatchContext)
+  if (dispatch === null) {
+    throw new Error("useVaultDispatch must be used within a VaultProvider")
+  }
+  return dispatch
+}
 
 export type { FlattenedFileMapping }

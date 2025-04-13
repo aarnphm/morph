@@ -34,7 +34,6 @@ export type NotesAction =
   | { type: "SET_NOTES_ERROR"; error: string | null }
   | { type: "SET_LAST_NOTES_GENERATED_TIME"; time: Date | null }
   | { type: "SET_DB_FILE"; dbFile: typeof schema.files.$inferSelect | null }
-  | { type: "FORCE_REFRESH" }
 
 // Define the state interface for the notes reducer
 export interface NotesState {
@@ -315,6 +314,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
             const reasoningRecords = await db.query.reasonings.findMany({
               where: (reasoning, { and, eq }) =>
                 and(eq(reasoning.fileId, dbFile.id), eq(reasoning.vaultId, state.currentVaultId!)),
+              orderBy: (reasonings, { desc }) => [desc(reasonings.createdAt)],
             })
 
             if (reasoningRecords && reasoningRecords.length > 0) {
@@ -336,6 +336,21 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
                 type: "SET_REASONING_HISTORY",
                 reasoningHistory: formattedReasoningHistory,
               })
+
+              // Also set the current reasoning ID to the most recent reasoning ID
+              // This ensures we maintain the reasoning context when switching files
+              if (formattedReasoningHistory.length > 0) {
+                const mostRecentReasoning = formattedReasoningHistory[0]
+                console.debug(
+                  `[Notes Debug] Setting current reasoning ID to ${mostRecentReasoning.id} for file ${fileId}`,
+                )
+                dispatch({ type: "SET_CURRENT_REASONING_ID", reasoningId: mostRecentReasoning.id })
+
+                // Sort reasoning history by timestamp to ensure the most recent appears first
+                formattedReasoningHistory.sort(
+                  (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+                )
+              }
             }
           }
         } catch (error) {
@@ -399,11 +414,15 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "REMOVE_NOTE", noteId })
   }, [])
 
-  // Set current file and vault IDs, and clear notes when they change
+  // Set current file and vault IDs, and save current state before clearing
   useEffect(() => {
+    // We don't want to clear notes immediately when changing files
+    // Instead, we want to save the current state if needed, then load the new state
     if (!state.currentFileId || !state.currentVaultId) {
-      // Clear notes when file/vault is unset
+      console.debug("[Notes Debug] File or vault ID is null, preparing to clear notes")
+      // Only clear notes when file/vault is unset (but not during normal file switching)
       if (state.notes.length > 0 || state.droppedNotes.length > 0) {
+        console.debug("[Notes Debug] Clearing notes since file/vault is unset")
         dispatch({ type: "CLEAR_NOTES" })
       }
     }

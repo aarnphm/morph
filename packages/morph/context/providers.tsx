@@ -6,106 +6,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { AnimatePresence, motion } from "motion/react"
 import type React from "react"
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useState } from "react"
 
 import PixelatedLoading from "@/components/landing/pixelated-loading"
 
 import { AuthorTasksProvider } from "@/context/authors"
 import { MorphPgLite, PGliteProvider } from "@/context/db"
 import { EmbeddingProvider } from "@/context/embedding"
-import { FileRestorationProvider, useRestoredFile } from "@/context/file-restoration"
 import { NotesProvider } from "@/context/notes"
 import { ThemeProvider } from "@/context/theme"
 import { VaultProvider } from "@/context/vault"
-import { verifyHandle } from "@/context/vault-reducer"
 
-import useFsHandles from "@/hooks/use-fs-handles"
 import { SettingsProvider } from "@/hooks/use-persisted-settings"
 
-interface ClientProviderProps {
-  children: React.ReactNode
-}
-
-// Helper function to attempt file restoration
-async function restoreLastFile(vaultId: string, getHandle: any) {
-  try {
-    const lastFileInfoStr = localStorage.getItem(`morph:last-file:${vaultId}`)
-    if (!lastFileInfoStr) {
-      return null
-    }
-
-    const lastFileInfo = JSON.parse(lastFileInfoStr)
-
-    if (!lastFileInfo.handleId) {
-      return null
-    }
-
-    const handle = await getHandle(lastFileInfo.handleId)
-    if (!handle || !("getFile" in handle)) {
-      return null
-    }
-
-    // Verify handle is valid
-    const isValid = await verifyHandle(handle)
-    if (!isValid) {
-      return null
-    }
-
-    // Get file and content
-    const fileHandle = handle as FileSystemFileHandle
-    const file = await fileHandle.getFile()
-
-    return {
-      file,
-      fileHandle,
-      content: await file.text(),
-      handleId: lastFileInfo.handleId,
-      fileId: lastFileInfo.fileId || "",
-    }
-  } catch (error) {
-    console.error("Error pre-loading file:", error)
-    return null
-  }
-}
-
-// Component that handles file preloading - exported to be used in vault-specific routes
-export function FilePreloader() {
-  const { getHandle } = useFsHandles()
-  const { setRestoredFile, setIsRestorationAttempted } = useRestoredFile()
-  const fileRestorationRef = useRef<boolean>(false)
-
-  useEffect(() => {
-    if (fileRestorationRef.current) return
-    fileRestorationRef.current = true
-
-    async function preloadFile() {
-      try {
-        // Get active vault from localStorage
-        const activeVaultId = localStorage.getItem("morph:active-vault")
-        if (activeVaultId) {
-          // Try to restore file for the active vault
-          const restoredFile = await restoreLastFile(activeVaultId, getHandle)
-
-          if (restoredFile) {
-            // We successfully preloaded a file
-            setRestoredFile(restoredFile)
-          }
-        }
-      } catch (fileError) {
-        console.error("Error during file preloading:", fileError)
-      } finally {
-        // Mark file restoration as attempted
-        setIsRestorationAttempted(true)
-      }
-    }
-
-    preloadFile()
-  }, [getHandle, setRestoredFile, setIsRestorationAttempted])
-
-  return null
-}
-
-export default memo(function ClientProvider({ children }: ClientProviderProps) {
+export default memo(function ClientProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useMemo(() => new QueryClient(), [])
   const [db, setDb] = useState<MorphPgLite | undefined>()
   const [isDbLoading, setIsDbLoading] = useState(true)
@@ -180,26 +94,22 @@ export default memo(function ClientProvider({ children }: ClientProviderProps) {
           <motion.div {...motionProps}>
             <PGliteProvider db={db}>
               <QueryClientProvider client={queryClient}>
-                <FileRestorationProvider>
-                  <EmbeddingProvider>
-                    <AuthorTasksProvider>
-                      <VaultProvider>
-                        <SettingsProvider>
-                          <ThemeProvider
-                            attribute="class"
-                            defaultTheme="system"
-                            enableSystem
-                            disableTransitionOnChange
-                          >
-                            <NotesProvider>
-                              {children}
-                            </NotesProvider>
-                          </ThemeProvider>
-                        </SettingsProvider>
-                      </VaultProvider>
-                    </AuthorTasksProvider>
-                  </EmbeddingProvider>
-                </FileRestorationProvider>
+                <EmbeddingProvider>
+                  <AuthorTasksProvider>
+                    <VaultProvider>
+                      <SettingsProvider>
+                        <ThemeProvider
+                          attribute="class"
+                          defaultTheme="system"
+                          enableSystem
+                          disableTransitionOnChange
+                        >
+                          <NotesProvider>{children}</NotesProvider>
+                        </ThemeProvider>
+                      </SettingsProvider>
+                    </VaultProvider>
+                  </AuthorTasksProvider>
+                </EmbeddingProvider>
                 <ReactQueryDevtools
                   initialIsOpen={false}
                   buttonPosition="bottom-left"

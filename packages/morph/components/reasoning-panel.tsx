@@ -134,30 +134,6 @@ export const ReasoningPanel = memo(function ReasoningPanel({
     }
   }, [isStreaming, isComplete, reasoning, vaultId, reasoningId, db])
 
-  // Auto-scroll to bottom when content changes and panel is expanded
-  useEffect(() => {
-    if (isExpanded && reasoningRef.current && isStreaming) {
-      // Use a more gentle scrolling approach
-      const element = reasoningRef.current
-      const currentScrollTop = element.scrollTop
-      const targetScrollTop = element.scrollHeight - element.clientHeight
-
-      // Only scroll if not already at the bottom
-      if (targetScrollTop - currentScrollTop > 5) {
-        // Use a simple smooth scroll that won't interfere with other interactions
-        element.style.scrollBehavior = "smooth"
-        element.scrollTop = targetScrollTop
-
-        // Reset scroll behavior after animation completes
-        const resetTimer = setTimeout(() => {
-          element.style.scrollBehavior = "auto"
-        }, 300)
-
-        return () => clearTimeout(resetTimer)
-      }
-    }
-  }, [reasoning, isExpanded, isStreaming])
-
   // Notify parent component about expand state changes via callback
   const toggleExpand = useCallback(() => {
     const newExpandState = !isExpanded
@@ -200,13 +176,11 @@ export const ReasoningPanel = memo(function ReasoningPanel({
         elapsedTime={elapsedTime}
         toggleExpand={toggleExpand}
       />
-
-      {/* TODO: make the whole current notes panel scrollable */}
       {isExpanded && reasoning && (
         <div
           ref={reasoningRef}
           className={cn(
-            "whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden max-h-168 transition-all duration-500 ease-in-out",
+            "whitespace-pre-wrap ml-2 p-2 border-l-2 border-muted overflow-y-auto scrollbar-hidden transition-all duration-500 ease-in-out",
             "text-xs text-muted-foreground",
             isExpanded ? "opacity-100 h-auto" : "opacity-0 h-0",
           )}

@@ -48,7 +48,7 @@ export function SearchProvider({ children, vault }: { children: React.ReactNode;
     // Create a document index with proper configuration for FlexSearch 0.8
     return new Document({
       tokenize: "forward",
-      encode: encode,
+      encode,
       document: {
         id: "id",
         index: ["title", "path"],

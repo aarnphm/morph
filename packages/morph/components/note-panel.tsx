@@ -30,7 +30,7 @@ import {
   TemperatureSlider,
   TonalityRadar,
 } from "@/components/steering-panel"
-import { VaultButton } from "@/components/ui/button"
+import { IconButton, VaultButton } from "@/components/ui/button"
 
 import { usePGlite } from "@/context/db"
 import { useEmbeddingTasks } from "@/context/embedding"
@@ -43,7 +43,7 @@ import * as schema from "@/db/schema"
 
 interface NotesPanelProps {
   droppedNotes: Note[]
-  fileId: string
+  fileId: string | null
   vaultId: string
   noteGroupsData: [string, Note[]][]
   handleNoteDropped: (note: Note) => void
@@ -116,9 +116,18 @@ const HistoricalNotes = memo(function HistoricalNotes({
           const [dateStr, dateNotes] = group
 
           // Only handle historical notes now
-          const dateReasoning = reasoningHistory.find((r) =>
+          // First try to find exact matching reasoning by note IDs
+          let dateReasoning = reasoningHistory.find((r) =>
             r.noteIds.some((id: string) => dateNotes.some((note: Note) => note.id === id)),
           )
+
+          // If no matching reasoning is found by note IDs, try to match by date for restored files
+          if (!dateReasoning && dateNotes.length > 0) {
+            const noteDate = new Date(dateNotes[0].createdAt).toDateString()
+            dateReasoning = reasoningHistory.find(
+              (r) => new Date(r.timestamp).toDateString() === noteDate,
+            )
+          }
 
           return (
             <div className="mb-6">
@@ -263,48 +272,42 @@ export const DriversBar = memo(function DriversBar({
     handleGenerateNewSuggestions(settings)
   }, [handleGenerateNewSuggestions, settings])
 
+  const toggleInterpreterPanel = useCallback(() => {
+    setIsSteeringExpanded((prev) => !prev)
+  }, [])
+
   return (
     <div className="flex flex-col border-t bg-background/95 backdrop-blur-sm shadow-md z-10 relative">
       {isSteeringExpanded && (
         <div className="px-4 pb-2 overflow-hidden border-b border-border">
           <div className="pt-4 flex justify-between items-center">
             <h2 className="text-base font-semibold">Interpreter</h2>
-            <button
-              onClick={() => setIsSteeringExpanded(false)}
-              className="flex items-center justify-center h-5 w-5 hover:bg-muted rounded-sm"
-            >
-              <Cross2Icon className="h-3 w-3" />
-            </button>
+            <IconButton
+              onClick={toggleInterpreterPanel}
+              renderChildren={(className) => <Cross2Icon className={cn(className)} />}
+            />
           </div>
 
-          <div className="space-y-6 pt-4 max-h-[60vh] overflow-y-auto pr-2">
-            <div className="pb-4 border-b border-border">
-              <AuthorsSelector
-                value={settings.authors}
-                onChange={handleUpdateAuthors}
-                markdownContent={markdownContent}
-              />
-            </div>
+          <div className="space-y-6 pt-4 max-h-[60vh] overflow-y-auto">
+            <AuthorsSelector
+              value={settings.authors}
+              onChange={handleUpdateAuthors}
+              markdownContent={markdownContent}
+            />
 
-            <div className="pb-4 border-b border-border">
-              <TonalityRadar
-                value={settings.tonality}
-                onChange={handleUpdateTonality}
-                enabled={settings.tonalityEnabled}
-                onToggle={handleToggleTonality}
-              />
-            </div>
+            <TonalityRadar
+              value={settings.tonality}
+              onChange={handleUpdateTonality}
+              enabled={settings.tonalityEnabled}
+              onToggle={handleToggleTonality}
+            />
 
-            <div className="pb-4 border-b border-border">
-              <TemperatureSlider value={settings.temperature} onChange={handleUpdateTemperature} />
-            </div>
+            <TemperatureSlider value={settings.temperature} onChange={handleUpdateTemperature} />
 
-            <div>
-              <SuggestionsSlider
-                value={settings.numSuggestions}
-                onChange={handleUpdateNumSuggestions}
-              />
-            </div>
+            <SuggestionsSlider
+              value={settings.numSuggestions}
+              onChange={handleUpdateNumSuggestions}
+            />
           </div>
         </div>
       )}
@@ -392,6 +395,8 @@ export const NotesPanel = memo(function NotesPanel({
     initialDbFile || null,
   )
   const notesContainerRef = useRef<HTMLDivElement>(null)
+  const userScrolledUpRef = useRef(false) // Tracks if user scrolled away from bottom
+  const isInitialLoad = useRef(true) // Differentiates initial load from user-triggered generation
 
   // Track settings changes with a ref to detect actual value changes
   const prevSettingsRef = useRef(settings)
@@ -425,8 +430,8 @@ export const NotesPanel = memo(function NotesPanel({
                 })) || null
             }
 
-            if (!currentDbFile) {
-              console.error("Failed to find file in database when saving notes on unmount")
+            if (!currentDbFile || !currentDbFile.vaultId) {
+              console.error("Failed to find file or vaultId in database when saving notes on unmount")
               return
             }
 
@@ -436,7 +441,7 @@ export const NotesPanel = memo(function NotesPanel({
                 where: eq(schema.notes.id, note.id),
               })
 
-              if (!existingNote) {
+              if (!existingNote && fileId && vaultId) { // Add null checks for fileId and vaultId
                 console.debug(`[NotesPanel] Saving note ${note.id} to DB on unmount`)
 
                 await db.insert(schema.notes).values({
@@ -446,9 +451,9 @@ export const NotesPanel = memo(function NotesPanel({
                   accessedAt: new Date(),
                   dropped: note.dropped ?? false,
                   fileId: currentDbFile.id,
-                  vaultId: note.vaultId || vaultId,
-                  reasoningId: note.reasoningId || undefined,
-                  steering: note.steering || undefined,
+                  vaultId: currentDbFile.vaultId,
+                  reasoningId: note.reasoningId || null,
+                  steering: note.steering || null,
                   embeddingStatus: "in_progress",
                   embeddingTaskId: null,
                 })
@@ -898,6 +903,15 @@ export const NotesPanel = memo(function NotesPanel({
         return
       }
 
+      // Scroll to top when starting a new generation
+      if (notesContainerRef.current) {
+        notesContainerRef.current.scrollTop = 0
+      }
+
+      // Reset scroll lock *before* setting loading state
+      userScrolledUpRef.current = false
+      isInitialLoad.current = false
+
       // Move current generation notes to history by adding them to notes array
       if (currentGenerationNotes && currentGenerationNotes.length > 0) {
         console.debug(
@@ -918,7 +932,7 @@ export const NotesPanel = memo(function NotesPanel({
       // Clear current generation notes before starting new generation
       dispatch({ type: "SET_CURRENT_GENERATION_NOTES", notes: [] })
       dispatch({ type: "SET_NOTES_ERROR", error: null })
-      // Update loading state
+      // Update loading state *after* resetting scroll lock
       dispatch({ type: "SET_IS_NOTES_LOADING", loading: true })
       dispatch({ type: "SET_STREAMING_REASONING", reasoning: "" })
       dispatch({ type: "SET_REASONING_COMPLETE", complete: false })
@@ -1069,9 +1083,9 @@ export const NotesPanel = memo(function NotesPanel({
                     accessedAt: new Date(),
                     dropped: note.dropped ?? false,
                     fileId: currentDbFile!.id,
-                    vaultId: note.vaultId || vaultId || "",
-                    reasoningId: note.reasoningId || undefined,
-                    steering: note.steering || undefined,
+                    vaultId,
+                    reasoningId: note.reasoningId || null,
+                    steering: note.steering || null,
                     embeddingStatus: "in_progress",
                     embeddingTaskId: null,
                   })
@@ -1232,6 +1246,56 @@ export const NotesPanel = memo(function NotesPanel({
     [dispatch, currentGenerationNotes, notes],
   )
 
+  // Effect to detect user scrolling away from the bottom
+  useEffect(() => {
+    const element = notesContainerRef.current
+    if (!element) return
+
+    let scrollTimeout: NodeJS.Timeout | null = null
+
+    const handleScroll = () => {
+      if (scrollTimeout) clearTimeout(scrollTimeout)
+
+      scrollTimeout = setTimeout(() => {
+        // Check if scrolled up from bottom (with a 10px buffer)
+        const isAtBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 10
+        if (!isAtBottom) {
+          userScrolledUpRef.current = true
+        } else {
+          // Optional: Reset if user scrolls back to bottom
+          // userScrolledUpRef.current = false;
+        }
+      }, 100) // Debounce scroll check slightly
+    }
+
+    element.addEventListener("scroll", handleScroll, { passive: true })
+    return () => {
+      if (scrollTimeout) clearTimeout(scrollTimeout)
+      element.removeEventListener("scroll", handleScroll)
+    }
+  }, [notesContainerRef])
+
+  // Effect for auto-scrolling down during generation
+  useEffect(() => {
+    const element = notesContainerRef.current
+    if (!element) return
+
+    // Conditions when the generation/reasoning section is likely active and growing
+    const shouldBeVisible = isNotesLoading || (!scanAnimationComplete && reasoningComplete)
+
+    if (shouldBeVisible && !userScrolledUpRef.current) {
+      // Scroll down smoothly as content arrives
+      element.scrollTo({ top: element.scrollHeight, behavior: "smooth" })
+    }
+  }, [
+    isNotesLoading,
+    reasoningComplete,
+    scanAnimationComplete,
+    streamingReasoning, // Trigger scroll when reasoning updates
+    streamingNotes, // Trigger scroll when streaming notes update
+    notesContainerRef,
+  ])
+
   return (
     <div
       ref={dropRef}
@@ -1248,7 +1312,6 @@ export const NotesPanel = memo(function NotesPanel({
             ref={notesContainerRef}
           >
             <ErrorDisplay error={notesError} />
-            {/* Only show current generation section if there are active notes in it */}
             {!notesError &&
               currentlyGeneratingDateKey &&
               (isNotesLoading ||
@@ -1266,7 +1329,7 @@ export const NotesPanel = memo(function NotesPanel({
                       isComplete={reasoningComplete}
                       vaultId={vaultId}
                       reasoningId={currentReasoningId}
-                      shouldExpand={isNotesLoading || currentGenerationNotes.length > 0}
+                      shouldExpand={isNotesLoading}
                       elapsedTime={currentReasoningElapsedTime}
                     />
                   </div>
@@ -1290,7 +1353,7 @@ export const NotesPanel = memo(function NotesPanel({
                               content: note.content,
                               color: generatePastelColor(),
                               fileId,
-                              vaultId: vaultId,
+                              vaultId,
                               createdAt: new Date(),
                               embeddingStatus: "in_progress" as const,
                               embeddingTaskId: null,
@@ -1302,8 +1365,6 @@ export const NotesPanel = memo(function NotesPanel({
                         ))}
                       </div>
                     )}
-
-                  {/* Show actual generated notes when complete */}
                   {!isNotesLoading &&
                     scanAnimationComplete &&
                     currentGenerationNotes.length > 0 &&

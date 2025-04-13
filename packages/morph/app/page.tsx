@@ -22,7 +22,6 @@ export default function LandingPage() {
 
   return (
     <div className="relative h-screen w-full bg-background flex flex-col items-center justify-center noise-bg">
-      {/* Only render the scene when not on mobile */}
       <div className="w-full h-full absolute inset-0">{!isMobile && <PixelatedScene />}</div>
       <div className="absolute bottom-4 right-4 z-10">
         <div className="relative">

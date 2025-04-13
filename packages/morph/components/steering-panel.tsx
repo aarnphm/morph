@@ -20,6 +20,8 @@ import { useNotesContext } from "@/context/notes"
 
 import * as schema from "@/db/schema"
 
+import { IconButton } from "./ui/button"
+
 interface AuthorsSelectorProps {
   value: string[]
   onChange: (authors: string[]) => void
@@ -188,7 +190,9 @@ export function AuthorsSelector({
 
   const handleKeyPress = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") {
+      if (e.key === "Escape") {
+        setIsAdding(false)
+      } else if (e.key === "Enter") {
         handleAddAuthor()
       }
     },
@@ -200,47 +204,36 @@ export function AuthorsSelector({
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-foreground">Authors</label>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 hover:cursor-pointer"
+          <IconButton
+            title="Auto-infer authors from document"
             onClick={handleInferAuthors}
             disabled={isInferring || isPending}
-            title="Auto-infer authors from document"
-          >
-            <MagicWandIcon className={cn("h-3 w-3", isInferring && "animate-pulse")} />
-            {isInferring && <span className="text-xs">Inferring...</span>}
-          </button>
-          <button
-            type="button"
-            className={cn(
-              "text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 hover:cursor-pointer",
-              (isInferring || isPending) && "opacity-50 cursor-not-allowed",
+            renderChildren={(className) => (
+              <MagicWandIcon className={cn(className, isInferring && "animate-pulse")} />
             )}
+          />
+          <IconButton
+            title="Save as pending authors"
             onClick={handleSavePendingAuthors}
             disabled={isInferring || isPending}
-            title="Save as pending authors"
-          >
-            <CheckIcon className={cn("h-3 w-3", isPending && "animate-pulse")} />
-            {isPending && <span className="text-xs">Saving...</span>}
-          </button>
-          <button
-            type="button"
-            className={cn(
-              "text-xs text-muted-foreground hover:text-foreground  hover:cursor-pointer",
-              (isInferring || isPending) && "opacity-50 cursor-not-allowed",
+            className={cn((isInferring || isPending) && "opacity-50 cursor-not-allowed")}
+            renderChildren={(className) => (
+              <CheckIcon className={cn(className, isPending && "animate-pulse")} />
             )}
+          />
+          <IconButton
+            title="Add author"
             onClick={() => setIsAdding(true)}
             disabled={isInferring || isPending}
-          >
-            <PlusIcon className="h-3 w-3" />
-          </button>
+            className={cn((isInferring || isPending) && "opacity-50 cursor-not-allowed")}
+            renderChildren={(className) => <PlusIcon className={cn(className)} />}
+          />
         </div>
       </div>
-
       {isAdding && !isInferring && !isPending && (
         <div className="flex items-center gap-2">
           <Input
-            className="h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+            className="h-6 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
             type="text"
             value={newAuthor}
             onChange={(e) => setNewAuthor(e.target.value)}
@@ -248,13 +241,13 @@ export function AuthorsSelector({
             placeholder="Add author"
             autoFocus
           />
-          <button
-            type="button"
+          <IconButton
+            title="Add author"
             onClick={handleAddAuthor}
-            className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground"
-          >
-            Add
-          </button>
+            disabled={isInferring || isPending}
+            className={cn((isInferring || isPending) && "opacity-50 cursor-not-allowed")}
+            renderChildren={(className) => <PlusIcon className={cn(className)} />}
+          />
         </div>
       )}
 
@@ -268,7 +261,10 @@ export function AuthorsSelector({
             <button
               type="button"
               onClick={() => handleRemoveAuthor(index)}
-              className={cn("hover:text-primary", isInferring && "opacity-50 cursor-not-allowed")}
+              className={cn(
+                "hover:text-primary hover:cursor-pointer",
+                isInferring && "opacity-50 cursor-not-allowed",
+              )}
               disabled={isInferring}
             >
               <Cross2Icon className="h-3 w-3" />

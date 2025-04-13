@@ -4,6 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 import { memo } from "react"
+import type { IconProps } from "@radix-ui/react-icons/dist/types"
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[color,box-shadow] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 ring-ring/10 dark:ring-ring/20 dark:outline-ring/40 outline-ring/50 focus-visible:ring-4 focus-visible:outline-1 aria-invalid:focus-visible:ring-0 hover:cursor-pointer",
@@ -110,4 +111,29 @@ const VaultButton = memo(function VaultButton({
   );
 })
 
-export { Button, buttonVariants, VaultButton, vaultButtonVariants }
+type IconButtonProps = {
+  renderChildren: (className: string) => React.ReactNode
+  asChild?: boolean
+} & React.ComponentProps<"button">
+
+const IconButton = memo(function IconButton({
+  renderChildren,
+  className,
+  asChild = false,
+  ...props
+}: IconButtonProps) {
+  const Comp = asChild ? Slot : "button"
+  return (
+    <Comp
+      className={cn(
+        "text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 hover:cursor-pointer",
+        className,
+      )}
+      {...props}
+    >
+        {renderChildren('h-3 w-3')}
+    </Comp>
+  )
+})
+
+export { Button, buttonVariants, VaultButton, vaultButtonVariants, IconButton }

@@ -67,6 +67,7 @@
     "dexie-react-hooks": "^1.1.7",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.41.0",
+    "drizzle-zod": "^0.7.1",
     "flexsearch": "^0.8.149",
     "glsl-random": "^0.0.5",
     "gray-matter": "^4.0.3",
@@ -157,12 +158,14 @@
     "eslint-config-next": "15.2.2",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-drizzle": "^0.2.3",
+    "generator-code": "^1.11.8",
     "micromark-util-types": "^2.0.2",
     "postcss": "^8.5.3",
     "react-scan": "^0.3.3",
     "tailwindcss": "^4.1.1",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
-    "typescript-eslint": "^8.29.0"
+    "typescript-eslint": "^8.29.0",
+    "yo": "^5.1.0"
   }
 }

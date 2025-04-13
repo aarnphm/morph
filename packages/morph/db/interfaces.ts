@@ -34,11 +34,10 @@ export interface FileSystemTreeNodeDb {
   name: string
   extension: string
   kind: "file" | "directory"
-  id: string
-  handleId?: string
+  id: string // Persistent path-based ID (e.g., vaultId:/path/to/item)
   children?: FileSystemTreeNodeDb[]
   isOpen?: boolean
-  path: string
+  path: string // Relative path within the vault
 }
 
 // This is the runtime version with actual handles
@@ -73,7 +72,7 @@ export interface FileIndex {
   extension: string
   vaultId: string
   embeddingStatus: Note["embeddingStatus"]
-  embeddingtaskId?: Note["embeddingTaskId"]
+  embeddingTaskId?: Note["embeddingTaskId"]
 }
 
 // DB version of reference
@@ -81,14 +80,13 @@ export interface ReferenceDb {
   id: string
   vaultId: string
   fileId: string
-  handleId: string
   format: "biblatex" | "csl-json"
   path: string
   lastModified: Date
 }
 
 // Runtime version of reference
-export interface Reference extends Omit<ReferenceDb, "handleId"> {
+export interface Reference extends ReferenceDb {
   handle: FileSystemFileHandle
 }
 
